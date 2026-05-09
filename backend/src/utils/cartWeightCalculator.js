@@ -38,7 +38,7 @@ function calculateCartWeight(cartItems) {
 /**
  * Get weight of a single item
  * @param {Object} item - Cart item object
- * @returns {number} Weight in kg
+ * @returns {number} Weight in kg (defaults to 0.5kg if not specified)
  */
 function getItemWeight(item) {
   if (item?.weight && typeof item.weight === "object") {
@@ -63,33 +63,21 @@ function getItemWeight(item) {
     return product.weight;
   }
 
-  throw new AppError(
-    `Product ${product.name || product._id} does not have valid weight. Weight must be > 0kg`,
-    400,
-    "MISSING_PRODUCT_WEIGHT"
+  // Default weight for products without weight specified (0.5kg)
+  console.warn(
+    `Product ${product.name || product._id} does not have weight defined. Using default weight of 0.5kg`
   );
+  return 0.5;
 }
 
 /**
- * Validate that all items have weight
+ * Validate that cart has items
  * @param {Array} cartItems - Array of cart items
- * @throws {AppError} If any item is missing weight
+ * @throws {AppError} If cart is empty
  */
 function validateAllItemsHaveWeight(cartItems) {
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
     throw new AppError("Cart is empty", 400, "EMPTY_CART");
-  }
-
-  for (const item of cartItems) {
-    try {
-      getItemWeight(item);
-    } catch (error) {
-      throw new AppError(
-        `Item validation failed: ${error.message}`,
-        400,
-        "ITEM_WEIGHT_VALIDATION_FAILED"
-      );
-    }
   }
 }
 

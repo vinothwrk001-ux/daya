@@ -12,9 +12,9 @@ const registerSchema = Joi.object({
     "string.pattern.base": "Phone number must be exactly 10 digits",
   }),
   password: Joi.string().min(6).max(128).required(),
-  role: Joi.string().valid("user", "vendor").default("user"),
+  role: Joi.string().valid("user", "vendor", "influencer").default("user"),
 }).custom((value, helpers) => {
-  if (value.role === "vendor") {
+  if (["vendor", "influencer"].includes(value.role)) {
     if (!value.email) return helpers.error("any.custom", { message: "Email is required for vendors" });
   }
   return value;

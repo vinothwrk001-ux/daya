@@ -1,8 +1,15 @@
+import { Trash2 } from "lucide-react";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { formatWeight, getWeightUnit, getWeightValue } from "../../utils/weight";
 
-export function OrderSummaryCard({ item, onQuantityChange, busy = false, editable = true }) {
+export function OrderSummaryCard({
+  item,
+  onQuantityChange,
+  onRemove,
+  busy = false,
+  editable = true,
+}) {
   const itemTotal = Number(item?.price || 0) * Number(item?.quantity || 0);
   const unitWeight = getWeightValue(item);
   const weightUnit = getWeightUnit(item);
@@ -54,6 +61,19 @@ export function OrderSummaryCard({ item, onQuantityChange, busy = false, editabl
                 Qty: {item?.quantity || 1}
               </div>
             )}
+
+            {editable ? (
+              <button
+                type="button"
+                onClick={() => onRemove?.()}
+                disabled={busy}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                aria-label={`Remove ${item?.name || "item"} from checkout`}
+                title="Remove item"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            ) : null}
 
             <div className="text-base font-semibold text-slate-950 dark:text-white">{formatCurrency(itemTotal)}</div>
           </div>

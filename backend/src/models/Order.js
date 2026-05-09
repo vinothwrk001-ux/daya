@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { AppError } = require("../utils/AppError");
 
 // NOTE: Keep existing statuses for backward-compatibility with current UI and stored data.
 // Admin APIs accept normalized uppercase statuses and map to these stored values.
@@ -38,12 +39,23 @@ const orderItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+function buildAttributionMutationError() {
+  return new AppError("Attribution is immutable after payment", 409, "ATTRIBUTION_LOCKED");
+}
+
 const orderSchema = new mongoose.Schema(
   {
     orderNumber: {
       type: String,
       required: true,
       unique: true,
+      index: true,
+      trim: true,
+    },
+    invoiceNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
       index: true,
       trim: true,
     },
@@ -76,6 +88,21 @@ const orderSchema = new mongoose.Schema(
     chargesBreakdown: {
       type: [mongoose.Schema.Types.Mixed],
       default: [],
+    },
+    pricingSnapshot: {
+      subtotal: { type: Number, min: 0, default: 0 },
+      charges: {
+        type: [mongoose.Schema.Types.Mixed],
+        default: [],
+      },
+      chargesTotal: { type: Number, min: 0, default: 0 },
+      total: { type: Number, min: 0, default: 0 },
+      paymentMethod: {
+        type: String,
+        enum: ["ONLINE", "COD"],
+        default: "ONLINE",
+      },
+      calculatedAt: { type: Date, default: Date.now },
     },
     chargesTotal: { type: Number, min: 0, default: 0 },
     totalAmount: { type: Number, required: true, min: 0, default: 0 },
@@ -117,6 +144,39 @@ const orderSchema = new mongoose.Schema(
     razorpayOrderId: { type: String, trim: true, index: true },
     razorpayPaymentId: { type: String, trim: true, index: true },
     paymentCapturedAt: { type: Date },
+    attribution: {
+      influencerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "InfluencerProfile",
+        index: true,
+      },
+      campaignId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Campaign",
+        index: true,
+      },
+      reelId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Reel",
+        index: true,
+      },
+      trackingSessionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "TrackingSession",
+        index: true,
+      },
+      productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+      },
+      lockedAt: { type: Date },
+      commission: {
+        commissionPercent: { type: Number, min: 0, max: 50, default: 0 },
+        influencerShare: { type: Number, min: 0, default: 0 },
+        platformFee: { type: Number, min: 0, default: 0 },
+        vendorNet: { type: Number, min: 0, default: 0 },
+      },
+    },
     payoutEligibleAt: { type: Date, index: true },
     vendorWalletReleasedAt: { type: Date, index: true },
     vendorWalletReleaseReferenceId: {
@@ -170,9 +230,22 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    orderSnapshot: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    snapshotVersion: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
     deliveredAt: { type: Date },
     cancelledAt: { type: Date },
     cancelReason: { type: String, trim: true },
+    inventoryReservedAt: { type: Date },
+    inventoryReservationReleasedAt: { type: Date },
+    inventoryCommittedAt: { type: Date },
+    inventoryRestoredAt: { type: Date },
     notes: { type: String, trim: true },
     refundId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -183,6 +256,16 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "ReturnRequest",
       index: true,
+    },
+    timeline: {
+      type: [
+        {
+          status: { type: String, required: true },
+          note: { type: String },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
     },
     isActive: {
       type: Boolean,
@@ -204,6 +287,26 @@ orderSchema.index({ payoutEligibleAt: 1, vendorWalletReleasedAt: 1 });
 orderSchema.index({ trackingId: 1 });
 orderSchema.index({ isActive: 1, status: 1, createdAt: -1 });
 orderSchema.index({ status: 1, paymentStatus: 1, payoutEligibleAt: 1 });
+orderSchema.index({ "attribution.influencerId": 1, createdAt: -1 });
+
+orderSchema.pre("findOneAndUpdate", async function preventLockedAttributionMutation(next) {
+  const update = this.getUpdate() || {};
+  const directAttributionUpdate = update.attribution !== undefined;
+  const setAttributionUpdate =
+    update.$set &&
+    Object.keys(update.$set).some((key) => key === "attribution" || key.startsWith("attribution."));
+
+  if (!directAttributionUpdate && !setAttributionUpdate) {
+    return next();
+  }
+
+  const existing = await this.model.findOne(this.getQuery()).select("attribution.lockedAt").lean();
+  if (existing?.attribution?.lockedAt) {
+    return next(buildAttributionMutationError());
+  }
+
+  return next();
+});
 
 module.exports = {
   Order: mongoose.models.Order || mongoose.model("Order", orderSchema),

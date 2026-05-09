@@ -69,6 +69,18 @@ const productVariantSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
+    reservedStock: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    threshold: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 10,
+    },
     sku: {
       type: String,
       required: true,

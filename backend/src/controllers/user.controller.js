@@ -26,7 +26,7 @@ const cancelOrder = asyncHandler(async (req, res) => ok(res, await userService.c
 const requestReturn = asyncHandler(async (req, res) => ok(res, await userService.requestReturn(req.user.sub, req.params.id, req.body, getMeta(req)), "Return requested"));
 const downloadInvoice = asyncHandler(async (req, res) => {
   const invoice = await userService.getInvoice(req.user.sub, req.params.id);
-  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Content-Type", invoice.contentType || "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="${invoice.filename}"`);
   return res.send(invoice.content);
 });

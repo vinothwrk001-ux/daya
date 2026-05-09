@@ -10,6 +10,7 @@ const { Review } = require("../models/Review");
 const { Product } = require("../models/Product");
 const auditService = require("./audit.service");
 const productService = require("./product.service");
+const inventoryService = require("./inventory.service");
 const { queueWhatsAppMessage } = require("./whatsapp.service");
 const { logger } = require("../utils/logger");
 const { getCommissionPercentage } = require("./finance-config.service");
@@ -337,6 +338,72 @@ function getProductWeightSnapshot(product, variant = null) {
 
 async function listOrders(filters = {}) {
   return await orderRepo.list(filters);
+}
+
+async function assertAdminInventoryProduct(productId) {
+  const product = await productRepo.findById(productId);
+  if (!product) {
+    throw new AppError("Product not found", 404, "NOT_FOUND");
+  }
+  if (String(product.creatorType || "").toUpperCase() !== "ADMIN") {
+    throw new AppError("Only admin-created products are available in admin inventory", 400, "INVALID_PRODUCT_SCOPE");
+  }
+  return product;
+}
+
+async function getAdminInventorySummary({ page = 1, limit = 20, search = "" } = {}) {
+  const result = await productRepo.list({
+    page,
+    limit,
+    creatorType: "ADMIN",
+    search,
+    sortBy: "createdAt",
+    sortOrder: -1,
+  });
+
+  const products = [];
+  for (const product of result.products || []) {
+    products.push(await inventoryService.getProductInventory(product._id));
+  }
+
+  return {
+    products,
+    pagination: result.pagination,
+    totals: {
+      totalProducts: products.length,
+      totalStock: products.reduce((sum, product) => sum + Number(product.totalStock || 0), 0),
+      totalReservedStock: products.reduce((sum, product) => sum + Number(product.totalReservedStock || 0), 0),
+      totalAvailableStock: products.reduce((sum, product) => sum + Number(product.totalAvailableStock || 0), 0),
+      lowStockVariants: products.reduce((sum, product) => sum + Number(product.lowStockVariants || 0), 0),
+    },
+  };
+}
+
+async function getAdminInventoryProduct(productId) {
+  await assertAdminInventoryProduct(productId);
+  return await inventoryService.getProductInventory(productId);
+}
+
+async function getAdminInventoryLedger(productId, variantId, { limit = 20, offset = 0 } = {}) {
+  await assertAdminInventoryProduct(productId);
+  return await inventoryService.getVariantLedger(productId, variantId, limit, offset);
+}
+
+async function adjustAdminInventory(productId, variantId, { quantityChange, reason, notes }, actor) {
+  await assertAdminInventoryProduct(productId);
+  return await inventoryService.adjustStock(
+    productId,
+    variantId,
+    quantityChange,
+    reason,
+    notes,
+    actor?._id || actor?.sub
+  );
+}
+
+async function updateAdminInventoryThreshold(productId, variantId, threshold, actor) {
+  await assertAdminInventoryProduct(productId);
+  return await inventoryService.updateThreshold(productId, variantId, threshold, actor?._id || actor?.sub);
 }
 
 function toStoredOrderStatus(value) {
@@ -891,6 +958,11 @@ module.exports = {
   getDashboardOverview,
   getAnalytics,
   getDailyRevenue,
+  getAdminInventorySummary,
+  getAdminInventoryProduct,
+  getAdminInventoryLedger,
+  adjustAdminInventory,
+  updateAdminInventoryThreshold,
   listVendors,
   getVendorDetails,
   listUsers,

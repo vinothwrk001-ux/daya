@@ -9,5 +9,6 @@ export function DashboardRedirect() {
     return <Navigate to="/dashboard/admin" replace />;
   }
   if (user.role === "vendor") return <Navigate to="/dashboard/vendor" replace />;
+  if (user.role === "influencer") return <Navigate to="/influencer/dashboard" replace />;
   return <Navigate to="/dashboard/user" replace />;
 }

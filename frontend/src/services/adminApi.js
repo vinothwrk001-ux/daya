@@ -143,6 +143,31 @@ export async function getProductStats() {
   return data;
 }
 
+export async function getAdminInventorySummary(params = {}) {
+  const { data } = await adminHttp.get("/api/admin/inventory", { params });
+  return data;
+}
+
+export async function getAdminInventoryProduct(id) {
+  const { data } = await adminHttp.get(`/api/admin/inventory/${id}`);
+  return data;
+}
+
+export async function getAdminInventoryLedger(id, variantId, params = {}) {
+  const { data } = await adminHttp.get(`/api/admin/inventory/${id}/variant/${variantId}/ledger`, { params });
+  return data;
+}
+
+export async function adjustAdminInventory(id, variantId, payload) {
+  const { data } = await adminHttp.post(`/api/admin/inventory/${id}/variant/${variantId}/adjust`, payload);
+  return data;
+}
+
+export async function updateAdminInventoryThreshold(id, variantId, threshold) {
+  const { data } = await adminHttp.patch(`/api/admin/inventory/${id}/variant/${variantId}/threshold`, { threshold });
+  return data;
+}
+
 export async function listOrders(params = {}) {
   const { data } = await adminHttp.get("/api/admin/orders", { params });
   return data;

@@ -6,6 +6,7 @@ const {
   getShippingModesConfig,
   updateShippingModesConfig,
 } = require("./shipping-config.service");
+const inventoryService = require("./inventory.service");
 
 const TRACKING_ID_PATTERN = /^[A-Z0-9][A-Z0-9\-_/.]{5,39}$/i;
 
@@ -164,6 +165,12 @@ async function submitSelfShipping(order, { trackingId, courierName, trackingUrl,
   });
 
   order.status = lifecycle.status;
+  if (!order.inventoryCommittedAt) {
+    await inventoryService.commitOrderInventory(order, {
+      shipmentId: order.shipmentId || undefined,
+      performedBy: vendorId,
+    });
+  }
 
   // Add to timeline
   if (!order.timeline) order.timeline = [];
@@ -291,6 +298,7 @@ async function processShiprocketWebhook(event) {
   const newShippingStatus = statusMapping[shiprocketStatus];
 
   if (newShippingStatus && newShippingStatus !== order.shippingStatus) {
+    const previousShippingStatus = order.shippingStatus;
     order.shippingStatus = newShippingStatus;
 
     // Update pickup status
@@ -319,6 +327,11 @@ async function processShiprocketWebhook(event) {
     });
 
     order.status = lifecycle.status;
+    if (newShippingStatus === "SHIPPED" && previousShippingStatus !== "SHIPPED" && !order.inventoryCommittedAt) {
+      await inventoryService.commitOrderInventory(order, {
+        shipmentId: order.shipmentId || shipmentId,
+      });
+    }
 
     // Add to timeline
     if (!order.timeline) order.timeline = [];

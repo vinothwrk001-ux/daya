@@ -23,6 +23,10 @@ const pageMeta = {
     title: "Products",
     subtitle: "Moderate product catalog quality and approval workflow.",
   },
+  "/admin/inventory": {
+    title: "Inventory",
+    subtitle: "Manage platform-owned product variants, warehouse stock, and low-stock exposure.",
+  },
   "/admin/categories": {
     title: "Categories",
     subtitle: "Control category visibility, ordering, and storefront presentation.",

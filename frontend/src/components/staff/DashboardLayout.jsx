@@ -21,6 +21,18 @@ export function StaffDashboardLayout({ children }) {
   const [error, setError] = useState("");
   const [lastSyncTime, setLastSyncTime] = useState(null);
 
+  // Calculate active module and notification target before any hooks (for consistency)
+  const activeModule = getStaffModuleByRoute(location.pathname);
+  const activeNotificationTarget = activeModule?.notificationModule || activeModule?.notificationSubModule
+    ? {
+        module: activeModule.notificationModule,
+        subModule: activeModule.notificationSubModule,
+      }
+    : null;
+
+  // Call all hooks at the top level before any conditional returns
+  const { summary } = useRoleNotifications("staff", activeNotificationTarget);
+
   // Initial sync and periodic sync
   useEffect(() => {
     let active = true;
@@ -151,15 +163,6 @@ export function StaffDashboardLayout({ children }) {
       </div>
     );
   }
-
-  const activeModule = getStaffModuleByRoute(location.pathname);
-  const activeNotificationTarget = activeModule?.notificationModule || activeModule?.notificationSubModule
-    ? {
-        module: activeModule.notificationModule,
-        subModule: activeModule.notificationSubModule,
-      }
-    : null;
-  const { summary } = useRoleNotifications("staff", activeNotificationTarget);
 
   return (
     <div className="flex min-h-screen overflow-hidden bg-slate-100">

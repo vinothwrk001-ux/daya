@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { ProductImage } from "../components/ProductImage";
 import * as cartService from "../services/cartService";
@@ -12,6 +12,7 @@ import { formatCurrency } from "../utils/formatCurrency";
 import { getDefaultVariant, getVariantGroups } from "../utils/productVariants";
 import { saveRedirectAfterLogin } from "../utils/loginRedirect";
 import { getFormattedWeight } from "../utils/weight";
+import { loadTrackingContext, saveTrackingContext } from "../utils/influencerTracking";
 
 function buildVariantMatch(variants = [], selectedAttributes = {}) {
   return (
@@ -67,6 +68,7 @@ function buildModulesData(product, moduleSections = []) {
 
 export function ProductDetailsPage() {
   const { productId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
   const [loading, setLoading] = useState(true);
@@ -80,6 +82,18 @@ export function ProductDetailsPage() {
   const [attributeGroups, setAttributeGroups] = useState({});
   const [productModules, setProductModules] = useState([]);
   const [selectedAttributes, setSelectedAttributes] = useState({});
+
+  useEffect(() => {
+    const trackingContext = loadTrackingContext();
+    const reelId = searchParams.get("reel");
+    if (trackingContext?.productId === productId || reelId) {
+      saveTrackingContext({
+        ...trackingContext,
+        productId,
+        reelId: reelId || trackingContext?.reelId,
+      });
+    }
+  }, [productId, searchParams]);
 
   useEffect(() => {
     let cancelled = false;

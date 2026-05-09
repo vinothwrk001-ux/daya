@@ -369,6 +369,14 @@ export function AdminProductsPage() {
                             >
                               Edit
                             </Link>
+                            {String(product.creatorType || "").toUpperCase() === "ADMIN" ? (
+                              <Link
+                                to={`${basePath}/inventory/${product._id}`}
+                                className="rounded-xl border border-slate-300 px-3 py-2 text-center text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                              >
+                                Inventory
+                              </Link>
+                            ) : null}
                             <button
                               type="button"
                               disabled={busyId === product._id}

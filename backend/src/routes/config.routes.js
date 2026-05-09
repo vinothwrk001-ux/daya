@@ -1,18 +1,29 @@
 const express = require("express");
 const router = express.Router();
 const configController = require("../controllers/config.controller");
-const { authRequired } = require("../middleware/auth");
-const { requireRole } = require("../middleware/validate");
+const { authRequired, requireRole } = require("../middleware/auth");
 
-// All routes require admin authentication
+/**
+ * POST /api/config/initialize-defaults
+ * Initialize default configurations (no auth required for initial setup)
+ */
+router.post("/initialize-defaults", configController.initializeDefaults);
+
+// All other routes require admin authentication
 router.use(authRequired);
-router.use(requireRole("admin", "super_admin"));
+router.use(requireRole("admin", "super_admin", "support_admin", "finance_admin"));
 
 /**
  * GET /api/config
  * Get all platform configurations
  */
 router.get("/", configController.getAllConfigs);
+
+/**
+ * PATCH /api/config/batch/update
+ * Batch update multiple configurations
+ */
+router.patch("/batch/update", configController.batchUpdateConfigs);
 
 /**
  * GET /api/config/category/:category
@@ -31,17 +42,5 @@ router.get("/:key", configController.getConfigByKey);
  * Update single configuration
  */
 router.patch("/:key", configController.updateConfig);
-
-/**
- * PATCH /api/config/batch/update
- * Batch update multiple configurations
- */
-router.patch("/batch/update", configController.batchUpdateConfigs);
-
-/**
- * POST /api/config/initialize-defaults
- * Initialize default configurations
- */
-router.post("/initialize-defaults", configController.initializeDefaults);
 
 module.exports = router;

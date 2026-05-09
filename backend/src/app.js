@@ -38,6 +38,16 @@ const pricingRoutes = require("./routes/pricing.routes");
 const staffRoutes = require("./modules/staff/routes");
 const settlementRoutes = require("./routes/settlement.routes");
 const notificationRoutes = require("./routes/notification.routes");
+const inventoryRoutes = require("./routes/inventory.routes");
+const publicFeatureRoutes = require("./routes/public.routes");
+const configRoutes = require("./routes/config.routes");
+const influencerRoutes = require("./modules/influencer/routes");
+const campaignRoutes = require("./modules/campaign/routes");
+const reelRoutes = require("./modules/reel/routes");
+const trackingRoutes = require("./modules/tracking/routes");
+const commissionRoutes = require("./modules/commission/routes");
+const { authOptional } = require("./middleware/auth");
+const { influencerCommerceGate } = require("./middleware/influencerCommerceGate");
 
 function createLimiter({
   windowMs = 15 * 60 * 1000,
@@ -154,9 +164,17 @@ function createApp() {
   app.use("/api/modules", vendorModuleRoutes);
   app.use("/api/content", contentRoutes);
   app.use("/api/pricing", pricingRoutes);
+  app.use("/api/inventory", inventoryRoutes);
   app.use("/api/staff", staffRoutes);
   app.use("/api/admin", settlementRoutes);
   app.use("/api/notifications", notificationRoutes);
+  app.use("/api/public", publicFeatureRoutes);
+  app.use("/api/config", configRoutes);
+  app.use("/api/influencer", authOptional, influencerCommerceGate, influencerRoutes);
+  app.use("/api/campaign", authOptional, influencerCommerceGate, campaignRoutes);
+  app.use("/api/reel", authOptional, influencerCommerceGate, reelRoutes);
+  app.use("/api/tracking", authOptional, influencerCommerceGate, trackingRoutes);
+  app.use("/api/commission", authOptional, influencerCommerceGate, commissionRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

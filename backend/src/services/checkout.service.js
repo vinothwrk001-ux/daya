@@ -6,12 +6,20 @@ const productRepo = require("../repositories/product.repository");
 const orderRepo = require("../repositories/order.repository");
 const payoutRepo = require("../repositories/payout.repository");
 const paymentRepo = require("../repositories/payment.repository");
+const userRepo = require("../repositories/user.repository");
 const vendorRepo = require("../repositories/vendor.repository");
 const { getCommissionPercentage } = require("./finance-config.service");
 const { resolveVendorShippingModes } = require("./shipping.service");
 const pricingService = require("./pricing.service");
 const { getItemWeight } = require("../utils/cartWeightCalculator");
 const notificationService = require("./notification.service");
+const trackingService = require("../modules/tracking/service");
+const commissionService = require("../modules/commission/service");
+const { emitDomainEvent } = require("../modules/events/event-bus");
+const { INFLUENCER_EVENTS } = require("../modules/shared/constants");
+const { logger } = require("../utils/logger");
+const inventoryService = require("./inventory.service");
+const { buildOrderSnapshot, generateInvoiceNumber } = require("./order-document.service");
 
 function asObjectId(id, fieldName) {
   if (!mongoose.isValidObjectId(id)) throw new AppError(`Invalid ${fieldName}`, 400, "VALIDATION_ERROR");
@@ -59,7 +67,29 @@ function getChargeAmount(charges = [], predicate) {
   return roundMoney(charge?.amount || 0);
 }
 
-function buildSummaryShape({ currency, sellers, subtotal, charges, chargesTotal, total, itemCount, shipping }) {
+function buildAmountBreakdownSnapshot({ subtotal = 0, shippingFee = 0, taxAmount = 0, totalAmount = 0, paymentMethod = "ONLINE" }) {
+  return {
+    subtotal: roundMoney(subtotal),
+    shippingFee: roundMoney(shippingFee),
+    taxAmount: roundMoney(taxAmount),
+    totalAmount: roundMoney(totalAmount),
+    paymentMethod,
+  };
+}
+
+async function runNonBlocking(taskName, work) {
+  try {
+    return await work();
+  } catch (error) {
+    logger.error(`Non-blocking checkout task failed: ${taskName}`, {
+      message: error.message,
+      stack: error.stack,
+    });
+    return null;
+  }
+}
+
+function buildSummaryShape({ currency, sellers, subtotal, charges, chargesTotal, total, itemCount, shipping, paymentMethod }) {
   return {
     currency,
     sellers,
@@ -75,6 +105,21 @@ function buildSummaryShape({ currency, sellers, subtotal, charges, chargesTotal,
       (charge) => charge?.key === "tax" || String(charge?.category || "").toUpperCase() === "TAX"
     ),
     totalAmount: roundMoney(total),
+    paymentMethod,
+  };
+}
+
+function calculateAttributionCommission({ subtotal, commissionPercent, platformCommissionAmount }) {
+  const gross = roundMoney(subtotal || 0);
+  const influencerShare = roundMoney((gross * Number(commissionPercent || 0)) / 100);
+  const platformFee = roundMoney(platformCommissionAmount || 0);
+  const vendorNet = roundMoney(gross - platformFee - influencerShare);
+  return {
+    gross,
+    platformFee,
+    influencerShare,
+    vendorNet: vendorNet < 0 ? 0 : vendorNet,
+    commissionPercent: Number(commissionPercent || 0),
   };
 }
 
@@ -157,11 +202,12 @@ async function resolveSellerIdForProduct(product) {
 }
 
 class CheckoutService {
-  async prepare(userId, { currency, shippingAddress } = {}) {
+  async prepare(userId, { currency, shippingAddress, paymentMethod } = {}) {
     const cart = await cartRepo.findByUserId(userId);
     if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
       throw new AppError("Cart is empty", 400, "EMPTY_CART");
     }
+    const user = await userRepo.findById(userId);
 
     const validated = [];
     const validatedWithProducts = []; // Keep full product data for shipping calculation
@@ -174,7 +220,8 @@ class CheckoutService {
         throw new AppError(`Product not available: ${product.name}`, 400, "NOT_AVAILABLE");
       }
       const variant = resolveVariant(product, item.variantId);
-      const availableStock = variant ? Number(variant.stock || 0) : Number(product.stock || 0);
+      const stockSnapshot = await inventoryService.getAvailableStock(product._id, variant?.variantId || item.variantId || "");
+      const availableStock = Number(stockSnapshot.available || 0);
       if (availableStock < item.quantity) {
         throw new AppError(`Out of stock: ${product.name}`, 400, "INSUFFICIENT_STOCK");
       }
@@ -229,18 +276,19 @@ class CheckoutService {
           subtotal,
           validatedWithProducts,
           shippingAddress,
-          totalItemCount
+          totalItemCount,
+          { paymentMethod }
         );
         
         shippingData = pricingBreakdown.shipping || null;
       } catch (error) {
         // If shipping calculation fails, fall back to regular pricing
         console.error("Shipping calculation error:", error.message);
-        pricingBreakdown = await pricingService.calculateOrderTotal(subtotal, totalItemCount);
+        pricingBreakdown = await pricingService.calculateOrderTotal(subtotal, totalItemCount, paymentMethod);
       }
     } else {
       // No shipping address provided, use regular pricing
-      pricingBreakdown = await pricingService.calculateOrderTotal(subtotal, totalItemCount);
+      pricingBreakdown = await pricingService.calculateOrderTotal(subtotal, totalItemCount, paymentMethod);
     }
 
     return buildSummaryShape({
@@ -252,6 +300,7 @@ class CheckoutService {
       total: pricingBreakdown.total,
       itemCount: totalItemCount,
       shipping: shippingData,
+      paymentMethod: pricingBreakdown.paymentMethod,
     });
   }
 
@@ -266,6 +315,7 @@ class CheckoutService {
       razorpayOrderId = "",
       razorpayPaymentId = "",
       fraudFlags = [],
+      trackingToken = null,
     } = {}
   ) {
     if (!shippingAddress) {
@@ -280,82 +330,89 @@ class CheckoutService {
     if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
       throw new AppError("Cart is empty", 400, "EMPTY_CART");
     }
-
-    const validated = [];
-    for (const item of cart.items) {
-      const product = await productRepo.findById(item.productId);
-      if (!product) throw new AppError("Product not found", 404, "NOT_FOUND");
-      if (product.status !== "APPROVED" || product.isActive !== true) {
-        throw new AppError(`Product not available: ${product.name}`, 400, "NOT_AVAILABLE");
-      }
-      const variant = resolveVariant(product, item.variantId);
-      const availableStock = variant ? Number(variant.stock || 0) : Number(product.stock || 0);
-      if (availableStock < item.quantity) {
-        throw new AppError(`Out of stock: ${product.name}`, 400, "INSUFFICIENT_STOCK");
-      }
-      const resolvedSellerId = await resolveSellerIdForProduct(product);
-      if (!resolvedSellerId) throw new AppError("Seller not found for product", 400, "INVALID_PRODUCT");
-
-      validated.push({
-        productId: product._id,
-        sellerId: resolvedSellerId,
-        name: product.name,
-        price: Number(variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0),
-        quantity: item.quantity,
-        image:
-          variant?.images?.find((image) => image.isPrimary)?.url ||
-          variant?.images?.[0]?.url ||
-          item.image ||
-          (Array.isArray(product.images) && product.images.length ? product.images[0]?.url : undefined),
-        variantId: variant?.variantId || item.variantId || "",
-        variantSku: variant?.sku || item.variantSku || "",
-        variantTitle: variant?.title || item.variantTitle || "",
-        variantAttributes: variant?.attributes || item.variantAttributes || {},
-        weight: getProductWeightSnapshot(product, variant),
-      });
+    const user = await userRepo.findById(userId);
+    if (!user) {
+      throw new AppError("User not found", 404, "NOT_FOUND");
     }
 
-    const bySeller = groupBySeller(validated);
-    const orderPayloads = [];
-    const commissionPercentage = await getCommissionPercentage();
-    const resolvedGroupId = orderGroupId || generateOrderGroupId();
-    const resolvedPaymentStatus = paymentStatus || (paymentMethod === "ONLINE" ? "Paid" : "Pending");
-    const totalItemCount = validated.reduce((sum, item) => sum + item.quantity, 0);
+      const validated = [];
+      const trackingContext = trackingToken ? await trackingService.validateTrackingToken(trackingToken, userId) : null;
+      for (const item of cart.items) {
+        const product = await productRepo.findById(item.productId);
+        if (!product) throw new AppError("Product not found", 404, "NOT_FOUND");
+        if (product.status !== "APPROVED" || product.isActive !== true) {
+          throw new AppError(`Product not available: ${product.name}`, 400, "NOT_AVAILABLE");
+        }
+        const variant = resolveVariant(product, item.variantId);
+        const stockSnapshot = await inventoryService.getAvailableStock(product._id, variant?.variantId || item.variantId || "");
+        const availableStock = Number(stockSnapshot.available || 0);
+        if (availableStock < item.quantity) {
+          throw new AppError(`Out of stock: ${product.name}`, 400, "INSUFFICIENT_STOCK");
+        }
+        const resolvedSellerId = await resolveSellerIdForProduct(product);
+        if (!resolvedSellerId) throw new AppError("Seller not found for product", 400, "INVALID_PRODUCT");
 
-    // Calculate total pricing for the entire order
-    let overallSubtotal = 0;
-    for (const sellerData of bySeller.values()) {
-      const items = sellerData.items;
-      const subtotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
-      overallSubtotal += subtotal;
-    }
-
-    // Prepare validated items with full product data for shipping calculation
-    const validatedWithProducts = [];
-    for (const item of validated) {
-      const product = await productRepo.findById(item.productId);
-      if (product) {
-        validatedWithProducts.push({
-          ...item,
-          product,
+        validated.push({
+          productId: product._id,
+          sellerId: resolvedSellerId,
+          name: product.name,
+          price: Number(variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0),
+          quantity: item.quantity,
+          image:
+            variant?.images?.find((image) => image.isPrimary)?.url ||
+            variant?.images?.[0]?.url ||
+            item.image ||
+            (Array.isArray(product.images) && product.images.length ? product.images[0]?.url : undefined),
+          variantId: variant?.variantId || item.variantId || "",
+          variantSku: variant?.sku || item.variantSku || "",
+          variantTitle: variant?.title || item.variantTitle || "",
+          variantAttributes: variant?.attributes || item.variantAttributes || {},
+          weight: getProductWeightSnapshot(product, variant),
         });
       }
-    }
 
-    // Get pricing breakdown with shipping for entire order
-    let pricingBreakdown;
-    try {
-      pricingBreakdown = await pricingService.calculateOrderTotalWithShipping(
-        overallSubtotal,
-        validatedWithProducts,
-        shippingAddress,
-        totalItemCount
-      );
-    } catch (error) {
-      // If shipping calculation fails, fall back to regular pricing
-      console.error("Shipping calculation error in createOrder:", error.message);
-      pricingBreakdown = await pricingService.calculateOrderTotal(overallSubtotal, totalItemCount);
-    }
+      const bySeller = groupBySeller(validated);
+      const orderPayloads = [];
+      const commissionPercentage = await getCommissionPercentage();
+      const resolvedGroupId = orderGroupId || generateOrderGroupId();
+      const resolvedPaymentStatus = paymentStatus || (paymentMethod === "ONLINE" ? "Paid" : "Pending");
+      const totalItemCount = validated.reduce((sum, item) => sum + item.quantity, 0);
+
+      // Calculate total pricing for the entire order
+      let overallSubtotal = 0;
+      for (const sellerData of bySeller.values()) {
+        const items = sellerData.items;
+        const subtotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
+        overallSubtotal += subtotal;
+      }
+
+      // Prepare validated items with full product data for shipping calculation
+      const validatedWithProducts = [];
+      for (const item of validated) {
+        const product = await productRepo.findById(item.productId);
+        if (product) {
+          validatedWithProducts.push({
+            ...item,
+            product,
+          });
+        }
+      }
+
+      // Get pricing breakdown with shipping for entire order
+      let pricingBreakdown;
+      try {
+        pricingBreakdown = await pricingService.calculateOrderTotalWithShipping(
+          overallSubtotal,
+          validatedWithProducts,
+          shippingAddress,
+          totalItemCount,
+          { paymentMethod }
+        );
+      } catch (error) {
+        // If shipping calculation fails, fall back to regular pricing
+        console.error("Shipping calculation error in createOrder:", error.message);
+        pricingBreakdown = await pricingService.calculateOrderTotal(overallSubtotal, totalItemCount, paymentMethod);
+      }
 
     const chargesBreakdown = pricingBreakdown.charges || [];
     const shippingCharge = chargesBreakdown.find((c) => c.key === "shipping_cost");
@@ -392,10 +449,38 @@ class CheckoutService {
       
       const totalAmount = subtotal + sellerChargeShare;
       const commission = Number(((totalAmount * commissionPercentage) / 100).toFixed(2));
-      const sellerAmount = Number((totalAmount - commission).toFixed(2));
+      let sellerAmount = Number((totalAmount - commission).toFixed(2));
+      let attribution = undefined;
 
-      orderPayloads.push({
-        orderNumber: generateOrderNumber(),
+      if (trackingContext) {
+        const matchedItem = items.find((item) => String(item.productId) === String(trackingContext.session.productId));
+        if (matchedItem) {
+          const campaign = await require("../modules/campaign/model").Campaign.findById(trackingContext.session.campaignId).lean();
+          const frozenCommissionPercent = Number(campaign?.termsFrozen?.commissionPercent ?? campaign?.commissionPercent ?? 0);
+          const finalCommission = calculateAttributionCommission({
+            subtotal,
+            commissionPercent: frozenCommissionPercent,
+            platformCommissionAmount: commission,
+          });
+
+          sellerAmount = finalCommission.vendorNet;
+          attribution = {
+            influencerId: trackingContext.session.influencerId,
+            campaignId: trackingContext.session.campaignId,
+            reelId: trackingContext.session.reelId,
+            trackingSessionId: trackingContext.session._id,
+            productId: trackingContext.session.productId,
+            commission: finalCommission,
+          };
+        }
+      }
+
+      const orderNumber = generateOrderNumber();
+      const invoiceNumber = generateInvoiceNumber({ orderNumber });
+      const orderPayload = {
+        _id: new mongoose.Types.ObjectId(),
+        orderNumber,
+        invoiceNumber,
         userId: new mongoose.Types.ObjectId(userId),
         sellerId: sellerData.sellerId,
         items: cleanedItems,
@@ -405,6 +490,14 @@ class CheckoutService {
         taxAmount: Math.round((taxCharge?.amount || 0) * (overallSubtotal > 0 ? subtotal / overallSubtotal : 1 / bySeller.size) * 100) / 100,
         discountAmount: Math.round((discountCharge?.amount || 0) * (overallSubtotal > 0 ? subtotal / overallSubtotal : 1 / bySeller.size) * 100) / 100,
         chargesBreakdown: chargesBreakdown,
+        pricingSnapshot: {
+          subtotal: roundMoney(subtotal),
+          charges: chargesBreakdown,
+          chargesTotal: Math.round(sellerChargeShare * 100) / 100,
+          total: roundMoney(totalAmount),
+          paymentMethod,
+          calculatedAt: pricingBreakdown.calculatedAt ? new Date(pricingBreakdown.calculatedAt) : new Date(),
+        },
         chargesTotal: Math.round(sellerChargeShare * 100) / 100,
         totalAmount,
         platformCommissionRate: commissionPercentage,
@@ -415,6 +508,7 @@ class CheckoutService {
         paymentStatus: resolvedPaymentStatus,
         paymentMethod,
         shippingAddress,
+        billingAddress: shippingAddress,
         paymentRecordId: paymentRecordId || undefined,
         orderGroupId: resolvedGroupId,
         razorpayOrderId: razorpayOrderId || undefined,
@@ -424,19 +518,49 @@ class CheckoutService {
         shippingMode: vendorShipping.defaultShippingMode,
         shippingStatus: "NOT_SHIPPED",
         pickupStatus: "NOT_REQUESTED",
-        timeline: [{ status: "Placed", note: "Order placed" }],
+        attribution,
+        timeline: [{ status: "Placed", note: "Order placed", timestamp: new Date() }],
+        inventoryReservedAt: new Date(),
+      };
+
+      orderPayload.orderSnapshot = buildOrderSnapshot(orderPayload, {
+        user,
+        seller: vendor,
+        paymentRecord: {
+          method: paymentMethod,
+          razorpayOrderId: razorpayOrderId || "",
+          razorpayPaymentId: razorpayPaymentId || "",
+          paidAt: resolvedPaymentStatus === "Paid" ? new Date() : null,
+        },
       });
+
+      orderPayloads.push(orderPayload);
     }
 
-    const inventoryAdjustments = [];
+    const inventoryReservations = [];
     let orders = [];
     let payment = null;
     const payouts = [];
 
     try {
-      for (const item of validated) {
-        await productRepo.recordSale(item.productId, item.quantity, item.price * item.quantity, item.variantId);
-        inventoryAdjustments.push(item);
+      for (const orderPayload of orderPayloads) {
+        for (const item of orderPayload.items || []) {
+          await inventoryService.reserveStock(
+            item.productId,
+            item.variantId || "",
+            item.quantity,
+            orderPayload._id,
+            orderPayload.sellerId,
+            userId
+          );
+          inventoryReservations.push({
+            productId: item.productId,
+            variantId: item.variantId || "",
+            quantity: item.quantity,
+            orderId: orderPayload._id,
+            sellerId: orderPayload.sellerId,
+          });
+        }
       }
 
       orders = await orderRepo.createMany(orderPayloads);
@@ -471,12 +595,13 @@ class CheckoutService {
           fulfillmentStatus: "COMPLETED",
           fulfilledAt: new Date(),
           shippingAddress,
-          amountBreakdown: {
-            subtotal: roundMoney(overallSubtotal),
-            shippingFee: roundMoney(shippingFee),
-            taxAmount: roundMoney(taxCharge?.amount || 0),
-            totalAmount: roundMoney(totalAmount),
-          },
+          amountBreakdown: buildAmountBreakdownSnapshot({
+            subtotal: overallSubtotal,
+            shippingFee,
+            taxAmount: taxCharge?.amount || 0,
+            totalAmount,
+            paymentMethod: "COD",
+          }),
         });
 
         for (const order of orders) {
@@ -485,41 +610,65 @@ class CheckoutService {
       }
 
       for (const order of orders) {
-        const payout = await payoutRepo.create({
-          sellerId: order.sellerId,
-          orderId: order._id,
-          amount: order.totalAmount,
-          commission: order.platformCommissionAmount,
-          netAmount: order.vendorEarning,
-          status: "ON_HOLD",
-          notes: "Awaiting delivery confirmation and payout eligibility window.",
-        });
-        payouts.push(payout);
+        const payout = await runNonBlocking(`create payout for order ${order.orderNumber}`, () =>
+          payoutRepo.create({
+            sellerId: order.sellerId,
+            orderId: order._id,
+            amount: order.totalAmount,
+            commission: order.platformCommissionAmount,
+            netAmount: order.vendorEarning,
+            status: "ON_HOLD",
+            notes: "Awaiting delivery confirmation and payout eligibility window.",
+          })
+        );
+        if (payout) {
+          payouts.push(payout);
+        }
       }
 
       await cartRepo.clear(userId);
 
-      await Promise.all(
-        orders.map((order) =>
-          notificationService.notifyVendorAndOperations({
-            vendorId: order.sellerId,
-            permissionKey: "orders.read",
-            module: "MANAGEMENT",
-            subModule: "ORDERS",
-            type: "ORDER_CREATED",
-            title: "New order",
-            message: `Order ${order.orderNumber} was placed successfully.`,
-            referenceId: order._id,
-            meta: {
-              orderNumber: order.orderNumber,
-              paymentMethod: order.paymentMethod,
-              totalAmount: order.totalAmount,
-            },
+      for (const order of orders) {
+        await runNonBlocking(`emit order-created event for ${order.orderNumber}`, () =>
+          emitDomainEvent(INFLUENCER_EVENTS.ORDER_CREATED, {
+            orderId: order._id,
+            attribution: order.attribution || null,
           })
+        );
+
+        if (order.attribution?.influencerId) {
+          await runNonBlocking(`create commission hold for ${order.orderNumber}`, () =>
+            commissionService.createHoldRecord(order)
+          );
+        }
+      }
+
+      await runNonBlocking("notify vendor and operations for created orders", () =>
+        Promise.all(
+          orders.map((order) =>
+            notificationService.notifyVendorAndOperations({
+              vendorId: order.sellerId,
+              permissionKey: "orders.read",
+              module: "MANAGEMENT",
+              subModule: "ORDERS",
+              type: "ORDER_CREATED",
+              title: "New order",
+              message: `Order ${order.orderNumber} was placed successfully.`,
+              referenceId: order._id,
+              meta: {
+                orderNumber: order.orderNumber,
+                paymentMethod: order.paymentMethod,
+                totalAmount: order.totalAmount,
+              },
+            })
+          )
         )
       );
 
-      return { orders, payouts, payment, orderGroupId: resolvedGroupId };
+      const freshOrders = await runNonBlocking(`reload orders for group ${resolvedGroupId}`, () =>
+        orderRepo.findByGroupId(resolvedGroupId)
+      );
+      return { orders: Array.isArray(freshOrders) && freshOrders.length ? freshOrders : orders, payouts, payment, orderGroupId: resolvedGroupId };
     } catch (error) {
       for (const payout of payouts) {
         await payoutRepo
@@ -554,8 +703,17 @@ class CheckoutService {
           .catch(() => {});
       }
 
-      for (const item of inventoryAdjustments.reverse()) {
-        await productRepo.restoreSale(item.productId, item.quantity, item.price * item.quantity, item.variantId).catch(() => {});
+      for (const reservation of inventoryReservations.reverse()) {
+        await inventoryService
+          .unreserveStock(
+            reservation.productId,
+            reservation.variantId,
+            reservation.quantity,
+            reservation.orderId,
+            reservation.sellerId,
+            userId
+          )
+          .catch(() => {});
       }
 
       throw error;

@@ -28,14 +28,14 @@ export function getAddressFormFromSavedAddress(address) {
 
 export function getShippingAddressFromSavedAddress(address) {
   return {
-    fullName: address?.name || "",
-    phone: address?.phone || "",
-    line1: address?.addressLine || "",
+    fullName: String(address?.name || "").trim(),
+    phone: String(address?.phone || "").trim(),
+    line1: String(address?.addressLine || "").trim(),
     line2: "",
-    city: address?.city || "",
-    state: address?.state || "",
-    postalCode: address?.pincode || "",
-    country: address?.country || "India",
+    city: String(address?.city || "").trim(),
+    state: String(address?.state || "").trim(),
+    postalCode: String(address?.pincode || "").trim(),
+    country: String(address?.country || "India").trim() || "India",
   };
 }
 

@@ -17,11 +17,13 @@ import { ProductCard } from "../components/ProductCard";
 import { PromoBanner } from "../components/PromoBanner";
 import { MotionItem, MotionStagger, AnimatedSection } from "../components/home/AnimatedSection";
 import { RippleButton } from "../components/home/RippleButton";
+import { ReelFeed } from "../components/reel/ReelFeed";
 import { useCategories } from "../hooks/useCategories";
 import * as productService from "../services/productService";
 import { trackClick } from "../services/contentService";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { usePresentedCategories } from "../utils/categoryPresentation.jsx";
+import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
 
 const trustItems = [
   {
@@ -47,6 +49,7 @@ const trustItems = [
 ];
 
 export function HomePage() {
+  const { influencerCommerceEnabled, loading: commerceLoading } = usePlatformFeatures();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -119,6 +122,12 @@ export function HomePage() {
       <AnimatedSection className="relative" y={24}>
         <TrustSection />
       </AnimatedSection>
+
+      {!commerceLoading && influencerCommerceEnabled ? (
+        <AnimatedSection y={28}>
+          <ReelFeed />
+        </AnimatedSection>
+      ) : null}
 
       <AnimatedSection y={30}>
         <CategoryCarousel

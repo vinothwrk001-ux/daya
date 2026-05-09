@@ -18,6 +18,13 @@ const { Product } = require("../models/Product");
 const { ReturnRequest } = require("../models/ReturnRequest");
 const { AuditLog } = require("../models/AuditLog");
 const notificationService = require("./notification.service");
+const orderLifecycleService = require("./order.service");
+const {
+  buildOrderSnapshot,
+  buildOrderSummary,
+  generateInvoiceNumber,
+  generateInvoicePdf,
+} = require("./order-document.service");
 
 function assertObjectId(value, fieldName) {
   if (!mongoose.isValidObjectId(value)) {
@@ -337,25 +344,76 @@ class UserService {
     assertObjectId(orderId, "orderId");
     const order = await orderRepo.findByIdForUser(orderId, userId);
     if (!order) throw new AppError("Order not found", 404, "NOT_FOUND");
-    return order;
+    const user = await ensureUser(userId);
+    const snapshot =
+      order.orderSnapshot && typeof order.orderSnapshot === "object"
+        ? order.orderSnapshot
+        : buildOrderSnapshot(
+            {
+              ...order.toObject(),
+              invoiceNumber: order.invoiceNumber || generateInvoiceNumber(order),
+            },
+            {
+              user,
+              seller: order.sellerId,
+              paymentRecord: order.paymentRecordId,
+            }
+          );
+
+    if (!order.orderSnapshot || !order.invoiceNumber) {
+      await orderRepo.updateById(order._id, {
+        ...(order.invoiceNumber ? {} : { invoiceNumber: snapshot.invoiceNumber }),
+        ...(order.orderSnapshot ? {} : { orderSnapshot: snapshot }),
+      });
+      order.invoiceNumber = order.invoiceNumber || snapshot.invoiceNumber;
+      order.orderSnapshot = order.orderSnapshot || snapshot;
+    }
+
+    return {
+      ...buildOrderSummary(order, {
+        user,
+        seller: order.sellerId,
+        paymentRecord: order.paymentRecordId,
+      }),
+      sellerId: order.sellerId,
+      totalAmount: order.totalAmount,
+    };
   }
 
   async getOrderTracking(userId, orderId) {
-    const order = await this.getOrder(userId, orderId);
+    assertObjectId(orderId, "orderId");
+    const rawOrder = await orderRepo.findByIdForUser(orderId, userId);
+    if (!rawOrder) throw new AppError("Order not found", 404, "NOT_FOUND");
+
+    const timelineEvents = Array.isArray(rawOrder.timeline)
+      ? rawOrder.timeline.map((entry, index) => ({
+          key: `${String(entry?.status || "Placed").replace(/\s+/g, "_").toUpperCase()}-${index}`,
+          status: String(entry?.status || "Placed").replace(/\s+/g, "_").toUpperCase(),
+          label: String(entry?.status || "Placed"),
+          note: entry?.note || "",
+          timestamp:
+            entry?.timestamp?.toISOString?.() ||
+            entry?.changedAt?.toISOString?.() ||
+            entry?.createdAt?.toISOString?.() ||
+            rawOrder.createdAt?.toISOString?.() ||
+            null,
+        }))
+      : [];
+
     return {
-      _id: order._id,
-      orderNumber: order.orderNumber,
-      status: order.status,
-      deliveryStatus: order.deliveryStatus,
-      shippingMode: order.shippingMode,
-      shippingStatus: order.shippingStatus,
-      pickupStatus: order.pickupStatus,
-      deliveryPartner: order.deliveryPartner,
-      courierName: order.courierName,
-      shipmentId: order.shipmentId,
-      trackingId: order.trackingId,
-      trackingUrl: order.trackingUrl,
-      timeline: order.timeline || [],
+      _id: rawOrder._id,
+      orderNumber: rawOrder.orderNumber,
+      status: rawOrder.status,
+      deliveryStatus: rawOrder.shippingStatus,
+      shippingMode: rawOrder.shippingMode,
+      shippingStatus: rawOrder.shippingStatus,
+      pickupStatus: rawOrder.pickupStatus,
+      deliveryPartner: rawOrder.deliveryPartner || rawOrder.logisticsProvider || "",
+      courierName: rawOrder.courierName || "",
+      shipmentId: rawOrder.shipmentId || "",
+      trackingId: rawOrder.trackingId || "",
+      trackingUrl: rawOrder.trackingUrl || "",
+      timeline: timelineEvents,
     };
   }
 
@@ -365,7 +423,7 @@ class UserService {
       throw new AppError("Only placed orders can be cancelled", 400, "INVALID_OPERATION");
     }
 
-    const updated = await orderRepo.updateStatus(orderId, "Cancelled");
+    const updated = await orderLifecycleService.cancelForUser(userId, orderId);
     await logUserAction(userId, "user.order.cancelled", "Order", orderId, { orderNumber: order.orderNumber }, meta);
     await createNotification(userId, {
       type: "ORDER",
@@ -403,10 +461,10 @@ class UserService {
       orderId: order._id,
       customerId: userId,
       reason: payload.reason,
-      refundAmount: order.totalAmount,
-    });
+        refundAmount: order.pricing?.grandTotal || order.totalAmount,
+      });
 
-    await orderRepo.updateStatus(orderId, "Returned");
+    await orderLifecycleService.requestReturnForUser(userId, orderId);
     await logUserAction(userId, "user.return.requested", "ReturnRequest", request._id, { orderNumber: order.orderNumber }, meta);
     await createNotification(userId, {
       type: "ORDER",
@@ -433,28 +491,11 @@ class UserService {
 
   async getInvoice(userId, orderId) {
     const order = await this.getOrder(userId, orderId);
-    const lines = [
-      "Invoice",
-      `Order Number: ${order.orderNumber}`,
-      `Date: ${new Date(order.createdAt).toISOString()}`,
-      `Customer: ${order.shippingAddress?.fullName || ""}`,
-      `Payment Status: ${order.paymentStatus}`,
-      `Order Status: ${order.status}`,
-      "",
-      "Items:",
-      ...(order.items || []).map(
-        (item) => `- ${item.name} x ${item.quantity} = ${item.price * item.quantity}`
-      ),
-      "",
-      `Subtotal: ${order.subtotal || 0}`,
-      `Shipping: ${order.shippingFee || 0}`,
-      `Tax: ${order.taxAmount || 0}`,
-      `Total: ${order.totalAmount || 0}`,
-    ];
-
+    const pdf = await generateInvoicePdf(order);
     return {
-      filename: `${order.orderNumber}.txt`,
-      content: lines.join("\n"),
+      filename: `${order.invoiceNumber || order.orderNumber}.pdf`,
+      contentType: "application/pdf",
+      content: pdf,
     };
   }
 

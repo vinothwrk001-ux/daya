@@ -2,9 +2,26 @@ import { Link, Navigate, useLocation } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatCurrency } from "../utils/formatCurrency";
 
+const CHECKOUT_SUCCESS_STORAGE_KEY = "checkoutSuccessPayload";
+
+function loadPersistedCheckoutSuccessPayload() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(CHECKOUT_SUCCESS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    window.sessionStorage.removeItem(CHECKOUT_SUCCESS_STORAGE_KEY);
+    return parsed;
+  } catch {
+    window.sessionStorage.removeItem(CHECKOUT_SUCCESS_STORAGE_KEY);
+    return null;
+  }
+}
+
 export function OrderSuccessPage() {
   const location = useLocation();
-  const state = location.state || {};
+  const state = location.state || loadPersistedCheckoutSuccessPayload() || {};
   const orders = state.orders || [];
   const payment = state.payment || null;
 

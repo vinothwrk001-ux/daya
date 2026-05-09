@@ -17,6 +17,30 @@ export function AdminPricingPage() {
   const [config, setConfig] = useState(null);
   const [formData, setFormData] = useState({});
 
+  const paymentMethodGuide = [
+    {
+      key: "ALL",
+      title: "Base pricing rules",
+      description: "Use for shipping, tax, packaging, or fees that should apply to every checkout.",
+      examples: "Examples: shipping fee, platform fee, packaging fee",
+      className: "border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white",
+    },
+    {
+      key: "ONLINE",
+      title: "Online payment pricing",
+      description: "Use for gateway-side costs that only exist when the shopper pays online.",
+      examples: "Examples: Razorpay fee, payment gateway GST",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100",
+    },
+    {
+      key: "COD",
+      title: "Cash on delivery pricing",
+      description: "Use for operational and risk-based charges that only apply to COD orders.",
+      examples: "Examples: COD handling fee, RTO risk fee",
+      className: "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100",
+    },
+  ];
+
   // Load pricing config
   useEffect(() => {
     let cancelled = false;
@@ -161,9 +185,40 @@ export function AdminPricingPage() {
         </div>
       </div>
 
+      <div className="grid gap-4 xl:grid-cols-3">
+        {paymentMethodGuide.map((item) => (
+          <section key={item.key} className={`rounded-3xl border p-5 shadow-sm ${item.className}`}>
+            <div className="text-xs font-semibold uppercase tracking-[0.2em] opacity-70">{item.key}</div>
+            <h2 className="mt-2 text-lg font-semibold">{item.title}</h2>
+            <p className="mt-2 text-sm opacity-80">{item.description}</p>
+            <p className="mt-3 text-xs font-medium opacity-70">{item.examples}</p>
+          </section>
+        ))}
+      </div>
+
       {/* Tab Content */}
       {tab === "rules" && (
-        <div>
+        <div className="grid gap-6">
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Dynamic payment-based pricing</h2>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+              Configure marketplace checkout charges by payment mode. Each pricing rule can now target all checkouts, online-only payments, or COD-only payments. Checkout totals are always recalculated on the backend when the buyer switches payment method.
+            </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+                <div className="text-sm font-semibold text-slate-900 dark:text-white">Recommended setup</div>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                  Keep universal charges like shipping under <strong>ALL</strong>. Add separate rules for <strong>ONLINE</strong> and <strong>COD</strong> so checkout stays transparent and finance reporting stays consistent.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+                <div className="text-sm font-semibold text-slate-900 dark:text-white">Snapshot safety</div>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                  Orders keep their own pricing snapshot after placement, so changing rules here only affects future checkouts.
+                </p>
+              </div>
+            </div>
+          </section>
           <PricingRulesManager />
         </div>
       )}

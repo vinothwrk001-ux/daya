@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 const { Order } = require("../models/Order");
 const { normalizeDateRange, applyDateRange } = require("../utils/dateRange");
+const { emitDomainEvent } = require("../modules/events/event-bus");
+const { INFLUENCER_EVENTS } = require("../modules/shared/constants");
 
 const SELLER_POPULATE_FIELDS = "companyName shopName supportPhone pickupAddress pickupLocations";
 
@@ -235,23 +237,25 @@ class OrderRepository {
   }
 
   async updatePaymentStatus(id, paymentStatus) {
-    return await Order.findByIdAndUpdate(
+    const updated = await Order.findByIdAndUpdate(
       id,
       {
         $set: {
           paymentStatus,
           ...(paymentStatus === "Paid" ? { paymentCapturedAt: new Date() } : {}),
+          ...(paymentStatus === "Paid" ? { "attribution.lockedAt": new Date() } : {}),
         },
         $push: {
           timeline: {
             status: paymentStatus === "Paid" ? "Placed" : "Pending",
             note: `Payment ${paymentStatus}`,
-            changedAt: new Date(),
+            timestamp: new Date(),
           },
         },
       },
       { new: true }
     ).exec();
+    return updated;
   }
 
   async updateStatus(id, status) {
@@ -263,17 +267,22 @@ class OrderRepository {
       $push: {
         timeline: {
           status,
-          changedAt: new Date(),
+          timestamp: new Date(),
         },
       },
     };
 
-    return await Order.findByIdAndUpdate(id, update, { new: true })
+    const updated = await Order.findByIdAndUpdate(id, update, { new: true })
       .populate("userId", "name email phone")
       .populate("sellerId", SELLER_POPULATE_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
       .populate("items.productId", "name slug")
       .exec();
+    if (updated && status === "Delivered") {
+      await emitDomainEvent(INFLUENCER_EVENTS.ORDER_DELIVERED, { orderId: updated._id });
+      await emitDomainEvent(INFLUENCER_EVENTS.ORDER_ELIGIBLE_FOR_SETTLEMENT, { orderId: updated._id });
+    }
+    return updated;
   }
 
   async getMonthlyRevenue(limit = 6, match = {}) {
@@ -335,7 +344,7 @@ class OrderRepository {
       update.$push = {
         timeline: {
           status,
-          changedAt: new Date(),
+          timestamp: new Date(),
         },
       };
     }
@@ -370,7 +379,7 @@ class OrderRepository {
               timeline: {
                 status: "Cancelled",
                 note,
-                changedAt: new Date(),
+                timestamp: new Date(),
               },
             },
           }

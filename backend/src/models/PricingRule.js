@@ -71,6 +71,15 @@ const pricingRuleSchema = new mongoose.Schema(
       description: "ORDER applies once per order, ITEM applies per item in cart",
     },
 
+    // Payment method applicability for checkout pricing
+    paymentMethod: {
+      type: String,
+      enum: ["ALL", "ONLINE", "COD"],
+      default: "ALL",
+      index: true,
+      description: "Controls whether the rule applies to all, online, or COD payments",
+    },
+
     // Is this rule currently active/enabled?
     isActive: {
       type: Boolean,
@@ -155,6 +164,7 @@ const pricingRuleSchema = new mongoose.Schema(
 // Compound index for querying active rules
 pricingRuleSchema.index({ isActive: 1, sortOrder: 1, category: 1 });
 pricingRuleSchema.index({ categoryId: 1, isActive: 1, sortOrder: 1 });
+pricingRuleSchema.index({ isActive: 1, paymentMethod: 1, sortOrder: 1 });
 
 // Index for finding by key
 pricingRuleSchema.index({ key: 1, isActive: 1 });

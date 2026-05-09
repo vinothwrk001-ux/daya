@@ -15,6 +15,7 @@ const { normalizeDateRange, applyDateRange } = require("../../utils/dateRange");
 const payoutService = require("../../services/payout.service");
 const paymentService = require("../../services/payment.service");
 const deliveryService = require("../../services/delivery.service");
+const inventoryService = require("../../services/inventory.service");
 const {
   assertVendorCanUseShippingMode,
   buildVendorShippingSettingsPayload,
@@ -296,21 +297,30 @@ class VendorDashboardService {
       throw new AppError(`Cannot change order from ${order.status} to ${status}`, 400, "INVALID_STATUS_TRANSITION");
     }
 
-    const shippingUpdate = {};
-    if (status === "Shipped") shippingUpdate.shippingStatus = "SHIPPED";
-    if (status === "Delivered") shippingUpdate.shippingStatus = "DELIVERED";
-    const updated = await orderRepo.updateById(orderId, { status, ...shippingUpdate });
-    const deliveryStatus =
-      status === "Shipped"
-        ? "SHIPPED"
-        : status === "Delivered"
-          ? "DELIVERED"
-          : order.deliveryStatus;
-
-    if (deliveryStatus !== updated.deliveryStatus) {
-      updated.deliveryStatus = deliveryStatus;
-      await updated.save();
+    if (status === "Shipped") {
+      order.shippingStatus = "SHIPPED";
+      if (!order.inventoryCommittedAt) {
+        await inventoryService.commitOrderInventory(order, {
+          shipmentId: order.shipmentId || undefined,
+          performedBy: vendor.userId || vendor._id,
+        });
+      }
     }
+
+    if (status === "Delivered") {
+      order.shippingStatus = "DELIVERED";
+      order.deliveredAt = new Date();
+    }
+
+    order.status = status;
+    order.timeline = Array.isArray(order.timeline) ? order.timeline : [];
+    order.timeline.push({
+      status,
+      note: `Order moved to ${status} by vendor`,
+      changedAt: new Date(),
+    });
+
+    const updated = await order.save();
 
     if (status === "Delivered") {
       await payoutService.markOrderDelivered(updated._id);

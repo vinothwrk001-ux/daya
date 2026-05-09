@@ -16,16 +16,20 @@ export async function getPricingConfig() {
 /**
  * Get all active pricing rules (for checkout display)
  */
-export async function getActivePricingRules() {
-  const { data } = await api.get("/api/pricing-rules");
+export async function getActivePricingRules(paymentMethod) {
+  const { data } = await api.get("/api/pricing-rules", {
+    params: paymentMethod ? { paymentMethod } : {},
+  });
   return data;
 }
 
 /**
  * Get pricing summary (breakdown by category)
  */
-export async function getPricingSummary() {
-  const { data } = await api.get("/api/pricing/summary");
+export async function getPricingSummary(paymentMethod) {
+  const { data } = await api.get("/api/pricing/summary", {
+    params: paymentMethod ? { paymentMethod } : {},
+  });
   return data;
 }
 
@@ -35,9 +39,9 @@ export async function getPricingSummary() {
  * @param {number} itemCount - Total items in order
  * @returns {Object} Pricing breakdown with charges
  */
-export async function calculateOrderTotal(subtotal, itemCount = 1) {
+export async function calculateOrderTotal(subtotal, itemCount = 1, paymentMethod) {
   const { data } = await api.get("/api/pricing/calculate", {
-    params: { subtotal, itemCount },
+    params: { subtotal, itemCount, ...(paymentMethod ? { paymentMethod } : {}) },
   });
   return data;
 }

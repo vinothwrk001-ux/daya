@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "test:pricing": "node src/services/__tests__/pricing-payment-method.test.js",
     "test:shipping": "node src/services/__tests__/shipping-domain.test.js",
+    "test:inventory": "node src/services/__tests__/inventory-domain.test.js",
+    "test:order-docs": "node src/services/__tests__/order-document-domain.test.js",
     "test:vendor-payouts": "node src/services/__tests__/vendor-payout-domain.test.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
     "seed:shipping": "node src/scripts/seedShippingRule.js",

@@ -278,7 +278,7 @@ const getAllPricingRules = asyncHandler(async (req, res) => {
  * Get all active pricing rules (public for checkout)
  */
 const getActivePricingRules = asyncHandler(async (req, res) => {
-  const rules = await pricingService.getActiveRules();
+  const rules = await pricingService.getActiveRules(req.query?.paymentMethod);
   return ok(res, rules, "Active pricing rules retrieved");
 });
 
@@ -303,7 +303,7 @@ const getPricingRule = asyncHandler(async (req, res) => {
  * Create a new pricing rule (admin only)
  */
 const createPricingRule = asyncHandler(async (req, res) => {
-  const { key, displayName, type, value, category, appliesTo, sortOrder, maxCap, minOrderValue, freeAboveValue, description, notes, isActive } = req.body;
+  const { key, displayName, type, value, category, appliesTo, paymentMethod, sortOrder, maxCap, minOrderValue, freeAboveValue, description, notes, isActive } = req.body;
   const categoryId = normalizeCategoryIdInput(req.body?.categoryId);
   assertOptionalObjectId(categoryId, "categoryId");
 
@@ -316,6 +316,7 @@ const createPricingRule = asyncHandler(async (req, res) => {
     category,
     categoryId,
     appliesTo,
+    paymentMethod,
     maxCap,
     minOrderValue,
     freeAboveValue,
@@ -345,6 +346,7 @@ const createPricingRule = asyncHandler(async (req, res) => {
     category: resolvedCategory.key,
     categoryId: resolvedCategory._id,
     appliesTo: appliesTo || "ORDER",
+    paymentMethod: pricingService.normalizePaymentMethod(paymentMethod),
     sortOrder: sortOrder || 0,
     maxCap: maxCap || 0,
     minOrderValue: minOrderValue || 0,
@@ -371,7 +373,7 @@ const createPricingRule = asyncHandler(async (req, res) => {
  */
 const updatePricingRule = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { key, displayName, type, value, category, appliesTo, sortOrder, maxCap, minOrderValue, freeAboveValue, description, notes, isActive } = req.body;
+  const { key, displayName, type, value, category, appliesTo, paymentMethod, sortOrder, maxCap, minOrderValue, freeAboveValue, description, notes, isActive } = req.body;
   const categoryId = normalizeCategoryIdInput(req.body?.categoryId);
   assertOptionalObjectId(categoryId, "categoryId");
 
@@ -409,6 +411,7 @@ const updatePricingRule = asyncHandler(async (req, res) => {
     }
   }
   if (appliesTo !== undefined) updateData.appliesTo = appliesTo;
+  if (paymentMethod !== undefined) updateData.paymentMethod = pricingService.normalizePaymentMethod(paymentMethod);
   if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
   if (maxCap !== undefined) updateData.maxCap = maxCap;
   if (minOrderValue !== undefined) updateData.minOrderValue = minOrderValue;
@@ -553,7 +556,7 @@ const togglePricingRuleActive = asyncHandler(async (req, res) => {
  * Calculate order total with current pricing rules (public for checkout)
  */
 const calculateOrderTotal = asyncHandler(async (req, res) => {
-  const { subtotal, itemCount = 1 } = req.query;
+  const { subtotal, itemCount = 1, paymentMethod } = req.query;
 
   const parsedSubtotal = parseFloat(subtotal);
   const parsedItemCount = parseInt(itemCount);
@@ -562,7 +565,7 @@ const calculateOrderTotal = asyncHandler(async (req, res) => {
     throw new AppError("subtotal must be a valid non-negative number", 400);
   }
 
-  const result = await pricingService.calculateOrderTotal(parsedSubtotal, parsedItemCount);
+  const result = await pricingService.calculateOrderTotal(parsedSubtotal, parsedItemCount, paymentMethod);
 
   return ok(res, result, "Order total calculated");
 });
@@ -572,7 +575,7 @@ const calculateOrderTotal = asyncHandler(async (req, res) => {
  * Get pricing summary (public)
  */
 const getPricingSummary = asyncHandler(async (req, res) => {
-  const summary = await pricingService.getPricingSummary();
+  const summary = await pricingService.getPricingSummary(req.query?.paymentMethod);
   return ok(res, summary, "Pricing summary retrieved");
 });
 

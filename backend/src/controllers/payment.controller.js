@@ -3,25 +3,35 @@ const { asyncHandler } = require("../utils/asyncHandler");
 const paymentService = require("../services/payment.service");
 
 const createRazorpayOrder = asyncHandler(async (req, res) => {
-  const { cartId, shippingAddress } = req.body;
+  const { cartId, shippingAddress, trackingToken } = req.body;
   const result = await paymentService.createRazorpayOrder({
     userId: req.user.sub,
     cartId,
     shippingAddress,
+    trackingToken,
   });
   return ok(res, result, "Razorpay order created");
 });
 
 const verifyRazorpayPayment = asyncHandler(async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, shippingAddress } = req.body;
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, shippingAddress, trackingToken } = req.body;
   const result = await paymentService.verifyRazorpayPayment({
     userId: req.user.sub,
     razorpay_order_id,
     razorpay_payment_id,
     razorpay_signature,
     shippingAddress,
+    trackingToken,
   });
-  return ok(res, result, "Payment verified and orders created");
+  return res.status(200).json({
+    success: true,
+    orderId: result.orderId,
+    redirectUrl: result.redirectUrl,
+    orderGroupId: result.orderGroupId,
+    paymentId: result.paymentId,
+    orders: result.orders || [],
+    payment: result.payment || null,
+  });
 });
 
 const refundPayment = asyncHandler(async (req, res) => {

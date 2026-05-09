@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
 
 function RoleCard({ title, desc, to }) {
   return (
@@ -16,6 +17,8 @@ function RoleCard({ title, desc, to }) {
 }
 
 export function RoleSelectionPage() {
+  const { influencerCommerceEnabled, loading } = usePlatformFeatures();
+
   return (
     <div className="mx-auto max-w-xl">
       <h1 className="text-center text-2xl font-semibold tracking-tight">
@@ -36,6 +39,17 @@ export function RoleSelectionPage() {
           desc="Sell on the platform. Complete onboarding and wait for approval."
           to="/register?role=vendor"
         />
+        {loading || influencerCommerceEnabled ? (
+          <RoleCard
+            title="Influencer"
+            desc="Create shoppable reels, accept campaigns, and earn tracked commissions."
+            to="/register?role=influencer"
+          />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
+            Influencer onboarding is paused by administrators.
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ const vendorRepo = require("../repositories/vendor.repository");
 const productService = require("./product.service");
 const { ORDER_STATUS, PAYMENT_STATUS } = require("../models/Order");
 const checkoutService = require("./checkout.service");
+const inventoryService = require("./inventory.service");
 
 function normalizeAddress(address) {
   const a = address || {};
@@ -80,13 +81,30 @@ class OrderService {
       });
     }
 
-    for (const item of order.items || []) {
-      await productService.restoreSale(
-        item.productId?._id || item.productId,
-        Number(item.quantity || 0),
-        Number(item.price || 0) * Number(item.quantity || 0),
-        item.variantId || ""
-      );
+    if (!order.inventoryCommittedAt) {
+      for (const item of order.items || []) {
+        await inventoryService.unreserveStock(
+          item.productId?._id || item.productId,
+          item.variantId || "",
+          Number(item.quantity || 0),
+          order._id,
+          order.sellerId?._id || order.sellerId,
+          userId
+        );
+      }
+    } else if (!order.inventoryRestoredAt) {
+      for (const item of order.items || []) {
+        await inventoryService.restoreStock(
+          item.productId?._id || item.productId,
+          item.variantId || "",
+          Number(item.quantity || 0),
+          null,
+          order._id,
+          order.sellerId?._id || order.sellerId,
+          userId,
+          "Order cancelled after inventory commit"
+        );
+      }
     }
 
     const payouts = await payoutRepo.findByOrderId(order._id);
@@ -103,7 +121,13 @@ class OrderService {
         )
     );
 
-    return await orderRepo.updateStatus(orderId, "Cancelled");
+    const cancelled = await orderRepo.updateById(orderId, {
+      status: "Cancelled",
+      cancelledAt: new Date(),
+      inventoryReservationReleasedAt: order.inventoryCommittedAt ? order.inventoryReservationReleasedAt : new Date(),
+      inventoryRestoredAt: order.inventoryCommittedAt ? new Date() : order.inventoryRestoredAt,
+    });
+    return cancelled;
   }
 
   async requestReturnForUser(userId, orderId) {
@@ -138,13 +162,19 @@ class OrderService {
       });
     }
 
-    for (const item of order.items || []) {
-      await productService.restoreSale(
-        item.productId?._id || item.productId,
-        Number(item.quantity || 0),
-        Number(item.price || 0) * Number(item.quantity || 0),
-        item.variantId || ""
-      );
+    if (!order.inventoryRestoredAt) {
+      for (const item of order.items || []) {
+        await inventoryService.restoreStock(
+          item.productId?._id || item.productId,
+          item.variantId || "",
+          Number(item.quantity || 0),
+          order.returnId || null,
+          order._id,
+          order.sellerId?._id || order.sellerId,
+          userId,
+          "Customer return processed"
+        );
+      }
     }
 
     await Promise.all(
@@ -160,7 +190,10 @@ class OrderService {
         )
     );
 
-    return await orderRepo.updateStatus(orderId, "Returned");
+    return await orderRepo.updateById(orderId, {
+      status: "Returned",
+      inventoryRestoredAt: new Date(),
+    });
   }
 
   async listForSeller(userId, { page, limit, status } = {}) {

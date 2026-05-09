@@ -26,6 +26,8 @@ import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { AdminSellersPage } from "./pages/AdminSellersPage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { AdminProductsPage } from "./pages/AdminProductsPage";
+import { AdminInventoryPage } from "./pages/AdminInventoryPage";
+import { AdminInventoryDetailsPage } from "./pages/AdminInventoryDetailsPage";
 import { AdminProductCreate } from "./pages/AdminProductCreate";
 import { AdminProductEdit } from "./pages/AdminProductEdit";
 import { AdminOrdersPage } from "./pages/AdminOrdersPage";
@@ -82,6 +84,9 @@ import { VendorOffersPage } from "./pages/VendorOffersPage";
 import { VendorContentPage } from "./pages/VendorContentPage";
 import { VendorSupportPage } from "./pages/VendorSupportPage";
 import { VendorSettingsPage } from "./pages/VendorSettingsPage";
+import { VendorInfluencerPage } from "./pages/VendorInfluencerPage";
+import { InventoryPage } from "./pages/InventoryPage";
+import { InventoryDetailsPage } from "./pages/InventoryDetailsPage";
 import { TermsAndConditionsPage } from "./pages/TermsAndConditionsPage";
 import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
 import { ReturnPolicyPage } from "./pages/ReturnPolicyPage";
@@ -107,6 +112,14 @@ import { StaffSettingsPage } from "./pages/StaffSettingsPage";
 import { StaffRolesPage } from "./pages/StaffRolesPage";
 import { StaffStaffPage } from "./pages/StaffStaffPage";
 import { StaffUnauthorizedPage } from "./pages/StaffUnauthorizedPage";
+import { InfluencerLayout } from "./pages/influencer/InfluencerLayout";
+import InfluencerDashboardPage from "./pages/influencer/dashboard.jsx";
+import InfluencerCampaignsPage from "./pages/influencer/campaigns.jsx";
+import InfluencerReelUploadPage from "./pages/influencer/reelUpload.jsx";
+import InfluencerReelsPage from "./pages/influencer/reels.jsx";
+import InfluencerEarningsPage from "./pages/influencer/earnings.jsx";
+import InfluencerProfilePage from "./pages/influencer/profile.jsx";
+import { AdminInfluencerPage } from "./pages/AdminInfluencerPage";
 
 function LegacySellerProductEditRedirect() {
   const { productId } = useParams();
@@ -147,8 +160,21 @@ export default function App() {
             </Route>
             <Route path="/shop" element={<ProductsPage />} />
             <Route path="/cart" element={<CartPage />} />
-              <Route path="/checkout" element={<CheckoutPage />} />
-              <Route path="/checkout/success" element={<OrderSuccessPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/checkout/success" element={<OrderSuccessPage />} />
+          </Route>
+
+          <Route element={<RoleGate roles={["influencer"]} />}>
+            <Route path="/dashboard/influencer" element={<Navigate to="/influencer/dashboard" replace />} />
+            <Route path="/influencer" element={<Navigate to="/influencer/dashboard" replace />} />
+            <Route element={<InfluencerLayout />}>
+              <Route path="/influencer/dashboard" element={<InfluencerDashboardPage />} />
+              <Route path="/influencer/campaigns" element={<InfluencerCampaignsPage />} />
+              <Route path="/influencer/reels/upload" element={<InfluencerReelUploadPage />} />
+              <Route path="/influencer/reels" element={<InfluencerReelsPage />} />
+              <Route path="/influencer/earnings" element={<InfluencerEarningsPage />} />
+              <Route path="/influencer/profile" element={<InfluencerProfilePage />} />
+            </Route>
           </Route>
 
           <Route element={<RoleGate roles={["vendor"]} />}>
@@ -165,7 +191,8 @@ export default function App() {
               <Route path="products/create" element={<VendorModuleRoute moduleKey="products" action="create"><ProductFormPage /></VendorModuleRoute>} />
               <Route path="products/:productId/edit" element={<VendorModuleRoute moduleKey="products" action="update"><ProductFormPage /></VendorModuleRoute>} />
               <Route path="orders" element={<VendorModuleRoute moduleKey="orders"><VendorOrdersPage /></VendorModuleRoute>} />
-              <Route path="inventory" element={<VendorModuleRoute moduleKey="inventory"><VendorInventoryPage /></VendorModuleRoute>} />
+              <Route path="inventory" element={<VendorModuleRoute moduleKey="inventory"><InventoryPage /></VendorModuleRoute>} />
+              <Route path="inventory/:productId" element={<VendorModuleRoute moduleKey="inventory"><InventoryDetailsPage /></VendorModuleRoute>} />
               <Route path="analytics" element={<VendorModuleRoute moduleKey="analytics"><VendorAnalyticsPage /></VendorModuleRoute>} />
               <Route path="earnings" element={<VendorModuleRoute moduleKey="payments"><VendorEarningsPage /></VendorModuleRoute>} />
               <Route path="payouts" element={<VendorModuleRoute moduleKey="payments"><VendorPayoutsPage /></VendorModuleRoute>} />
@@ -181,6 +208,7 @@ export default function App() {
               <Route path="returns" element={<VendorModuleRoute moduleKey="returns"><VendorReturnsPage /></VendorModuleRoute>} />
               <Route path="offers" element={<VendorOffersPage />} />
               <Route path="content" element={<VendorModuleRoute moduleKey="homepage_content"><VendorContentPage /></VendorModuleRoute>} />
+              <Route path="influencer-commerce" element={<VendorInfluencerPage />} />
               <Route path="support" element={<VendorSupportPage />} />
               <Route path="settings" element={<VendorSettingsPage />} />
             </Route>
@@ -196,6 +224,8 @@ export default function App() {
               <Route path="sellers" element={<AdminSellersPage />} />
               <Route path="sellers/:id" element={<AdminVendorDetailsPage />} />
               <Route path="products" element={<AdminProductsPage />} />
+              <Route path="inventory" element={<AdminInventoryPage />} />
+              <Route path="inventory/:productId" element={<AdminInventoryDetailsPage />} />
               <Route path="categories" element={<AdminCategoriesPage />} />
               <Route path="subcategories" element={<AdminSubcategoriesPage />} />
               <Route path="attributes" element={<AdminAttributesPage />} />
@@ -225,6 +255,7 @@ export default function App() {
               <Route path="pricing-categories" element={<AdminPricingCategoriesPage />} />
               <Route path="roles" element={<AdminRolesPage />} />
               <Route path="staff" element={<AdminStaffPage />} />
+              <Route path="influencers" element={<AdminInfluencerPage />} />
             </Route>
           </Route>
         </Route>

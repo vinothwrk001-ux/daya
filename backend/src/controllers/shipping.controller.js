@@ -6,6 +6,7 @@ const logisticsService = require("../services/logistics.service");
 const orderService = require("../services/order.service");
 const vendorRepo = require("../repositories/vendor.repository");
 const orderRepo = require("../repositories/order.repository");
+const inventoryService = require("../services/inventory.service");
 
 /**
  * ==================== VENDOR SHIPPING ENDPOINTS ====================
@@ -244,6 +245,15 @@ const updateOrderShippingStatus = asyncHandler(async (req, res) => {
   });
 
   order.status = lifecycle.status;
+  if (order.shippingStatus === "SHIPPED" && !order.inventoryCommittedAt) {
+    await inventoryService.commitOrderInventory(order, {
+      shipmentId: order.shipmentId || undefined,
+      performedBy: req.user?._id || req.user?.sub,
+    });
+  }
+  if (order.shippingStatus === "DELIVERED") {
+    order.deliveredAt = order.deliveredAt || new Date();
+  }
 
   // Add to timeline
   if (order.timeline) {

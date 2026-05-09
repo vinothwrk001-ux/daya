@@ -1,8 +1,30 @@
 import { useEffect, useState } from "react";
 import * as pricingService from "../../services/pricingService";
 
+const PAYMENT_METHOD_OPTIONS = [
+  {
+    value: "ALL",
+    label: "All payments",
+    hint: "Applies regardless of payment mode.",
+    pillClassName: "bg-slate-100 text-slate-700",
+  },
+  {
+    value: "ONLINE",
+    label: "Online only",
+    hint: "Use for gateway fees, MDR, or online GST.",
+    pillClassName: "bg-emerald-100 text-emerald-800",
+  },
+  {
+    value: "COD",
+    label: "COD only",
+    hint: "Use for handling fees, RTO risk, and COD ops cost.",
+    pillClassName: "bg-amber-100 text-amber-800",
+  },
+];
+
 export function PricingRulesManager() {
   const [rules, setRules] = useState([]);
+  const [allRules, setAllRules] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -11,6 +33,7 @@ export function PricingRulesManager() {
   const [editingRule, setEditingRule] = useState(null);
   const [filterActive, setFilterActive] = useState(null);
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState("");
 
   const [formData, setFormData] = useState({
     key: "",
@@ -19,6 +42,7 @@ export function PricingRulesManager() {
     value: 0,
     categoryId: "",
     appliesTo: "ORDER",
+    paymentMethod: "ALL",
     sortOrder: 0,
     maxCap: 0,
     minOrderValue: 0,
@@ -52,7 +76,8 @@ export function PricingRulesManager() {
       if (filterCategory) params.categoryId = filterCategory;
 
       const response = await pricingService.getAllPricingRules(params);
-      setRules(response?.data || []);
+      const items = Array.isArray(response?.data) ? response.data : [];
+      setAllRules(items);
     } catch (err) {
       setError(normalizeMessage(err, "Failed to load rules"));
     } finally {
@@ -79,6 +104,13 @@ export function PricingRulesManager() {
   }, [filterActive, filterCategory]);
 
   useEffect(() => {
+    const filtered = filterPaymentMethod
+      ? allRules.filter((rule) => String(rule.paymentMethod || "ALL").toUpperCase() === filterPaymentMethod)
+      : allRules;
+    setRules(filtered);
+  }, [allRules, filterPaymentMethod]);
+
+  useEffect(() => {
     loadCategories();
   }, []);
 
@@ -90,6 +122,7 @@ export function PricingRulesManager() {
       value: 0,
       categoryId: getOtherCategoryId(),
       appliesTo: "ORDER",
+      paymentMethod: "ALL",
       sortOrder: 0,
       maxCap: 0,
       minOrderValue: 0,
@@ -135,6 +168,7 @@ export function PricingRulesManager() {
       value: rule.value,
       categoryId: normalizeCategoryId(rule.categoryId) || getOtherCategoryId(),
       appliesTo: rule.appliesTo,
+      paymentMethod: rule.paymentMethod || "ALL",
       sortOrder: rule.sortOrder,
       maxCap: rule.maxCap,
       minOrderValue: rule.minOrderValue,
@@ -201,10 +235,41 @@ export function PricingRulesManager() {
     };
   }
 
+  function getPaymentMethodMeta(value) {
+    return (
+      PAYMENT_METHOD_OPTIONS.find((option) => option.value === String(value || "ALL").toUpperCase()) ||
+      PAYMENT_METHOD_OPTIONS[0]
+    );
+  }
+
+  const paymentCounts = PAYMENT_METHOD_OPTIONS.map((option) => ({
+    ...option,
+    count: allRules.filter((rule) => String(rule.paymentMethod || "ALL").toUpperCase() === option.value).length,
+  }));
+
   return (
     <div className="space-y-6">
       {error ? <div className="rounded border border-red-200 bg-red-50 p-4 text-red-700">{error}</div> : null}
       {success ? <div className="rounded border border-green-200 bg-green-50 p-4 text-green-700">{success}</div> : null}
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {paymentCounts.map((option) => (
+          <div key={option.value} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                  {option.value}
+                </div>
+                <div className="mt-2 text-lg font-semibold text-slate-950 dark:text-white">{option.label}</div>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{option.hint}</p>
+              </div>
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${option.pillClassName}`}>
+                {option.count} rules
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div className="flex flex-wrap gap-4">
         <div>
@@ -231,6 +296,22 @@ export function PricingRulesManager() {
             {categories.map((category) => (
               <option key={category._id} value={category._id}>
                 {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Payment Scope</label>
+          <select
+            value={filterPaymentMethod}
+            onChange={(e) => setFilterPaymentMethod(e.target.value)}
+            className="rounded border px-3 py-2"
+          >
+            <option value="">All scopes</option>
+            {PAYMENT_METHOD_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -331,6 +412,24 @@ export function PricingRulesManager() {
             </div>
 
             <div>
+              <label className="mb-1 block text-sm font-medium">Payment Applicability</label>
+              <select
+                value={formData.paymentMethod}
+                onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                className="w-full rounded border px-3 py-2"
+              >
+                {PAYMENT_METHOD_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <small className="text-gray-600">
+                {getPaymentMethodMeta(formData.paymentMethod).hint}
+              </small>
+            </div>
+
+            <div>
               <label className="mb-1 block text-sm font-medium">Sort Order</label>
               <input
                 type="number"
@@ -428,6 +527,7 @@ export function PricingRulesManager() {
                 <th className="border p-3 text-left">Value</th>
                 <th className="border p-3 text-left">Category</th>
                 <th className="border p-3 text-left">Applies To</th>
+                <th className="border p-3 text-left">Payment</th>
                 <th className="border p-3 text-left">Active</th>
                 <th className="border p-3 text-left">Actions</th>
               </tr>
@@ -445,6 +545,15 @@ export function PricingRulesManager() {
                     <span className="rounded bg-purple-100 px-2 py-1 text-sm text-purple-800">{getCategoryLabel(rule)}</span>
                   </td>
                   <td className="border p-3 text-sm">{rule.appliesTo}</td>
+                  <td className="border p-3 text-sm">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        getPaymentMethodMeta(rule.paymentMethod).pillClassName
+                      }`}
+                    >
+                      {getPaymentMethodMeta(rule.paymentMethod).value}
+                    </span>
+                  </td>
                   <td className="border p-3">
                     <div className="flex flex-col gap-1">
                       <button

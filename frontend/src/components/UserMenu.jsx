@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../context/authStore";
 import { Portal } from "./Portal";
 import * as authService from "../services/authService";
+import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
 
 export function UserMenu() {
+  const { influencerCommerceEnabled, loading: commerceLoading } = usePlatformFeatures();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -14,31 +16,19 @@ export function UserMenu() {
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
 
-  // Update dropdown position when opened or window resizes
   useEffect(() => {
     function updatePosition() {
       if (!triggerRef.current) return;
 
       const rect = triggerRef.current.getBoundingClientRect();
-      const menuHeight = 360; // Approximate dropdown height
+      const menuHeight = 360;
       const viewportHeight = window.innerHeight;
-      
-      // Check if there's enough space below
       const hasSpaceBelow = rect.bottom + menuHeight + 16 < viewportHeight;
-      
-      if (hasSpaceBelow) {
-        // Position below the trigger
-        setPosition({
-          top: rect.bottom + 8,
-          left: rect.right - 224, // Align right edge (w-56 = 224px)
-        });
-      } else {
-        // Position above the trigger
-        setPosition({
-          top: rect.top - menuHeight - 8,
-          left: rect.right - 224,
-        });
-      }
+
+      setPosition({
+        top: hasSpaceBelow ? rect.bottom + 8 : rect.top - menuHeight - 8,
+        left: rect.right - 224,
+      });
     }
 
     if (isOpen) {
@@ -109,13 +99,44 @@ export function UserMenu() {
   const roleColors = {
     admin: "bg-purple-500",
     vendor: "bg-blue-500",
+    influencer: "bg-amber-500",
     user: "bg-slate-500",
   };
   const avatarBg = roleColors[user.role] || "bg-slate-500";
 
-  const menuItems = [
-    { label: "Dashboard", path: "/dashboard", icon: "📊" },
-  ];
+  const menuItemsByRole = {
+    influencer: [
+      { label: "Dashboard", path: "/influencer/dashboard", icon: "D" },
+      { label: "Profile", path: "/influencer/profile", icon: "P" },
+      { label: "Campaigns", path: "/influencer/campaigns", icon: "C" },
+      { label: "Upload reel", path: "/influencer/reels/upload", icon: "U" },
+      { label: "Reels", path: "/influencer/reels", icon: "R" },
+      { label: "Earnings", path: "/influencer/earnings", icon: "E" },
+    ],
+    vendor: [
+      { label: "Dashboard", path: "/dashboard/vendor", icon: "D" },
+      { label: "Influencer Commerce", path: "/vendor/influencer-commerce", icon: "I" },
+    ],
+    user: [
+      { label: "Dashboard", path: "/dashboard/user", icon: "D" },
+      { label: "Orders", path: "/orders", icon: "O" },
+      { label: "Profile", path: "/profile", icon: "P" },
+    ],
+    admin: [{ label: "Dashboard", path: "/dashboard/admin", icon: "D" }],
+    super_admin: [{ label: "Dashboard", path: "/dashboard/admin", icon: "D" }],
+    support_admin: [{ label: "Dashboard", path: "/dashboard/admin", icon: "D" }],
+    finance_admin: [{ label: "Dashboard", path: "/dashboard/admin", icon: "D" }],
+  };
+
+  let menuItems = menuItemsByRole[user.role] || [{ label: "Dashboard", path: "/dashboard", icon: "D" }];
+  if (!commerceLoading && user.role === "vendor") {
+    menuItems = menuItems.filter(
+      (item) => influencerCommerceEnabled || item.path !== "/vendor/influencer-commerce"
+    );
+  }
+  if (!commerceLoading && user.role === "influencer" && !influencerCommerceEnabled) {
+    menuItems = [{ label: "Home", path: "/", icon: "H" }];
+  }
 
   return (
     <div className="relative">
@@ -198,7 +219,9 @@ export function UserMenu() {
                   onClick={() => handleMenuClick(item.path)}
                   className="flex w-full items-center gap-3 px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900"
                 >
-                  <span>{item.icon}</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
+                    {item.icon}
+                  </span>
                   <span>{item.label}</span>
                 </button>
               ))}
@@ -210,7 +233,9 @@ export function UserMenu() {
               onClick={handleLogout}
               className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
             >
-              <span>🚪</span>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-50 text-xs font-semibold text-red-600">
+                L
+              </span>
               <span>Logout</span>
             </button>
           </div>

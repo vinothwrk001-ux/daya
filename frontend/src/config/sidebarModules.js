@@ -22,6 +22,8 @@ import {
   Users,
   Wallet,
   UserCog,
+  Clapperboard,
+  Megaphone,
 } from "lucide-react";
 
 export const ADMIN_PRIMARY_ITEM = {
@@ -48,6 +50,7 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Users", path: "/admin/users", permission: "users.read", icon: Users, notificationModule: "MANAGEMENT", notificationSubModule: "USERS" },
       { name: "Sellers", path: "/admin/sellers", permission: "vendors.read", icon: ShoppingBag, legacyOnly: true },
       { name: "Products", path: "/admin/products", permission: "products.read", icon: Boxes, notificationModule: "MANAGEMENT", notificationSubModule: "PRODUCTS" },
+      { name: "Inventory", path: "/admin/inventory", permission: "products.read", icon: Package2, notificationModule: "MANAGEMENT", notificationSubModule: "INVENTORY" },
       { name: "Orders", path: "/admin/orders", permission: "orders.read", icon: ShoppingCart, notificationModule: "MANAGEMENT", notificationSubModule: "ORDERS" },
       { name: "Pickups", path: "/admin/pickups", permission: "orders.read", icon: Truck, notificationModule: "MANAGEMENT", notificationSubModule: "DELIVERY" },
     ],
@@ -73,6 +76,7 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Payments", path: "/admin/payments", permission: "payments.read", icon: CreditCard, notificationModule: "FINANCE", notificationSubModule: "PAYMENTS" },
       { name: "Refunds", path: "/admin/refunds", permission: "payments.read", icon: RotateCcw, notificationModule: "MANAGEMENT", notificationSubModule: "RETURNS" },
       { name: "Payout Management", path: "/admin/finance/payouts", permission: "payouts.read", icon: Wallet, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
+      { name: "Influencers", path: "/admin/influencers", permission: "dashboard.read", icon: Clapperboard },
     ],
   },
   {
@@ -117,6 +121,7 @@ export const VENDOR_STATIC_ITEMS = [
       { name: "Notifications", path: "/vendor/notifications", icon: Bell, badgeKey: "notificationsUnread" },
       { name: "Ready for Pickup", path: "/vendor/pickups", icon: Truck },
       { name: "Offers", path: "/vendor/offers", icon: Percent },
+      { name: "Influencer Commerce", path: "/vendor/influencer-commerce", icon: Megaphone },
       { name: "Support", path: "/vendor/support", icon: HeadphonesIcon, notificationModule: "WORKSPACE", notificationSubModule: "SUPPORT" },
       { name: "Settings", path: "/vendor/settings", icon: Settings, notificationModule: "WORKSPACE", notificationSubModule: "SETTINGS" },
     ],

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { AddressModal } from "../components/AddressModal";
 import { BackButton } from "../components/BackButton";
 import { AddressCard } from "../components/commerce/AddressCard";
@@ -23,9 +23,28 @@ import {
   getSummaryItems,
   isAddressFormValid,
 } from "../utils/checkout";
+import { loadTrackingContext } from "../utils/influencerTracking";
+
+const CHECKOUT_SUCCESS_STORAGE_KEY = "checkoutSuccessPayload";
 
 function normalizeError(err) {
+  const firstIssue = err?.response?.data?.details?.issues?.[0];
+  if (firstIssue?.path?.length) {
+    return `${firstIssue.path.join(".")}: ${firstIssue.message}`;
+  }
   return err?.response?.data?.message || err?.message || "Request failed";
+}
+
+function hasValidShippingAddress(address) {
+  return Boolean(
+    String(address?.fullName || "").trim() &&
+      String(address?.phone || "").trim() &&
+      String(address?.line1 || "").trim() &&
+      String(address?.city || "").trim() &&
+      String(address?.state || "").trim() &&
+      String(address?.postalCode || "").trim() &&
+      String(address?.country || "").trim()
+  );
 }
 
 function ensureRazorpay() {
@@ -51,10 +70,21 @@ function ensureRazorpay() {
   });
 }
 
+function persistCheckoutSuccessPayload(payload) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.sessionStorage.setItem(CHECKOUT_SUCCESS_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore session storage failures and still allow in-memory navigation state.
+  }
+}
+
 export function CheckoutPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [updatingItemId, setUpdatingItemId] = useState("");
   const [error, setError] = useState("");
@@ -68,10 +98,15 @@ export function CheckoutPage() {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [toast, setToast] = useState(null);
   const [pricingConfig, setPricingConfig] = useState(null);
+  const [amountPulse, setAmountPulse] = useState(false);
   const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const didMountPaymentMethodRef = useRef(false);
 
-  async function loadPreparedCheckout(shippingAddress) {
+  async function loadPreparedCheckout(shippingAddress, selectedPaymentMethod = paymentMethod) {
+    const trackingContext = loadTrackingContext();
     const payload = shippingAddress ? { shippingAddress } : {};
+    payload.paymentMethod = selectedPaymentMethod;
+    if (trackingContext?.trackingToken) payload.trackingToken = trackingContext.trackingToken;
     const checkoutRes = await checkoutService.prepareCheckout(payload);
     return checkoutRes?.data || null;
   }
@@ -117,6 +152,28 @@ export function CheckoutPage() {
     refresh();
   }, []);
 
+  useEffect(() => {
+    if (!didMountPaymentMethodRef.current) {
+      didMountPaymentMethodRef.current = true;
+      return;
+    }
+
+    const activeShippingAddress = getActiveShippingAddress();
+    setError("");
+    loadPreparedCheckout(activeShippingAddress, paymentMethod)
+      .then((nextSummary) => {
+        setSummary(nextSummary);
+        setAmountPulse(true);
+      })
+      .catch((err) => setError(normalizeError(err)));
+  }, [paymentMethod]);
+
+  useEffect(() => {
+    if (!amountPulse) return undefined;
+    const timer = window.setTimeout(() => setAmountPulse(false), 320);
+    return () => window.clearTimeout(timer);
+  }, [amountPulse]);
+
   const selectedAddress = useMemo(
     () => addresses.find((address) => String(address?._id) === String(selectedAddressId)) || null,
     [addresses, selectedAddressId]
@@ -155,14 +212,19 @@ export function CheckoutPage() {
     // Fallback to legacy method
     return buildPriceBreakdown(summary);
   }, [summary, pricingConfig]);
-  const hasUsableAddress = Boolean(selectedAddress) || (!selectedAddress && isAddressFormValid(addressForm));
-  const unlockedSteps = useMemo(() => (hasUsableAddress ? ["address", "summary", "payment"] : ["address"]), [hasUsableAddress]);
-
-  function getActiveShippingAddress() {
+  const activeShippingAddress = useMemo(() => {
     if (selectedAddress) {
       return getShippingAddressFromSavedAddress(selectedAddress);
     }
     return getShippingAddressFromForm(addressForm);
+  }, [selectedAddress, addressForm]);
+  const hasUsableAddress = selectedAddress
+    ? hasValidShippingAddress(activeShippingAddress)
+    : isAddressFormValid(addressForm) && hasValidShippingAddress(activeShippingAddress);
+  const unlockedSteps = useMemo(() => (hasUsableAddress ? ["address", "summary", "payment"] : ["address"]), [hasUsableAddress]);
+
+  function getActiveShippingAddress() {
+    return activeShippingAddress;
   }
 
   async function handleQuantityChange(productId, variantId, quantity) {
@@ -170,8 +232,45 @@ export function CheckoutPage() {
     setError("");
     try {
       await cartService.updateCartItem(productId, quantity, variantId);
-      setSummary(await loadPreparedCheckout(getActiveShippingAddress()));
+      setSummary(await loadPreparedCheckout(getActiveShippingAddress(), paymentMethod));
+      setAmountPulse(true);
       setToast({ type: "success", message: "Order summary updated." });
+    } catch (err) {
+      setError(normalizeError(err));
+    } finally {
+      setUpdatingItemId("");
+    }
+  }
+
+  async function handleRemoveItem(productId, variantId) {
+    setUpdatingItemId(`${String(productId)}:${variantId || ""}`);
+    setError("");
+    try {
+      await cartService.removeCartItem(productId, variantId);
+      try {
+        const nextSummary = await loadPreparedCheckout(getActiveShippingAddress(), paymentMethod);
+        // Check if summary has items by using getSummaryItems
+        const remainingItems = getSummaryItems(nextSummary);
+        if (!nextSummary || remainingItems.length === 0) {
+          setSummary(null);
+          setToast({ type: "success", message: "Item removed. Your checkout is now empty." });
+        } else {
+          // If there are items remaining, keep the summary
+          setSummary(nextSummary);
+          setAmountPulse(true);
+          setToast({ type: "success", message: "Item removed from checkout." });
+        }
+      } catch (err) {
+        const normalizedMessage = normalizeError(err);
+        // Only empty the cart if error explicitly says cart is empty
+        if (/cart is empty|no items|items.*empty/i.test(normalizedMessage)) {
+          setSummary(null);
+          setToast({ type: "success", message: "Item removed. Your checkout is now empty." });
+        } else {
+          // For other errors, show error and don't modify summary
+          setError(normalizedMessage);
+        }
+      }
     } catch (err) {
       setError(normalizeError(err));
     } finally {
@@ -196,9 +295,11 @@ export function CheckoutPage() {
       setShowAddressSelector(false);
       setSummary(
         await loadPreparedCheckout(
-          createdAddress ? getShippingAddressFromSavedAddress(createdAddress) : getShippingAddressFromForm(formSnapshot)
+          createdAddress ? getShippingAddressFromSavedAddress(createdAddress) : getShippingAddressFromForm(formSnapshot),
+          paymentMethod
         )
       );
+      setAmountPulse(true);
       setToast({ type: "success", message: "Address saved and selected for delivery." });
       setCurrentStep("summary");
     } catch (err) {
@@ -211,29 +312,36 @@ export function CheckoutPage() {
   async function placeOrder() {
     const shippingAddress = getActiveShippingAddress();
 
-    if (!shippingAddress?.fullName || !shippingAddress?.line1 || !shippingAddress?.postalCode) {
+    if (!hasValidShippingAddress(shippingAddress)) {
       setCurrentStep("address");
-      setToast({ type: "error", message: "Select or save a delivery address before payment." });
+      setToast({ type: "error", message: "Complete the delivery address, including recipient name, before payment." });
       return;
     }
 
     setPlacing(true);
     setError("");
     try {
+      const trackingContext = loadTrackingContext();
       if (paymentMethod === "COD") {
-        const response = await checkoutService.createOrder({ shippingAddress, paymentMethod: "COD" });
-        navigate("/checkout/success", {
-          replace: true,
-          state: {
-            orders: response?.data?.orders || [],
-            payment: response?.data?.payment || null,
-          },
+        const response = await checkoutService.createOrder({
+          shippingAddress,
+          paymentMethod: "COD",
+          trackingToken: trackingContext?.trackingToken,
         });
+        const orders = response?.data?.orders || [];
+        const payment = response?.data?.payment || null;
+        const orderId = orders[0]?._id || null;
+        persistCheckoutSuccessPayload({ orders, payment });
+        navigate(orderId ? `/orders/${orderId}` : "/orders", { replace: true });
         return;
       }
 
-      const orderRes = await paymentService.createRazorpayOrder({ cartId: "current", shippingAddress });
-      const razorpayData = orderRes?.data || {};
+      const orderRes = await paymentService.createRazorpayOrder({
+        cartId: "current",
+        shippingAddress,
+        trackingToken: trackingContext?.trackingToken,
+      });
+      const razorpayData = orderRes || {};
       await ensureRazorpay();
 
       if (typeof window === "undefined" || typeof window.Razorpay !== "function") {
@@ -255,19 +363,31 @@ export function CheckoutPage() {
           color: "#0f766e",
         },
         handler: async (response) => {
-          const verified = await paymentService.verifyRazorpayPayment({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            shippingAddress,
-          });
-          navigate("/checkout/success", {
-            replace: true,
-            state: {
-              orders: verified?.data?.orders || [],
-              payment: verified?.data?.payment || null,
-            },
-          });
+          try {
+            setVerifyingPayment(true);
+            const verified = await paymentService.verifyRazorpayPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              shippingAddress,
+              trackingToken: trackingContext?.trackingToken,
+            });
+            const successPayload = {
+              orders: verified?.orders || [],
+              payment: verified?.payment || null,
+            };
+            persistCheckoutSuccessPayload(successPayload);
+            navigate(verified?.redirectUrl || (verified?.orderId ? `/orders/${verified.orderId}` : "/orders"), {
+              replace: true,
+              state: successPayload,
+            });
+          } catch (verifyError) {
+            setError(normalizeError(verifyError));
+            setToast({ type: "error", message: "Payment verification failed. Please retry or open your orders." });
+          } finally {
+            setVerifyingPayment(false);
+            setPlacing(false);
+          }
         },
       };
 
@@ -306,13 +426,13 @@ export function CheckoutPage() {
         </div>
       ) : !summary ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-          Unable to prepare checkout. Please review your cart.
+          Your checkout is empty. Please review your cart.
           <button
             type="button"
-            onClick={() => navigate("/cart")}
+            onClick={() => navigate("/")}
             className="mt-4 inline-flex rounded-xl bg-[color:var(--commerce-accent)] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
           >
-            Go to cart
+            Go to shopping
           </button>
         </div>
       ) : (
@@ -380,8 +500,11 @@ export function CheckoutPage() {
                           setAddressForm(getAddressFormFromSavedAddress(address));
                           setShowAddressSelector(false);
                           setShowAddressModal(false);
-                          loadPreparedCheckout(getShippingAddressFromSavedAddress(address))
-                            .then((nextSummary) => setSummary(nextSummary))
+                          loadPreparedCheckout(getShippingAddressFromSavedAddress(address), paymentMethod)
+                            .then((nextSummary) => {
+                              setSummary(nextSummary);
+                              setAmountPulse(true);
+                            })
                             .catch((err) => setError(normalizeError(err)));
                           setCurrentStep("summary");
                         }}
@@ -428,6 +551,7 @@ export function CheckoutPage() {
                     item={item}
                     busy={updatingItemId === `${String(item.productId)}:${item.variantId || ""}`}
                     onQuantityChange={(quantity) => handleQuantityChange(String(item.productId), item.variantId || "", quantity)}
+                    onRemove={() => handleRemoveItem(String(item.productId), item.variantId || "")}
                   />
                 ))}
               </div>
@@ -498,7 +622,13 @@ export function CheckoutPage() {
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Order total</div>
                 <div className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
-                  {formatCurrency(totalAmount || 0)}
+                  <span
+                    className={`inline-block transition-all duration-300 ${
+                      amountPulse ? "translate-y-[-1px] scale-[1.03] text-[color:var(--commerce-accent)]" : ""
+                    }`}
+                  >
+                    {formatCurrency(totalAmount || 0)}
+                  </span>
                 </div>
                 <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                   {paymentMethod === "ONLINE" ? "You will be redirected to Razorpay next." : "Cash will be collected on delivery."}
@@ -541,6 +671,23 @@ export function CheckoutPage() {
       />
 
       <InlineToast toast={toast} onClose={() => setToast(null)} />
+
+      {verifyingPayment ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 px-6 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl dark:bg-slate-900">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-[color:var(--commerce-accent)] dark:border-slate-700 dark:border-t-[color:var(--commerce-accent)]" />
+            <h2 className="mt-5 text-xl font-semibold text-slate-950 dark:text-white">Verifying payment securely...</h2>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              Please wait while we confirm your Razorpay payment and create the order.
+            </p>
+            <div className="mt-5">
+              <Link to="/orders" className="text-sm font-medium text-blue-600 hover:underline">
+                View orders instead
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

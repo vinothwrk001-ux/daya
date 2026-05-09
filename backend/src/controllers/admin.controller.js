@@ -131,6 +131,40 @@ const listOrders = asyncHandler(async (req, res) => {
   return ok(res, result, "Orders loaded");
 });
 
+const getAdminInventorySummary = asyncHandler(async (req, res) => {
+  const result = await adminService.getAdminInventorySummary({
+    page: Number(req.query.page || 1),
+    limit: Number(req.query.limit || 20),
+    search: req.query.search || "",
+  });
+  return ok(res, result, "Admin inventory loaded");
+});
+
+const getAdminInventoryProduct = asyncHandler(async (req, res) => {
+  const result = await adminService.getAdminInventoryProduct(req.params.id);
+  return ok(res, result, "Admin product inventory loaded");
+});
+
+const getAdminInventoryLedger = asyncHandler(async (req, res) => {
+  const result = await adminService.getAdminInventoryLedger(req.params.id, req.params.variantId, {
+    limit: Number(req.query.limit || 20),
+    offset: Number(req.query.offset || 0),
+  });
+  return ok(res, result, "Admin inventory ledger loaded");
+});
+
+const adjustAdminInventory = asyncHandler(async (req, res) => {
+  const result = await adminService.adjustAdminInventory(req.params.id, req.params.variantId, req.body || {}, req.user);
+  return ok(res, result, "Admin inventory adjusted");
+});
+
+const updateAdminInventoryThreshold = asyncHandler(async (req, res) => {
+  const { threshold } = req.body || {};
+  if (threshold === undefined) throw new AppError("Threshold value is required", 400, "VALIDATION_ERROR");
+  const result = await adminService.updateAdminInventoryThreshold(req.params.id, req.params.variantId, threshold, req.user);
+  return ok(res, result, "Admin inventory threshold updated");
+});
+
 const listPayouts = asyncHandler(async (req, res) => {
   const result = await adminService.listPayouts({
     status: req.query.status,
@@ -240,6 +274,11 @@ module.exports = {
   rejectVendor,
   removeVendor,
   listOrders,
+  getAdminInventorySummary,
+  getAdminInventoryProduct,
+  getAdminInventoryLedger,
+  adjustAdminInventory,
+  updateAdminInventoryThreshold,
   cancelOrder,
   listPayouts,
   listReviews,

@@ -8,8 +8,8 @@ const prepare = asyncHandler(async (req, res) => {
 });
 
 const createOrder = asyncHandler(async (req, res) => {
-  const { shippingAddress, paymentMethod } = req.body;
-  const result = await checkoutService.createOrder(req.user.sub, { shippingAddress, paymentMethod });
+  const { shippingAddress, paymentMethod, trackingToken } = req.body;
+  const result = await checkoutService.createOrder(req.user.sub, { shippingAddress, paymentMethod, trackingToken });
   return ok(res, result, "Order created");
 });
 

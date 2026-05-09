@@ -56,7 +56,7 @@ function CategoryCarouselComponent({
                   <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-br opacity-90 ${category.color}`} />
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.72),transparent_44%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_38%)]" />
 
-                  <span className={`relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br shadow-sm transition-all duration-300 ease-in-out group-hover:scale-110 ${category.iconBg}`}>
+                  <span className={`relative flex h-12 w-12 items-center justify-center rounded-full shadow-sm transition-all duration-300 ease-in-out group-hover:scale-110 ${category.logo ? "" : `bg-gradient-to-br ${category.iconBg}`}`}>
                     <CategoryIcon Icon={category.IconComponent} />
                   </span>
 
@@ -88,16 +88,30 @@ function CategoryIcon({ Icon }) {
     return null;
   }
 
-  const sample = <Icon className="h-5 w-5 text-indigo-700 dark:text-indigo-200" />;
-  if (sample?.type === "span") {
-    return <span className="text-lg leading-none">{sample}</span>;
-  }
+  // Try to render the component to check what type it is
+  try {
+    const sample = <Icon className="h-5 w-5 text-indigo-700 dark:text-indigo-200" />;
+    
+    // Check if it's an img element (has type 'img')
+    if (sample?.type === "img") {
+      // For images, render without the className that's meant for SVG icons
+      return <Icon className="h-full w-full" />;
+    }
+    
+    if (sample?.type === "span") {
+      return <span className="text-lg leading-none">{sample}</span>;
+    }
 
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className="h-6 w-6 text-indigo-700 dark:text-indigo-200" aria-hidden="true">
-      {sample}
-    </svg>
-  );
+    // For SVG icons, wrap in SVG
+    return (
+      <svg viewBox="0 0 20 20" fill="currentColor" className="h-6 w-6 text-indigo-700 dark:text-indigo-200" aria-hidden="true">
+        {sample}
+      </svg>
+    );
+  } catch {
+    // Fallback: just render the icon
+    return <Icon className="h-5 w-5 text-indigo-700 dark:text-indigo-200" />;
+  }
 }
 
 export const CategoryCarousel = memo(CategoryCarouselComponent);

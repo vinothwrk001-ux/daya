@@ -1,13 +1,40 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
-import { getUserInvoiceUrl, getUserOrder, getUserOrderTracking } from "../services/userService";
+import {
+  getUserInvoiceUrl,
+  getUserOrder,
+  getUserOrderTracking,
+  requestUserReturn,
+} from "../services/userService";
 import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
-import { formatWeight, getWeightUnit, getWeightValue } from "../utils/weight";
 
 function normalizeError(err) {
   return err?.response?.data?.message || err?.message || "Failed to load order details.";
+}
+
+function formatDateTime(value) {
+  if (!value) return "Not available";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not available";
+  return date.toLocaleString();
+}
+
+function formatDate(value) {
+  if (!value) return "Not available";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not available";
+  return date.toLocaleDateString();
+}
+
+function KeyValue({ label, value }) {
+  return (
+    <div>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</div>
+      <div className="mt-1 text-sm text-slate-700 dark:text-slate-200">{value || "Not available"}</div>
+    </div>
+  );
 }
 
 export function OrderDetailsPage() {
@@ -16,6 +43,7 @@ export function OrderDetailsPage() {
   const [tracking, setTracking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,6 +71,27 @@ export function OrderDetailsPage() {
     };
   }, [orderId]);
 
+  const canReturn = order?.status === "Delivered";
+  const timelineSteps = useMemo(() => order?.timeline?.steps || [], [order]);
+  const timelineEvents = useMemo(() => tracking?.timeline || order?.timeline?.events || [], [order, tracking]);
+
+  async function handleReturn() {
+    const reason = window.prompt("Reason for return");
+    if (!reason) return;
+    setActionBusy(true);
+    try {
+      await requestUserReturn(orderId, { reason });
+      const [orderResponse, trackingResponse] = await Promise.all([getUserOrder(orderId), getUserOrderTracking(orderId)]);
+      setOrder(orderResponse.data);
+      setTracking(trackingResponse.data);
+      setError("");
+    } catch (err) {
+      setError(normalizeError(err));
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
   if (loading) {
     return <div className="h-80 animate-pulse rounded-3xl bg-slate-100 dark:bg-slate-800" />;
   }
@@ -52,123 +101,203 @@ export function OrderDetailsPage() {
   }
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-sm text-slate-500 dark:text-slate-400">Order details</div>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-950 dark:text-white">{order.orderNumber}</h1>
-          <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">{new Date(order.createdAt).toLocaleString()}</div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge value={order.status} />
-          <StatusBadge value={order.paymentStatus} />
-          <a
-            href={getUserInvoiceUrl(order._id)}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200"
-          >
-            Download invoice
-          </a>
-        </div>
-      </div>
+    <div className="grid gap-6 print:gap-4">
+      <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 print:rounded-none print:border-0 print:shadow-none">
+        <div className="bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_38%),linear-gradient(135deg,#0f172a,#1e293b)] px-6 py-6 text-white sm:px-8 print:bg-none print:px-0 print:text-slate-950">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300 print:text-slate-500">Order Summary</div>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{order.orderNumber}</h1>
+              <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-200 print:text-slate-600">
+                <span>Invoice: {order.invoiceNumber}</span>
+                <span>Placed: {formatDateTime(order.orderDate || order.createdAt)}</span>
+                <span>Estimated delivery: {order.estimatedDeliveryLabel || formatDate(order.estimatedDelivery)}</span>
+              </div>
+            </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)]">
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Items</h2>
-          <div className="mt-5 grid gap-4">
-            {(order.items || []).map((item) => (
-              <div key={`${order._id}-${item.productId}`} className="flex gap-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-                <div className="h-20 w-20 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
-                  {item.image ? <img src={resolveApiAssetUrl(item.image)} alt={item.name} className="h-full w-full object-cover" /> : null}
-                </div>
-                <div className="min-w-0 flex-1">
-                  {(() => {
-                    const itemWeight = getWeightValue(item);
-                    const itemWeightUnit = getWeightUnit(item);
-                    const totalWeight = itemWeight * Number(item.quantity || 0);
-                    return (
-                      <>
-                  <div className="font-semibold text-slate-950 dark:text-white">{item.name}</div>
-                  <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Quantity: {item.quantity}</div>
-                  {itemWeight > 0 ? (
-                    <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                      Weight: {formatWeight(itemWeight, itemWeightUnit)}
-                      {Number(item.quantity || 0) > 1 ? ` each • ${formatWeight(totalWeight, itemWeightUnit)} total` : ""}
+            <div className="flex flex-wrap items-center gap-2 print:hidden">
+              <StatusBadge value={order.status} />
+              <StatusBadge value={order.paymentStatus} />
+              <a
+                href={getUserInvoiceUrl(order._id)}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur transition hover:bg-white/15"
+              >
+                Download Invoice
+              </a>
+              <button
+                type="button"
+                onClick={() => document.getElementById("order-timeline")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+              >
+                Track Order
+              </button>
+              <button
+                type="button"
+                disabled={!canReturn || actionBusy}
+                onClick={handleReturn}
+                className="rounded-xl border border-white/30 px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Return Order
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 p-6 sm:p-8 print:px-0 print:py-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)]">
+          <div className="grid gap-6">
+            <section className="rounded-3xl border border-slate-200 p-5 dark:border-slate-800 print:rounded-none print:border print:border-slate-300">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Products</h2>
+                <div className="text-sm text-slate-500 dark:text-slate-400">{order.items?.length || 0} line items</div>
+              </div>
+              <div className="mt-5 grid gap-4">
+                {(order.items || []).map((item) => (
+                  <div key={item.lineId || `${item.productId}-${item.variantId}`} className="grid gap-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-800 sm:grid-cols-[88px_minmax(0,1fr)_auto]">
+                    <div className="h-22 w-22 overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
+                      {item.image ? <img src={resolveApiAssetUrl(item.image)} alt={item.name} className="h-full w-full object-cover" /> : null}
                     </div>
-                  ) : null}
-                  <div className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
-                    {formatCurrency(Number(item.price || 0) * Number(item.quantity || 0))}
+                    <div className="min-w-0">
+                      <div className="text-base font-semibold text-slate-950 dark:text-white">{item.name}</div>
+                      <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{item.variantName || "Standard variant"}</div>
+                      {item.variantSku ? <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">SKU: {item.variantSku}</div> : null}
+                      <div className="mt-3 grid gap-2 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-3">
+                        <span>Qty: {item.quantity}</span>
+                        <span>Unit price: {formatCurrency(item.unitPrice, { currency: order.pricing?.currency })}</span>
+                        <span>Total: {formatCurrency(item.total, { currency: order.pricing?.currency })}</span>
+                      </div>
+                    </div>
+                    <div className="text-right text-sm font-semibold text-slate-950 dark:text-white">
+                      {formatCurrency(item.total, { currency: order.pricing?.currency })}
+                    </div>
                   </div>
-                      </>
-                    );
-                  })()}
+                ))}
+              </div>
+            </section>
+
+            <section id="order-timeline" className="rounded-3xl border border-slate-200 p-5 dark:border-slate-800 print:rounded-none print:border print:border-slate-300">
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Order Timeline</h2>
+              <div className="mt-5 grid gap-4">
+                <div className="grid gap-3 md:grid-cols-5">
+                  {timelineSteps.map((step, index) => (
+                    <div key={step.key} className="relative rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                      <div className={`h-3 w-3 rounded-full ${step.completed ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"}`} />
+                      {index < timelineSteps.length - 1 ? <div className="pointer-events-none absolute left-8 right-[-16px] top-[1.15rem] hidden h-px bg-slate-200 md:block dark:bg-slate-800" /> : null}
+                      <div className="mt-3 text-sm font-semibold text-slate-950 dark:text-white">{step.label}</div>
+                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{step.timestamp ? formatDateTime(step.timestamp) : "Pending"}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-950/70">
+                  {(timelineEvents || []).map((event) => (
+                    <div key={event.key || `${event.status}-${event.timestamp}`} className="flex gap-3">
+                      <div className="mt-1 h-2.5 w-2.5 rounded-full bg-slate-900 dark:bg-white" />
+                      <div>
+                        <div className="text-sm font-semibold text-slate-950 dark:text-white">{event.label || event.status}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">{formatDateTime(event.timestamp)}</div>
+                        {event.note ? <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">{event.note}</div> : null}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid gap-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Delivery tracking</h2>
-            <div className="mt-4 text-sm text-slate-600 dark:text-slate-300">
-              <div>Shipping mode: {tracking?.shippingMode || order.shippingMode || "SELF"}</div>
-              <div className="mt-1">Shipping status: {tracking?.shippingStatus || order.shippingStatus || "NOT_SHIPPED"}</div>
-              <div className="mt-1">Pickup status: {tracking?.pickupStatus || order.pickupStatus || "NOT_REQUESTED"}</div>
-              <div>Partner: {tracking?.deliveryPartner || "Pending assignment"}</div>
-              <div className="mt-1">Courier: {tracking?.courierName || order.courierName || "Pending assignment"}</div>
-              <div className="mt-1">Tracking ID: {tracking?.trackingId || "Not assigned yet"}</div>
-              {tracking?.trackingUrl ? (
-                <a href={tracking.trackingUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-blue-600 hover:underline">
-                  Open tracking link
-                </a>
-              ) : null}
-            </div>
-            <div className="mt-5 grid gap-3">
-              {(tracking?.timeline || []).map((entry, index) => (
-                <div key={`${entry.status}-${index}`} className="flex gap-3">
-                  <div className="mt-1 h-3 w-3 rounded-full bg-slate-900 dark:bg-white" />
-                  <div>
-                    <div className="font-medium text-slate-900 dark:text-white">{entry.status}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">{new Date(entry.changedAt).toLocaleString()}</div>
-                    {entry.note ? <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">{entry.note}</div> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
+            </section>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Shipping address</h2>
-            <div className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              <div>{order.shippingAddress?.fullName}</div>
-              <div>{order.shippingAddress?.phone}</div>
-              <div>{order.shippingAddress?.line1}</div>
-              {order.shippingAddress?.line2 ? <div>{order.shippingAddress.line2}</div> : null}
-              <div>
-                {order.shippingAddress?.city}, {order.shippingAddress?.state} {order.shippingAddress?.postalCode}
+          <div className="grid gap-4">
+            <section className="rounded-3xl border border-slate-200 p-5 dark:border-slate-800 print:rounded-none print:border print:border-slate-300">
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Order Overview</h2>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+                <KeyValue label="Payment Status" value={order.paymentStatus} />
+                <KeyValue label="Order Status" value={order.status} />
+                <KeyValue label="Invoice Number" value={order.invoiceNumber} />
+                <KeyValue label="Estimated Delivery" value={order.estimatedDeliveryLabel || formatDate(order.estimatedDelivery)} />
               </div>
-              <div>{order.shippingAddress?.country}</div>
-            </div>
-          </div>
+            </section>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Order summary</h2>
-            <div className="mt-4 grid gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <div className="flex items-center justify-between"><span>Subtotal</span><span>{formatCurrency(order.subtotal || 0)}</span></div>
-              <div className="flex items-center justify-between"><span>Shipping</span><span>{formatCurrency(order.shippingFee || 0)}</span></div>
-              <div className="flex items-center justify-between"><span>Tax</span><span>{formatCurrency(order.taxAmount || 0)}</span></div>
-              <div className="flex items-center justify-between border-t border-slate-200 pt-3 font-semibold text-slate-950 dark:border-slate-800 dark:text-white"><span>Total</span><span>{formatCurrency(order.totalAmount || 0)}</span></div>
-            </div>
-          </div>
-        </section>
-      </div>
+            <section className="rounded-3xl border border-slate-200 p-5 dark:border-slate-800 print:rounded-none print:border print:border-slate-300">
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Customer</h2>
+              <div className="mt-4 grid gap-4">
+                <KeyValue label="Name" value={order.customer?.name} />
+                <KeyValue label="Phone" value={order.customer?.phone} />
+                <KeyValue label="Email" value={order.customer?.email} />
+                <KeyValue
+                  label="Shipping Address"
+                  value={[
+                    order.customer?.shippingAddress?.line1,
+                    order.customer?.shippingAddress?.line2,
+                    [order.customer?.shippingAddress?.city, order.customer?.shippingAddress?.state, order.customer?.shippingAddress?.postalCode].filter(Boolean).join(", "),
+                    order.customer?.shippingAddress?.country,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                />
+                <KeyValue
+                  label="Billing Address"
+                  value={[
+                    order.customer?.billingAddress?.line1,
+                    order.customer?.billingAddress?.line2,
+                    [order.customer?.billingAddress?.city, order.customer?.billingAddress?.state, order.customer?.billingAddress?.postalCode].filter(Boolean).join(", "),
+                    order.customer?.billingAddress?.country,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                />
+              </div>
+            </section>
 
-      <div>
+            <section className="rounded-3xl border border-slate-200 p-5 dark:border-slate-800 print:rounded-none print:border print:border-slate-300">
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Payment Breakdown</h2>
+              <div className="mt-4 grid gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <div className="flex items-center justify-between"><span>Subtotal</span><span>{formatCurrency(order.pricing?.subtotal, { currency: order.pricing?.currency })}</span></div>
+                <div className="flex items-center justify-between"><span>Delivery fee</span><span>{formatCurrency(order.pricing?.deliveryFee, { currency: order.pricing?.currency })}</span></div>
+                <div className="flex items-center justify-between"><span>Platform fee</span><span>{formatCurrency(order.pricing?.platformFee, { currency: order.pricing?.currency })}</span></div>
+                <div className="flex items-center justify-between"><span>{order.payment?.method === "COD" ? "COD charges" : "Razorpay charges"}</span><span>{formatCurrency(order.pricing?.paymentFee, { currency: order.pricing?.currency })}</span></div>
+                <div className="flex items-center justify-between"><span>Taxes</span><span>{formatCurrency(order.pricing?.taxes, { currency: order.pricing?.currency })}</span></div>
+                <div className="flex items-center justify-between"><span>Discounts</span><span>-{formatCurrency(order.pricing?.discounts, { currency: order.pricing?.currency })}</span></div>
+                <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-3 font-semibold text-slate-950 dark:border-slate-800 dark:text-white">
+                  <span>Grand total</span>
+                  <span>{formatCurrency(order.pricing?.grandTotal, { currency: order.pricing?.currency })}</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-slate-200 p-5 dark:border-slate-800 print:rounded-none print:border print:border-slate-300">
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Payment Details</h2>
+              <div className="mt-4 grid gap-4">
+                <KeyValue label="Method" value={order.payment?.method} />
+                <KeyValue label="Transaction ID" value={order.payment?.transactionId || "COD"} />
+                <KeyValue label="Payment Timestamp" value={order.payment?.timestamp ? formatDateTime(order.payment.timestamp) : "Awaiting payment"} />
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-slate-200 p-5 dark:border-slate-800 print:rounded-none print:border print:border-slate-300">
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Shipping Details</h2>
+              <div className="mt-4 grid gap-4">
+                <KeyValue label="Courier" value={order.shipping?.courier || "Pending assignment"} />
+                <KeyValue label="Tracking Number" value={order.shipping?.trackingNumber || "Not assigned"} />
+                <KeyValue label="Shipping Method" value={order.shipping?.shippingMethod} />
+                <KeyValue label="Delivery Estimate" value={order.estimatedDeliveryLabel || formatDate(order.estimatedDelivery)} />
+                {order.shipping?.trackingUrl ? (
+                  <a href={order.shipping.trackingUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline print:hidden">
+                    Open courier tracking
+                  </a>
+                ) : null}
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <div className="flex items-center justify-between gap-3 print:hidden">
         <Link to="/orders" className="text-sm font-medium text-blue-600 hover:underline">
           Back to orders
         </Link>
+        <button type="button" onClick={() => window.print()} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">
+          Print summary
+        </button>
       </div>
     </div>
   );

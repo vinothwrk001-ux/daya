@@ -74,6 +74,11 @@ const paymentSchema = new mongoose.Schema(
       shippingFee: { type: Number, min: 0, default: 0 },
       taxAmount: { type: Number, min: 0, default: 0 },
       totalAmount: { type: Number, min: 0, default: 0 },
+      paymentMethod: {
+        type: String,
+        enum: PAYMENT_METHODS,
+        default: "ONLINE",
+      },
     },
     cartId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -85,6 +90,10 @@ const paymentSchema = new mongoose.Schema(
     },
     shippingAddress: {
       type: mongoose.Schema.Types.Mixed,
+    },
+    trackingToken: {
+      type: String,
+      trim: true,
     },
     gatewayResponse: {
       type: mongoose.Schema.Types.Mixed,

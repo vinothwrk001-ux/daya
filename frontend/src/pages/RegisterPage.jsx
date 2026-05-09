@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../context/authStore";
 import * as authService from "../services/authService";
 import { validateAuthForm } from "../utils/authValidation";
+import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
 
 function normalizeError(err) {
   return err?.response?.data?.message || err?.message || "Something went wrong";
@@ -11,6 +12,7 @@ function normalizeError(err) {
 export function RegisterPage() {
   const [params] = useSearchParams();
   const role = useMemo(() => params.get("role") || "user", [params]);
+  const { influencerCommerceEnabled, loading: commerceLoading } = usePlatformFeatures();
   const nav = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
 
@@ -26,11 +28,15 @@ export function RegisterPage() {
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
+    if (role === "influencer" && !commerceLoading && !influencerCommerceEnabled) {
+      setError("Influencer registrations are paused by the administrator.");
+      return;
+    }
     const nextErrors = validateAuthForm({
       email,
       phone,
       password,
-      requireEmail: role === "vendor",
+      requireEmail: role === "vendor" || role === "influencer",
     });
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -39,6 +45,7 @@ export function RegisterPage() {
       const res = await authService.register({ name, email, phone, password, role });
       setAuth(res.data);
       if (role === "vendor") return nav("/vendor/onboarding", { replace: true });
+      if (role === "influencer") return nav("/influencer/profile", { replace: true });
       return nav("/user/dashboard", { replace: true });
     } catch (err) {
       setError(normalizeError(err));
@@ -50,11 +57,17 @@ export function RegisterPage() {
   return (
     <div className="mx-auto max-w-md">
       <h1 className="text-2xl font-semibold tracking-tight">
-        Register as {role === "vendor" ? "Vendor" : "User"}
+        Register as {role === "vendor" ? "Vendor" : role === "influencer" ? "Influencer" : "User"}
       </h1>
       <p className="mt-2 text-slate-600">
-        Create your account. Vendors will complete onboarding next.
+        Create your account. Vendors and influencers continue into onboarding next.
       </p>
+
+      {role === "influencer" && !commerceLoading && !influencerCommerceEnabled ? (
+        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+          Influencer sign-ups are currently disabled.
+        </div>
+      ) : null}
 
       <form
         onSubmit={onSubmit}
@@ -71,7 +84,7 @@ export function RegisterPage() {
         </label>
 
         <label className="mt-4 block text-sm font-medium">
-          Email {role === "vendor" ? "" : <span className="text-slate-500">(optional)</span>}
+          Email {role === "vendor" || role === "influencer" ? "" : <span className="text-slate-500">(optional)</span>}
           <input
             className="mt-1 w-full rounded-lg border px-3 py-2"
             value={email}
@@ -80,8 +93,8 @@ export function RegisterPage() {
               setFieldErrors((current) => ({ ...current, email: "" }));
             }}
             type="email"
-            required={role === "vendor"}
-            placeholder={role === "vendor" ? "name@gmail.com" : "Optional Gmail address"}
+            required={role === "vendor" || role === "influencer"}
+            placeholder={role === "vendor" || role === "influencer" ? "name@gmail.com" : "Optional Gmail address"}
           />
           {fieldErrors.email ? <div className="mt-1 text-xs text-rose-600">{fieldErrors.email}</div> : null}
         </label>
@@ -125,7 +138,9 @@ export function RegisterPage() {
         ) : null}
 
         <button
-          disabled={loading}
+          disabled={
+            loading || (role === "influencer" && !commerceLoading && !influencerCommerceEnabled)
+          }
           className="mt-5 w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
           type="submit"
         >

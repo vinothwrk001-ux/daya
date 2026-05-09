@@ -2,7 +2,8 @@ const { ok } = require("../utils/apiResponse");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { AppError } = require("../utils/AppError");
 const PlatformConfig = require("../models/PlatformConfig");
-const AuditLog = require("../models/AuditLog");
+const { AuditLog } = require("../models/AuditLog");
+const { invalidateInfluencerCommerceConfigCache } = require("../services/influencer-commerce-config.service");
 
 /**
  * Get all platform configurations grouped by category
@@ -27,7 +28,21 @@ const getAllConfigs = asyncHandler(async (req, res) => {
 const getConfigByKey = asyncHandler(async (req, res) => {
   const { key } = req.params;
 
-  const config = await PlatformConfig.findOne({ key }).lean();
+  let config = await PlatformConfig.findOne({ key }).lean();
+  if (!config && key === "influencer_commerce_enabled") {
+    const created = await PlatformConfig.create({
+      key: "influencer_commerce_enabled",
+      value: true,
+      description:
+        "When false, influencer commerce, vendor influencer tools, storefront reels, and tracking attribution are disabled.",
+      category: "feature",
+      type: "boolean",
+      isPublic: true,
+      updatedBy: req.user?._id || req.user?.sub,
+    });
+    config = created.toObject();
+  }
+
   if (!config) {
     throw new AppError("Configuration not found", 404, "NOT_FOUND");
   }
@@ -53,7 +68,7 @@ const updateConfig = asyncHandler(async (req, res) => {
   const { key } = req.params;
   const { value, description } = req.body;
 
-  if (!value) {
+  if (value === undefined || value === null) {
     throw new AppError("Value is required", 400, "VALIDATION_ERROR");
   }
 
@@ -66,13 +81,18 @@ const updateConfig = asyncHandler(async (req, res) => {
 
   config.value = value;
   if (description) config.description = description;
-  config.updatedBy = req.user._id;
+  const actorRef = req.user?._id || req.user?.sub;
+  if (actorRef) config.updatedBy = actorRef;
 
   await config.save();
 
+  if (key === "influencer_commerce_enabled") {
+    invalidateInfluencerCommerceConfigCache();
+  }
+
   // Log the configuration change
   await AuditLog.create({
-    actorId: req.user._id,
+    actorId: actorRef,
     actorRole: req.user.role,
     action: "CONFIG_UPDATED",
     entityType: "PlatformConfig",
@@ -111,15 +131,20 @@ const batchUpdateConfigs = asyncHandler(async (req, res) => {
 
     const oldValue = config.value;
     config.value = value;
-    config.updatedBy = req.user._id;
+    const batchActor = req.user?._id || req.user?.sub;
+    if (batchActor) config.updatedBy = batchActor;
 
     await config.save();
+
+    if (key === "influencer_commerce_enabled") {
+      invalidateInfluencerCommerceConfigCache();
+    }
 
     results.push({ key, updated: true });
 
     // Log each change
     await AuditLog.create({
-      actorId: req.user._id,
+      actorId: batchActor,
       actorRole: req.user.role,
       action: "CONFIG_UPDATED",
       entityType: "PlatformConfig",
@@ -205,6 +230,15 @@ const initializeDefaults = asyncHandler(async (req, res) => {
       category: "shipping",
       type: "object",
     },
+    {
+      key: "influencer_commerce_enabled",
+      value: true,
+      description:
+        "When false, influencer sign-in/register, storefront reels, influencer APIs, vendors' Influencer Commerce, and tracking attribution are disabled. Admin moderation routes stay available.",
+      category: "feature",
+      type: "boolean",
+      isPublic: true,
+    },
   ];
 
   const created = [];
@@ -212,9 +246,10 @@ const initializeDefaults = asyncHandler(async (req, res) => {
   for (const defaultConfig of defaults) {
     const exists = await PlatformConfig.findOne({ key: defaultConfig.key });
     if (!exists) {
+      const creator = req.user?._id || req.user?.sub;
       const config = await PlatformConfig.create({
         ...defaultConfig,
-        updatedBy: req.user._id,
+        ...(creator ? { updatedBy: creator } : {}),
       });
       created.push(config);
     }

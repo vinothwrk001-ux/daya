@@ -17,6 +17,7 @@ import { CategoryNavigation } from "./CategoryNavigation";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useCategories } from "../hooks/useCategories";
 import { usePresentedCategories } from "../utils/categoryPresentation";
+import { PlatformFeaturesProvider } from "../context/PlatformFeaturesContext";
 import * as cartService from "../services/cartService";
 
 export function Layout() {
@@ -34,6 +35,7 @@ export function Layout() {
     location.pathname.startsWith("/admin");
   const isVendorWorkspace = location.pathname.startsWith("/vendor/");
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
+  const isInfluencerWorkspace = location.pathname.startsWith("/influencer");
   const showShopActions = user?.role === "user";
 
   // Detect scroll with requestAnimationFrame for smooth performance
@@ -100,7 +102,7 @@ export function Layout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.16),_transparent_34%),linear-gradient(to_bottom,_#ffffff,_#f8fafc_32%,_#eef2ff_100%)] text-slate-900 transition-colors dark:bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.16),_transparent_30%),linear-gradient(to_bottom,_#020617,_#020617_28%,_#0f172a_100%)] dark:text-white">
-      {!isAdminRoute && !isVendorWorkspace && !isStaffWorkspace ? (
+      {!isAdminRoute && !isVendorWorkspace && !isStaffWorkspace && !isInfluencerWorkspace ? (
         <header className="sticky top-0 z-30 border-b border-white/50 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/60">
           <div className="mx-auto w-full max-w-[88rem] px-3 py-3 sm:px-4 lg:px-8">
             <div className="flex flex-col gap-4">
@@ -224,7 +226,7 @@ export function Layout() {
         </header>
       ) : null}
 
-      {!isAdminRoute && !isVendorWorkspace && !isStaffWorkspace ? (
+      {!isAdminRoute && !isVendorWorkspace && !isStaffWorkspace && !isInfluencerWorkspace ? (
         <CategoryNavigation 
           categories={presentedCategories}
           onSelect={(item) => {
@@ -244,15 +246,17 @@ export function Layout() {
 
       <main
         className={
-          isAdminRoute || isVendorWorkspace || isStaffWorkspace
+          isAdminRoute || isVendorWorkspace || isStaffWorkspace || isInfluencerWorkspace
             ? "flex-1"
             : "mx-auto w-full max-w-[88rem] flex-1 px-3 py-5 sm:px-4 sm:py-7 lg:px-8 lg:py-10"
         }
       >
-        <Outlet />
+        <PlatformFeaturesProvider>
+          <Outlet />
+        </PlatformFeaturesProvider>
       </main>
 
-      {!isAdminRoute && !isVendorWorkspace && !isStaffWorkspace ? <Footer /> : null}
+      {!isAdminRoute && !isVendorWorkspace && !isStaffWorkspace && !isInfluencerWorkspace ? <Footer /> : null}
     </div>
   );
 }

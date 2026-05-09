@@ -83,6 +83,11 @@ router.put("/vendor/:id/reject", requireLegacyAdminPermission("vendors:reject"),
 router.delete("/vendor/:id", requireLegacyAdminPermission("vendors:delete"), adminController.removeVendor);
 
 router.get("/orders", requireWorkspacePermission("orders.read"), adminController.listOrders);
+router.get("/inventory", requireWorkspacePermission("products.read"), adminController.getAdminInventorySummary);
+router.get("/inventory/:id", requireWorkspacePermission("products.read"), adminController.getAdminInventoryProduct);
+router.get("/inventory/:id/variant/:variantId/ledger", requireWorkspacePermission("products.read"), adminController.getAdminInventoryLedger);
+router.post("/inventory/:id/variant/:variantId/adjust", requireWorkspacePermission("products.update"), express.json(), adminController.adjustAdminInventory);
+router.patch("/inventory/:id/variant/:variantId/threshold", requireWorkspacePermission("products.update"), express.json(), adminController.updateAdminInventoryThreshold);
 router.get("/shipping/modes", requireWorkspacePermission("settings.update"), adminController.getShippingModes);
 router.patch(
   "/shipping/modes",

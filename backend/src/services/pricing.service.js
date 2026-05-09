@@ -11,6 +11,11 @@ const { isValidObjectId } = require("mongoose");
  * Handles conditional application based on order value.
  */
 class PricingService {
+  normalizePaymentMethod(paymentMethod) {
+    const normalized = String(paymentMethod || "ALL").toUpperCase();
+    return ["ALL", "ONLINE", "COD"].includes(normalized) ? normalized : "ALL";
+  }
+
   normalizeCategoryId(value) {
     if (value == null || value === "") return null;
     if (typeof value === "object") {
@@ -47,9 +52,33 @@ class PricingService {
    * Get all active pricing rules
    * @returns {Promise<Array>} Array of active pricing rules sorted by sortOrder
    */
-  async getActiveRules() {
+  buildActiveRuleQuery(paymentMethod = "ALL", extraQuery = {}) {
+    const normalizedPaymentMethod = this.normalizePaymentMethod(paymentMethod);
+    const query = {
+      isActive: true,
+      isArchived: false,
+      ...extraQuery,
+    };
+
+    if (normalizedPaymentMethod === "ALL") {
+      query.$or = [
+        { paymentMethod: { $exists: false } },
+        { paymentMethod: "ALL" },
+      ];
+      return query;
+    }
+
+    query.$or = [
+      { paymentMethod: { $exists: false } },
+      { paymentMethod: "ALL" },
+      { paymentMethod: normalizedPaymentMethod },
+    ];
+    return query;
+  }
+
+  async getActiveRules(paymentMethod = "ALL") {
     await pricingCategoryService.ensureDefaultPricingCategoriesIfNeeded();
-    const rules = await PricingRule.find({ isActive: true, isArchived: false })
+    const rules = await PricingRule.find(this.buildActiveRuleQuery(paymentMethod))
       .populate("categoryId", "name key description isActive isSystem sortOrder")
       .sort({ sortOrder: 1, createdAt: 1 })
       .lean();
@@ -63,9 +92,9 @@ class PricingService {
    * @param {string} category - Rule category (DELIVERY, PLATFORM_FEE, TAX, etc.)
    * @returns {Promise<Array>} Active rules in the specified category
    */
-  async getRulesByCategory(category) {
+  async getRulesByCategory(category, paymentMethod = "ALL") {
     await pricingCategoryService.ensureDefaultPricingCategoriesIfNeeded();
-    const rules = await PricingRule.find({ isActive: true, isArchived: false, category })
+    const rules = await PricingRule.find(this.buildActiveRuleQuery(paymentMethod, { category }))
       .populate("categoryId", "name key description isActive isSystem sortOrder")
       .sort({ sortOrder: 1 })
       .lean();
@@ -136,7 +165,7 @@ class PricingService {
    * //   calculatedAt: "2024-01-15T10:30:00Z"
    * // }
    */
-  async calculateOrderTotal(subtotal, itemCount = 1) {
+  async calculateOrderTotal(subtotal, itemCount = 1, paymentMethod = "ALL") {
     if (typeof subtotal !== "number" || subtotal < 0) {
       throw new AppError("Subtotal must be a non-negative number", 400);
     }
@@ -146,7 +175,8 @@ class PricingService {
     }
 
     try {
-      const rules = await this.getActiveRules();
+      const normalizedPaymentMethod = this.normalizePaymentMethod(paymentMethod);
+      const rules = await this.getActiveRules(normalizedPaymentMethod);
       if (!rules.length) {
         return {
           subtotal: Math.round(subtotal * 100) / 100,
@@ -154,6 +184,7 @@ class PricingService {
           chargesTotal: 0,
           total: Math.round(subtotal * 100) / 100,
           itemCount,
+          paymentMethod: normalizedPaymentMethod,
           calculatedAt: new Date().toISOString(),
         };
       }
@@ -185,6 +216,7 @@ class PricingService {
                 : null,
             amount,
             type: rule.type,
+            paymentMethod: rule.paymentMethod || "ALL",
             sortOrder: rule.sortOrder,
           });
           totalCharges += amount;
@@ -202,6 +234,7 @@ class PricingService {
         chargesTotal: Math.round(totalCharges * 100) / 100,
         total,
         itemCount,
+        paymentMethod: normalizedPaymentMethod,
         calculatedAt: new Date().toISOString(),
       };
     } catch (error) {
@@ -217,12 +250,13 @@ class PricingService {
    * @param {number} totalItemCount - Total items across all sellers
    * @returns {Promise<Object>} Breakdown with per-seller charges
    */
-  async calculateSellerBreakdown(sellers, totalItemCount = 0) {
+  async calculateSellerBreakdown(sellers, totalItemCount = 0, paymentMethod = "ALL") {
     if (!Array.isArray(sellers) || sellers.length === 0) {
       throw new AppError("Sellers array is required and must not be empty", 400);
     }
 
-    const rules = await this.getActiveRules();
+    const normalizedPaymentMethod = this.normalizePaymentMethod(paymentMethod);
+    const rules = await this.getActiveRules(normalizedPaymentMethod);
     const sellerBreakdowns = [];
     const globalCharges = [];
     let totalAmount = 0;
@@ -250,6 +284,7 @@ class PricingService {
             amount,
             type: rule.type,
             appliesTo: rule.appliesTo,
+            paymentMethod: rule.paymentMethod || "ALL",
           });
           sellerChargesTotal += amount;
         }
@@ -285,6 +320,7 @@ class PricingService {
             amount,
             type: rule.type,
             appliesTo: rule.appliesTo,
+            paymentMethod: rule.paymentMethod || "ALL",
           });
           totalAmount += amount;
         }
@@ -295,6 +331,7 @@ class PricingService {
       sellerBreakdowns,
       globalCharges,
       grandTotal: Math.round(totalAmount * 100) / 100,
+      paymentMethod: normalizedPaymentMethod,
       calculatedAt: new Date().toISOString(),
     };
   }
@@ -339,6 +376,13 @@ class PricingService {
       errors.push("AppliesTo must be either ORDER or ITEM");
     }
 
+    if (
+      ruleData.paymentMethod !== undefined &&
+      !["ALL", "ONLINE", "COD"].includes(String(ruleData.paymentMethod).toUpperCase())
+    ) {
+      errors.push("paymentMethod must be ALL, ONLINE, or COD");
+    }
+
     // Category validation
     if (ruleData.category !== undefined && typeof ruleData.category !== "string") {
       errors.push("Category must be a string");
@@ -375,8 +419,9 @@ class PricingService {
    * Get pricing summary for display
    * @returns {Promise<Object>} Summary of all active rules by category
    */
-  async getPricingSummary() {
-    const rules = await this.getActiveRules();
+  async getPricingSummary(paymentMethod = "ALL") {
+    const normalizedPaymentMethod = this.normalizePaymentMethod(paymentMethod);
+    const rules = await this.getActiveRules(normalizedPaymentMethod);
 
     const summary = {
       totalRules: rules.length,
@@ -393,6 +438,7 @@ class PricingService {
         displayName: rule.displayName,
         type: rule.type,
         value: rule.value,
+        paymentMethod: rule.paymentMethod || "ALL",
       });
 
       summary.rules.push({
@@ -404,11 +450,15 @@ class PricingService {
         category: rule.category,
         categoryId: rule.categoryId?._id ? String(rule.categoryId._id) : rule.categoryId ? String(rule.categoryId) : null,
         appliesTo: rule.appliesTo,
+        paymentMethod: rule.paymentMethod || "ALL",
         sortOrder: rule.sortOrder,
       });
     }
 
-    return summary;
+    return {
+      ...summary,
+      paymentMethod: normalizedPaymentMethod,
+    };
   }
 
   /**
@@ -443,6 +493,7 @@ class PricingService {
         type: rule.type,
         value: rule.value,
         category: rule.category,
+        paymentMethod: rule.paymentMethod || "ALL",
       },
       baseAmount: subtotal,
       calculatedAmount: amount,
@@ -463,7 +514,11 @@ class PricingService {
   async calculateOrderTotalWithShipping(subtotal, cartItems, shippingAddress, itemCount = 1, options = {}) {
     try {
       // Get regular pricing charges (excluding shipping-related items)
-      const pricingBreakdown = await this.calculateOrderTotal(subtotal, itemCount);
+      const pricingBreakdown = await this.calculateOrderTotal(
+        subtotal,
+        itemCount,
+        options.paymentMethod || "ALL"
+      );
 
       // Calculate shipping cost
       const shippingPricingService = require("./shipping-pricing.service");
@@ -488,6 +543,7 @@ class PricingService {
         categoryMeta: null,
         amount: shippingResult.cost,
         type: "FIXED",
+        paymentMethod: "ALL",
         sortOrder: 10,
         metadata: {
           weight: shippingResult.weight,
@@ -515,6 +571,7 @@ class PricingService {
         chargesTotal: Math.round(totalCharges * 100) / 100,
         total,
         itemCount,
+        paymentMethod: pricingBreakdown.paymentMethod,
         shipping: {
           weight: shippingResult.weight,
           zone: shippingResult.zone,
@@ -541,7 +598,11 @@ class PricingService {
    */
   async calculateSellerBreakdownWithShipping(sellers, cartItems, shippingAddress, totalItemCount = 0, options = {}) {
     try {
-      const breakdown = await this.calculateSellerBreakdown(sellers, totalItemCount);
+      const breakdown = await this.calculateSellerBreakdown(
+        sellers,
+        totalItemCount,
+        options.paymentMethod || "ALL"
+      );
 
       // Calculate shipping for the entire order
       const shippingPricingService = require("./shipping-pricing.service");
@@ -562,6 +623,7 @@ class PricingService {
         amount: shippingResult.cost,
         type: "FIXED",
         appliesTo: "ORDER",
+        paymentMethod: "ALL",
         metadata: {
           weight: shippingResult.weight,
           zone: shippingResult.zone,

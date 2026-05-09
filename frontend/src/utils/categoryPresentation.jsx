@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useMemo } from "react";
+import { resolveApiAssetUrl } from "./resolveUrl";
 
 const categoryColorClasses = [
   "from-indigo-100 via-indigo-50 to-white",
@@ -109,12 +110,17 @@ export function getCategoryIconBackground(category) {
 export function getCategoryIconComponent(category) {
   // If category has a logo, use it as an image instead of icon
   if (category?.logo?.trim()) {
+    const logoUrl = category.logo.startsWith("data:") 
+      ? category.logo 
+      : resolveApiAssetUrl(category.logo);
+    
     return function LogoIcon() {
       return (
         <img 
-          src={category.logo} 
+          src={logoUrl} 
           alt={category.name} 
           className="h-full w-full rounded-lg object-cover"
+          loading="lazy"
         />
       );
     };

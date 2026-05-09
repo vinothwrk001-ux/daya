@@ -81,6 +81,10 @@ const pageMeta = {
     title: "Homepage Content",
     subtitle: "Create promotional banners and content to showcase on the homepage.",
   },
+  "/vendor/influencer-commerce": {
+    title: "Influencer Commerce",
+    subtitle: "Launch campaigns, recruit creators, and monitor reel-driven sales attribution.",
+  },
   "/vendor/support": {
     title: "Support",
     subtitle: "Open tickets with your operations team and keep a message history.",

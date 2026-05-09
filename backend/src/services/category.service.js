@@ -7,6 +7,7 @@ function sanitizeCategoryPayload(payload = {}) {
   const slug = generateSlug(payload.slug || name);
   const code = String(payload.code || "").trim().toUpperCase() || name.charAt(0).toUpperCase();
   const icon = typeof payload.icon === "string" ? payload.icon.trim() : "";
+  const logo = typeof payload.logo === "string" ? payload.logo.trim() : "";
   const color = typeof payload.color === "string" ? payload.color.trim() : "";
   const order = Number.isFinite(Number(payload.order)) ? Number(payload.order) : 0;
 
@@ -15,6 +16,7 @@ function sanitizeCategoryPayload(payload = {}) {
     code,
     slug,
     icon,
+    logo,
     color,
     order,
     isActive: payload.isActive !== false,
@@ -83,6 +85,7 @@ async function updateCategory(categoryId, payload) {
   existing.code = nextValues.code;
   existing.slug = nextValues.slug;
   existing.icon = nextValues.icon;
+  existing.logo = nextValues.logo;
   existing.color = nextValues.color;
   existing.order = nextValues.order;
   existing.isActive = nextValues.isActive;

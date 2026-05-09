@@ -29,13 +29,15 @@ function validate(schema, property = "body") {
     });
 
     if (error) {
+      const issues = error.details.map((d) => ({
+        message: d.message,
+        path: d.path,
+        type: d.type,
+      }));
+
       return next(
-        new AppError("Validation failed", 400, "VALIDATION_ERROR", {
-          issues: error.details.map((d) => ({
-            message: d.message,
-            path: d.path,
-            type: d.type,
-          })),
+        new AppError(issues[0]?.message || "Validation failed", 400, "VALIDATION_ERROR", {
+          issues,
         })
       );
     }

@@ -88,6 +88,7 @@ export function LoginPage() {
       return nav("/dashboard/admin", { replace: true });
     }
     if (role === "user") return nav("/", { replace: true });
+    if (role === "influencer") return nav("/influencer/dashboard", { replace: true });
 
     try {
       const vendorResponse = await vendorService.getVendorMe();

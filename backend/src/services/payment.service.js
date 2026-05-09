@@ -7,7 +7,10 @@ const paymentRepo = require("../repositories/payment.repository");
 const payoutRepo = require("../repositories/payout.repository");
 const refundRepo = require("../repositories/refund.repository");
 const webhookEventRepo = require("../repositories/webhook-event.repository");
+const { PaymentAttempt } = require("../models/PaymentAttempt");
 const checkoutService = require("./checkout.service");
+const commissionService = require("../modules/commission/service");
+const { logger } = require("../utils/logger");
 
 function getRazorpayClient() {
   const keyId = process.env.RAZORPAY_KEY_ID;
@@ -68,6 +71,39 @@ function roundMoney(value) {
   return Math.round(Number(value || 0) * 100) / 100;
 }
 
+async function recordPaymentAttempt({
+  userId,
+  paymentRecordId,
+  razorpayOrderId,
+  razorpayPaymentId,
+  status,
+  stage,
+  message,
+  requestPayload,
+  responsePayload,
+}) {
+  try {
+    await PaymentAttempt.create({
+      userId,
+      paymentRecordId,
+      razorpayOrderId,
+      razorpayPaymentId,
+      status,
+      stage,
+      message,
+      requestPayload,
+      responsePayload,
+    });
+  } catch (error) {
+    logger.error("Payment attempt log failed", {
+      message: error.message,
+      stage,
+      razorpayOrderId,
+      razorpayPaymentId,
+    });
+  }
+}
+
 function getChargeAmount(charges = [], predicate) {
   const charge = Array.isArray(charges) ? charges.find(predicate) : null;
   return roundMoney(charge?.amount || 0);
@@ -88,12 +124,17 @@ function buildAmountBreakdown(summary = {}) {
         )
     ),
     totalAmount: roundMoney(summary.totalAmount || summary.total || 0),
+    paymentMethod: summary.paymentMethod || "ONLINE",
   };
 }
 
 class PaymentService {
-  async createRazorpayOrder({ userId, cartId, shippingAddress }) {
-    const summary = await checkoutService.prepare(userId, { shippingAddress });
+  async createRazorpayOrder({ userId, cartId, shippingAddress, trackingToken }) {
+    const summary = await checkoutService.prepare(userId, {
+      shippingAddress,
+      paymentMethod: "ONLINE",
+      trackingToken,
+    });
     if (!summary?.total) {
       throw new AppError("Cart is empty", 400, "EMPTY_CART");
     }
@@ -132,6 +173,7 @@ class PaymentService {
       cartSnapshot: summary.sellers.flatMap((seller) => seller.items),
       cartId: cartId && cartId !== "current" ? cartId : undefined,
       shippingAddress,
+      trackingToken: trackingToken || undefined,
       amountBreakdown: buildAmountBreakdown(summary),
       fraudChecks: {
         priceValidated: true,
@@ -141,6 +183,23 @@ class PaymentService {
       },
       gatewayResponse: {
         order,
+      },
+    });
+
+    await recordPaymentAttempt({
+      userId,
+      paymentRecordId: paymentRecord._id,
+      razorpayOrderId: order.id,
+      status: "CREATED",
+      stage: "create-order",
+      message: "Razorpay order created",
+      requestPayload: {
+        cartId: cartId || "current",
+        amount,
+        currency,
+      },
+      responsePayload: {
+        paymentRecordId: paymentRecord._id,
       },
     });
 
@@ -185,6 +244,7 @@ class PaymentService {
     razorpayOrderId,
     razorpayPaymentId,
     razorpaySignature,
+    trackingToken,
   }) {
     const payment = await paymentRepo.findById(paymentId);
     if (!payment) {
@@ -192,12 +252,16 @@ class PaymentService {
     }
 
     if (Array.isArray(payment.orderIds) && payment.orderIds.length > 0 && payment.fulfillmentStatus === "COMPLETED") {
+      const existingOrders = await orderRepo.findByGroupId(payment.orderGroupId);
+      const primaryOrder = existingOrders[0] || payment.orderIds[0] || null;
       return {
         paymentId: payment.razorpayPaymentId || razorpayPaymentId,
-        orderId: payment.razorpayOrderId || razorpayOrderId,
+        orderId: primaryOrder?._id || primaryOrder || null,
         status: "PAID",
-        orders: await orderRepo.findByGroupId(payment.orderGroupId),
+        orders: existingOrders,
         payment,
+        orderGroupId: payment.orderGroupId || null,
+        redirectUrl: primaryOrder ? `/orders/${String(primaryOrder._id || primaryOrder)}` : "/orders",
       };
     }
 
@@ -205,12 +269,16 @@ class PaymentService {
     if (!claimedPayment) {
       const latestPayment = await paymentRepo.findById(payment._id);
       if (latestPayment?.fulfillmentStatus === "COMPLETED" && latestPayment.orderGroupId) {
+        const existingOrders = await orderRepo.findByGroupId(latestPayment.orderGroupId);
+        const primaryOrder = existingOrders[0] || latestPayment.orderIds?.[0] || null;
         return {
           paymentId: latestPayment.razorpayPaymentId || razorpayPaymentId,
-          orderId: latestPayment.razorpayOrderId || razorpayOrderId,
+          orderId: primaryOrder?._id || primaryOrder || null,
           status: "PAID",
-          orders: await orderRepo.findByGroupId(latestPayment.orderGroupId),
+          orders: existingOrders,
           payment: latestPayment,
+          orderGroupId: latestPayment.orderGroupId || null,
+          redirectUrl: primaryOrder ? `/orders/${String(primaryOrder._id || primaryOrder)}` : "/orders",
         };
       }
 
@@ -242,6 +310,7 @@ class PaymentService {
         paymentStatus: "Paid",
         razorpayOrderId: razorpayOrderId || payment.razorpayOrderId,
         razorpayPaymentId: razorpayPaymentId || payment.razorpayPaymentId,
+        trackingToken: trackingToken || payment.trackingToken,
       });
 
       const updatedPayment = await paymentRepo.updateById(payment._id, {
@@ -262,24 +331,64 @@ class PaymentService {
         },
       });
 
-      for (const order of orderResult.orders) {
-        await orderRepo.updateById(order._id, {
-          paymentRecordId: updatedPayment._id,
+      const resolvedOrders =
+        Array.isArray(orderResult.orders) && orderResult.orders.length
+          ? orderResult.orders
+          : await orderRepo.findByGroupId(orderResult.orderGroupId);
+      const primaryOrder = resolvedOrders[0] || null;
+
+      await recordPaymentAttempt({
+        userId,
+        paymentRecordId: payment._id,
+        razorpayOrderId: razorpayOrderId || payment.razorpayOrderId,
+        razorpayPaymentId: razorpayPaymentId || payment.razorpayPaymentId,
+        status: "VERIFIED",
+        stage: "order-created",
+        message: "Payment verified and order created",
+        requestPayload: {
+          paymentId: payment._id,
+        },
+        responsePayload: {
           orderGroupId: orderResult.orderGroupId,
-          paymentStatus: "Paid",
-          razorpayOrderId: razorpayOrderId || payment.razorpayOrderId,
-          razorpayPaymentId: razorpayPaymentId || payment.razorpayPaymentId,
-        });
-      }
+          orderId: primaryOrder?._id || null,
+        },
+      });
+
+      logger.info("Payment verified and order created", {
+        userId: String(userId),
+        paymentRecordId: String(payment._id),
+        razorpayOrderId: razorpayOrderId || payment.razorpayOrderId,
+        razorpayPaymentId: razorpayPaymentId || payment.razorpayPaymentId,
+        orderGroupId: orderResult.orderGroupId,
+        orderId: primaryOrder?._id ? String(primaryOrder._id) : null,
+      });
 
       return {
         paymentId: razorpayPaymentId || payment.razorpayPaymentId,
-        orderId: razorpayOrderId || payment.razorpayOrderId,
+        orderId: primaryOrder?._id || null,
         status: "PAID",
-        orders: await orderRepo.findByGroupId(orderResult.orderGroupId),
+        orders: resolvedOrders,
         payment: updatedPayment,
+        orderGroupId: orderResult.orderGroupId,
+        redirectUrl: primaryOrder ? `/orders/${String(primaryOrder._id)}` : "/orders",
       };
     } catch (error) {
+      await recordPaymentAttempt({
+        userId,
+        paymentRecordId: payment._id,
+        razorpayOrderId: razorpayOrderId || payment.razorpayOrderId,
+        razorpayPaymentId: razorpayPaymentId || payment.razorpayPaymentId,
+        status: "FAILED",
+        stage: "fulfillment-error",
+        message: error.message,
+      });
+      logger.error("Payment fulfillment failed", {
+        userId: String(userId),
+        paymentRecordId: String(payment._id),
+        razorpayOrderId: razorpayOrderId || payment.razorpayOrderId,
+        razorpayPaymentId: razorpayPaymentId || payment.razorpayPaymentId,
+        message: error.message,
+      });
       await paymentRepo.updateById(payment._id, {
         $set: {
           status: "PAID",
@@ -301,14 +410,59 @@ class PaymentService {
     razorpay_payment_id,
     razorpay_signature,
     shippingAddress,
+    trackingToken,
   }) {
+    logger.info("Payment verification started", {
+      userId: String(userId),
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+    });
+
     const payment = await paymentRepo.findByRazorpayOrderId(razorpay_order_id);
     if (!payment) {
       throw new AppError("Payment record not found", 404, "PAYMENT_NOT_FOUND");
     }
 
-    if (String(payment.userId?._id || payment.userId) !== String(userId)) {
+    const paymentOwnerId = String(payment.userId?._id || payment.userId);
+    if (paymentOwnerId !== String(userId)) {
+      await recordPaymentAttempt({
+        userId,
+        paymentRecordId: payment._id,
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+        status: "FAILED",
+        stage: "authorization",
+        message: "Payment ownership mismatch",
+      });
       throw new AppError("Forbidden", 403, "FORBIDDEN");
+    }
+
+    if (payment.razorpayPaymentId && String(payment.razorpayPaymentId) === String(razorpay_payment_id)) {
+      const existingOrders = payment.orderGroupId ? await orderRepo.findByGroupId(payment.orderGroupId) : [];
+      const primaryOrder = existingOrders[0] || payment.orderIds?.[0] || null;
+      if (payment.fulfillmentStatus === "COMPLETED" && primaryOrder) {
+        logger.info("Payment verification reused completed fulfillment", {
+          userId: String(userId),
+          paymentRecordId: String(payment._id),
+          razorpayOrderId: razorpay_order_id,
+          razorpayPaymentId: razorpay_payment_id,
+          orderId: String(primaryOrder._id || primaryOrder),
+        });
+        return {
+          paymentId: payment.razorpayPaymentId,
+          orderId: primaryOrder._id || primaryOrder,
+          status: "PAID",
+          orders: existingOrders,
+          payment,
+          orderGroupId: payment.orderGroupId || null,
+          redirectUrl: `/orders/${String(primaryOrder._id || primaryOrder)}`,
+        };
+      }
+    }
+
+    const paymentIdUsedByAnotherRecord = await paymentRepo.findByRazorpayPaymentId(razorpay_payment_id);
+    if (paymentIdUsedByAnotherRecord && String(paymentIdUsedByAnotherRecord._id) !== String(payment._id)) {
+      throw new AppError("Payment already linked to another order", 409, "PAYMENT_ALREADY_PROCESSED");
     }
 
     const secret = process.env.RAZORPAY_KEY_SECRET;
@@ -318,6 +472,15 @@ class PaymentService {
       .digest("hex");
 
     if (!safeEqual(expectedSignature, razorpay_signature)) {
+      await recordPaymentAttempt({
+        userId,
+        paymentRecordId: payment._id,
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+        status: "FAILED",
+        stage: "signature-verification",
+        message: "Payment verification failed",
+      });
       await paymentRepo.updateById(payment._id, {
         $set: {
           status: "FAILED",
@@ -331,10 +494,21 @@ class PaymentService {
       throw new AppError("Payment verification failed", 400, "PAYMENT_VERIFICATION_FAILED");
     }
 
+    await recordPaymentAttempt({
+      userId,
+      paymentRecordId: payment._id,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      status: "SUCCESS",
+      stage: "signature-verification",
+      message: "Payment signature validated",
+    });
+
     return await this.fulfillPaidPayment({
       paymentId: payment._id,
       userId,
       shippingAddress,
+      trackingToken,
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
       razorpaySignature: razorpay_signature,
@@ -505,6 +679,8 @@ class PaymentService {
           })
         )
     );
+
+    await commissionService.reverseForRefund(resolvedOrder._id);
 
     return {
       refund,
