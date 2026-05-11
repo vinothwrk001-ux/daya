@@ -7,6 +7,7 @@ const {
   updateShippingModesConfig,
 } = require("./shipping-config.service");
 const inventoryService = require("./inventory.service");
+const Shipment = require("../models/Shipment");
 
 const TRACKING_ID_PATTERN = /^[A-Z0-9][A-Z0-9\-_/.]{5,39}$/i;
 
@@ -181,6 +182,19 @@ async function submitSelfShipping(order, { trackingId, courierName, trackingUrl,
   });
 
   await order.save();
+  await Shipment.findOneAndUpdate(
+    { orderId: order._id },
+    {
+      $set: {
+        shipmentId: order.shipmentId || validTrackingId,
+        shipmentStatus: "SHIPPED",
+        courierName: validCourierName,
+        trackingId: validTrackingId,
+        trackingUrl: order.trackingUrl || "",
+        codAmountCollectable: order.paymentMethod === "COD" && order.cod?.status !== "collected" ? Number(order.totalAmount || 0) : 0,
+      },
+    }
+  ).catch(() => {});
   return order;
 }
 
@@ -217,7 +231,7 @@ async function requestPlatformShipping(order, vendor) {
       units: item.quantity,
       selling_price: item.price,
     })),
-    payment_method: "Prepaid",
+    payment_method: order.paymentMethod === "COD" ? "COD" : "Prepaid",
     sub_total: order.subtotal,
     length: 10,
     breadth: 10,
@@ -262,6 +276,21 @@ async function requestPlatformShipping(order, vendor) {
   });
 
   await order.save();
+  await Shipment.findOneAndUpdate(
+    { orderId: order._id },
+    {
+      $set: {
+        shipmentId: shipmentData.shipmentId,
+        shipmentStatus: "READY",
+        courierName: shipmentData.courierName,
+        trackingId: shipmentData.trackingId,
+        trackingUrl: shipmentData.trackingUrl,
+        logisticsProvider: shipmentData.provider,
+        codAmountCollectable: order.paymentMethod === "COD" && order.cod?.status !== "collected" ? Number(order.totalAmount || 0) : 0,
+        meta: shipmentData.raw || {},
+      },
+    }
+  ).catch(() => {});
   return order;
 }
 
@@ -342,6 +371,26 @@ async function processShiprocketWebhook(event) {
     });
 
     await order.save();
+    await Shipment.findOneAndUpdate(
+      { orderId: order._id },
+      {
+        $set: {
+          shipmentId: order.shipmentId || String(shipmentId),
+          shipmentStatus:
+            newShippingStatus === "DELIVERED"
+              ? "DELIVERED"
+              : newShippingStatus === "FAILED"
+                ? "FAILED"
+                : newShippingStatus === "SHIPPED" || newShippingStatus === "IN_TRANSIT" || newShippingStatus === "OUT_FOR_DELIVERY"
+                  ? "SHIPPED"
+                  : "READY",
+          trackingId: order.trackingId || "",
+          trackingUrl: order.trackingUrl || "",
+          courierName: order.courierName || "",
+          logisticsProvider: order.logisticsProvider || "",
+        },
+      }
+    ).catch(() => {});
   }
 
   return order;

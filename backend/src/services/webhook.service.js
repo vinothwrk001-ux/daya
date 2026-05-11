@@ -16,6 +16,9 @@ function buildEventId(provider, eventType, rawBody) {
 class WebhookService {
   async handleRazorpayWebhook(rawBody, signature) {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) {
+      throw new AppError("Razorpay webhook secret is not configured", 500, "WEBHOOK_NOT_CONFIGURED");
+    }
     const expectedSignature = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
 
     if (expectedSignature !== signature) {
@@ -46,10 +49,14 @@ class WebhookService {
         if (payment) {
           await paymentRepo.updateById(payment._id, {
             $set: {
-              status: "PAID",
+              status: "AUTHORIZED",
               razorpayPaymentId: paymentEntity.id,
               paidAt: new Date(),
               lastWebhookAt: new Date(),
+              gatewayResponse: {
+                ...(payment.gatewayResponse || {}),
+                capturedWebhook: paymentEntity,
+              },
             },
             $addToSet: { webhookEvents: eventId },
           });
@@ -65,8 +72,8 @@ class WebhookService {
           } else {
             await paymentService.fulfillPaidPayment({
               paymentId: payment._id,
+              paymentSessionId: payment.paymentSessionId?._id || payment.paymentSessionId || null,
               userId: payment.userId?._id || payment.userId,
-              shippingAddress: payment.shippingAddress,
               razorpayOrderId: paymentEntity.order_id,
               razorpayPaymentId: paymentEntity.id,
             });
@@ -87,6 +94,18 @@ class WebhookService {
             },
             $addToSet: { webhookEvents: eventId },
           });
+          if (payment.paymentSessionId) {
+            const { PaymentSession } = require("../models/PaymentSession");
+            await PaymentSession.updateOne(
+              { _id: payment.paymentSessionId },
+              {
+                $set: {
+                  status: "FAILED",
+                  failedAt: new Date(),
+                },
+              }
+            );
+          }
         }
       }
 
@@ -101,6 +120,24 @@ class WebhookService {
               gatewayResponse: refundEntity,
             },
           });
+          const paymentId = refund.paymentId?._id || refund.paymentId;
+          const orderId = refund.orderId?._id || refund.orderId;
+          const payment = paymentId ? await paymentRepo.findById(paymentId) : null;
+          const order = orderId ? await orderRepo.findById(orderId) : null;
+          if (payment) {
+            const nextRefundedAmount = Number(payment.refundedAmount || 0);
+            const isFullRefund = nextRefundedAmount >= Number(payment.amount || 0);
+            await paymentRepo.updateById(payment._id, {
+              $set: {
+                status: isFullRefund ? "REFUNDED" : "PARTIALLY_REFUNDED",
+                refundStatus: isFullRefund ? "FULL" : "PARTIAL",
+                lastWebhookAt: new Date(),
+              },
+            });
+          }
+          if (order && payment) {
+            await paymentService.applyRefundWalletReversal(order, refund.amount, refund.refundId);
+          }
         }
       }
 

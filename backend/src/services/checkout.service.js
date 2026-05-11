@@ -20,6 +20,9 @@ const { INFLUENCER_EVENTS } = require("../modules/shared/constants");
 const { logger } = require("../utils/logger");
 const inventoryService = require("./inventory.service");
 const { buildOrderSnapshot, generateInvoiceNumber } = require("./order-document.service");
+const codService = require("./cod.service");
+const { Order } = require("../models/Order");
+const { Payment } = require("../models/Payment");
 
 function asObjectId(id, fieldName) {
   if (!mongoose.isValidObjectId(id)) throw new AppError(`Invalid ${fieldName}`, 400, "VALIDATION_ERROR");
@@ -87,6 +90,45 @@ async function runNonBlocking(taskName, work) {
     });
     return null;
   }
+}
+
+async function executeWithOptionalTransaction(work) {
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      result = await work(session);
+    });
+    return result;
+  } catch (error) {
+    const message = String(error?.message || "");
+    if (
+      message.includes("Transaction numbers are only allowed") ||
+      message.includes("replica set") ||
+      message.includes("standalone")
+    ) {
+      logger.warn("Mongo transaction unavailable, falling back to non-transactional checkout flow", {
+        source: "checkout.service",
+      });
+      return await work(null);
+    }
+    throw error;
+  } finally {
+    await session.endSession().catch(() => {});
+  }
+}
+
+function runDeferred(taskName, work) {
+  setImmediate(async () => {
+    try {
+      await work();
+    } catch (error) {
+      logger.error(`Deferred checkout task failed: ${taskName}`, {
+        message: error.message,
+        stack: error.stack,
+      });
+    }
+  });
 }
 
 function buildSummaryShape({ currency, sellers, subtotal, charges, chargesTotal, total, itemCount, shipping, paymentMethod }) {
@@ -291,7 +333,31 @@ class CheckoutService {
       pricingBreakdown = await pricingService.calculateOrderTotal(subtotal, totalItemCount, paymentMethod);
     }
 
-    return buildSummaryShape({
+    let eligibility = null;
+    if (String(paymentMethod || "").toUpperCase() === "COD" && shippingAddress) {
+      try {
+        eligibility = await codService.evaluateEligibility({
+          userId,
+          address: shippingAddress,
+          cartItems: validated,
+          subtotal,
+        });
+      } catch (error) {
+        logger.error("COD eligibility check failed during checkout prepare", {
+          source: "checkout.service",
+          userId: String(userId),
+          message: error.message,
+          stack: error.stack,
+        });
+        eligibility = {
+          codAvailable: false,
+          reasons: ["COD_CHECK_FAILED"],
+        };
+      }
+    }
+
+    return {
+      ...buildSummaryShape({
       currency: currency || cart.currency || "INR",
       sellers,
       subtotal,
@@ -301,7 +367,405 @@ class CheckoutService {
       itemCount: totalItemCount,
       shipping: shippingData,
       paymentMethod: pricingBreakdown.paymentMethod,
-    });
+      }),
+      codAvailability: eligibility
+        ? {
+            codAvailable: eligibility.codAvailable,
+            reasons: eligibility.reasons,
+          }
+        : undefined,
+    };
+  }
+
+  async createOrderFromPreparedCheckout(
+    userId,
+    preparedCheckout,
+    {
+      shippingAddress,
+      paymentMethod = "ONLINE",
+      paymentRecordId = null,
+      orderGroupId = null,
+      paymentStatus = "Paid",
+      razorpayOrderId = "",
+      razorpayPaymentId = "",
+      fraudFlags = [],
+      trackingToken = null,
+    } = {}
+  ) {
+    const summary = preparedCheckout || {};
+    const sellers = Array.isArray(summary.sellers) ? summary.sellers : [];
+    if (!shippingAddress) {
+      throw new AppError("Shipping address is required", 400, "MISSING_ADDRESS");
+    }
+    if (!sellers.length) {
+      throw new AppError("Checkout session does not contain any items", 400, "EMPTY_CHECKOUT_SESSION");
+    }
+
+    const user = await userRepo.findById(userId);
+    if (!user) {
+      throw new AppError("User not found", 404, "NOT_FOUND");
+    }
+
+    const trackingContext = trackingToken ? await trackingService.validateTrackingToken(trackingToken, userId) : null;
+    const flattenedItems = sellers.flatMap((seller) => seller.items || []);
+    const overallSubtotal = roundMoney(summary.subtotal || 0);
+    const chargesBreakdown = Array.isArray(summary.charges) ? summary.charges : [];
+    const pricingBreakdown = {
+      subtotal: overallSubtotal,
+      charges: chargesBreakdown,
+      chargesTotal: roundMoney(summary.chargesTotal || 0),
+      total: roundMoney(summary.total || summary.totalAmount || 0),
+      paymentMethod,
+      calculatedAt: summary.calculatedAt || new Date().toISOString(),
+    };
+
+    const commissionPercentage = await getCommissionPercentage();
+    const resolvedGroupId = orderGroupId || generateOrderGroupId();
+    const shippingCharge = chargesBreakdown.find((c) => c.key === "shipping_cost");
+    const platformFeeCharge = chargesBreakdown.find((c) => c.key === "platform_fee");
+    const gatewayFeeCharge = chargesBreakdown.find(
+      (c) => String(c.key || "").toLowerCase().includes("gateway") || String(c.displayName || "").toLowerCase().includes("gateway")
+    );
+    const taxCharge = chargesBreakdown.find((c) => c.key === "tax");
+    const discountCharge = chargesBreakdown.find(
+      (c) => c.key === "discount" || String(c.displayName || "").toLowerCase().includes("discount")
+    );
+    const shippingFee = roundMoney(shippingCharge?.amount || 0);
+    const shippingShares = buildSellerShippingShares(flattenedItems, shippingFee);
+    const orderPayloads = [];
+
+    for (const sellerData of sellers) {
+      const vendor = await vendorRepo.findById(sellerData.sellerId);
+      const vendorShipping = await resolveVendorShippingModes(vendor);
+      const items = Array.isArray(sellerData.items) ? sellerData.items : [];
+      const cleanedItems = items.map((it) => ({
+        productId: it.productId,
+        name: it.name,
+        price: it.price,
+        quantity: it.quantity,
+        image: it.image,
+        variantId: it.variantId,
+        variantSku: it.variantSku,
+        variantTitle: it.variantTitle,
+        variantAttributes: it.variantAttributes,
+        weight: it.weight || undefined,
+      }));
+
+      const subtotal = roundMoney(
+        items.reduce((sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0), 0)
+      );
+      const sellerShippingFee = roundMoney(shippingShares.get(String(sellerData.sellerId)) || 0);
+      const sellerWeight = overallSubtotal > 0 ? subtotal / overallSubtotal : 1 / sellers.length;
+      const sellerChargeShare = chargesBreakdown.length > 0 ? roundMoney(pricingBreakdown.chargesTotal * sellerWeight) : 0;
+      const totalAmount = roundMoney(subtotal + sellerChargeShare);
+      const commission = Number(((totalAmount * commissionPercentage) / 100).toFixed(2));
+      let sellerAmount = Number((totalAmount - commission).toFixed(2));
+      let attribution = undefined;
+
+      if (trackingContext) {
+        const matchedItem = items.find((item) => String(item.productId) === String(trackingContext.session.productId));
+        if (matchedItem) {
+          const campaign = await require("../modules/campaign/model").Campaign.findById(trackingContext.session.campaignId).lean();
+          const frozenCommissionPercent = Number(campaign?.termsFrozen?.commissionPercent ?? campaign?.commissionPercent ?? 0);
+          const finalCommission = calculateAttributionCommission({
+            subtotal,
+            commissionPercent: frozenCommissionPercent,
+            platformCommissionAmount: commission,
+          });
+
+          sellerAmount = finalCommission.vendorNet;
+          attribution = {
+            influencerId: trackingContext.session.influencerId,
+            campaignId: trackingContext.session.campaignId,
+            reelId: trackingContext.session.reelId,
+            trackingSessionId: trackingContext.session._id,
+            productId: trackingContext.session.productId,
+            commission: finalCommission,
+          };
+        }
+      }
+
+      const orderNumber = generateOrderNumber();
+      const invoiceNumber = generateInvoiceNumber({ orderNumber });
+      const orderPayload = {
+        _id: new mongoose.Types.ObjectId(),
+        orderNumber,
+        invoiceNumber,
+        userId: new mongoose.Types.ObjectId(userId),
+        sellerId: sellerData.sellerId,
+        items: cleanedItems,
+        subtotal,
+        shippingFee: sellerShippingFee,
+        platformFee: roundMoney((platformFeeCharge?.amount || 0) * sellerWeight),
+        taxAmount: roundMoney((taxCharge?.amount || 0) * sellerWeight),
+        discountAmount: roundMoney((discountCharge?.amount || 0) * sellerWeight),
+        chargesBreakdown,
+        pricingSnapshot: {
+          subtotal,
+          charges: chargesBreakdown,
+          chargesTotal: sellerChargeShare,
+          total: totalAmount,
+          paymentMethod,
+          calculatedAt: pricingBreakdown.calculatedAt ? new Date(pricingBreakdown.calculatedAt) : new Date(),
+        },
+        priceBreakdown: {
+          subtotal,
+          shippingFee: sellerShippingFee,
+          gatewayFee: roundMoney((gatewayFeeCharge?.amount || 0) * sellerWeight),
+          codFee: 0,
+          taxAmount: roundMoney((taxCharge?.amount || 0) * sellerWeight),
+          discountAmount: roundMoney((discountCharge?.amount || 0) * sellerWeight),
+          chargesTotal: sellerChargeShare,
+          totalAmount,
+          currency: summary.currency || "INR",
+          paymentMethod,
+          charges: chargesBreakdown,
+          calculatedAt: pricingBreakdown.calculatedAt ? new Date(pricingBreakdown.calculatedAt) : new Date(),
+        },
+        chargesTotal: sellerChargeShare,
+        totalAmount,
+        platformCommissionRate: commissionPercentage,
+        platformCommissionAmount: commission,
+        vendorEarning: sellerAmount,
+        currency: summary.currency || "INR",
+        status: "Placed",
+        paymentStatus,
+        paymentMethod,
+        settlementStatus: "NOT_APPLICABLE",
+        codAmount: 0,
+        shippingAddress,
+        billingAddress: shippingAddress,
+        paymentRecordId: paymentRecordId || undefined,
+        orderGroupId: resolvedGroupId,
+        razorpayOrderId: razorpayOrderId || undefined,
+        razorpayPaymentId: razorpayPaymentId || undefined,
+        paymentCapturedAt: paymentStatus === "Paid" ? new Date() : undefined,
+        fraudFlags,
+        shippingMode: vendorShipping.defaultShippingMode,
+        shippingStatus: "NOT_SHIPPED",
+        pickupStatus: "NOT_REQUESTED",
+        attribution,
+        timeline: [{ status: "Placed", note: "Order placed after verified online payment", timestamp: new Date() }],
+        inventoryReservedAt: new Date(),
+      };
+
+      orderPayload.orderSnapshot = buildOrderSnapshot(orderPayload, {
+        user,
+        seller: vendor,
+        paymentRecord: {
+          method: paymentMethod,
+          razorpayOrderId: razorpayOrderId || "",
+          razorpayPaymentId: razorpayPaymentId || "",
+          paidAt: paymentStatus === "Paid" ? new Date() : null,
+        },
+      });
+
+      orderPayloads.push(orderPayload);
+    }
+
+    const inventoryReservations = [];
+    let orders = [];
+    let payment = null;
+    const payouts = [];
+
+    try {
+      await executeWithOptionalTransaction(async (session) => {
+        for (const orderPayload of orderPayloads) {
+          for (const item of orderPayload.items || []) {
+            await inventoryService.reserveStock(
+              item.productId,
+              item.variantId || "",
+              item.quantity,
+              orderPayload._id,
+              orderPayload.sellerId,
+              userId,
+              { session }
+            );
+            inventoryReservations.push({
+              productId: item.productId,
+              variantId: item.variantId || "",
+              quantity: item.quantity,
+              orderId: orderPayload._id,
+              sellerId: orderPayload.sellerId,
+            });
+          }
+        }
+
+        orders = session
+          ? await Order.insertMany(orderPayloads, { ordered: true, session })
+          : await orderRepo.createMany(orderPayloads);
+
+        if (paymentRecordId) {
+          payment = session
+            ? await Payment.findByIdAndUpdate(
+                paymentRecordId,
+                {
+                  $set: {
+                    orderIds: orders.map((order) => order._id),
+                    orderGroupId: resolvedGroupId,
+                    shippingAddress,
+                    status: "PAID",
+                    fulfillmentStatus: "COMPLETED",
+                    fulfilledAt: new Date(),
+                    razorpayOrderId: razorpayOrderId || undefined,
+                    razorpayPaymentId: razorpayPaymentId || undefined,
+                    paidAt: new Date(),
+                    gatewayFeeAmount: roundMoney(gatewayFeeCharge?.amount || 0),
+                  },
+                  $unset: {
+                    fulfillmentError: 1,
+                  },
+                },
+                { new: true, session }
+              )
+            : await paymentRepo.updateById(paymentRecordId, {
+                $set: {
+                  orderIds: orders.map((order) => order._id),
+                  orderGroupId: resolvedGroupId,
+                  shippingAddress,
+                  status: "PAID",
+                  fulfillmentStatus: "COMPLETED",
+                  fulfilledAt: new Date(),
+                  razorpayOrderId: razorpayOrderId || undefined,
+                  razorpayPaymentId: razorpayPaymentId || undefined,
+                  paidAt: new Date(),
+                  gatewayFeeAmount: roundMoney(gatewayFeeCharge?.amount || 0),
+                },
+                $unset: {
+                  fulfillmentError: 1,
+                },
+              });
+        }
+
+        for (const order of orders) {
+          const shipmentRecord = await codService.createShipmentRecord(order, { session });
+          const vendorOrderRecord = await codService.createVendorOrderRecord(order, { session });
+          if (session) {
+            await Order.updateOne(
+              { _id: order._id },
+              { $set: { shipmentRecordId: shipmentRecord._id, vendorOrderId: vendorOrderRecord._id } },
+              { session }
+            );
+          } else {
+            await orderRepo.updateById(order._id, { shipmentRecordId: shipmentRecord._id, vendorOrderId: vendorOrderRecord._id });
+          }
+        }
+      });
+
+      runDeferred(`online checkout follow-up for group ${resolvedGroupId}`, async () => {
+        for (const order of orders) {
+          const payout = await runNonBlocking(`create payout for order ${order.orderNumber}`, () =>
+            payoutRepo.create({
+              sellerId: order.sellerId,
+              orderId: order._id,
+              amount: order.totalAmount,
+              commission: order.platformCommissionAmount,
+              netAmount: order.vendorEarning,
+              status: "ON_HOLD",
+              notes: "Awaiting delivery confirmation and payout eligibility window.",
+            })
+          );
+          if (payout) payouts.push(payout);
+        }
+
+        await runNonBlocking(`remove purchased items from cart for user ${userId}`, () =>
+          cartRepo.removeMatchingItems(
+            userId,
+            flattenedItems.map((item) => ({
+              productId: item.productId,
+              variantId: item.variantId || "",
+            }))
+          )
+        );
+
+        await runNonBlocking("notify vendor and operations for created orders", () =>
+          Promise.all(
+            orders.map((order) =>
+              notificationService.notifyVendorAndOperations({
+                vendorId: order.sellerId,
+                permissionKey: "orders.read",
+                module: "MANAGEMENT",
+                subModule: "ORDERS",
+                type: "ORDER_CREATED",
+                title: "New prepaid order",
+                message: `Order ${order.orderNumber} was created after a verified Razorpay payment.`,
+                referenceId: order._id,
+                meta: {
+                  orderNumber: order.orderNumber,
+                  paymentMethod: order.paymentMethod,
+                  totalAmount: order.totalAmount,
+                },
+              })
+            )
+          )
+        );
+
+        await runNonBlocking("emit vendor shipment events for online orders", () =>
+          Promise.all(
+            orders.map((order) =>
+              Promise.all([
+                emitDomainEvent("ORDER_CREATED", {
+                  orderId: order._id,
+                  orderGroupId: order.orderGroupId,
+                  paymentRecordId: payment?._id || paymentRecordId || null,
+                }),
+                emitDomainEvent("VENDOR_ORDER_CREATED", {
+                  orderId: order._id,
+                  orderGroupId: order.orderGroupId,
+                  vendorId: order.sellerId,
+                  vendorOrderId: order.vendorOrderId || null,
+                }),
+                emitDomainEvent("SHIPMENT_CREATED", {
+                  orderId: order._id,
+                  orderGroupId: order.orderGroupId,
+                  shipmentRecordId: order.shipmentRecordId || null,
+                  paymentMethod: order.paymentMethod,
+                }),
+              ]).then(() => null)
+            )
+          )
+        );
+      });
+
+      return { orders, payouts: [], payment, orderGroupId: resolvedGroupId };
+    } catch (error) {
+      for (const payout of payouts) {
+        await payoutRepo
+          .updateById(payout._id, {
+            $set: {
+              status: "CANCELLED",
+              notes: "Rolled back after order creation failure.",
+            },
+          })
+          .catch(() => {});
+      }
+
+      if (paymentRecordId) {
+        await paymentRepo
+          .updateById(paymentRecordId, {
+            $set: {
+              fulfillmentStatus: "FAILED",
+              fulfillmentError: error.message,
+            },
+          })
+          .catch(() => {});
+      }
+
+      for (const reservation of inventoryReservations.reverse()) {
+        await inventoryService
+          .unreserveStock(
+            reservation.productId,
+            reservation.variantId,
+            reservation.quantity,
+            reservation.orderId,
+            reservation.sellerId,
+            userId
+          )
+          .catch(() => {});
+      }
+
+      throw error;
+    }
   }
 
   async createOrder(
@@ -414,6 +878,21 @@ class CheckoutService {
         pricingBreakdown = await pricingService.calculateOrderTotal(overallSubtotal, totalItemCount, paymentMethod);
       }
 
+    const codEligibility =
+      paymentMethod === "COD"
+        ? await codService.evaluateEligibility({
+            userId,
+            address: shippingAddress,
+            cartItems: validated,
+            subtotal: overallSubtotal,
+          })
+        : null;
+    if (paymentMethod === "COD" && !codEligibility?.codAvailable) {
+      throw new AppError("COD is not available for this order", 400, "COD_NOT_AVAILABLE", {
+        reasons: codEligibility?.reasons || [],
+      });
+    }
+
     const chargesBreakdown = pricingBreakdown.charges || [];
     const shippingCharge = chargesBreakdown.find((c) => c.key === "shipping_cost");
     const platformFeeCharge = chargesBreakdown.find((c) => c.key === "platform_fee");
@@ -477,6 +956,7 @@ class CheckoutService {
 
       const orderNumber = generateOrderNumber();
       const invoiceNumber = generateInvoiceNumber({ orderNumber });
+      const totalCodFee = codService.getCodFeeFromCharges(chargesBreakdown);
       const orderPayload = {
         _id: new mongoose.Types.ObjectId(),
         orderNumber,
@@ -498,6 +978,15 @@ class CheckoutService {
           paymentMethod,
           calculatedAt: pricingBreakdown.calculatedAt ? new Date(pricingBreakdown.calculatedAt) : new Date(),
         },
+        priceBreakdown: codService.buildOrderPriceBreakdown({
+          pricingBreakdown,
+          subtotal,
+          shippingFee: sellerShippingFee,
+          taxAmount: Math.round((taxCharge?.amount || 0) * (overallSubtotal > 0 ? subtotal / overallSubtotal : 1 / bySeller.size) * 100) / 100,
+          discountAmount: Math.round((discountCharge?.amount || 0) * (overallSubtotal > 0 ? subtotal / overallSubtotal : 1 / bySeller.size) * 100) / 100,
+          totalAmount,
+          paymentMethod,
+        }),
         chargesTotal: Math.round(sellerChargeShare * 100) / 100,
         totalAmount,
         platformCommissionRate: commissionPercentage,
@@ -507,6 +996,8 @@ class CheckoutService {
         status: "Placed",
         paymentStatus: resolvedPaymentStatus,
         paymentMethod,
+        settlementStatus: paymentMethod === "COD" ? "PENDING_COLLECTION" : "NOT_APPLICABLE",
+        codAmount: paymentMethod === "COD" ? roundMoney(totalAmount) : 0,
         shippingAddress,
         billingAddress: shippingAddress,
         paymentRecordId: paymentRecordId || undefined,
@@ -521,6 +1012,13 @@ class CheckoutService {
         attribution,
         timeline: [{ status: "Placed", note: "Order placed", timestamp: new Date() }],
         inventoryReservedAt: new Date(),
+        cod: paymentMethod === "COD"
+          ? {
+              isEligible: true,
+              ineligibleReasons: [],
+              status: "pending_cod",
+            }
+          : undefined,
       };
 
       orderPayload.orderSnapshot = buildOrderSnapshot(orderPayload, {
@@ -543,132 +1041,238 @@ class CheckoutService {
     const payouts = [];
 
     try {
-      for (const orderPayload of orderPayloads) {
-        for (const item of orderPayload.items || []) {
-          await inventoryService.reserveStock(
-            item.productId,
-            item.variantId || "",
-            item.quantity,
-            orderPayload._id,
-            orderPayload.sellerId,
-            userId
-          );
-          inventoryReservations.push({
-            productId: item.productId,
-            variantId: item.variantId || "",
-            quantity: item.quantity,
-            orderId: orderPayload._id,
-            sellerId: orderPayload.sellerId,
-          });
+      await executeWithOptionalTransaction(async (session) => {
+        for (const orderPayload of orderPayloads) {
+          for (const item of orderPayload.items || []) {
+            await inventoryService.reserveStock(
+              item.productId,
+              item.variantId || "",
+              item.quantity,
+              orderPayload._id,
+              orderPayload.sellerId,
+              userId,
+              { session }
+            );
+            inventoryReservations.push({
+              productId: item.productId,
+              variantId: item.variantId || "",
+              quantity: item.quantity,
+              orderId: orderPayload._id,
+              sellerId: orderPayload.sellerId,
+            });
+          }
         }
-      }
 
-      orders = await orderRepo.createMany(orderPayloads);
+        orders = session
+          ? await Order.insertMany(orderPayloads, { ordered: true, session })
+          : await orderRepo.createMany(orderPayloads);
 
-      if (paymentRecordId) {
-        payment = await paymentRepo.updateById(paymentRecordId, {
-          $set: {
+        if (paymentRecordId) {
+          payment = session
+            ? await Payment.findByIdAndUpdate(
+                paymentRecordId,
+                {
+                  $set: {
+                    orderIds: orders.map((order) => order._id),
+                    orderGroupId: resolvedGroupId,
+                    shippingAddress,
+                    status: resolvedPaymentStatus === "Paid" ? "PAID" : "PENDING",
+                    fulfillmentStatus: "COMPLETED",
+                    fulfilledAt: new Date(),
+                    razorpayOrderId: razorpayOrderId || undefined,
+                    razorpayPaymentId: razorpayPaymentId || undefined,
+                    paidAt: resolvedPaymentStatus === "Paid" ? new Date() : undefined,
+                  },
+                  $unset: {
+                    fulfillmentError: 1,
+                  },
+                },
+                { new: true, session }
+              )
+            : await paymentRepo.updateById(paymentRecordId, {
+                $set: {
+                  orderIds: orders.map((order) => order._id),
+                  orderGroupId: resolvedGroupId,
+                  shippingAddress,
+                  status: resolvedPaymentStatus === "Paid" ? "PAID" : "PENDING",
+                  fulfillmentStatus: "COMPLETED",
+                  fulfilledAt: new Date(),
+                  razorpayOrderId: razorpayOrderId || undefined,
+                  razorpayPaymentId: razorpayPaymentId || undefined,
+                  paidAt: resolvedPaymentStatus === "Paid" ? new Date() : undefined,
+                },
+                $unset: {
+                  fulfillmentError: 1,
+                },
+              });
+        } else if (paymentMethod === "COD") {
+          const totalAmount = orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
+          const codFee = codService.getCodFeeFromCharges(chargesBreakdown);
+          const codPaymentPayload = {
+            userId,
             orderIds: orders.map((order) => order._id),
             orderGroupId: resolvedGroupId,
-            shippingAddress,
-            status: resolvedPaymentStatus === "Paid" ? "PAID" : "PENDING",
+            amount: totalAmount,
+            currency: "INR",
+            method: "COD",
+            status: "PENDING",
             fulfillmentStatus: "COMPLETED",
             fulfilledAt: new Date(),
-            razorpayOrderId: razorpayOrderId || undefined,
-            razorpayPaymentId: razorpayPaymentId || undefined,
-            paidAt: resolvedPaymentStatus === "Paid" ? new Date() : undefined,
-          },
-          $unset: {
-            fulfillmentError: 1,
-          },
-        });
-      } else if (paymentMethod === "COD") {
-        const totalAmount = orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
-        payment = await paymentRepo.create({
-          userId,
-          orderIds: orders.map((order) => order._id),
-          orderGroupId: resolvedGroupId,
-          amount: totalAmount,
-          currency: "INR",
-          method: "COD",
-          status: "PENDING",
-          fulfillmentStatus: "COMPLETED",
-          fulfilledAt: new Date(),
-          shippingAddress,
-          amountBreakdown: buildAmountBreakdownSnapshot({
-            subtotal: overallSubtotal,
-            shippingFee,
-            taxAmount: taxCharge?.amount || 0,
-            totalAmount,
-            paymentMethod: "COD",
-          }),
-        });
+            shippingAddress,
+            amountBreakdown: {
+              ...buildAmountBreakdownSnapshot({
+                subtotal: overallSubtotal,
+                shippingFee,
+                taxAmount: taxCharge?.amount || 0,
+                totalAmount,
+                paymentMethod: "COD",
+              }),
+              codFee,
+            },
+            codDetails: {
+              status: "pending_cod",
+              eligibilitySnapshot: {
+                codAvailable: Boolean(codEligibility?.codAvailable),
+                reasons: codEligibility?.reasons || [],
+              },
+            },
+          };
+          payment = session
+            ? (await Payment.create([codPaymentPayload], { session }))[0]
+            : await paymentRepo.create(codPaymentPayload);
+
+          for (const order of orders) {
+            if (session) {
+              await Order.updateOne({ _id: order._id }, { $set: { paymentRecordId: payment._id, orderGroupId: resolvedGroupId } }, { session });
+            } else {
+              await orderRepo.updateById(order._id, { paymentRecordId: payment._id, orderGroupId: resolvedGroupId });
+            }
+          }
+        }
 
         for (const order of orders) {
-          await orderRepo.updateById(order._id, { paymentRecordId: payment._id, orderGroupId: resolvedGroupId });
+          const shipmentRecord = await codService.createShipmentRecord(order, { session });
+          const vendorOrderRecord = await codService.createVendorOrderRecord(order, { session });
+          if (session) {
+            await Order.updateOne(
+              { _id: order._id },
+              { $set: { shipmentRecordId: shipmentRecord._id, vendorOrderId: vendorOrderRecord._id } },
+              { session }
+            );
+          } else {
+            await orderRepo.updateById(order._id, { shipmentRecordId: shipmentRecord._id, vendorOrderId: vendorOrderRecord._id });
+          }
         }
-      }
+      });
 
-      for (const order of orders) {
-        const payout = await runNonBlocking(`create payout for order ${order.orderNumber}`, () =>
-          payoutRepo.create({
-            sellerId: order.sellerId,
-            orderId: order._id,
-            amount: order.totalAmount,
-            commission: order.platformCommissionAmount,
-            netAmount: order.vendorEarning,
-            status: "ON_HOLD",
-            notes: "Awaiting delivery confirmation and payout eligibility window.",
-          })
-        );
-        if (payout) {
-          payouts.push(payout);
+      runDeferred(`checkout follow-up for group ${resolvedGroupId}`, async () => {
+        for (const order of orders) {
+          const payout = await runNonBlocking(`create payout for order ${order.orderNumber}`, () =>
+            payoutRepo.create({
+              sellerId: order.sellerId,
+              orderId: order._id,
+              amount: order.totalAmount,
+              commission: order.platformCommissionAmount,
+              netAmount: order.vendorEarning,
+              status: "ON_HOLD",
+              notes: "Awaiting delivery confirmation and payout eligibility window.",
+            })
+          );
+          if (payout) {
+            payouts.push(payout);
+          }
         }
-      }
 
-      await cartRepo.clear(userId);
+        await runNonBlocking(`clear cart for user ${userId}`, () => cartRepo.clear(userId));
 
-      for (const order of orders) {
-        await runNonBlocking(`emit order-created event for ${order.orderNumber}`, () =>
-          emitDomainEvent(INFLUENCER_EVENTS.ORDER_CREATED, {
-            orderId: order._id,
-            attribution: order.attribution || null,
-          })
+        for (const order of orders) {
+          await runNonBlocking(`emit order-created event for ${order.orderNumber}`, () =>
+            emitDomainEvent(INFLUENCER_EVENTS.ORDER_CREATED, {
+              orderId: order._id,
+              attribution: order.attribution || null,
+            })
+          );
+
+          if (order.attribution?.influencerId) {
+            await runNonBlocking(`create commission hold for ${order.orderNumber}`, () =>
+              commissionService.createHoldRecord(order)
+            );
+          }
+        }
+
+        await runNonBlocking("notify vendor and operations for created orders", () =>
+          Promise.all(
+            orders.map((order) =>
+              notificationService.notifyVendorAndOperations({
+                vendorId: order.sellerId,
+                permissionKey: "orders.read",
+                module: "MANAGEMENT",
+                subModule: "ORDERS",
+                type: "ORDER_CREATED",
+                title: "New order",
+                message: `Order ${order.orderNumber} was placed successfully.`,
+                referenceId: order._id,
+                meta: {
+                  orderNumber: order.orderNumber,
+                  paymentMethod: order.paymentMethod,
+                  totalAmount: order.totalAmount,
+                },
+              })
+            )
+          )
         );
 
-        if (order.attribution?.influencerId) {
-          await runNonBlocking(`create commission hold for ${order.orderNumber}`, () =>
-            commissionService.createHoldRecord(order)
+        if (paymentMethod === "COD") {
+          await runNonBlocking("emit cod order placed events", () =>
+            Promise.all(
+              orders.map((order) =>
+                Promise.all([
+                  emitDomainEvent("COD_ORDER_PLACED", {
+                    orderId: order._id,
+                    orderGroupId: order.orderGroupId,
+                    paymentRecordId: payment?._id || null,
+                  }),
+                  emitDomainEvent("VENDOR_ORDER_CREATED", {
+                    orderId: order._id,
+                    orderGroupId: order.orderGroupId,
+                    vendorId: order.sellerId,
+                    vendorOrderId: order.vendorOrderId || null,
+                  }),
+                  emitDomainEvent("SHIPMENT_CREATED", {
+                    orderId: order._id,
+                    orderGroupId: order.orderGroupId,
+                    shipmentRecordId: order.shipmentRecordId || null,
+                    paymentMethod: order.paymentMethod,
+                  }),
+                ]).then(() => null)
+              )
+            )
+          );
+        } else {
+          await runNonBlocking("emit vendor shipment events for online orders", () =>
+            Promise.all(
+              orders.map((order) =>
+                Promise.all([
+                  emitDomainEvent("VENDOR_ORDER_CREATED", {
+                    orderId: order._id,
+                    orderGroupId: order.orderGroupId,
+                    vendorId: order.sellerId,
+                    vendorOrderId: order.vendorOrderId || null,
+                  }),
+                  emitDomainEvent("SHIPMENT_CREATED", {
+                    orderId: order._id,
+                    orderGroupId: order.orderGroupId,
+                    shipmentRecordId: order.shipmentRecordId || null,
+                    paymentMethod: order.paymentMethod,
+                  }),
+                ]).then(() => null)
+              )
+            )
           );
         }
-      }
+      });
 
-      await runNonBlocking("notify vendor and operations for created orders", () =>
-        Promise.all(
-          orders.map((order) =>
-            notificationService.notifyVendorAndOperations({
-              vendorId: order.sellerId,
-              permissionKey: "orders.read",
-              module: "MANAGEMENT",
-              subModule: "ORDERS",
-              type: "ORDER_CREATED",
-              title: "New order",
-              message: `Order ${order.orderNumber} was placed successfully.`,
-              referenceId: order._id,
-              meta: {
-                orderNumber: order.orderNumber,
-                paymentMethod: order.paymentMethod,
-                totalAmount: order.totalAmount,
-              },
-            })
-          )
-        )
-      );
-
-      const freshOrders = await runNonBlocking(`reload orders for group ${resolvedGroupId}`, () =>
-        orderRepo.findByGroupId(resolvedGroupId)
-      );
-      return { orders: Array.isArray(freshOrders) && freshOrders.length ? freshOrders : orders, payouts, payment, orderGroupId: resolvedGroupId };
+      return { orders, payouts: [], payment, orderGroupId: resolvedGroupId };
     } catch (error) {
       for (const payout of payouts) {
         await payoutRepo

@@ -7,6 +7,7 @@ const PAYMENT_STATUS = [
   "AUTHORIZED",
   "PAID",
   "FAILED",
+  "REFUND_PENDING",
   "REFUNDED",
   "PARTIALLY_REFUNDED",
 ];
@@ -31,6 +32,11 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       index: true,
       trim: true,
+    },
+    paymentSessionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PaymentSession",
+      index: true,
     },
     amount: { type: Number, required: true, min: 0 },
     currency: { type: String, default: "INR" },
@@ -72,12 +78,30 @@ const paymentSchema = new mongoose.Schema(
     amountBreakdown: {
       subtotal: { type: Number, min: 0, default: 0 },
       shippingFee: { type: Number, min: 0, default: 0 },
+      codFee: { type: Number, min: 0, default: 0 },
+      gatewayFee: { type: Number, min: 0, default: 0 },
+      prepaidDiscount: { type: Number, min: 0, default: 0 },
       taxAmount: { type: Number, min: 0, default: 0 },
       totalAmount: { type: Number, min: 0, default: 0 },
       paymentMethod: {
         type: String,
         enum: PAYMENT_METHODS,
         default: "ONLINE",
+      },
+    },
+    codDetails: {
+      status: {
+        type: String,
+        enum: ["pending_cod", "confirmed", "collected", "failed", "cancelled"],
+        default: "pending_cod",
+      },
+      collectedAt: { type: Date },
+      collectedAmount: { type: Number, min: 0, default: 0 },
+      collectedBy: { type: String, trim: true, default: "" },
+      collectionReference: { type: String, trim: true, default: "" },
+      eligibilitySnapshot: {
+        codAvailable: { type: Boolean, default: false },
+        reasons: { type: [String], default: [] },
       },
     },
     cartId: {
@@ -114,6 +138,7 @@ const paymentSchema = new mongoose.Schema(
       },
     },
     refundedAmount: { type: Number, min: 0, default: 0 },
+    gatewayFeeAmount: { type: Number, min: 0, default: 0 },
     refundStatus: {
       type: String,
       enum: ["NONE", "PENDING", "PARTIAL", "FULL"],

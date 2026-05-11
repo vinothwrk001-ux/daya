@@ -1,7 +1,18 @@
 const mongoose = require("mongoose");
 
 const LEDGER_TYPES = ["CREDIT", "DEBIT"];
-const LEDGER_SOURCES = ["ORDER", "PAYOUT", "REFUND", "PAYOUT_REQUEST", "PAYOUT_REJECTION"];
+const LEDGER_SOURCES = [
+  "ORDER",
+  "PAYOUT",
+  "REFUND",
+  "PAYOUT_REQUEST",
+  "PAYOUT_REJECTION",
+  "COD_SETTLEMENT",
+  "COD_REVERSAL",
+  "COD_FEE",
+  "GATEWAY_FEE",
+  "REFUND_REVERSAL",
+];
 
 const ledgerSchema = new mongoose.Schema(
   {
@@ -39,6 +50,20 @@ const ledgerSchema = new mongoose.Schema(
     meta: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
+    },
+    codFee: { type: Number, min: 0, default: 0 },
+    gatewayFee: { type: Number, min: 0, default: 0 },
+    refundRef: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
+    settlementRef: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
     },
   },
   { timestamps: true }

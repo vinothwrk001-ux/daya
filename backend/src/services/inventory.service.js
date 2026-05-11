@@ -79,8 +79,10 @@ class InventoryService {
     };
   }
 
-  async getProductOrFail(productId) {
-    const product = await Product.findById(productId);
+  async getProductOrFail(productId, { session = null } = {}) {
+    const query = Product.findById(productId);
+    if (session) query.session(session);
+    const product = await query;
     if (!product) {
       throw new AppError("Product not found", 404, "PRODUCT_NOT_FOUND");
     }
@@ -89,6 +91,12 @@ class InventoryService {
 
   assertOwnership(product, expectedSellerId = null) {
     if (!expectedSellerId) {
+      return;
+    }
+
+    // Platform-managed products can be routed through a synthetic vendor record
+    // during checkout even when the legacy product document does not store sellerId.
+    if (!product?.sellerId) {
       return;
     }
 
@@ -266,13 +274,13 @@ class InventoryService {
     };
   }
 
-  async reserveStock(productId, variantId, quantity, orderId, sellerId, userId) {
+  async reserveStock(productId, variantId, quantity, orderId, sellerId, userId, options = {}) {
     const normalizedQuantity = toNumber(quantity);
     if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
       throw new AppError("Quantity must be greater than 0", 400, "INVALID_QUANTITY");
     }
 
-    const product = await this.getProductOrFail(productId);
+    const product = await this.getProductOrFail(productId, options);
     this.assertOwnership(product, sellerId);
 
     const resolved = await this.resolveInventoryRecord(product, variantId);
@@ -289,7 +297,7 @@ class InventoryService {
 
     if (resolved.kind === "variant") {
       resolved.variant.reservedStock = nextReserved;
-      await product.save();
+      await product.save({ session: options.session || undefined });
     }
 
     await this._recordTransaction({
@@ -306,6 +314,7 @@ class InventoryService {
       orderId,
       reason: "Order placed",
       performedBy: userId,
+      session: options.session,
     });
 
     return {
@@ -317,13 +326,13 @@ class InventoryService {
     };
   }
 
-  async deductStock(productId, variantId, quantity, shipmentId, orderId, sellerId, userId) {
+  async deductStock(productId, variantId, quantity, shipmentId, orderId, sellerId, userId, options = {}) {
     const normalizedQuantity = toNumber(quantity);
     if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
       throw new AppError("Quantity must be greater than 0", 400, "INVALID_QUANTITY");
     }
 
-    const product = await this.getProductOrFail(productId);
+    const product = await this.getProductOrFail(productId, options);
     this.assertOwnership(product, sellerId);
 
     const resolved = await this.resolveInventoryRecord(product, variantId);
@@ -357,7 +366,7 @@ class InventoryService {
       product.stock = nextStock;
     }
 
-    await product.save();
+    await product.save({ session: options.session || undefined });
 
     await this._recordTransaction({
       productId,
@@ -374,6 +383,7 @@ class InventoryService {
       orderId,
       reason: "Shipment confirmed",
       performedBy: userId,
+      session: options.session,
     });
 
     return {
@@ -386,13 +396,13 @@ class InventoryService {
     };
   }
 
-  async restoreStock(productId, variantId, quantity, returnId, orderId, sellerId, userId, reason = "Return processed") {
+  async restoreStock(productId, variantId, quantity, returnId, orderId, sellerId, userId, reason = "Return processed", options = {}) {
     const normalizedQuantity = toNumber(quantity);
     if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
       throw new AppError("Quantity must be greater than 0", 400, "INVALID_QUANTITY");
     }
 
-    const product = await this.getProductOrFail(productId);
+    const product = await this.getProductOrFail(productId, options);
     this.assertOwnership(product, sellerId);
 
     const resolved = await this.resolveInventoryRecord(product, variantId);
@@ -409,7 +419,7 @@ class InventoryService {
       product.stock = nextStock;
     }
 
-    await product.save();
+    await product.save({ session: options.session || undefined });
 
     await this._recordTransaction({
       productId,
@@ -426,6 +436,7 @@ class InventoryService {
       orderId,
       reason,
       performedBy: userId,
+      session: options.session,
     });
 
     return {
@@ -438,13 +449,13 @@ class InventoryService {
     };
   }
 
-  async unreserveStock(productId, variantId, quantity, orderId, sellerId, userId) {
+  async unreserveStock(productId, variantId, quantity, orderId, sellerId, userId, options = {}) {
     const normalizedQuantity = toNumber(quantity);
     if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
       throw new AppError("Quantity must be greater than 0", 400, "INVALID_QUANTITY");
     }
 
-    const product = await this.getProductOrFail(productId);
+    const product = await this.getProductOrFail(productId, options);
     this.assertOwnership(product, sellerId);
 
     const resolved = await this.resolveInventoryRecord(product, variantId);
@@ -461,7 +472,7 @@ class InventoryService {
 
     if (resolved.kind === "variant") {
       resolved.variant.reservedStock = nextReserved;
-      await product.save();
+      await product.save({ session: options.session || undefined });
     }
 
     await this._recordTransaction({
@@ -478,6 +489,7 @@ class InventoryService {
       orderId,
       reason: "Order cancelled",
       performedBy: userId,
+      session: options.session,
     });
 
     return {
@@ -675,7 +687,7 @@ class InventoryService {
     };
   }
 
-  async commitOrderInventory(order, { shipmentId = null, performedBy = null } = {}) {
+  async commitOrderInventory(order, { shipmentId = null, performedBy = null, session = null } = {}) {
     if (!order || order.inventoryCommittedAt) {
       return order;
     }
@@ -689,7 +701,8 @@ class InventoryService {
         shipmentId || order.shipmentId || undefined,
         order._id,
         sellerId,
-        performedBy
+        performedBy,
+        { session }
       );
     }
 
@@ -699,25 +712,28 @@ class InventoryService {
 
   async _recordTransaction(data) {
     try {
-      await InventoryLedger.create({
-        productId: data.productId,
-        variantId: data.variantId,
-        variantSku: data.variantSku,
-        sellerId: data.sellerId,
-        transactionType: data.transactionType,
-        status: "COMPLETED",
-        quantityChange: data.quantityChange,
-        stockBefore: data.stockBefore,
-        stockAfter: data.stockAfter,
-        reservedBefore: data.reservedBefore,
-        reservedAfter: data.reservedAfter,
-        orderId: data.orderId,
-        shipmentId: data.shipmentId,
-        returnId: data.returnId,
-        reason: data.reason,
-        notes: data.notes,
-        performedBy: data.performedBy,
-      });
+      await InventoryLedger.create(
+        [{
+          productId: data.productId,
+          variantId: data.variantId,
+          variantSku: data.variantSku,
+          sellerId: data.sellerId,
+          transactionType: data.transactionType,
+          status: "COMPLETED",
+          quantityChange: data.quantityChange,
+          stockBefore: data.stockBefore,
+          stockAfter: data.stockAfter,
+          reservedBefore: data.reservedBefore,
+          reservedAfter: data.reservedAfter,
+          orderId: data.orderId,
+          shipmentId: data.shipmentId,
+          returnId: data.returnId,
+          reason: data.reason,
+          notes: data.notes,
+          performedBy: data.performedBy,
+        }],
+        { session: data.session || undefined }
+      );
     } catch (error) {
       console.error("Failed to record inventory transaction:", error.message);
     }

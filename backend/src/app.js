@@ -149,6 +149,7 @@ function createApp() {
   app.use("/api/orders", orderRoutes);
   app.use("/api/checkout", checkoutRoutes);
   app.use("/api/payments", paymentRoutes);
+  app.use("/api/payment", paymentRoutes);
   app.use("/api/payouts", payoutRoutes);
   app.use("/api/delivery", deliveryRoutes);
   app.use("/api/shipping", shippingRoutes);

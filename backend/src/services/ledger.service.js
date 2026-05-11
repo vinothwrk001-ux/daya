@@ -11,6 +11,10 @@ class LedgerService {
     referenceId,
     walletSnapshot,
     meta = {},
+    codFee = 0,
+    gatewayFee = 0,
+    refundRef = "",
+    settlementRef = "",
     session = null,
   }) {
     const payload = {
@@ -22,6 +26,10 @@ class LedgerService {
       balanceAfter: roundMoney(walletSnapshot.availableBalance),
       walletSnapshot: buildWalletSnapshot(walletSnapshot),
       meta,
+      codFee: roundMoney(codFee),
+      gatewayFee: roundMoney(gatewayFee),
+      refundRef: String(refundRef || ""),
+      settlementRef: String(settlementRef || ""),
     };
 
     const [entry] = await Ledger.create([payload], { session: session || undefined });

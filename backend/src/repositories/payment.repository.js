@@ -15,6 +15,7 @@ class PaymentRepository {
   async findById(id) {
     return await Payment.findById(id)
       .populate("userId", "name email phone")
+      .populate("paymentSessionId")
       .populate("orderIds", "orderNumber totalAmount paymentStatus paymentMethod status createdAt")
       .exec();
   }
@@ -22,6 +23,7 @@ class PaymentRepository {
   async findByRazorpayPaymentId(paymentId) {
     return await Payment.findOne({ razorpayPaymentId: paymentId })
       .populate("userId", "name email phone")
+      .populate("paymentSessionId")
       .populate("orderIds", "orderNumber totalAmount paymentStatus paymentMethod status createdAt")
       .exec();
   }
@@ -29,6 +31,7 @@ class PaymentRepository {
   async findByRazorpayOrderId(orderId) {
     return await Payment.findOne({ razorpayOrderId: orderId })
       .populate("userId", "name email phone")
+      .populate("paymentSessionId")
       .populate("orderIds", "orderNumber totalAmount paymentStatus paymentMethod status createdAt")
       .exec();
   }
@@ -62,6 +65,7 @@ class PaymentRepository {
     const [payments, total] = await Promise.all([
       Payment.find(query)
         .populate("userId", "name email phone")
+        .populate("paymentSessionId")
         .populate("orderIds", "orderNumber totalAmount paymentStatus paymentMethod status createdAt")
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -86,6 +90,7 @@ class PaymentRepository {
     if (paymentId) update.razorpayPaymentId = paymentId;
     return await Payment.findOneAndUpdate({ razorpayOrderId: orderId }, asUpdateDocument(update), { new: true })
       .populate("userId", "name email phone")
+      .populate("paymentSessionId")
       .populate("orderIds", "orderNumber totalAmount paymentStatus paymentMethod status createdAt")
       .exec();
   }
@@ -93,6 +98,7 @@ class PaymentRepository {
   async updateById(id, updateData = {}) {
     return await Payment.findByIdAndUpdate(id, asUpdateDocument(updateData), { new: true })
       .populate("userId", "name email phone")
+      .populate("paymentSessionId")
       .populate("orderIds", "orderNumber totalAmount paymentStatus paymentMethod status createdAt")
       .exec();
   }

@@ -51,6 +51,16 @@ const listPayments = asyncHandler(async (req, res) => {
   return ok(res, result, "Payments loaded");
 });
 
+const getRazorpaySettings = asyncHandler(async (req, res) => {
+  const result = await paymentService.getGatewayConfig();
+  return ok(res, result, "Razorpay settings loaded");
+});
+
+const updateRazorpaySettings = asyncHandler(async (req, res) => {
+  const result = await paymentService.updateGatewayConfig(req.body || {}, req.user?._id || req.user?.sub || null);
+  return ok(res, result, "Razorpay settings updated");
+});
+
 const getPaymentDetails = asyncHandler(async (req, res) => {
   const result = await paymentService.getPaymentDetails(req.params.id);
   return ok(res, result, "Payment details loaded");
@@ -71,6 +81,8 @@ module.exports = {
   verifyRazorpayPayment,
   refundPayment,
   listPayments,
+  getRazorpaySettings,
+  updateRazorpaySettings,
   getPaymentDetails,
   listRefunds,
   reviewRefund,

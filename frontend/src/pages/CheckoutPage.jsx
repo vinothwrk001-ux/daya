@@ -32,6 +32,9 @@ function normalizeError(err) {
   if (firstIssue?.path?.length) {
     return `${firstIssue.path.join(".")}: ${firstIssue.message}`;
   }
+  if (err?.response?.data?.debug?.message) {
+    return err.response.data.debug.message;
+  }
   return err?.response?.data?.message || err?.message || "Request failed";
 }
 
@@ -99,12 +102,17 @@ export function CheckoutPage() {
   const [toast, setToast] = useState(null);
   const [pricingConfig, setPricingConfig] = useState(null);
   const [amountPulse, setAmountPulse] = useState(false);
+  const [codAvailability, setCodAvailability] = useState(null);
   const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const didMountPaymentMethodRef = useRef(false);
 
   async function loadPreparedCheckout(shippingAddress, selectedPaymentMethod = paymentMethod) {
     const trackingContext = loadTrackingContext();
-    const payload = shippingAddress ? { shippingAddress } : {};
+    // Only send shippingAddress if it has a valid fullName
+    const payload = {};
+    if (shippingAddress && String(shippingAddress?.fullName || "").trim()) {
+      payload.shippingAddress = shippingAddress;
+    }
     payload.paymentMethod = selectedPaymentMethod;
     if (trackingContext?.trackingToken) payload.trackingToken = trackingContext.trackingToken;
     const checkoutRes = await checkoutService.prepareCheckout(payload);
@@ -128,6 +136,7 @@ export function CheckoutPage() {
       );
 
       setSummary(nextSummary);
+      setCodAvailability(nextSummary?.codAvailability || null);
       setAddresses(nextAddresses);
       setPricingConfig(nextPricingConfig);
 
@@ -163,6 +172,7 @@ export function CheckoutPage() {
     loadPreparedCheckout(activeShippingAddress, paymentMethod)
       .then((nextSummary) => {
         setSummary(nextSummary);
+        setCodAvailability(nextSummary?.codAvailability || null);
         setAmountPulse(true);
       })
       .catch((err) => setError(normalizeError(err)));
@@ -232,7 +242,9 @@ export function CheckoutPage() {
     setError("");
     try {
       await cartService.updateCartItem(productId, quantity, variantId);
-      setSummary(await loadPreparedCheckout(getActiveShippingAddress(), paymentMethod));
+      const nextSummary = await loadPreparedCheckout(getActiveShippingAddress(), paymentMethod);
+      setSummary(nextSummary);
+      setCodAvailability(nextSummary?.codAvailability || null);
       setAmountPulse(true);
       setToast({ type: "success", message: "Order summary updated." });
     } catch (err) {
@@ -257,6 +269,7 @@ export function CheckoutPage() {
         } else {
           // If there are items remaining, keep the summary
           setSummary(nextSummary);
+          setCodAvailability(nextSummary?.codAvailability || null);
           setAmountPulse(true);
           setToast({ type: "success", message: "Item removed from checkout." });
         }
@@ -293,12 +306,12 @@ export function CheckoutPage() {
       setSelectedAddressId(createdAddress?._id || "");
       setShowAddressModal(false);
       setShowAddressSelector(false);
-      setSummary(
-        await loadPreparedCheckout(
-          createdAddress ? getShippingAddressFromSavedAddress(createdAddress) : getShippingAddressFromForm(formSnapshot),
-          paymentMethod
-        )
+      const nextSummary = await loadPreparedCheckout(
+        createdAddress ? getShippingAddressFromSavedAddress(createdAddress) : getShippingAddressFromForm(formSnapshot),
+        paymentMethod
       );
+      setSummary(nextSummary);
+      setCodAvailability(nextSummary?.codAvailability || null);
       setAmountPulse(true);
       setToast({ type: "success", message: "Address saved and selected for delivery." });
       setCurrentStep("summary");
@@ -317,6 +330,10 @@ export function CheckoutPage() {
       setToast({ type: "error", message: "Complete the delivery address, including recipient name, before payment." });
       return;
     }
+    if (paymentMethod === "COD" && codAvailability?.codAvailable === false) {
+      setToast({ type: "error", message: "Cash on Delivery is not available for this address." });
+      return;
+    }
 
     setPlacing(true);
     setError("");
@@ -330,9 +347,8 @@ export function CheckoutPage() {
         });
         const orders = response?.data?.orders || [];
         const payment = response?.data?.payment || null;
-        const orderId = orders[0]?._id || null;
         persistCheckoutSuccessPayload({ orders, payment });
-        navigate(orderId ? `/orders/${orderId}` : "/orders", { replace: true });
+        navigate("/checkout/success", { replace: true, state: { orders, payment } });
         return;
       }
 
@@ -352,7 +368,7 @@ export function CheckoutPage() {
         key: razorpayData.key,
         amount: razorpayData.amount,
         currency: razorpayData.currency,
-        order_id: razorpayData.orderId,
+        order_id: razorpayData.razorpayOrderId || razorpayData.orderId,
         name: "UChooseMe",
         description: "Secure checkout",
         prefill: {
@@ -362,6 +378,16 @@ export function CheckoutPage() {
         theme: {
           color: "#0f766e",
         },
+        modal: {
+          ondismiss: () => {
+            setToast({ type: "error", message: "Payment window closed. You can retry securely from checkout." });
+            setPlacing(false);
+          },
+        },
+        retry: {
+          enabled: true,
+          max_count: 2,
+        },
         handler: async (response) => {
           try {
             setVerifyingPayment(true);
@@ -369,15 +395,13 @@ export function CheckoutPage() {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-              shippingAddress,
-              trackingToken: trackingContext?.trackingToken,
             });
             const successPayload = {
               orders: verified?.orders || [],
               payment: verified?.payment || null,
             };
             persistCheckoutSuccessPayload(successPayload);
-            navigate(verified?.redirectUrl || (verified?.orderId ? `/orders/${verified.orderId}` : "/orders"), {
+            navigate("/checkout/success", {
               replace: true,
               state: successPayload,
             });
@@ -392,6 +416,10 @@ export function CheckoutPage() {
       };
 
       const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", () => {
+        setToast({ type: "error", message: "Payment failed before verification. Please retry." });
+        setPlacing(false);
+      });
       rzp.open();
     } catch (err) {
       setError(normalizeError(err));
@@ -503,6 +531,7 @@ export function CheckoutPage() {
                           loadPreparedCheckout(getShippingAddressFromSavedAddress(address), paymentMethod)
                             .then((nextSummary) => {
                               setSummary(nextSummary);
+                              setCodAvailability(nextSummary?.codAvailability || null);
                               setAmountPulse(true);
                             })
                             .catch((err) => setError(normalizeError(err)));
@@ -579,6 +608,7 @@ export function CheckoutPage() {
                     value: "COD",
                     title: "Cash on Delivery",
                     description: "Pay when the order arrives. Best for familiar delivery locations.",
+                    disabled: paymentMethod !== "COD" ? Boolean(codAvailability && codAvailability.codAvailable === false) : false,
                   },
                   {
                     value: "ONLINE",
@@ -589,17 +619,23 @@ export function CheckoutPage() {
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setPaymentMethod(option.value)}
+                    onClick={() => !option.disabled && setPaymentMethod(option.value)}
+                    disabled={option.disabled}
                     className={`rounded-[1.5rem] border p-4 text-left transition ${
                       paymentMethod === option.value
                         ? "border-[color:var(--commerce-accent)] bg-[color:var(--commerce-accent-soft)]"
                         : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700"
-                    }`}
+                    } ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="text-base font-semibold text-slate-950 dark:text-white">{option.title}</div>
                         <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">{option.description}</div>
+                        {option.value === "COD" && codAvailability?.codAvailable === false ? (
+                          <div className="mt-2 text-xs font-medium text-rose-600">
+                            COD unavailable: {(codAvailability.reasons || []).join(", ")}
+                          </div>
+                        ) : null}
                       </div>
                       <div
                         className={`h-5 w-5 rounded-full border ${
@@ -618,6 +654,11 @@ export function CheckoutPage() {
           <aside className="xl:sticky xl:top-24 xl:self-start">
             <div className="grid gap-4">
               <PriceBreakdown breakdown={priceBreakdown} />
+              {paymentMethod === "COD" && codAvailability?.codAvailable === false ? (
+                <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  Cash on Delivery is unavailable for this address right now.
+                </div>
+              ) : null}
 
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Order total</div>
@@ -636,7 +677,7 @@ export function CheckoutPage() {
 
                 <button
                   type="button"
-                  disabled={placing || !hasUsableAddress}
+                  disabled={placing || !hasUsableAddress || (paymentMethod === "COD" && codAvailability?.codAvailable === false)}
                   onClick={placeOrder}
                   className="mt-5 w-full rounded-2xl bg-[color:var(--commerce-accent-warm)] px-4 py-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:translate-y-[-1px] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                 >

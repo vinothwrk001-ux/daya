@@ -9,6 +9,10 @@ const { initializeSettlementScheduler, shutdown } = require("./jobs/settlement.j
 const { ensureDefaultPricingCategories } = require("./services/pricing-category.service");
 const { initializeEventBus, shutdownEventBus } = require("./modules/events/event-bus");
 const { initializeInfluencerCommerceJobs, shutdownInfluencerCommerceJobs } = require("./jobs/influencer-commerce.job");
+const {
+  initializePaymentMaintenanceJobs,
+  shutdownPaymentMaintenanceJobs,
+} = require("./jobs/payment-maintenance.job");
 
 async function start() {
   await connectDb();
@@ -36,6 +40,15 @@ async function start() {
     });
   }
 
+  try {
+    const paymentJobs = await initializePaymentMaintenanceJobs();
+    logger.info("Payment maintenance jobs initialized", paymentJobs);
+  } catch (error) {
+    logger.error("Failed to initialize payment maintenance jobs", {
+      error: error?.message,
+    });
+  }
+
   const app = createApp();
   const server = http.createServer(app);
 
@@ -50,6 +63,7 @@ async function start() {
     server.close(async () => {
       await shutdown();
       await shutdownInfluencerCommerceJobs();
+      await shutdownPaymentMaintenanceJobs();
       await shutdownEventBus();
       process.exit(0);
     });
@@ -60,6 +74,7 @@ async function start() {
     server.close(async () => {
       await shutdown();
       await shutdownInfluencerCommerceJobs();
+      await shutdownPaymentMaintenanceJobs();
       await shutdownEventBus();
       process.exit(0);
     });

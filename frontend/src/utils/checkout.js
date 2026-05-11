@@ -27,8 +27,10 @@ export function getAddressFormFromSavedAddress(address) {
 }
 
 export function getShippingAddressFromSavedAddress(address) {
+  const fullName = String(address?.name || "").trim();
+  
   return {
-    fullName: String(address?.name || "").trim(),
+    fullName,
     phone: String(address?.phone || "").trim(),
     line1: String(address?.addressLine || "").trim(),
     line2: "",
@@ -84,7 +86,12 @@ export function validateAddressForm(form) {
 }
 
 export function isAddressFormValid(form) {
-  return Object.keys(validateAddressForm(form)).length === 0;
+  const errors = validateAddressForm(form);
+  // Ensure name is not empty
+  if (!form?.name || String(form.name || "").trim().length === 0) {
+    return false;
+  }
+  return Object.keys(errors).length === 0;
 }
 
 export function getDefaultAddress(addresses = []) {

@@ -24,6 +24,8 @@ export function OrderSuccessPage() {
   const state = location.state || loadPersistedCheckoutSuccessPayload() || {};
   const orders = state.orders || [];
   const payment = state.payment || null;
+  const isCod = (orders[0]?.paymentMethod || payment?.method || "ONLINE") === "COD";
+  const codPayable = orders.reduce((sum, order) => sum + Number(order?.totalAmount || 0), 0);
 
   if (!orders.length) {
     return <Navigate to="/orders" replace />;
@@ -34,14 +36,24 @@ export function OrderSuccessPage() {
       <section className="rounded-[2rem] border border-emerald-200 bg-emerald-50 p-6">
         <div className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Order confirmed</div>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Your order is in the system.</h1>
-        <p className="mt-2 text-sm text-slate-600">Payment status and order routing have been recorded. You can track every vendor shipment from your orders page.</p>
+        <p className="mt-2 text-sm text-slate-600">
+          {isCod
+            ? `Please keep ${formatCurrency(codPayable)} ready for delivery. You can track every vendor shipment from your orders page.`
+            : "Payment status and order routing have been recorded. You can track every vendor shipment from your orders page."}
+        </p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
         <StatCard label="Orders created" value={String(orders.length)} />
         <StatCard label="Payment method" value={orders[0]?.paymentMethod || payment?.method || "ONLINE"} />
-        <StatCard label="Payment status" value={orders[0]?.paymentStatus || payment?.status || "Pending"} />
+        <StatCard label={isCod ? "Payable on delivery" : "Payment status"} value={isCod ? formatCurrency(codPayable) : (orders[0]?.paymentStatus || payment?.status || "Pending")} />
       </section>
+
+      {isCod ? (
+        <section className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+          Cash on Delivery instructions: collectable amount is {formatCurrency(codPayable)}. Our delivery or operations team may contact you before dispatch to confirm the order.
+        </section>
+      ) : null}
 
       <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-950">Order summary</h2>

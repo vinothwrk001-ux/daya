@@ -44,6 +44,7 @@ const roleController = require("../modules/staff/controllers/role.controller");
 const { roleSchema } = require("../modules/staff/validators");
 const adminPayoutController = require("../controllers/adminPayout.controller");
 const pricingController = require("../controllers/pricing.controller");
+const codController = require("../controllers/cod.controller");
 const shippingConfigRoutes = require("./shippingConfig.routes");
 
 const router = express.Router();
@@ -216,6 +217,22 @@ router.get(
   "/pricing",
   requireWorkspacePermission("settings.read", { legacyPermission: "settings:update" }),
   pricingController.getAdminPricingConfig
+);
+router.get(
+  "/cod/settings",
+  requireWorkspacePermission("settings.read", { legacyPermission: "settings:update" }),
+  codController.getSettings
+);
+router.put(
+  "/cod/settings",
+  requireWorkspacePermission("settings.update", { legacyPermission: "settings:update" }),
+  express.json(),
+  codController.updateSettings
+);
+router.get(
+  "/cod/analytics",
+  requireWorkspacePermission("analytics.read", { legacyPermission: "dashboard:read" }),
+  codController.getAnalytics
 );
 router.put(
   "/pricing/:id",
