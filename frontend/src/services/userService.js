@@ -67,6 +67,26 @@ export async function requestUserReturn(id, payload) {
   return data;
 }
 
+export async function downloadUserInvoice(id) {
+  const response = await api.get(`/api/user/orders/${id}/invoice`, {
+    responseType: "blob",
+  });
+  
+  const blob = new Blob([response.data], { type: response.headers["content-type"] || "application/pdf" });
+  const contentDisposition = response.headers["content-disposition"] || "";
+  const match = contentDisposition.match(/filename="?([^"]+)"?/i);
+  const filename = match?.[1] || `invoice-${id}.pdf`;
+  
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
 export function getUserInvoiceUrl(id) {
   const base = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
   return `${base}/api/user/orders/${id}/invoice`;

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
 import {
-  getUserInvoiceUrl,
+  downloadUserInvoice,
   getUserOrder,
   getUserOrderTracking,
   requestUserReturn,
@@ -92,6 +92,18 @@ export function OrderDetailsPage() {
     }
   }
 
+  async function handleDownloadInvoice() {
+    setActionBusy(true);
+    try {
+      await downloadUserInvoice(orderId);
+      setError("");
+    } catch (err) {
+      setError(normalizeError(err));
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
   if (loading) {
     return <div className="h-80 animate-pulse rounded-3xl bg-slate-100 dark:bg-slate-800" />;
   }
@@ -118,14 +130,14 @@ export function OrderDetailsPage() {
             <div className="flex flex-wrap items-center gap-2 print:hidden">
               <StatusBadge value={order.status} />
               <StatusBadge value={order.paymentStatus} />
-              <a
-                href={getUserInvoiceUrl(order._id)}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur transition hover:bg-white/15"
+              <button
+                type="button"
+                disabled={actionBusy}
+                onClick={handleDownloadInvoice}
+                className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur transition hover:bg-white/15 disabled:opacity-50"
               >
                 Download Invoice
-              </a>
+              </button>
               <button
                 type="button"
                 onClick={() => document.getElementById("order-timeline")?.scrollIntoView({ behavior: "smooth", block: "start" })}

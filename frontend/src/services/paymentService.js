@@ -2,12 +2,12 @@ import { api } from "./api";
 import { adminHttp } from "./adminHttp";
 
 export async function createRazorpayOrder(payload) {
-  const { data } = await api.post("/api/payments/create-order", payload);
+  const { data } = await api.post("/api/payments/create-order", payload, { timeout: 60000 });
   return data?.data || data;
 }
 
 export async function verifyRazorpayPayment(payload) {
-  const { data } = await api.post("/api/payments/verify", payload);
+  const { data } = await api.post("/api/payments/verify", payload, { timeout: 60000 });
   return data?.data || data;
 }
 

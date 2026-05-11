@@ -314,18 +314,24 @@ class CheckoutService {
 
     if (shippingAddress) {
       try {
-        pricingBreakdown = await pricingService.calculateOrderTotalWithShipping(
-          subtotal,
-          validatedWithProducts,
-          shippingAddress,
-          totalItemCount,
-          { paymentMethod }
-        );
+        pricingBreakdown = await Promise.race([
+          pricingService.calculateOrderTotalWithShipping(
+            subtotal,
+            validatedWithProducts,
+            shippingAddress,
+            totalItemCount,
+            { paymentMethod }
+          ),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Shipping calculation timeout")), 5000))
+        ]);
         
         shippingData = pricingBreakdown.shipping || null;
       } catch (error) {
-        // If shipping calculation fails, fall back to regular pricing
-        console.error("Shipping calculation error:", error.message);
+        // If shipping calculation fails or times out, fall back to regular pricing
+        logger.warn("Shipping calculation failed or timed out during checkout prepare", {
+          source: "checkout.service",
+          message: error.message,
+        });
         pricingBreakdown = await pricingService.calculateOrderTotal(subtotal, totalItemCount, paymentMethod);
       }
     } else {
@@ -336,22 +342,25 @@ class CheckoutService {
     let eligibility = null;
     if (String(paymentMethod || "").toUpperCase() === "COD" && shippingAddress) {
       try {
-        eligibility = await codService.evaluateEligibility({
-          userId,
-          address: shippingAddress,
-          cartItems: validated,
-          subtotal,
-        });
+        eligibility = await Promise.race([
+          codService.evaluateEligibility({
+            userId,
+            address: shippingAddress,
+            cartItems: validated,
+            subtotal,
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("COD check timeout")), 3000))
+        ]);
       } catch (error) {
-        logger.error("COD eligibility check failed during checkout prepare", {
+        // If COD check times out or fails, mark as unavailable
+        logger.warn("COD eligibility check failed or timed out during checkout prepare", {
           source: "checkout.service",
           userId: String(userId),
           message: error.message,
-          stack: error.stack,
         });
         eligibility = {
           codAvailable: false,
-          reasons: ["COD_CHECK_FAILED"],
+          reasons: ["COD_CHECK_TIMEOUT"],
         };
       }
     }

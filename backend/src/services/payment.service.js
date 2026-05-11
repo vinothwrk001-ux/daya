@@ -202,136 +202,166 @@ class PaymentService {
   }
 
   async createRazorpayOrder({ userId, cartId, shippingAddress, trackingToken }) {
-    const gatewayConfig = await this.assertGatewayEnabled();
-    const summary = await checkoutService.prepare(userId, {
-      shippingAddress,
-      paymentMethod: "ONLINE",
-      trackingToken,
-    });
-
-    if (!summary?.total) {
-      throw new AppError("Cart is empty", 400, "EMPTY_CART");
-    }
-
-    const amount = Math.round(Number(summary.total || 0) * 100);
-    const currency = summary.currency || "INR";
-    const receipt = buildReceipt(userId);
-    const razorpay = this.getRazorpayClient();
-    let order;
-
     try {
-      order = await razorpay.orders.create({
-        amount,
-        currency,
-        receipt,
-        payment_capture: 1,
-        notes: {
+      const gatewayConfig = await this.assertGatewayEnabled();
+      const summary = await checkoutService.prepare(userId, {
+        shippingAddress,
+        paymentMethod: "ONLINE",
+        trackingToken,
+      });
+
+      if (!summary?.total) {
+        throw new AppError("Cart is empty", 400, "EMPTY_CART");
+      }
+
+      const amount = Math.round(Number(summary.total || 0) * 100);
+      const currency = summary.currency || "INR";
+      const receipt = buildReceipt(userId);
+      
+      let razorpay;
+      try {
+        razorpay = this.getRazorpayClient();
+      } catch (error) {
+        logger.error("Failed to initialize Razorpay client", {
+          message: error.message,
+          stack: error.stack,
+        });
+        throw new AppError("Payment gateway is not configured properly", 500, "RAZORPAY_CONFIG_ERROR");
+      }
+
+      let order;
+      try {
+        // Add timeout of 10 seconds for Razorpay API call
+        order = await Promise.race([
+          razorpay.orders.create({
+            amount,
+            currency,
+            receipt,
+            payment_capture: 1,
+            notes: {
+              userId: String(userId),
+              cartId: String(cartId || "current"),
+            },
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Razorpay API timeout")), 10000)
+          )
+        ]);
+      } catch (error) {
+        logger.error("Razorpay order creation failed", {
           userId: String(userId),
+          message: error.message,
+          code: error?.error?.code,
+        });
+        throw normalizeRazorpayError(error, "Failed to create payment order. Please try again.");
+      }
+
+      const amountBreakdown = buildAmountBreakdown(summary);
+      const paymentRecord = await paymentRepo.create({
+        userId,
+        amount: roundMoney(summary.total || 0),
+        currency,
+        method: "ONLINE",
+        status: "PENDING",
+        fulfillmentStatus: "PENDING",
+        receipt,
+        razorpayOrderId: order.id,
+        idempotencyKey: buildPaymentIdempotencyKey(order.id),
+        cartSnapshot: summary.sellers.flatMap((seller) => seller.items || []),
+        cartId: cartId && cartId !== "current" ? cartId : undefined,
+        shippingAddress,
+        trackingToken: trackingToken || undefined,
+        amountBreakdown,
+        gatewayFeeAmount: amountBreakdown.gatewayFee,
+        fraudChecks: {
+          priceValidated: true,
+          duplicateAttemptCount: 0,
+          riskScore: 5,
+          flaggedReasons: [],
+        },
+        gatewayResponse: {
+          order,
+        },
+      });
+
+      const paymentSession = await PaymentSession.create({
+        userId,
+        paymentRecordId: paymentRecord._id,
+        razorpayOrderId: order.id,
+        paymentMethod: "ONLINE",
+        currency,
+        amount: roundMoney(summary.total || 0),
+        status: "CREATED",
+        idempotencyKey: buildSessionIdempotencyKey(userId, summary, shippingAddress),
+        cartSnapshot: summary.sellers.flatMap((seller) => seller.items || []),
+        checkoutSnapshot: summary,
+        pricingBreakdown: {
+          subtotal: summary.subtotal,
+          charges: summary.charges,
+          chargesTotal: summary.chargesTotal,
+          total: summary.total,
+          paymentMethod: summary.paymentMethod || "ONLINE",
+          itemCount: summary.itemCount || 0,
+          currency,
+        },
+        shippingAddress,
+        expiresAt: new Date(Date.now() + Number(gatewayConfig.sessionTimeoutMinutes || 15) * 60 * 1000),
+        metadata: {
+          trackingToken: trackingToken || "",
+          receipt,
           cartId: String(cartId || "current"),
         },
       });
-    } catch (error) {
-      throw normalizeRazorpayError(error, "Failed to create Razorpay order");
-    }
 
-    const amountBreakdown = buildAmountBreakdown(summary);
-    const paymentRecord = await paymentRepo.create({
-      userId,
-      amount: roundMoney(summary.total || 0),
-      currency,
-      method: "ONLINE",
-      status: "PENDING",
-      fulfillmentStatus: "PENDING",
-      receipt,
-      razorpayOrderId: order.id,
-      idempotencyKey: buildPaymentIdempotencyKey(order.id),
-      cartSnapshot: summary.sellers.flatMap((seller) => seller.items || []),
-      cartId: cartId && cartId !== "current" ? cartId : undefined,
-      shippingAddress,
-      trackingToken: trackingToken || undefined,
-      amountBreakdown,
-      gatewayFeeAmount: amountBreakdown.gatewayFee,
-      fraudChecks: {
-        priceValidated: true,
-        duplicateAttemptCount: 0,
-        riskScore: 5,
-        flaggedReasons: [],
-      },
-      gatewayResponse: {
-        order,
-      },
-    });
+      await paymentRepo.updateById(paymentRecord._id, {
+        paymentSessionId: paymentSession._id,
+      });
 
-    const paymentSession = await PaymentSession.create({
-      userId,
-      paymentRecordId: paymentRecord._id,
-      razorpayOrderId: order.id,
-      paymentMethod: "ONLINE",
-      currency,
-      amount: roundMoney(summary.total || 0),
-      status: "CREATED",
-      idempotencyKey: buildSessionIdempotencyKey(userId, summary, shippingAddress),
-      cartSnapshot: summary.sellers.flatMap((seller) => seller.items || []),
-      checkoutSnapshot: summary,
-      pricingBreakdown: {
-        subtotal: summary.subtotal,
-        charges: summary.charges,
-        chargesTotal: summary.chargesTotal,
-        total: summary.total,
-        paymentMethod: summary.paymentMethod || "ONLINE",
-        itemCount: summary.itemCount || 0,
-        currency,
-      },
-      shippingAddress,
-      expiresAt: new Date(Date.now() + Number(gatewayConfig.sessionTimeoutMinutes || 15) * 60 * 1000),
-      metadata: {
-        trackingToken: trackingToken || "",
-        receipt,
-        cartId: String(cartId || "current"),
-      },
-    });
+      await recordPaymentAttempt({
+        userId,
+        paymentRecordId: paymentRecord._id,
+        razorpayOrderId: order.id,
+        status: "CREATED",
+        stage: "create-order",
+        message: "Razorpay order created",
+        requestPayload: {
+          cartId: cartId || "current",
+          amount,
+          currency,
+        },
+        responsePayload: {
+          paymentRecordId: paymentRecord._id,
+          paymentSessionId: paymentSession._id,
+        },
+      });
 
-    await paymentRepo.updateById(paymentRecord._id, {
-      paymentSessionId: paymentSession._id,
-    });
-
-    await recordPaymentAttempt({
-      userId,
-      paymentRecordId: paymentRecord._id,
-      razorpayOrderId: order.id,
-      status: "CREATED",
-      stage: "create-order",
-      message: "Razorpay order created",
-      requestPayload: {
-        cartId: cartId || "current",
-        amount,
-        currency,
-      },
-      responsePayload: {
+      await emitDomainEvent("PAYMENT_INITIATED", {
         paymentRecordId: paymentRecord._id,
         paymentSessionId: paymentSession._id,
-      },
-    });
+        razorpayOrderId: order.id,
+        amount: paymentRecord.amount,
+        currency,
+      }).catch(() => {});
 
-    await emitDomainEvent("PAYMENT_INITIATED", {
-      paymentRecordId: paymentRecord._id,
-      paymentSessionId: paymentSession._id,
-      razorpayOrderId: order.id,
-      amount: paymentRecord.amount,
-      currency,
-    }).catch(() => {});
-
-    return {
-      paymentRecordId: paymentRecord._id,
-      paymentSessionId: paymentSession._id,
-      razorpayOrderId: order.id,
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      key: process.env.RAZORPAY_KEY_ID,
-      receipt,
-      summary,
-    };
+      return {
+        paymentRecordId: paymentRecord._id,
+        paymentSessionId: paymentSession._id,
+        razorpayOrderId: order.id,
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        key: process.env.RAZORPAY_KEY_ID,
+        receipt,
+        summary,
+      };
+    } catch (error) {
+      logger.error("Payment creation failed", {
+        userId: String(userId),
+        message: error.message,
+        code: error?.code,
+      });
+      throw error;
+    }
   }
 
   async claimPaymentForFulfillment(paymentId) {
