@@ -25,6 +25,18 @@ function normalizeVariantId(variantId = "") {
   return String(variantId || "").trim();
 }
 
+function normalizeRefId(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    if (value._id) return String(value._id);
+    if (typeof value.toString === "function" && value.toString !== Object.prototype.toString) {
+      return String(value.toString());
+    }
+  }
+  return String(value);
+}
+
 function isLegacyVariantId(variantId = "") {
   const normalized = normalizeVariantId(variantId);
   return !normalized || normalized === LEGACY_VARIANT_ID;
@@ -100,7 +112,9 @@ class InventoryService {
       return;
     }
 
-    if (String(product?.sellerId || "") !== String(expectedSellerId)) {
+    const actualSellerId = normalizeRefId(product?.sellerId);
+    const requiredSellerId = normalizeRefId(expectedSellerId);
+    if (actualSellerId !== requiredSellerId) {
       throw new AppError("Forbidden", 403, "FORBIDDEN");
     }
   }
