@@ -132,7 +132,11 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
             className="flex-1 overflow-x-auto scrollbar-hide"
             style={{ scrollBehavior: "smooth" }}
           >
-            <div className={`flex px-2 py-2 will-change-none transition-all duration-300 gap-${isScrolled ? "1" : "4"}`}>
+            <div
+              className={`flex px-2 py-2 will-change-none transition-all duration-300 ${
+                isScrolled ? "gap-1" : "gap-4"
+              }`}
+            >
               {categoryList.map((category) => {
                 const isSelected = selectedCategory?.id === category.id || selectedCategory?.slug === category.slug;
                 
@@ -218,7 +222,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
         {/* Dropdown Submenu - Flipkart Style */}
         {hoveredCategoryId && !isScrolled && (
           <div
-            className="fixed left-0 right-0 top-[calc(theme(top.16)+3.5rem)] z-40 animate-in fade-in duration-200"
+            className="fixed left-0 right-0 top-[7.5rem] z-40 animate-in fade-in duration-200"
             onMouseEnter={() => {
               if (dropdownTimeoutRef.current) {
                 clearTimeout(dropdownTimeoutRef.current);

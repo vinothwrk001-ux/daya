@@ -726,28 +726,27 @@ class InventoryService {
 
   async _recordTransaction(data) {
     try {
-      await InventoryLedger.create(
-        [{
-          productId: data.productId,
-          variantId: data.variantId,
-          variantSku: data.variantSku,
-          sellerId: data.sellerId,
-          transactionType: data.transactionType,
-          status: "COMPLETED",
-          quantityChange: data.quantityChange,
-          stockBefore: data.stockBefore,
-          stockAfter: data.stockAfter,
-          reservedBefore: data.reservedBefore,
-          reservedAfter: data.reservedAfter,
-          orderId: data.orderId,
-          shipmentId: data.shipmentId,
-          returnId: data.returnId,
-          reason: data.reason,
-          notes: data.notes,
-          performedBy: data.performedBy,
-        }],
-        { session: data.session || undefined }
-      );
+      const payload = {
+        productId: data.productId,
+        variantId: data.variantId,
+        variantSku: data.variantSku,
+        sellerId: data.sellerId,
+        transactionType: data.transactionType,
+        status: "COMPLETED",
+        quantityChange: data.quantityChange,
+        stockBefore: data.stockBefore,
+        stockAfter: data.stockAfter,
+        reservedBefore: data.reservedBefore,
+        reservedAfter: data.reservedAfter,
+        orderId: data.orderId,
+        shipmentId: data.shipmentId,
+        returnId: data.returnId,
+        reason: data.reason,
+        notes: data.notes,
+        performedBy: data.performedBy,
+      };
+
+      await InventoryLedger.create(payload, { session: data.session || undefined });
     } catch (error) {
       console.error("Failed to record inventory transaction:", error.message);
     }

@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
 import { Topbar } from "./Topbar";
 import { Sidebar } from "./sidebar/Sidebar";
@@ -105,20 +104,19 @@ function VendorLayoutInner() {
   const { sidebarOpen, setSidebarOpen } = useVendorDashboardStore();
   const { can } = useModuleAccess();
   const baseSidebarData = useVendorSidebarData();
-  const activeNotificationTarget = useMemo(() => {
-    for (const section of baseSidebarData.sections) {
-      const item = section.items.find(
-        (entry) => location.pathname === entry.path || location.pathname.startsWith(`${entry.path}/`)
-      );
-      if (item?.notificationModule || item?.notificationSubModule) {
-        return {
-          module: item.notificationModule,
-          subModule: item.notificationSubModule,
-        };
-      }
+  let activeNotificationTarget = null;
+  for (const section of baseSidebarData.sections) {
+    const item = section.items.find(
+      (entry) => location.pathname === entry.path || location.pathname.startsWith(`${entry.path}/`)
+    );
+    if (item?.notificationModule || item?.notificationSubModule) {
+      activeNotificationTarget = {
+        module: item.notificationModule,
+        subModule: item.notificationSubModule,
+      };
+      break;
     }
-    return null;
-  }, [baseSidebarData.sections, location.pathname]);
+  }
   const { summary } = useRoleNotifications("vendor", activeNotificationTarget);
   const sidebarData = useVendorSidebarData({
     unreadCount: summary.total,

@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Sidebar } from "./sidebar/Sidebar";
 import { Topbar } from "./Topbar";
 import { useAdminSidebarData } from "../hooks/useAdminSidebarData";
@@ -144,44 +144,38 @@ const pageMeta = {
 export function AdminLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const activeNotificationTarget = useMemo(() => {
-    for (const section of ADMIN_SECTION_ITEMS) {
-      const item = section.items.find(
-        (entry) => location.pathname === entry.path || location.pathname.startsWith(`${entry.path}/`)
-      );
-      if (item?.notificationModule || item?.notificationSubModule) {
-        return {
-          module: item.notificationModule,
-          subModule: item.notificationSubModule,
-        };
-      }
+  let activeNotificationTarget = null;
+  for (const section of ADMIN_SECTION_ITEMS) {
+    const item = section.items.find(
+      (entry) => location.pathname === entry.path || location.pathname.startsWith(`${entry.path}/`)
+    );
+    if (item?.notificationModule || item?.notificationSubModule) {
+      activeNotificationTarget = {
+        module: item.notificationModule,
+        subModule: item.notificationSubModule,
+      };
+      break;
     }
-    return null;
-  }, [location.pathname]);
+  }
   const { summary } = useRoleNotifications("admin", activeNotificationTarget);
   const sidebarData = useAdminSidebarData(summary);
 
-  const meta = useMemo(() => {
-    if (location.pathname.startsWith("/admin/sellers/")) {
-      return {
-        title: "Seller Details",
-        subtitle: "Inspect onboarding details and decision history.",
-      };
-    }
-    if (location.pathname.startsWith("/admin/vendors/") && location.pathname.endsWith("/finance")) {
-      return {
-        title: "Vendor Finance",
-        subtitle: "Review wallet balances, payout requests, and ledger activity for a seller.",
-      };
-    }
-    if (location.pathname.startsWith("/admin/payment-details/")) {
-      return pageMeta["/admin/payment-details"];
-    }
-    if (location.pathname.startsWith("/admin/orders/") && location.pathname.endsWith("/invoice")) {
-      return pageMeta["/admin/finance/invoices"];
-    }
-    return pageMeta[location.pathname] || pageMeta["/admin/dashboard"];
-  }, [location.pathname]);
+  let meta = pageMeta[location.pathname] || pageMeta["/admin/dashboard"];
+  if (location.pathname.startsWith("/admin/sellers/")) {
+    meta = {
+      title: "Seller Details",
+      subtitle: "Inspect onboarding details and decision history.",
+    };
+  } else if (location.pathname.startsWith("/admin/vendors/") && location.pathname.endsWith("/finance")) {
+    meta = {
+      title: "Vendor Finance",
+      subtitle: "Review wallet balances, payout requests, and ledger activity for a seller.",
+    };
+  } else if (location.pathname.startsWith("/admin/payment-details/")) {
+    meta = pageMeta["/admin/payment-details"];
+  } else if (location.pathname.startsWith("/admin/orders/") && location.pathname.endsWith("/invoice")) {
+    meta = pageMeta["/admin/finance/invoices"];
+  }
 
   return (
     <div className="flex min-h-screen max-w-full overflow-x-hidden bg-slate-100 dark:bg-slate-950">
