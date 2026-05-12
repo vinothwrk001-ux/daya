@@ -40,6 +40,10 @@ export function WishlistPage() {
     try {
       await removeUserWishlist(productId);
       setWishlistItems((current) => current.filter((item) => item.product?._id !== productId));
+      // Dispatch event to update wishlist badge
+      const response = await getUserWishlist();
+      const items = response.data || [];
+      window.dispatchEvent(new CustomEvent("wishlist:changed", { detail: { items } }));
     } catch (err) {
       setError(normalizeError(err));
     } finally {
@@ -53,6 +57,8 @@ export function WishlistPage() {
       const response = await moveWishlistItemToCart(productId);
       setWishlistItems(response.data || []);
       setError("");
+      // Dispatch event to update wishlist badge
+      window.dispatchEvent(new CustomEvent("wishlist:changed", { detail: { items: response.data || [] } }));
     } catch (err) {
       setError(normalizeError(err));
     } finally {
@@ -80,17 +86,44 @@ export function WishlistPage() {
           {wishlistItems.map((item) => {
             const product = item.product;
             const image = resolveApiAssetUrl(product?.images?.[0]?.url);
+            
+            // Get variant if it exists
+            const variant = item.variantId && product?.variants
+              ? product.variants.find(v => v.variantId === item.variantId)
+              : null;
+            
+            // Use variant price if available, otherwise product price
+            const basePrice = variant?.price || product?.price || 0;
+            const discountPrice = variant?.discountPrice || product?.discountPrice;
+            
+            const variantTitle = item.selectedAttributes
+              ? Object.entries(item.selectedAttributes)
+                  .map(([key, value]) => `${key}: ${value}`)
+                  .join(", ")
+              : null;
             return (
               <div key={item._id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <Link to={`/product/${product?._id}`} className="block aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800">
+                <Link to={`/product/${product?._id}`} className="block aspect-square overflow-hidden bg-slate-100 dark:bg-slate-800\">
                   {image ? <img src={image} alt={product?.name || "Wishlist item"} className="h-full w-full object-cover" /> : null}
                 </Link>
                 <div className="grid gap-3 p-5">
                   <div>
                     <div className="text-xs uppercase tracking-[0.24em] text-slate-400">{product?.category || "Product"}</div>
                     <div className="mt-2 text-lg font-semibold text-slate-950 dark:text-white">{product?.name}</div>
+                    {variantTitle && (
+                      <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        Selected: {variantTitle}
+                      </div>
+                    )}
                     <div className="mt-2 text-base font-bold text-slate-950 dark:text-white">
-                      {formatCurrency(product?.discountPrice || product?.price || 0)}
+                      {discountPrice ? (
+                        <>
+                          <span className="line-through text-sm text-slate-500 dark:text-slate-400">{formatCurrency(basePrice)}</span>
+                          {" "}{formatCurrency(discountPrice)}
+                        </>
+                      ) : (
+                        formatCurrency(basePrice)
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">

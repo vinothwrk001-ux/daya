@@ -63,6 +63,7 @@ class OrderRepository {
         const escapedSearch = escapeRegex(searchValue);
         const searchConditions = [
           { orderNumber: { $regex: escapedSearch, $options: "i" } },
+          { invoiceNumber: { $regex: escapedSearch, $options: "i" } },
           { "shippingAddress.fullName": { $regex: escapedSearch, $options: "i" } },
           { "shippingAddress.phone": { $regex: escapedSearch, $options: "i" } },
         ];

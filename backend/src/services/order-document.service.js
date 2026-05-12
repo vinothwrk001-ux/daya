@@ -361,6 +361,16 @@ async function generateInvoicePdf(summary) {
   return await new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margin: 50 });
     const chunks = [];
+    const org = summary.organization || {};
+    const support = summary.support || {};
+    const companyName = org.organizationName || support.companyName || COMPANY_NAME;
+    const supportEmail = org.supportEmail || support.email || SUPPORT_EMAIL;
+    const supportPhone = org.supportPhone || support.phone || SUPPORT_PHONE;
+    const companyWebsite = org.companyWebsite || support.website || COMPANY_WEBSITE;
+    const taxLabel = summary.metadata?.gstLabel || org.taxLabel || support.taxLabel || COMPANY_TAX_LABEL;
+    const taxId = org.gstNumber || support.taxId || COMPANY_TAX_ID;
+    const billingLabel = summary.metadata?.billingLabel || "Bill To";
+    const sellerLabel = summary.metadata?.sellerLabel || "Sold By";
 
     doc.on("data", (chunk) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
@@ -371,12 +381,12 @@ async function generateInvoicePdf(summary) {
       .fillColor("#ffffff")
       .font("Helvetica-Bold")
       .fontSize(24)
-      .text(COMPANY_NAME, 50, 38);
+      .text(companyName, 50, 38);
     doc
       .font("Helvetica")
       .fontSize(10)
       .fillColor("#cbd5e1")
-      .text(`${COMPANY_WEBSITE} | ${SUPPORT_EMAIL} | ${SUPPORT_PHONE}`, 50, 72);
+      .text(`${companyWebsite} | ${supportEmail} | ${supportPhone}`, 50, 72);
 
     doc
       .fillColor("#0f172a")
@@ -393,7 +403,7 @@ async function generateInvoicePdf(summary) {
 
     drawRule(doc, 255);
 
-    doc.font("Helvetica-Bold").fontSize(11).fillColor("#0f172a").text("Bill To", 50, 272);
+    doc.font("Helvetica-Bold").fontSize(11).fillColor("#0f172a").text(billingLabel, 50, 272);
     doc.font("Helvetica").fontSize(10).fillColor("#334155");
     doc.text(summary.customer?.name || "-", 50, 290);
     doc.text(summary.customer?.phone || "-", 50, 304);
@@ -416,12 +426,12 @@ async function generateInvoicePdf(summary) {
     );
     doc.text(summary.customer?.shippingAddress?.country || "", 50, 374, { width: 210 });
 
-    doc.font("Helvetica-Bold").fontSize(11).fillColor("#0f172a").text("Sold By", 320, 272);
+    doc.font("Helvetica-Bold").fontSize(11).fillColor("#0f172a").text(sellerLabel, 320, 272);
     doc.font("Helvetica").fontSize(10).fillColor("#334155");
-    doc.text(summary.vendors?.[0]?.name || COMPANY_NAME, 320, 290);
-    doc.text(`Support: ${summary.support?.phone || SUPPORT_PHONE}`, 320, 304);
-    doc.text(`Email: ${summary.support?.email || SUPPORT_EMAIL}`, 320, 318, { width: 220 });
-    doc.text(`${summary.support?.taxLabel || COMPANY_TAX_LABEL}: ${summary.support?.taxId || COMPANY_TAX_ID}`, 320, 332, { width: 220 });
+    doc.text(summary.vendors?.[0]?.name || companyName, 320, 290);
+    doc.text(`Support: ${supportPhone}`, 320, 304);
+    doc.text(`Email: ${supportEmail}`, 320, 318, { width: 220 });
+    doc.text(`${taxLabel}: ${taxId}`, 320, 332, { width: 220 });
 
     drawRule(doc, 405);
 
@@ -488,7 +498,13 @@ async function generateInvoicePdf(summary) {
       { width: 495 }
     );
     doc.text(
-      `Need help? Contact ${summary.support?.email || SUPPORT_EMAIL} or ${summary.support?.phone || SUPPORT_PHONE}`,
+      summary.metadata?.customNotes || summary.organization?.billingAddress || "",
+      50,
+      772,
+      { width: 495 }
+    );
+    doc.text(
+      summary.metadata?.footerText || `Need help? Contact ${supportEmail} or ${supportPhone}`,
       50,
       780,
       { width: 495, align: "center" }

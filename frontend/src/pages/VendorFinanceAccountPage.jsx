@@ -19,6 +19,7 @@ const financeTabs = [
   { label: "Payout History", to: "/vendor/finance/payouts" },
   { label: "Ledger", to: "/vendor/finance/ledger" },
   { label: "Payout Account", to: "/vendor/finance/account" },
+  { label: "Invoices", to: "/vendor/finance/invoices" },
 ];
 
 const initialForm = {

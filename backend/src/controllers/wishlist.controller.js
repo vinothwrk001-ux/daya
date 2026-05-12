@@ -8,7 +8,8 @@ const list = asyncHandler(async (req, res) => {
 });
 
 const add = asyncHandler(async (req, res) => {
-  const data = await wishlistService.addToWishlist(req.user.sub, req.params.productId);
+  const { variantId, selectedAttributes } = req.body || {};
+  const data = await wishlistService.addToWishlist(req.user.sub, req.params.productId, variantId, selectedAttributes);
   return ok(res, data, "Added to wishlist");
 });
 

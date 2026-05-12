@@ -14,6 +14,14 @@ const wishlistSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    variantId: {
+      type: String,
+      default: null,
+    },
+    selectedAttributes: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   { timestamps: true }
 );

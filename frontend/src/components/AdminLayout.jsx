@@ -51,6 +51,14 @@ const pageMeta = {
     title: "Payout Management",
     subtitle: "Review, approve, reject, and settle vendor payout requests safely.",
   },
+  "/admin/finance/invoices": {
+    title: "Invoices",
+    subtitle: "Manage invoice previews, metadata versions, and PDF outputs without changing order totals.",
+  },
+  "/admin/finance/invoices/settings": {
+    title: "Invoice Settings",
+    subtitle: "Configure organization branding, GST details, invoice labels, and footer content.",
+  },
   "/admin/payment-details": {
     title: "Payment Details",
     subtitle: "Inspect signature verification, linked orders, and webhook history.",
@@ -168,6 +176,9 @@ export function AdminLayout() {
     }
     if (location.pathname.startsWith("/admin/payment-details/")) {
       return pageMeta["/admin/payment-details"];
+    }
+    if (location.pathname.startsWith("/admin/orders/") && location.pathname.endsWith("/invoice")) {
+      return pageMeta["/admin/finance/invoices"];
     }
     return pageMeta[location.pathname] || pageMeta["/admin/dashboard"];
   }, [location.pathname]);

@@ -289,9 +289,16 @@ export function ProductDetailsPage() {
         await wishlistService.removeFromWishlist(product._id);
         setWishlistSaved(false);
       } else {
-        await wishlistService.addToWishlist(product._id);
+        await wishlistService.addToWishlist(
+          product._id,
+          activeVariant?.variantId || "",
+          selectedAttributes
+        );
         setWishlistSaved(true);
       }
+      // Dispatch event to update wishlist badge in header
+      const wishlistData = await wishlistService.getWishlist();
+      window.dispatchEvent(new CustomEvent("wishlist:changed", { detail: { items: wishlistData?.data || [] } }));
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to update wishlist");
     } finally {
@@ -482,8 +489,8 @@ export function ProductDetailsPage() {
                 <button type="button" disabled={stock === 0 || adding} onClick={() => handleAddToCart("/checkout")} className="rounded-2xl bg-[color:var(--commerce-accent-warm)] px-5 py-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:translate-y-[-1px] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60">
                   Buy Now
                 </button>
-                <button type="button" disabled={wishlistLoading} onClick={handleWishlistToggle} className="rounded-2xl border border-slate-300 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800">
-                  {wishlistLoading ? "Updating..." : wishlistSaved ? "Saved to Wishlist" : "Save to Wishlist"}
+                <button type="button" disabled={stock === 0 || wishlistLoading} onClick={handleWishlistToggle} className="rounded-2xl border border-slate-300 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800">
+                  {stock === 0 ? "Out of Stock" : wishlistLoading ? "Updating..." : wishlistSaved ? "Saved to Wishlist" : "Save to Wishlist"}
                 </button>
               </div>
             </div>

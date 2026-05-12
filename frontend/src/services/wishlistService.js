@@ -10,8 +10,11 @@ export async function getWishlistStatus(productId) {
   return data;
 }
 
-export async function addToWishlist(productId) {
-  const { data } = await api.post(`/api/wishlist/${productId}`);
+export async function addToWishlist(productId, variantId = null, selectedAttributes = {}) {
+  const { data } = await api.post(`/api/wishlist/${productId}`, {
+    variantId,
+    selectedAttributes,
+  });
   return data;
 }
 

@@ -36,7 +36,7 @@ const updateCartItem = asyncHandler(async (req, res) => ok(res, await userServic
 const removeCartItem = asyncHandler(async (req, res) => ok(res, await userService.removeCartItem(req.user.sub, req.params.productId), "Cart updated"));
 
 const getWishlist = asyncHandler(async (req, res) => ok(res, await userService.getWishlist(req.user.sub), "Wishlist loaded"));
-const addToWishlist = asyncHandler(async (req, res) => ok(res, await userService.addToWishlist(req.user.sub, req.params.productId, getMeta(req)), "Added to wishlist"));
+const addToWishlist = asyncHandler(async (req, res) => ok(res, await userService.addToWishlist(req.user.sub, req.params.productId, getMeta(req), req.body?.variantId, req.body?.selectedAttributes), "Added to wishlist"));
 const removeFromWishlist = asyncHandler(async (req, res) => ok(res, await userService.removeFromWishlist(req.user.sub, req.params.productId, getMeta(req)), "Removed from wishlist"));
 const moveWishlistToCart = asyncHandler(async (req, res) => ok(res, await userService.moveWishlistToCart(req.user.sub, req.params.productId, getMeta(req)), "Wishlist item moved to cart"));
 

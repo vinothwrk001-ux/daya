@@ -230,6 +230,29 @@ async function getRowsForModule(moduleName, user, query) {
         CreatedAt: toDateTime(item.createdAt),
       }));
     },
+    invoices: async () => {
+      const dbQuery = { isActive: true };
+      if (filters.status) dbQuery.status = filters.status;
+      if (filters.paymentStatus) dbQuery.paymentStatus = filters.paymentStatus;
+      if (vendor) dbQuery.sellerId = vendor._id;
+      applyDateRange(dbQuery, dateRange);
+      const orders = await Order.find(dbQuery)
+        .populate("userId", "name email phone")
+        .populate("sellerId", "companyName")
+        .sort({ createdAt: -1 })
+        .lean();
+      return orders.map((item) => ({
+        InvoiceNumber: item.invoiceNumber || "",
+        OrderNumber: item.orderNumber || String(item._id),
+        Customer: item.userId?.name || "",
+        Phone: item.userId?.phone || "",
+        Seller: item.sellerId?.companyName || "Platform Store",
+        Amount: toCurrency(item.totalAmount),
+        PaymentStatus: item.paymentStatus,
+        Status: item.status,
+        CreatedAt: toDateTime(item.createdAt),
+      }));
+    },
     payments: async () => {
       if (role === "vendor") throw new AppError("Forbidden", 403, "FORBIDDEN");
       const dbQuery = {};

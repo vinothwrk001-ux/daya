@@ -49,6 +49,10 @@ const pageMeta = {
     title: "Payout Account",
     subtitle: "Manage the verified bank or UPI details used for vendor withdrawals.",
   },
+  "/vendor/finance/invoices": {
+    title: "Invoices",
+    subtitle: "Download invoice-safe order summaries and GST-ready PDFs for your own orders.",
+  },
   "/vendor/earnings": {
     title: "Earnings",
     subtitle: "Track total earnings, pending payouts, and order payment health.",
@@ -120,7 +124,10 @@ function VendorLayoutInner() {
     unreadCount: summary.total,
     summary,
   });
-  const meta = pageMeta[location.pathname] || pageMeta["/vendor/dashboard"];
+  const meta =
+    (location.pathname.startsWith("/vendor/finance/invoices")
+      ? pageMeta["/vendor/finance/invoices"]
+      : pageMeta[location.pathname]) || pageMeta["/vendor/dashboard"];
 
   if (!user || user.role !== "vendor") {
     return <Navigate to="/dashboard" replace />;

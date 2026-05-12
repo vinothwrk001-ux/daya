@@ -27,21 +27,31 @@ async function listWishlist(userId) {
     }));
 }
 
-async function addToWishlist(userId, productId) {
+async function addToWishlist(userId, productId, variantId = null, selectedAttributes = {}) {
   const product = await ensureProductExists(productId);
 
   const existing = await Wishlist.findOne({ userId, productId });
   if (existing) {
+    // Update existing wishlist item with new variant info
+    if (variantId || Object.keys(selectedAttributes).length > 0) {
+      existing.variantId = variantId || existing.variantId;
+      existing.selectedAttributes = Object.keys(selectedAttributes).length > 0 ? selectedAttributes : existing.selectedAttributes;
+      await existing.save();
+    }
     return {
       saved: true,
       productId: product._id,
+      variantId: existing.variantId,
+      selectedAttributes: existing.selectedAttributes,
     };
   }
 
-  await Wishlist.create({ userId, productId });
+  const newItem = await Wishlist.create({ userId, productId, variantId, selectedAttributes });
   return {
     saved: true,
     productId: product._id,
+    variantId: newItem.variantId,
+    selectedAttributes: newItem.selectedAttributes,
   };
 }
 

@@ -19,6 +19,7 @@ import { useCategories } from "../hooks/useCategories";
 import { usePresentedCategories } from "../utils/categoryPresentation";
 import { PlatformFeaturesProvider } from "../context/PlatformFeaturesContext";
 import * as cartService from "../services/cartService";
+import * as wishlistService from "../services/wishlistService";
 
 export function Layout() {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ export function Layout() {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const [cartCount, setCartCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
   const { categories } = useCategories();
   const presentedCategories = usePresentedCategories(categories);
   const isAdminRoute =
@@ -97,6 +99,42 @@ export function Layout() {
     return () => {
       cancelled = true;
       window.removeEventListener("cart:changed", handleCartChanged);
+    };
+  }, [location.pathname, showShopActions]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWishlistCount() {
+      if (!showShopActions) {
+        setWishlistCount(0);
+        return;
+      }
+
+      try {
+        const response = await wishlistService.getWishlist();
+        const items = Array.isArray(response?.data) ? response.data : [];
+        if (!cancelled) {
+          setWishlistCount(items.length);
+        }
+      } catch {
+        if (!cancelled) {
+          setWishlistCount(0);
+        }
+      }
+    }
+
+    loadWishlistCount();
+
+    function handleWishlistChanged(event) {
+      const items = Array.isArray(event?.detail?.items) ? event.detail.items : [];
+      setWishlistCount(items.length);
+    }
+
+    window.addEventListener("wishlist:changed", handleWishlistChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("wishlist:changed", handleWishlistChanged);
     };
   }, [location.pathname, showShopActions]);
 
@@ -170,7 +208,7 @@ export function Layout() {
                     <>
                       {showShopActions ? (
                         <>
-                          <HeaderIconLink to="/wishlist" label="Wishlist" badge={null}>
+                          <HeaderIconLink to="/wishlist" label="Wishlist" badge={wishlistCount}>
                             <Heart className="h-4.5 w-4.5" />
                           </HeaderIconLink>
                           <HeaderIconLink to="/cart" label="Cart" badge={cartCount}>

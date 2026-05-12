@@ -268,6 +268,12 @@ export function OrderDetailsPage() {
               >
                 Download Invoice
               </button>
+              <Link
+                to={`/orders/${orderId}/invoice`}
+                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+              >
+                Preview Invoice
+              </Link>
               <button
                 type="button"
                 onClick={() => document.getElementById("order-timeline")?.scrollIntoView({ behavior: "smooth", block: "start" })}

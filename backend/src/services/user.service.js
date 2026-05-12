@@ -516,7 +516,7 @@ class UserService {
       .sort({ createdAt: -1 })
       .populate({
         path: "productId",
-        select: "name category price discountPrice images stock status isActive slug",
+        select: "name category price discountPrice images stock status isActive slug variants",
       });
 
     return items
@@ -524,23 +524,29 @@ class UserService {
       .map((item) => ({
         _id: item._id,
         product: item.productId,
+        variantId: item.variantId || null,
+        selectedAttributes: item.selectedAttributes || {},
         addedAt: item.createdAt,
       }));
   }
 
-  async addToWishlist(userId, productId, meta) {
+  async addToWishlist(userId, productId, meta, variantId = null, selectedAttributes = {}) {
     assertObjectId(productId, "productId");
     const product = await Product.findById(productId).select("_id name");
     if (!product) throw new AppError("Product not found", 404, "NOT_FOUND");
 
     await Wishlist.findOneAndUpdate(
       { userId, productId },
-      { $setOnInsert: { userId, productId } },
+      {
+        $setOnInsert: { userId, productId },
+        ...(variantId && { variantId }),
+        ...(Object.keys(selectedAttributes).length > 0 && { selectedAttributes }),
+      },
       { upsert: true, new: true }
     );
 
     await logUserAction(userId, "user.wishlist.added", "Product", productId, null, meta);
-    return { saved: true, productId };
+    return { saved: true, productId, variantId, selectedAttributes };
   }
 
   async removeFromWishlist(userId, productId, meta) {
@@ -551,8 +557,12 @@ class UserService {
   }
 
   async moveWishlistToCart(userId, productId, meta) {
+    // Get wishlist item to retrieve variant info
+    const wishlistItem = await Wishlist.findOne({ userId, productId });
+    const variantId = wishlistItem?.variantId || "";
+
     await this.addToWishlist(userId, productId, meta);
-    await cartService.addItem(userId, { productId, quantity: 1 });
+    await cartService.addItem(userId, { productId, quantity: 1, variantId });
     await Wishlist.findOneAndDelete({ userId, productId });
     await createNotification(userId, {
       type: "SYSTEM",

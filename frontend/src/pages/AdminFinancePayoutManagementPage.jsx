@@ -25,6 +25,8 @@ import {
 import { formatCurrency } from "../utils/formatCurrency";
 
 const financeTabs = [
+  { label: "Invoices", to: "/admin/finance/invoices" },
+  { label: "Invoice Settings", to: "/admin/finance/invoices/settings" },
   { label: "Payout Management", to: "/admin/finance/payouts" },
 ];
 

@@ -41,6 +41,7 @@ const notificationRoutes = require("./routes/notification.routes");
 const inventoryRoutes = require("./routes/inventory.routes");
 const publicFeatureRoutes = require("./routes/public.routes");
 const configRoutes = require("./routes/config.routes");
+const invoiceRoutes = require("./routes/invoice.routes");
 const influencerRoutes = require("./modules/influencer/routes");
 const campaignRoutes = require("./modules/campaign/routes");
 const reelRoutes = require("./modules/reel/routes");
@@ -171,6 +172,7 @@ function createApp() {
   app.use("/api/notifications", notificationRoutes);
   app.use("/api/public", publicFeatureRoutes);
   app.use("/api/config", configRoutes);
+  app.use("/api/invoices", invoiceRoutes);
   app.use("/api/influencer", authOptional, influencerCommerceGate, influencerRoutes);
   app.use("/api/campaign", authOptional, influencerCommerceGate, campaignRoutes);
   app.use("/api/reel", authOptional, influencerCommerceGate, reelRoutes);

@@ -49,6 +49,9 @@ export function ProductCard({ product }) {
     try {
       setIsSubmitting(true);
       await wishlistService.addToWishlist(product._id);
+      // Dispatch event to update wishlist badge
+      const wishlistData = await wishlistService.getWishlist();
+      window.dispatchEvent(new CustomEvent("wishlist:changed", { detail: { items: wishlistData || [] } }));
     } finally {
       setIsSubmitting(false);
     }
@@ -117,7 +120,7 @@ export function ProductCard({ product }) {
 
           <div className="absolute inset-x-4 bottom-4 translate-y-5 opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
             <div className="flex items-center justify-between gap-2 rounded-full border border-white/50 bg-white/80 p-2 shadow-xl backdrop-blur-md dark:border-white/10 dark:bg-slate-950/75">
-              <QuickAction icon={Heart} label="Save" onClick={handleWishlist} disabled={isSubmitting} />
+              <QuickAction icon={Heart} label="Save" onClick={handleWishlist} disabled={isSubmitting || product?.stock <= 0} />
               <QuickAction icon={Eye} label="Preview" onClick={(event) => {
                 event.stopPropagation();
                 navigate(`/product/${product._id}`);
