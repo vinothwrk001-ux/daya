@@ -20,6 +20,7 @@ const { logger } = require("../utils/logger");
 const inventoryService = require("./inventory.service");
 const { buildOrderSnapshot, generateInvoiceNumber } = require("./order-document.service");
 const codService = require("./cod.service");
+const guestCartService = require("./guestCart.service");
 const { Order } = require("../models/Order");
 const { Payment } = require("../models/Payment");
 const commissionRuleService = require("./commission-rule.service");
@@ -289,6 +290,142 @@ async function resolveSellerIdForProduct(product) {
 }
 
 class CheckoutService {
+  async prepareGuestCheckout(guestCartItems = [], { currency, shippingAddress, paymentMethod } = {}) {
+    if (!Array.isArray(guestCartItems) || guestCartItems.length === 0) {
+      throw new AppError("Cart is empty", 400, "EMPTY_CART");
+    }
+
+    const validation = await guestCartService.validateCartItems(guestCartItems);
+    if (!validation.validatedItems.length) {
+      throw new AppError("No valid items in cart", 400, "INVALID_CART");
+    }
+
+    const validatedItems = await Promise.all(
+      validation.validatedItems.map(async (item) => {
+        asObjectId(item.productId, "productId");
+        const product = await productRepo.findById(item.productId);
+        if (!product) throw new AppError("Product not found", 404, "NOT_FOUND");
+        if (product.status !== "APPROVED" || product.isActive !== true) {
+          throw new AppError(`Product not available: ${product.name}`, 400, "NOT_AVAILABLE");
+        }
+
+        const variant = resolveVariant(product, item.variantId);
+        const stockSnapshot = await inventoryService.getAvailableStock(
+          product._id,
+          variant?.variantId || item.variantId || ""
+        );
+        const availableStock = Number(stockSnapshot.available || 0);
+        if (availableStock < item.quantity) {
+          throw new AppError(`Out of stock: ${product.name}`, 400, "INSUFFICIENT_STOCK");
+        }
+
+        const resolvedSellerId = await resolveSellerIdForProduct(product);
+        if (!resolvedSellerId) throw new AppError("Seller not found for product", 400, "INVALID_PRODUCT");
+
+        const itemData = {
+          productId: product._id,
+          sellerId: resolvedSellerId,
+          name: product.name,
+          image:
+            variant?.images?.find((image) => image.isPrimary)?.url ||
+            variant?.images?.[0]?.url ||
+            item.image ||
+            (Array.isArray(product.images) && product.images.length ? product.images[0]?.url : undefined),
+          quantity: item.quantity,
+          price: Number(variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0),
+          maxAvailable: availableStock,
+          variantId: variant?.variantId || item.variantId || "",
+          variantSku: variant?.sku || item.variantSku || "",
+          variantTitle: variant?.title || item.variantTitle || "",
+          variantAttributes: variant?.attributes || item.variantAttributes || {},
+          weight: getProductWeightSnapshot(product, variant),
+        };
+
+        return {
+          ...itemData,
+          product,
+        };
+      })
+    );
+
+    const validated = validatedItems.map(({ product, ...itemData }) => itemData);
+    const bySeller = groupBySeller(validated);
+    const sellers = Array.from(bySeller.values()).map((sellerData) => {
+      const items = sellerData.items;
+      const subtotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
+      return { sellerId: sellerData.sellerId, items, subtotal };
+    });
+
+    const subtotal = sellers.reduce((sum, seller) => sum + seller.subtotal, 0);
+    const totalItemCount = validated.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+
+    let pricingBreakdown;
+    let shippingData = null;
+
+    if (shippingAddress) {
+      try {
+        pricingBreakdown = await pricingService.calculateOrderTotalWithShipping(
+          subtotal,
+          validatedItems,
+          shippingAddress,
+          totalItemCount,
+          { paymentMethod }
+        );
+        shippingData = pricingBreakdown.shipping || null;
+      } catch (error) {
+        logger.warn("Guest checkout shipping calculation failed, falling back to pricing-only summary", {
+          source: "checkout.service",
+          message: error.message,
+        });
+        pricingBreakdown = await pricingService.calculateOrderTotal(subtotal, totalItemCount, paymentMethod);
+      }
+    } else {
+      pricingBreakdown = await pricingService.calculateOrderTotal(subtotal, totalItemCount, paymentMethod);
+    }
+
+    let eligibility = null;
+    if (String(paymentMethod || "").toUpperCase() === "COD" && shippingAddress) {
+      try {
+        eligibility = await codService.evaluateEligibility({
+          userId: null,
+          address: shippingAddress,
+          cartItems: validated,
+          subtotal,
+        });
+      } catch (error) {
+        logger.warn("Guest COD eligibility check failed during checkout prepare", {
+          source: "checkout.service",
+          message: error.message,
+        });
+        eligibility = {
+          codAvailable: false,
+          reasons: ["COD_CHECK_FAILED"],
+        };
+      }
+    }
+
+    return {
+      ...buildSummaryShape({
+        currency: currency || "INR",
+        sellers,
+        subtotal,
+        charges: pricingBreakdown.charges,
+        chargesTotal: pricingBreakdown.chargesTotal,
+        total: pricingBreakdown.total,
+        itemCount: totalItemCount,
+        shipping: shippingData,
+        paymentMethod: pricingBreakdown.paymentMethod,
+      }),
+      errors: validation.errors,
+      codAvailability: eligibility
+        ? {
+            codAvailable: eligibility.codAvailable,
+            reasons: eligibility.reasons,
+          }
+        : undefined,
+    };
+  }
+
   async prepare(userId, { currency, shippingAddress, paymentMethod } = {}) {
     const cachedSummary = getCachedPreparedCheckout(userId, { shippingAddress, paymentMethod });
     if (cachedSummary) {

@@ -2,9 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { ProductImage } from "../components/ProductImage";
-import * as cartService from "../services/cartService";
 import * as productService from "../services/productService";
-import * as wishlistService from "../services/wishlistService";
 import { getAttributes } from "../services/attributeService";
 import { getProductModules } from "../services/productModuleService";
 import { useAuthStore } from "../context/authStore";
@@ -13,6 +11,9 @@ import { getDefaultVariant, getVariantGroups } from "../utils/productVariants";
 import { saveRedirectAfterLogin } from "../utils/loginRedirect";
 import { getFormattedWeight } from "../utils/weight";
 import { loadTrackingContext, saveTrackingContext } from "../utils/influencerTracking";
+import { useCart } from "../hooks/useCart";
+import { useWishlist } from "../hooks/useWishlist";
+import pendingActionManager from "../utils/pendingActionManager";
 
 function buildVariantMatch(variants = [], selectedAttributes = {}) {
   return (
@@ -70,7 +71,13 @@ export function ProductDetailsPage() {
   const { productId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const token = useAuthStore((state) => state.token);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { addItem: addCartItem } = useCart();
+  const {
+    addItem: addWishlistItem,
+    removeItem: removeWishlistItem,
+    isInWishlist,
+  } = useWishlist();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [product, setProduct] = useState(null);
@@ -133,13 +140,13 @@ export function ProductDetailsPage() {
   useEffect(() => {
     let cancelled = false;
     async function loadWishlistStatus() {
-      if (!token || !productId) {
+      if (!productId) {
         setWishlistSaved(false);
         return;
       }
       try {
-        const response = await wishlistService.getWishlistStatus(productId);
-        if (!cancelled) setWishlistSaved(Boolean(response?.data?.saved));
+        const saved = await isInWishlist(productId);
+        if (!cancelled) setWishlistSaved(Boolean(saved));
       } catch {
         if (!cancelled) setWishlistSaved(false);
       }
@@ -148,7 +155,7 @@ export function ProductDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [productId, token]);
+  }, [productId, isInWishlist]);
 
   useEffect(() => {
     let cancelled = false;
@@ -257,16 +264,21 @@ export function ProductDetailsPage() {
   }, [activeTab, tabs]);
 
   async function handleAddToCart(redirectTo = "/cart") {
-    if (!token) {
-      saveRedirectAfterLogin(window.location.href);
-      navigate("/login");
-      return;
-    }
-
     setAdding(true);
     setError("");
     try {
-      await cartService.addToCart(product._id, 1, activeVariant?.variantId || "");
+      const quantity = 1;
+      const variantId = activeVariant?.variantId || "";
+
+      if (!isAuthenticated && redirectTo === "/checkout") {
+        await addCartItem(product._id, quantity, variantId);
+        pendingActionManager.initiateGuestBuyNow(product._id, quantity, variantId);
+        saveRedirectAfterLogin(`${window.location.origin}/checkout`);
+        navigate("/login");
+        return;
+      }
+
+      await addCartItem(product._id, quantity, variantId);
       navigate(redirectTo);
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to add to cart");
@@ -276,29 +288,20 @@ export function ProductDetailsPage() {
   }
 
   async function handleWishlistToggle() {
-    if (!token) {
-      saveRedirectAfterLogin(window.location.href);
-      navigate("/login");
-      return;
-    }
-
     setWishlistLoading(true);
     setError("");
     try {
       if (wishlistSaved) {
-        await wishlistService.removeFromWishlist(product._id);
+        await removeWishlistItem(product._id);
         setWishlistSaved(false);
       } else {
-        await wishlistService.addToWishlist(
+        await addWishlistItem(
           product._id,
           activeVariant?.variantId || "",
           selectedAttributes
         );
         setWishlistSaved(true);
       }
-      // Dispatch event to update wishlist badge in header
-      const wishlistData = await wishlistService.getWishlist();
-      window.dispatchEvent(new CustomEvent("wishlist:changed", { detail: { items: wishlistData?.data || [] } }));
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to update wishlist");
     } finally {

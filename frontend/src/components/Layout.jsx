@@ -20,10 +20,15 @@ import { usePresentedCategories } from "../utils/categoryPresentation";
 import { PlatformFeaturesProvider } from "../context/PlatformFeaturesContext";
 import * as cartService from "../services/cartService";
 import * as wishlistService from "../services/wishlistService";
+import useGuestCartStore from "../context/guestCartStore";
+import useGuestWishlistStore from "../context/guestWishlistStore";
 
 export function Layout() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
+  const guestCartCount = useGuestCartStore((s) => s.getTotalQuantity());
+  const guestWishlistCount = useGuestWishlistStore((s) => s.getItemCount());
   const [isDarkMode, setIsDarkMode] = useDarkMode();
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -38,7 +43,7 @@ export function Layout() {
   const isVendorWorkspace = location.pathname.startsWith("/vendor/");
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
   const isInfluencerWorkspace = location.pathname.startsWith("/influencer");
-  const showShopActions = user?.role === "user";
+  const showShopActions = !user || user?.role === "user";
 
   // Detect scroll with requestAnimationFrame for smooth performance
   useEffect(() => {
@@ -61,7 +66,7 @@ export function Layout() {
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Shop", href: "/shop" },
-    { label: "Track order", href: showShopActions ? "/orders" : "/dashboard" },
+    { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },
   ];
 
   useEffect(() => {
@@ -70,6 +75,11 @@ export function Layout() {
     async function loadCartCount() {
       if (!showShopActions) {
         setCartCount(0);
+        return;
+      }
+
+      if (!token) {
+        setCartCount(guestCartCount);
         return;
       }
 
@@ -100,7 +110,7 @@ export function Layout() {
       cancelled = true;
       window.removeEventListener("cart:changed", handleCartChanged);
     };
-  }, [location.pathname, showShopActions]);
+  }, [location.pathname, showShopActions, token, guestCartCount]);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +118,11 @@ export function Layout() {
     async function loadWishlistCount() {
       if (!showShopActions) {
         setWishlistCount(0);
+        return;
+      }
+
+      if (!token) {
+        setWishlistCount(guestWishlistCount);
         return;
       }
 
@@ -136,7 +151,7 @@ export function Layout() {
       cancelled = true;
       window.removeEventListener("wishlist:changed", handleWishlistChanged);
     };
-  }, [location.pathname, showShopActions]);
+  }, [location.pathname, showShopActions, token, guestWishlistCount]);
 
   return (
     <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.16),_transparent_34%),linear-gradient(to_bottom,_#ffffff,_#f8fafc_32%,_#eef2ff_100%)] text-slate-900 transition-colors dark:bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.16),_transparent_30%),linear-gradient(to_bottom,_#020617,_#020617_28%,_#0f172a_100%)] dark:text-white">
@@ -220,6 +235,12 @@ export function Layout() {
                     </>
                   ) : (
                     <>
+                      <HeaderIconLink to="/wishlist" label="Wishlist" badge={wishlistCount}>
+                        <Heart className="h-4.5 w-4.5" />
+                      </HeaderIconLink>
+                      <HeaderIconLink to="/cart" label="Cart" badge={cartCount}>
+                        <ShoppingCart className="h-4.5 w-4.5" />
+                      </HeaderIconLink>
                       <Link
                         className="hidden rounded-full px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-white/60 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-white sm:inline-flex"
                         to="/login"
@@ -250,13 +271,29 @@ export function Layout() {
                     {showShopActions ? <Heart className="h-4.5 w-4.5" /> : <UserRound className="h-4.5 w-4.5" />}
                   </Link>
                 ) : (
-                  <Link
-                    to="/login"
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-slate-600 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur transition hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
-                    aria-label="Login"
-                  >
-                    <MapPin className="h-4.5 w-4.5" />
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to="/wishlist"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-slate-600 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur transition hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+                      aria-label="Wishlist"
+                    >
+                      <Heart className="h-4.5 w-4.5" />
+                    </Link>
+                    <Link
+                      to="/cart"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-slate-600 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur transition hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+                      aria-label="Cart"
+                    >
+                      <ShoppingCart className="h-4.5 w-4.5" />
+                    </Link>
+                    <Link
+                      to="/login"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-slate-600 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur transition hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+                      aria-label="Login"
+                    >
+                      <MapPin className="h-4.5 w-4.5" />
+                    </Link>
+                  </div>
                 )}
               </div>
             </div>

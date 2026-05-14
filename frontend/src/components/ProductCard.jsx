@@ -2,15 +2,15 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { Eye, Heart, ShoppingBag, Star } from "lucide-react";
-import { useAuthStore } from "../context/authStore";
-import * as cartService from "../services/cartService";
-import * as wishlistService from "../services/wishlistService";
 import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
+import { useCart } from "../hooks/useCart";
+import { useWishlist } from "../hooks/useWishlist";
 
 export function ProductCard({ product }) {
   const navigate = useNavigate();
-  const user = useAuthStore((state) => state.user);
+  const { addItem: addCartItem } = useCart();
+  const { addItem: addWishlistItem } = useWishlist();
   const [ripples, setRipples] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const imageUrl = resolveApiAssetUrl(product?.images?.[0]?.url || "");
@@ -33,25 +33,11 @@ export function ProductCard({ product }) {
     }, 650);
   };
 
-  const requireUser = () => {
-    if (user?.role === "user") {
-      return true;
-    }
-
-    navigate("/login");
-    return false;
-  };
-
   const handleWishlist = async (event) => {
     event.stopPropagation();
-    if (!requireUser()) return;
-
     try {
       setIsSubmitting(true);
-      await wishlistService.addToWishlist(product._id);
-      // Dispatch event to update wishlist badge
-      const wishlistData = await wishlistService.getWishlist();
-      window.dispatchEvent(new CustomEvent("wishlist:changed", { detail: { items: wishlistData || [] } }));
+      await addWishlistItem(product._id);
     } finally {
       setIsSubmitting(false);
     }
@@ -60,11 +46,9 @@ export function ProductCard({ product }) {
   const handleAddToCart = async (event) => {
     event.stopPropagation();
     createRipple(event);
-    if (!requireUser()) return;
-
     try {
       setIsSubmitting(true);
-      await cartService.addToCart(product._id, 1);
+      await addCartItem(product._id, 1);
     } finally {
       setIsSubmitting(false);
     }

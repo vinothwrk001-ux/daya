@@ -4,9 +4,9 @@ import { useAuthStore } from "../context/authStore";
 import { useStaffAuthStore } from "../context/staffAuthStore";
 import * as authService from "../services/authService";
 import * as staffAuthService from "../services/staffAuthService";
-import * as vendorService from "../services/vendorService";
 import { validateAuthForm } from "../utils/authValidation";
 import { consumeRedirectAfterLogin } from "../utils/loginRedirect";
+import { continueAfterPrimaryAuth } from "../utils/postAuthContinuation";
 
 function normalizeError(err) {
   return (
@@ -16,51 +16,17 @@ function normalizeError(err) {
   );
 }
 
-function getPathnameFromTarget(target) {
-  if (!target) return "";
-
-  if (target.startsWith("http://") || target.startsWith("https://")) {
-    try {
-      return new URL(target).pathname;
-    } catch {
-      return "";
-    }
-  }
-
-  return target;
-}
-
 function isAllowedStaffTarget(target) {
-  const pathname = getPathnameFromTarget(target);
+  const pathname = target?.startsWith("http://") || target?.startsWith("https://")
+    ? new URL(target).pathname
+    : target || "";
   return pathname.startsWith("/staff");
 }
-
 function isAuthPageTarget(target) {
-  const pathname = getPathnameFromTarget(target);
+  const pathname = target?.startsWith("http://") || target?.startsWith("https://")
+    ? new URL(target).pathname
+    : target || "";
   return ["/login", "/register", "/role", "/staff/login"].includes(pathname);
-}
-
-function isAllowedPrimaryTarget(target) {
-  const pathname = getPathnameFromTarget(target);
-  if (!pathname || isAuthPageTarget(pathname)) return false;
-
-  return (
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/user") ||
-    pathname.startsWith("/vendor") ||
-    pathname.startsWith("/seller") ||
-    pathname.startsWith("/profile") ||
-    pathname.startsWith("/orders") ||
-    pathname.startsWith("/wishlist") ||
-    pathname.startsWith("/addresses") ||
-    pathname.startsWith("/reviews") ||
-    pathname.startsWith("/support") ||
-    pathname.startsWith("/notifications") ||
-    pathname.startsWith("/settings") ||
-    pathname.startsWith("/cart") ||
-    pathname.startsWith("/checkout")
-  );
 }
 
 export function LoginPage() {
@@ -79,26 +45,7 @@ export function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState({});
 
   async function navigateAfterPrimaryLogin(result, attemptedFrom) {
-    const redirect = consumeRedirectAfterLogin();
-    const role = result.data.user.role;
-    if (redirect && isAllowedPrimaryTarget(redirect)) return window.location.assign(redirect);
-    if (attemptedFrom && isAllowedPrimaryTarget(attemptedFrom)) return nav(attemptedFrom, { replace: true });
-
-    if (["admin", "super_admin", "support_admin", "finance_admin"].includes(role)) {
-      return nav("/dashboard/admin", { replace: true });
-    }
-    if (role === "user") return nav("/", { replace: true });
-    if (role === "influencer") return nav("/influencer/dashboard", { replace: true });
-
-    try {
-      const vendorResponse = await vendorService.getVendorMe();
-      const status = vendorResponse.data.status;
-      if (status === "approved") return nav("/dashboard/vendor", { replace: true });
-      if (status === "pending") return nav("/vendor/status", { replace: true });
-      return nav("/vendor/onboarding", { replace: true });
-    } catch {
-      return nav("/vendor/onboarding", { replace: true });
-    }
+    return continueAfterPrimaryAuth({ result, attemptedFrom, nav });
   }
 
   async function navigateAfterStaffLogin(attemptedFrom) {
@@ -217,7 +164,7 @@ export function LoginPage() {
 
         <div className="mt-4 text-center text-sm text-slate-600">
           No account?{" "}
-          <Link className="text-indigo-600 hover:underline" to="/role">
+          <Link className="text-indigo-600 hover:underline" to="/role" state={location.state}>
             Register
           </Link>
         </div>

@@ -1,5 +1,5 @@
 const express = require("express");
-const { authRequired } = require("../middleware/auth");
+const { authRequired, authOptional } = require("../middleware/auth");
 const { validate } = require("../middleware/validate");
 const checkoutController = require("../controllers/checkout.controller");
 const {
@@ -9,10 +9,19 @@ const {
 
 const router = express.Router();
 
-router.use(authRequired);
+/**
+ * AUTHENTICATED USER CHECKOUT
+ */
+router.post("/prepare", authRequired, validate(checkoutPrepareSchema), checkoutController.prepare);
+router.post("/create", authRequired, validate(checkoutCreateSchema), checkoutController.createOrder);
 
-router.post("/prepare", validate(checkoutPrepareSchema), checkoutController.prepare);
-router.post("/create", validate(checkoutCreateSchema), checkoutController.createOrder);
+/**
+ * GUEST CHECKOUT
+ * Allow guests to prepare checkout with their cart items
+ * Actual order creation still requires authentication
+ */
+router.post("/guest/prepare", authOptional, checkoutController.prepareGuestCheckout);
 
 module.exports = router;
+
 

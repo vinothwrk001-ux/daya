@@ -1,33 +1,27 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  getUserWishlist,
-  moveWishlistItemToCart,
-  removeUserWishlist,
-} from "../services/userService";
 import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
+import { useWishlist } from "../hooks/useWishlist";
+import { useCart } from "../hooks/useCart";
 
 function normalizeError(err) {
   return err?.response?.data?.message || err?.message || "Failed to load wishlist.";
 }
 
 export function WishlistPage() {
-  const [wishlistItems, setWishlistItems] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [busyProductId, setBusyProductId] = useState("");
   const [error, setError] = useState("");
+  const { wishlist, loading, removeItem: removeWishlistItem, validateWishlist } = useWishlist();
+  const { addItem: addCartItem } = useCart();
+  const wishlistItems = wishlist?.items || [];
 
   async function loadWishlist() {
-    setLoading(true);
     try {
-      const response = await getUserWishlist();
-      setWishlistItems(response.data || []);
+      await validateWishlist();
       setError("");
     } catch (err) {
       setError(normalizeError(err));
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -38,12 +32,7 @@ export function WishlistPage() {
   async function removeItem(productId) {
     setBusyProductId(productId);
     try {
-      await removeUserWishlist(productId);
-      setWishlistItems((current) => current.filter((item) => item.product?._id !== productId));
-      // Dispatch event to update wishlist badge
-      const response = await getUserWishlist();
-      const items = response.data || [];
-      window.dispatchEvent(new CustomEvent("wishlist:changed", { detail: { items } }));
+      await removeWishlistItem(productId);
     } catch (err) {
       setError(normalizeError(err));
     } finally {
@@ -54,11 +43,13 @@ export function WishlistPage() {
   async function moveToCart(productId) {
     setBusyProductId(productId);
     try {
-      const response = await moveWishlistItemToCart(productId);
-      setWishlistItems(response.data || []);
+      const item = wishlistItems.find((wishlistItem) => {
+        const itemProductId = wishlistItem.product?._id || wishlistItem.productId;
+        return String(itemProductId) === String(productId);
+      });
+      await addCartItem(productId, 1, item?.variantId || "");
+      await removeWishlistItem(productId);
       setError("");
-      // Dispatch event to update wishlist badge
-      window.dispatchEvent(new CustomEvent("wishlist:changed", { detail: { items: response.data || [] } }));
     } catch (err) {
       setError(normalizeError(err));
     } finally {
@@ -84,8 +75,8 @@ export function WishlistPage() {
       ) : wishlistItems.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {wishlistItems.map((item) => {
-            const product = item.product;
-            const image = resolveApiAssetUrl(product?.images?.[0]?.url);
+            const product = item.product || item;
+            const image = resolveApiAssetUrl(product?.images?.[0]?.url || item?.image);
             
             // Get variant if it exists
             const variant = item.variantId && product?.variants
@@ -102,8 +93,8 @@ export function WishlistPage() {
                   .join(", ")
               : null;
             return (
-              <div key={item._id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <Link to={`/product/${product?._id}`} className="block aspect-square overflow-hidden bg-slate-100 dark:bg-slate-800\">
+              <div key={item._id || item.productId} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <Link to={`/product/${product?._id || item.productId}`} className="block aspect-square overflow-hidden bg-slate-100 dark:bg-slate-800">
                   {image ? <img src={image} alt={product?.name || "Wishlist item"} className="h-full w-full object-cover" /> : null}
                 </Link>
                 <div className="grid gap-3 p-5">
@@ -129,16 +120,16 @@ export function WishlistPage() {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      disabled={busyProductId === product?._id || product?.stock <= 0}
-                      onClick={() => moveToCart(product?._id)}
+                      disabled={busyProductId === (product?._id || item.productId) || product?.stock <= 0}
+                      onClick={() => moveToCart(product?._id || item.productId)}
                       className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
                     >
                       {product?.stock <= 0 ? "Out of stock" : "Move to cart"}
                     </button>
                     <button
                       type="button"
-                      disabled={busyProductId === product?._id}
-                      onClick={() => removeItem(product?._id)}
+                      disabled={busyProductId === (product?._id || item.productId)}
+                      onClick={() => removeItem(product?._id || item.productId)}
                       className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-60 dark:border-slate-700 dark:text-slate-200"
                     >
                       Remove

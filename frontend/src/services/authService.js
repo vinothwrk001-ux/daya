@@ -38,3 +38,19 @@ export async function updateThemePreference(theme) {
   const { data } = await api.patch("/api/auth/preferences/theme", { theme });
   return data;
 }
+
+/**
+ * POST-LOGIN MERGE
+ * Merge guest cart and wishlist data after successful login
+ * @param {Array} guestCartItems - Cart items from localStorage
+ * @param {Array} guestWishlistItems - Wishlist items from localStorage
+ * @returns {Promise<Object>} {cartMerge, wishlistMerge}
+ */
+export async function mergeGuestData(guestCartItems = [], guestWishlistItems = []) {
+  const { data } = await api.post("/api/auth/merge-guest-data", {
+    guestCartItems,
+    guestWishlistItems,
+  });
+  return data?.data || data;
+}
+

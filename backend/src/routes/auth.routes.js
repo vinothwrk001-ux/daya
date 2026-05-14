@@ -27,4 +27,11 @@ router.post("/logout-all", authRequired, authController.logoutAll);
 router.get("/me", authRequired, authController.me);
 router.patch("/preferences/theme", authRequired, authController.updateThemePreference);
 
+/**
+ * POST-LOGIN MERGE
+ * Merge guest cart and wishlist data after successful login
+ */
+router.post("/merge-guest-data", authRequired, authController.mergeGuestData);
+
 module.exports = router;
+

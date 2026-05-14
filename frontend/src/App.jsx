@@ -145,7 +145,11 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/staff/login" element={<Navigate to="/login" replace />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/shop" element={<ProductsPage />} />
         <Route path="/product/:productId" element={<ProductDetailsPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/wishlist" element={<WishlistPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/return-policy" element={<ReturnPolicyPage />} />
@@ -162,16 +166,12 @@ export default function App() {
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
               <Route path="/orders/:orderId/invoice" element={<CustomerInvoicePreviewPage />} />
-              <Route path="/wishlist" element={<WishlistPage />} />
               <Route path="/addresses" element={<AddressesPage />} />
               <Route path="/reviews" element={<ReviewsPage />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
-            <Route path="/shop" element={<ProductsPage />} />
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/checkout/success" element={<OrderSuccessPage />} />
           </Route>
 
@@ -325,7 +325,6 @@ export default function App() {
           </Route>
         </Route>
 
-        <Route path="/shop" element={<ProductsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

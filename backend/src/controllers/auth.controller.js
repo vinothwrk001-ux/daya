@@ -1,6 +1,9 @@
 const { ok } = require("../utils/apiResponse");
 const { asyncHandler } = require("../utils/asyncHandler");
+const { AppError } = require("../utils/AppError");
 const authService = require("../services/auth.service");
+const cartMergeService = require("../services/cartMerge.service");
+const wishlistMergeService = require("../services/wishlistMerge.service");
 
 const register = asyncHandler(async (req, res) => {
   const result = await authService.register(req.body, {
@@ -60,4 +63,43 @@ const updateThemePreference = asyncHandler(async (req, res) => {
   return ok(res, user, "Theme updated");
 });
 
-module.exports = { register, login, refresh, logout, logoutAll, me, updateThemePreference };
+/**
+ * POST-LOGIN MERGE ENDPOINT
+ * Called by frontend after successful login to merge guest data into user account
+ * Merges both cart and wishlist in one call
+ */
+const mergeGuestData = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    throw new AppError("Authentication required", 401, "AUTH_REQUIRED");
+  }
+
+  const { guestCartItems = [], guestWishlistItems = [] } = req.body || {};
+
+  const result = {
+    cartMerge: null,
+    wishlistMerge: null,
+  };
+
+  // Merge cart if guest items provided
+  if (cartMergeService.hasGuestCartItems(guestCartItems)) {
+    result.cartMerge = await cartMergeService.mergeGuestCartIntoUserCart(req.user.sub, guestCartItems);
+  }
+
+  // Merge wishlist if guest items provided
+  if (wishlistMergeService.hasGuestWishlistItems(guestWishlistItems)) {
+    result.wishlistMerge = await wishlistMergeService.mergeGuestWishlistIntoUserWishlist(req.user.sub, guestWishlistItems);
+  }
+
+  return ok(res, result, "Guest data merged successfully");
+});
+
+module.exports = {
+  register,
+  login,
+  refresh,
+  logout,
+  logoutAll,
+  me,
+  updateThemePreference,
+  mergeGuestData,
+};

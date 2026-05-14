@@ -15,6 +15,9 @@ export function AddressModal({
   initialValues = EMPTY_ADDRESS_FORM,
   saving = false,
   mapsKey,
+  title = "Add New Address",
+  description = "Save a delivery address without leaving checkout.",
+  submitLabel = "Save address",
   onClose,
   onSubmit,
 }) {
@@ -144,10 +147,10 @@ export function AddressModal({
                 Checkout
               </div>
               <h2 className="mt-1 text-2xl font-semibold text-slate-950 dark:text-white">
-                Add New Address
+                {title}
               </h2>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                Save a delivery address without leaving checkout.
+                {description}
               </p>
             </div>
             <button
@@ -240,7 +243,7 @@ export function AddressModal({
               disabled={saving}
               className="rounded-2xl bg-[color:var(--commerce-accent)] px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "Saving..." : "Save address"}
+              {saving ? "Saving..." : submitLabel}
             </button>
             <button
               type="button"

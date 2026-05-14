@@ -1,10 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
 
-function RoleCard({ title, desc, to }) {
+function RoleCard({ title, desc, to, state }) {
   return (
     <Link
       to={to}
+      state={state}
       className="group rounded-2xl border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
     >
       <div className="text-lg font-semibold">{title}</div>
@@ -18,6 +19,7 @@ function RoleCard({ title, desc, to }) {
 
 export function RoleSelectionPage() {
   const { influencerCommerceEnabled, loading } = usePlatformFeatures();
+  const location = useLocation();
 
   return (
     <div className="mx-auto max-w-xl">
@@ -33,17 +35,20 @@ export function RoleSelectionPage() {
           title="User"
           desc="Browse and buy. Access user dashboard and profile."
           to="/register?role=user"
+          state={location.state}
         />
         <RoleCard
           title="Vendor"
           desc="Sell on the platform. Complete onboarding and wait for approval."
           to="/register?role=vendor"
+          state={location.state}
         />
         {loading || influencerCommerceEnabled ? (
           <RoleCard
             title="Influencer"
             desc="Create shoppable reels, accept campaigns, and earn tracked commissions."
             to="/register?role=influencer"
+            state={location.state}
           />
         ) : (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">

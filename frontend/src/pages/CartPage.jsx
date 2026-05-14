@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
-import * as cartService from "../services/cartService";
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatWeight, getFormattedWeight, getWeightUnit, getWeightValue } from "../utils/weight";
+import { useCart } from "../hooks/useCart";
 
 function normalizeError(err) {
   return err?.response?.data?.message || err?.message || "Request failed";
@@ -11,28 +11,26 @@ function normalizeError(err) {
 
 export function CartPage() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
-  const [cart, setCart] = useState(null);
+  const { cart, isGuest, loading, refreshCart, updateItem, removeItem, validateCart } = useCart();
 
   async function refresh() {
-    setLoading(true);
     setError("");
     try {
-      const res = await cartService.getCart();
-      setCart(res.data);
+      if (isGuest) {
+        await validateCart();
+      } else {
+        await refreshCart();
+      }
     } catch (e) {
       setError(normalizeError(e));
-      setCart(null);
-    } finally {
-      setLoading(false);
     }
   }
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [isGuest]);
 
   const items = useMemo(() => (Array.isArray(cart?.items) ? cart.items : []), [cart]);
   const total = Number(cart?.totalAmount || 0);
@@ -41,8 +39,7 @@ export function CartPage() {
     setBusyId(`${productId}:${variantId || ""}`);
     setError("");
     try {
-      const res = await cartService.updateCartItem(productId, nextQty, variantId);
-      setCart(res.data);
+      await updateItem(productId, nextQty, variantId);
     } catch (e) {
       setError(normalizeError(e));
     } finally {
@@ -54,8 +51,7 @@ export function CartPage() {
     setBusyId(`${productId}:${variantId || ""}`);
     setError("");
     try {
-      const res = await cartService.removeCartItem(productId, variantId);
-      setCart(res.data);
+      await removeItem(productId, variantId);
     } catch (e) {
       setError(normalizeError(e));
     } finally {
@@ -105,7 +101,7 @@ export function CartPage() {
             {items.map((item) => {
               const p = item?.productId;
               const id = p?._id || item.productId;
-              const name = p?.name || "Product";
+              const name = p?.name || item?.name || "Product";
               const img = item.image || (Array.isArray(p?.images) && p.images.length ? p.images[0]?.url : "");
               const qty = Number(item.quantity || 1);
               const price = Number(item.price || 0);

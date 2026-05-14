@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../context/authStore";
 import * as authService from "../services/authService";
 import { validateAuthForm } from "../utils/authValidation";
 import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
+import { continueAfterPrimaryAuth } from "../utils/postAuthContinuation";
+import pendingCheckoutManager from "../utils/pendingCheckoutManager";
 
 function normalizeError(err) {
   return err?.response?.data?.message || err?.message || "Something went wrong";
@@ -14,6 +16,8 @@ export function RegisterPage() {
   const role = useMemo(() => params.get("role") || "user", [params]);
   const { influencerCommerceEnabled, loading: commerceLoading } = usePlatformFeatures();
   const nav = useNavigate();
+  const location = useLocation();
+  const from = useMemo(() => location.state?.from?.pathname, [location.state]);
   const setAuth = useAuthStore((s) => s.setAuth);
 
   const [name, setName] = useState("");
@@ -44,6 +48,9 @@ export function RegisterPage() {
     try {
       const res = await authService.register({ name, email, phone, password, role });
       setAuth(res.data);
+      if (pendingCheckoutManager.has() || from) {
+        return continueAfterPrimaryAuth({ result: res, attemptedFrom: from, nav });
+      }
       if (role === "vendor") return nav("/vendor/onboarding", { replace: true });
       if (role === "influencer") return nav("/influencer/profile", { replace: true });
       return nav("/user/dashboard", { replace: true });
@@ -149,7 +156,7 @@ export function RegisterPage() {
 
         <div className="mt-4 text-center text-sm text-slate-600">
           Already have an account?{" "}
-          <Link className="text-indigo-600 hover:underline" to="/login">
+          <Link className="text-indigo-600 hover:underline" to="/login" state={location.state}>
             Login
           </Link>
         </div>
