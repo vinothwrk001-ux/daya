@@ -309,10 +309,10 @@ export function Layout() {
             // Check if it's a subcategory or category based on presence of categoryId property
             if (item.categoryId) {
               // It's a subcategory
-              navigate(`/products?categoryId=${item.categoryId}&subCategoryId=${item._id || item.id}`);
+              navigate(`/shop?categoryId=${item.categoryId}&subCategoryId=${item._id || item.id}`);
             } else {
               // It's a category
-              navigate(`/products?categoryId=${item._id || item.id}`);
+              navigate(`/shop?categoryId=${item._id || item.id}`);
             }
           }}
           selectedCategory={selectedCategory}

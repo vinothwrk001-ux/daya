@@ -2,10 +2,13 @@ import { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { ChevronDown, Heart, ShoppingCart } from "lucide-react";
 import * as productService from "../services/productService";
+import * as subcategoryService from "../services/subcategoryService";
 import { formatCurrency } from "../utils/formatCurrency";
+import { useCategories } from "../hooks/useCategories";
 
 export function ShopPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { categories } = useCategories();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -13,9 +16,34 @@ export function ShopPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState(searchParams.get("sortBy") || "createdAt");
   const [wishlist, setWishlist] = useState(new Set());
+  const [subcategories, setSubcategories] = useState([]);
 
   const search = searchParams.get("search") || "";
+  const categoryId = searchParams.get("categoryId") || "";
+  const subCategoryId = searchParams.get("subCategoryId") || "";
   const limit = 24;
+
+  useEffect(() => {
+    if (!categoryId) {
+      setSubcategories([]);
+      return;
+    }
+
+    let alive = true;
+    (async () => {
+      try {
+        const response = await subcategoryService.getSubcategoriesByCategory(categoryId);
+        if (!alive) return;
+        setSubcategories(Array.isArray(response?.data) ? response.data : []);
+      } catch {
+        if (alive) setSubcategories([]);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [categoryId]);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -32,6 +60,14 @@ export function ShopPage() {
           params.search = search;
         }
 
+        if (categoryId) {
+          params.categoryId = categoryId;
+        }
+
+        if (subCategoryId) {
+          params.subCategoryId = subCategoryId;
+        }
+
         const response = await productService.getPublicProducts(params);
         setProducts(response.data?.products || []);
         setTotalPages(response.data?.pages || 1);
@@ -44,7 +80,7 @@ export function ShopPage() {
     };
 
     fetchProducts();
-  }, [search, page, sortBy]);
+  }, [search, categoryId, subCategoryId, page, sortBy]);
 
   const handleSortChange = (e) => {
     setSortBy(e.target.value);
@@ -78,7 +114,14 @@ export function ShopPage() {
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-          {search ? `Search Results for "${search}"` : "Shop"}
+          {subCategoryId 
+            ? `${subcategories.find(s => s._id === subCategoryId)?.name || "Products"}`
+            : categoryId 
+            ? `${categories.find(c => c._id === categoryId)?.name || "Products"}`
+            : search 
+            ? `Search Results for "${search}"` 
+            : "Shop"
+          }
         </h1>
         <p className="text-slate-600 dark:text-slate-400">
           {products.length > 0
@@ -90,6 +133,80 @@ export function ShopPage() {
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-4 rounded-lg">
           {error}
+        </div>
+      )}
+
+      {/* Category Tabs */}
+      {categories.length > 0 && (
+        <div className="flex flex-wrap gap-2 pb-4 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
+          <button
+            onClick={() => {
+              setSearchParams({});
+              setPage(1);
+            }}
+            className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
+              !categoryId
+                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            }`}
+          >
+            All
+          </button>
+          {categories.map((category) => (
+            <button
+              key={category._id}
+              onClick={() => {
+                setSearchParams({ categoryId: category._id });
+                setPage(1);
+              }}
+              className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${
+                categoryId === category._id
+                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              {category.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Subcategory Tabs */}
+      {subcategories.length > 0 && categoryId && (
+        <div className="flex flex-wrap gap-2 pb-4 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
+          <button
+            onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("subCategoryId");
+              setSearchParams(next);
+              setPage(1);
+            }}
+            className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-sm ${
+              !subCategoryId
+                ? "bg-blue-600 text-white dark:bg-blue-500"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            }`}
+          >
+            All {categories.find(c => c._id === categoryId)?.name || "Products"}
+          </button>
+          {subcategories.map((sub) => (
+            <button
+              key={sub._id}
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.set("subCategoryId", sub._id);
+                setSearchParams(next);
+                setPage(1);
+              }}
+              className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-sm ${
+                subCategoryId === sub._id
+                  ? "bg-blue-600 text-white dark:bg-blue-500"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              {sub.name}
+            </button>
+          ))}
         </div>
       )}
 
