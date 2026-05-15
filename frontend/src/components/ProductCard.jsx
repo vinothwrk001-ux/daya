@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
-import { Eye, Heart, ShoppingBag, Star } from "lucide-react";
+import { Heart, ShoppingCart, Star } from "lucide-react";
 import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { useCart } from "../hooks/useCart";
@@ -11,41 +11,28 @@ export function ProductCard({ product }) {
   const navigate = useNavigate();
   const { addItem: addCartItem } = useCart();
   const { addItem: addWishlistItem } = useWishlist();
-  const [ripples, setRipples] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
   const imageUrl = resolveApiAssetUrl(product?.images?.[0]?.url || "");
   const discountPercent = product?.discountPrice
     ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
     : 0;
 
-  const createRipple = (event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    const ripple = {
-      id: Date.now() + Math.random(),
-      x: event.clientX - rect.left - size / 2,
-      y: event.clientY - rect.top - size / 2,
-      size,
-    };
-    setRipples((current) => [...current, ripple]);
-    window.setTimeout(() => {
-      setRipples((current) => current.filter((item) => item.id !== ripple.id));
-    }, 650);
-  };
-
   const handleWishlist = async (event) => {
+    event.preventDefault();
     event.stopPropagation();
     try {
       setIsSubmitting(true);
       await addWishlistItem(product._id);
+      setIsInWishlist(!isInWishlist);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleAddToCart = async (event) => {
+    event.preventDefault();
     event.stopPropagation();
-    createRipple(event);
     try {
       setIsSubmitting(true);
       await addCartItem(product._id, 1);
@@ -67,119 +54,116 @@ export function ProductCard({ product }) {
       }}
       role="link"
       tabIndex={0}
-      className="group relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/85 shadow-[0_24px_80px_-45px_rgba(15,23,42,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/80"
+      className="group relative flex flex-col h-full overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm hover:shadow-lg dark:hover:shadow-lg dark:hover:shadow-slate-950/50 transition-all duration-300 hover:border-blue-300 dark:hover:border-blue-600"
     >
-      <div className="block">
-        <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-800">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={product.name}
-              className="h-full w-full object-cover object-center transition duration-700 group-hover:scale-105"
-              loading="lazy"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">
-              Image coming soon
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/30 via-transparent to-white/10 opacity-60 transition duration-500 group-hover:opacity-80" />
-
-          <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
-            {discountPercent > 0 ? (
-              <div className="rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2 text-center shadow-lg shadow-orange-500/30">
-                <div className="text-lg font-black text-white">{discountPercent}%</div>
-                <div className="text-xs font-semibold text-white">OFF</div>
-              </div>
-            ) : null}
-            {product?.ratings?.averageRating > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-3 py-1 text-[11px] font-semibold text-slate-800 backdrop-blur">
-                <Star className="h-3.5 w-3.5 fill-current text-amber-500" />
-                {Number(product.ratings.averageRating).toFixed(1)}
-              </span>
-            ) : null}
+      <div className="relative w-full aspect-[4/5] bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-800 overflow-hidden flex-shrink-0">
+        {/* Product Image */}
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={product.name}
+            className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-110"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            Image coming soon
           </div>
+        )}
 
-          <div className="absolute inset-x-4 bottom-4 translate-y-5 opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-            <div className="flex items-center justify-between gap-2 rounded-full border border-white/50 bg-white/80 p-2 shadow-xl backdrop-blur-md dark:border-white/10 dark:bg-slate-950/75">
-              <QuickAction icon={Heart} label="Save" onClick={handleWishlist} disabled={isSubmitting || product?.stock <= 0} />
-              <QuickAction icon={Eye} label="Preview" onClick={(event) => {
-                event.stopPropagation();
-                navigate(`/product/${product._id}`);
-              }} />
-              <button
-                type="button"
-                onClick={handleAddToCart}
-                disabled={isSubmitting}
-                className="relative inline-flex min-w-[6.75rem] items-center justify-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:shadow-indigo-500/45 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {ripples.map((ripple) => (
-                  <span
-                    key={ripple.id}
-                    className="pointer-events-none absolute rounded-full bg-white/35 animate-ripple"
-                    style={{
-                      left: ripple.x,
-                      top: ripple.y,
-                      width: ripple.size,
-                      height: ripple.size,
-                    }}
-                  />
-                ))}
-                <span className="relative z-[1] inline-flex items-center gap-2">
-                  <ShoppingBag className="h-3.5 w-3.5" />
-                  {isSubmitting ? "Adding" : "Add"}
-                </span>
-              </button>
-            </div>
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 via-transparent to-white/5 opacity-40 transition duration-500 group-hover:opacity-60" />
+
+        {/* Discount Badge */}
+        {discountPercent > 0 && (
+          <div className="absolute top-3 left-3 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 px-2.5 py-1.5 shadow-lg">
+            <div className="text-xs font-bold text-white">{discountPercent}%</div>
+            <div className="text-[10px] font-semibold text-white">OFF</div>
+          </div>
+        )}
+
+        {/* Premium Vertical Action Stack - Top Right */}
+        <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-out z-10">
+          {/* Wishlist Button */}
+          <button
+            onClick={handleWishlist}
+            disabled={isSubmitting}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60"
+            title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+            aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <Heart
+              size={20}
+              strokeWidth={1.5}
+              className={`transition-all duration-300 ${
+                isInWishlist
+                  ? "fill-red-500 text-red-500"
+                  : "text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            />
+          </button>
+
+          {/* Add to Cart Button */}
+          <button
+            onClick={handleAddToCart}
+            disabled={isSubmitting || product?.stock <= 0}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            title="Add to cart"
+            aria-label="Add to cart"
+          >
+            <ShoppingCart size={20} strokeWidth={2} />
+          </button>
+        </div>
+      </div>
+
+      {/* Product Info Section */}
+      <div className="flex flex-col flex-grow p-4 gap-2">
+        {/* Category */}
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 line-clamp-1">
+          {product.category || "Featured"}
+        </p>
+
+        {/* Product Name */}
+        <h3 className="line-clamp-2 text-sm font-semibold text-slate-900 dark:text-white transition group-hover:text-blue-600 dark:group-hover:text-blue-400 leading-tight">
+          {product.name}
+        </h3>
+
+        {/* Spacer */}
+        <div className="flex-grow" />
+
+        {/* Rating */}
+        {product?.ratings?.averageRating > 0 ? (
+          <div className="flex items-center gap-1">
+            <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+              {Number(product.ratings.averageRating).toFixed(1)}
+            </span>
+          </div>
+        ) : null}
+
+        {/* Pricing */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-slate-900 dark:text-white">
+              {formatCurrency(product.discountPrice || product.price)}
+            </span>
+            {product.discountPrice && (
+              <span className="text-xs text-slate-500 dark:text-slate-400 line-through">
+                {formatCurrency(product.price)}
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="space-y-3 p-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
-              {product.category || "Featured"}
-            </p>
-            <h3 className="mt-2 line-clamp-2 text-base font-semibold tracking-[-0.02em] text-slate-900 transition group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-300">
-              {product.name}
-            </h3>
-          </div>
-
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <div className="text-lg font-semibold tracking-[-0.03em] text-slate-950 dark:text-white">
-                {formatCurrency(product.discountPrice || product.price)}
-              </div>
-              {product.discountPrice ? (
-                <div className="mt-1 text-sm text-slate-400 line-through dark:text-slate-500">
-                  {formatCurrency(product.price)}
-                </div>
-              ) : (
-                <div className="mt-1 text-sm text-slate-400 dark:text-slate-500">Best value pick</div>
-              )}
-            </div>
-            <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-              Ready to ship
-            </div>
-          </div>
+        {/* Stock Status */}
+        <div className="text-xs font-medium">
+          {product?.stock > 0 ? (
+            <span className="text-green-600 dark:text-green-400">In Stock</span>
+          ) : (
+            <span className="text-red-600 dark:text-red-400">Out of Stock</span>
+          )}
         </div>
       </div>
     </Motion.article>
-  );
-}
-
-function QuickAction(props) {
-  const IconComponent = props.icon;
-  const { label, onClick, disabled } = props;
-
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-400/40 dark:hover:text-indigo-300"
-    >
-      <IconComponent className="h-4 w-4" />
-    </button>
   );
 }

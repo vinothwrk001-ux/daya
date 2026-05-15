@@ -13,6 +13,7 @@ import {
 import { AnimatePresence, motion as Motion, useReducedMotion } from "framer-motion";
 import { HomepageContentCMS } from "../components/HomepageContentCMS";
 import { ProductCard } from "../components/ProductCard";
+import { ProductCarousel } from "../components/ProductCarousel";
 import { PromoBanner } from "../components/PromoBanner";
 import { MotionItem, MotionStagger, AnimatedSection } from "../components/home/AnimatedSection";
 import { RippleButton } from "../components/home/RippleButton";
@@ -106,31 +107,35 @@ export function HomePage() {
   );
 
   return (
-    <div className="space-y-8 lg:space-y-10">
+    <div className="w-full space-y-0 lg:space-y-0">
       {/* DYNAMIC HOMEPAGE CONTENT CMS */}
-      <HomepageContentCMS
-        showPromo={false}
-        showCollection={false}
-        onContentLoaded={setHomepageContent}
-      />
+      <div className="w-full px-3 py-0 sm:px-4 lg:px-8 lg:py-0">
+        <HomepageContentCMS
+          showPromo={false}
+          showCollection={false}
+          onContentLoaded={setHomepageContent}
+        />
+      </div>
 
-      <AnimatedSection className="relative" y={24}>
+      <AnimatedSection className="relative w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10" y={24}>
         <TrustSection />
       </AnimatedSection>
 
       {!commerceLoading && influencerCommerceEnabled ? (
-        <AnimatedSection y={28}>
+        <AnimatedSection className="w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10" y={28}>
           <ReelFeed />
         </AnimatedSection>
       ) : null}
 
-      <AnimatedSection x={-24}>
+      <AnimatedSection className="w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10" x={-24}>
         <ManagedPromoSection promos={homepageContent.promo} />
       </AnimatedSection>
 
       {error ? (
-        <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
-          {error}
+        <div className="w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10">
+          <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+            {error}
+          </div>
         </div>
       ) : null}
 
@@ -158,7 +163,7 @@ export function HomePage() {
         viewAllHref="/shop?sortBy=ratings.averageRating&sortOrder=desc"
       />
 
-      <AnimatedSection x={20}>
+      <AnimatedSection className="w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10" x={20}>
         <BottomPromoSection
           featuredProducts={spotlightProducts}
           collection={homepageContent.collection || []}
@@ -203,39 +208,17 @@ function TrustSection() {
 
 function ProductShowcaseSection({ title, subtitle, items, loading, viewAllHref }) {
   return (
-    <AnimatedSection y={30}>
-      <section className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-2xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500">Product discovery</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white lg:text-3xl">
-              {title}
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300 lg:text-base">
-              {subtitle}
-            </p>
-          </div>
-          <Link
-            to={viewAllHref}
-            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-400/30 dark:hover:text-indigo-300"
-          >
-            View all
-          </Link>
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {loading
-            ? Array.from({ length: 8 }).map((_, index) => <ProductCardSkeleton key={index} />)
-            : items?.length
-              ? items.map((product) => <ProductCard key={product._id} product={product} />)
-              : (
-                <div className="col-span-full rounded-[1.5rem] border border-dashed border-slate-300 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                  No products to show yet.
-                </div>
-              )}
-        </div>
-      </section>
-    </AnimatedSection>
+    <div className="w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10">
+      <AnimatedSection y={30}>
+        <ProductCarousel
+          items={items}
+          loading={loading}
+          title={title}
+          subtitle={subtitle}
+          viewAllHref={viewAllHref}
+        />
+      </AnimatedSection>
+    </div>
   );
 }
 
@@ -557,20 +540,6 @@ function SliderControls({
             }`}
           />
         ))}
-      </div>
-    </div>
-  );
-}
-
-function ProductCardSkeleton() {
-  return (
-    <div className="overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/75 shadow-[0_28px_90px_-50px_rgba(15,23,42,0.35)] backdrop-blur dark:border-white/10 dark:bg-slate-900/75">
-      <div className="aspect-[0.9] animate-pulse bg-slate-200 dark:bg-slate-800" />
-      <div className="space-y-3 p-4">
-        <div className="h-3 w-24 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
-        <div className="h-5 w-5/6 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
-        <div className="h-4 w-2/3 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
-        <div className="h-11 w-full animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
       </div>
     </div>
   );

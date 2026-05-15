@@ -41,7 +41,7 @@ export function Footer() {
   return (
     <footer className="relative mt-12 overflow-hidden border-t border-white/10 bg-slate-950 text-slate-200">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(129,140,248,0.25),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.18),transparent_24%)]" />
-      <div className="relative mx-auto max-w-[88rem] px-4 py-12 lg:px-8 lg:py-16">
+      <div className="relative w-full px-3 py-12 sm:px-4 lg:px-8 lg:py-16">
         <div className="grid gap-8 rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:p-8">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-200/80">

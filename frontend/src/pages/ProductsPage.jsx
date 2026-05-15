@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, memo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { BackButton } from "../components/BackButton";
@@ -279,9 +279,10 @@ export function ProductsPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-4">
-        <div className="hidden lg:block">
-          <FilterSidebar
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-6">
+        <div className="hidden lg:block lg:col-span-1">
+          <div className="sticky top-4">
+            <FilterSidebar
             categories={categories}
             category={category}
             categoryId={categoryId}
@@ -452,9 +453,10 @@ export function ProductsPage() {
               />
             </div>
           ) : null}
+          </div>
         </div>
 
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-5">
           {loading && !products.length ? (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800 sm:p-8">
               <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">Loading products...</div>
@@ -464,12 +466,12 @@ export function ProductsPage() {
               <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">No products found. Try adjusting your filters.</div>
             </div>
           ) : (
-            <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-3 sm:space-y-4">
               <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
                 Showing {products.length} of {pagination.total} products
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:gap-3 lg:grid-cols-5 xl:grid-cols-6">
                 {products.map((product) => (
                   <ProductCard key={product._id} product={product} />
                 ))}
@@ -789,7 +791,7 @@ function RangeFacetCard({ title, min, max, floor, ceiling, step, onApply, format
   );
 }
 
-function ProductCard({ product }) {
+const ProductCard = memo(function ProductCard({ product }) {
   const discountPercent = product.discountPrice
     ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
     : 0;
@@ -797,96 +799,78 @@ function ProductCard({ product }) {
   return (
     <Link
       to={`/product/${product._id}`}
-      className="block overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:shadow-slate-950 dark:hover:shadow-slate-800/50"
+      className="group/card flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-all duration-200 hover:border-slate-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:shadow-slate-950/50"
     >
-      <div className="group relative w-full aspect-square overflow-hidden bg-slate-100 dark:bg-slate-800">
+      <div className="group relative w-full overflow-hidden bg-slate-100 dark:bg-slate-800" style={{ aspectRatio: "3/4" }}>
         {product.images?.[0]?.url ? (
           <img
             src={product.images[0].url}
             alt={product.name}
-            className="h-full w-full object-cover object-center group-hover:scale-110 transition duration-300"
+            className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
             onError={(event) => {
               event.target.src = "https://via.placeholder.com/300x300?text=Product";
             }}
           />
         ) : (
-          <div className="w-full aspect-square bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400">No Image</div>
+          <div className="flex h-full w-full items-center justify-center text-slate-400 text-xs">No Image</div>
         )}
         {discountPercent > 0 ? (
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition duration-300">
-            <div className="rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-3 py-2 text-center shadow-lg shadow-orange-500/30">
-              <div className="text-base font-black text-white">{discountPercent}%</div>
-              <div className="text-xs font-semibold text-white">OFF</div>
+          <div className="absolute top-1.5 right-1.5 transform transition-all duration-200 group-hover:scale-110">
+            <div className="flex flex-col items-center justify-center rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-2 py-1.5 shadow-lg shadow-orange-500/40">
+              <div className="text-xs font-black text-white leading-none">{discountPercent}%</div>
+              <div className="text-[9px] font-bold text-white leading-none">OFF</div>
             </div>
           </div>
         ) : null}
       </div>
 
-      <div className="p-3 sm:p-4">
-        <div>
-          <h3 className="line-clamp-2 text-sm font-medium text-slate-900 dark:text-slate-100 sm:text-base">{product.name}</h3>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {[product.category, product.subCategory].filter(Boolean).join(" / ")}
+      <div className="flex flex-1 flex-col gap-1.5 p-2 sm:p-2.5">
+        <div className="flex-1">
+          <h3 className="line-clamp-2 text-xs font-medium text-slate-900 dark:text-slate-100 sm:text-xs leading-tight">
+            {product.name}
+          </h3>
+          <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
+            {product.category}
           </p>
         </div>
 
-        {product.attributes && Object.keys(product.attributes).length ? (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {Object.entries(product.attributes)
-              .slice(0, 3)
-              .map(([key, value]) => (
-                <span key={key} className="rounded-full bg-slate-100 px-2 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  {toDisplayValue(key)}: {Array.isArray(value) ? value.join(", ") : String(value)}
-                </span>
-              ))}
+        {product.ratings?.averageRating > 0 && (
+          <div className="flex items-center gap-0.5">
+            <span className="text-xs font-semibold text-yellow-500">★ {product.ratings.averageRating.toFixed(1)}</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">({product.ratings.totalReviews})</span>
           </div>
-        ) : null}
+        )}
 
-        {product.ratings?.averageRating > 0 ? (
-          <div className="mt-2 flex items-center gap-1">
-            <div className="flex">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <span
-                  key={index}
-                  className={index < Math.round(product.ratings.averageRating) ? "text-yellow-400" : "text-slate-300 dark:text-slate-600"}
-                >
-                  *
-                </span>
-              ))}
-            </div>
-            <span className="text-xs text-slate-600 dark:text-slate-400">({product.ratings.totalReviews})</span>
-          </div>
-        ) : null}
-
-        <div className="mt-3">
+        <div className="space-y-0.5 border-t border-slate-100 pt-1 dark:border-slate-800">
           {product.discountPrice ? (
-            <div className="flex items-center gap-2">
-              <span className="text-base font-bold text-slate-900 dark:text-slate-100 sm:text-lg">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-slate-900 dark:text-slate-100 sm:text-sm">
                 {formatCurrency(product.discountPrice)}
               </span>
-              <span className="text-xs text-slate-500 line-through dark:text-slate-400 sm:text-sm">
+              <span className="text-[10px] text-slate-500 line-through dark:text-slate-400">
                 {formatCurrency(product.price)}
               </span>
             </div>
           ) : (
-            <span className="text-base font-bold text-slate-900 dark:text-slate-100 sm:text-lg">
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 sm:text-sm">
               {formatCurrency(product.price)}
             </span>
           )}
+          
+          <div className="text-[10px] font-medium">
+            {product.stock > 0 ? (
+              <span className="text-green-600 dark:text-green-400">In Stock</span>
+            ) : (
+              <span className="text-red-600 dark:text-red-400">Out of Stock</span>
+            )}
+          </div>
         </div>
 
-        <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-          {product.stock > 0 ? (
-            <span className="text-green-600 dark:text-green-400">In Stock ({product.stock})</span>
-          ) : (
-            <span className="text-red-600 dark:text-red-400">Out of Stock</span>
-          )}
-        </div>
-
-        <div className="mt-3 rounded-lg bg-blue-600 px-3 py-2 text-center text-xs font-medium text-white sm:text-sm">
-          View Product
-        </div>
+        <button className="mt-auto w-full rounded-md bg-blue-600 px-2 py-1.5 text-center text-[11px] font-semibold text-white transition-all duration-200 hover:bg-blue-700 active:scale-95 dark:hover:bg-blue-500 sm:text-xs">
+          View
+        </button>
       </div>
     </Link>
   );
-}
+});

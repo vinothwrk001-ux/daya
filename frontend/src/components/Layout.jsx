@@ -157,7 +157,7 @@ export function Layout() {
     <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.16),_transparent_34%),linear-gradient(to_bottom,_#ffffff,_#f8fafc_32%,_#eef2ff_100%)] text-slate-900 transition-colors dark:bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.16),_transparent_30%),linear-gradient(to_bottom,_#020617,_#020617_28%,_#0f172a_100%)] dark:text-white">
       {!isAdminRoute && !isVendorWorkspace && !isStaffWorkspace && !isInfluencerWorkspace ? (
         <header className="sticky top-0 z-30 border-b border-white/50 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/60">
-          <div className="mx-auto w-full max-w-[88rem] px-3 py-3 sm:px-4 lg:px-8">
+          <div className="w-full px-3 py-3 sm:px-4 lg:px-8">
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
                 <Link
@@ -173,7 +173,7 @@ export function Layout() {
                 </Link>
 
                 <div className="order-3 w-full lg:order-none lg:flex-1">
-                  <div className="group mx-auto w-full max-w-3xl transition-all duration-300 focus-within:max-w-[52rem]">
+                  <div className="group mx-auto w-full max-w-5xl transition-all duration-300 focus-within:max-w-6xl">
                     <SearchBar />
                   </div>
                 </div>
@@ -323,7 +323,7 @@ export function Layout() {
         className={
           isAdminRoute || isVendorWorkspace || isStaffWorkspace || isInfluencerWorkspace
             ? "flex-1"
-            : "mx-auto w-full max-w-[88rem] flex-1 px-3 py-5 sm:px-4 sm:py-7 lg:px-8 lg:py-10"
+            : "w-full flex-1 px-3 py-5 sm:px-4 sm:py-7 lg:px-8 lg:py-10"
         }
       >
         <PlatformFeaturesProvider>

@@ -2,8 +2,12 @@ import { memo, useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import * as subcategoryService from "../services/subcategoryService";
 
+/**
+ * CategoryNavigation Component
+ * Premium marketplace-style horizontal category navigation navbar.
+ * Inspired by Noon, Amazon, and Flipkart category navigation.
+ */
 function CategoryNavigationComponent({ categories = [], onSelect, selectedCategory }) {
-  const [isScrolled, setIsScrolled] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [hoveredCategoryId, setHoveredCategoryId] = useState(null);
@@ -13,25 +17,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
   const scrollTimeoutRef = useRef(null);
   const dropdownTimeoutRef = useRef(null);
 
-  // Handle window scroll with throttling
-  useEffect(() => {
-    let ticking = false;
-
-    function handleScroll() {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          setIsScrolled(window.scrollY > 100);
-          ticking = false;
-        });
-        ticking = true;
-      }
-    }
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Check scroll position of category container
+  // Check scroll position for arrow visibility
   const checkScroll = () => {
     if (scrollContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
@@ -46,9 +32,10 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
     return () => window.removeEventListener("resize", checkScroll);
   }, [categories]);
 
+  // Smooth horizontal scroll
   const scroll = (direction) => {
     if (scrollContainerRef.current) {
-      const scrollAmount = 300;
+      const scrollAmount = 200;
       scrollContainerRef.current.scrollBy({
         left: direction === "left" ? -scrollAmount : scrollAmount,
         behavior: "smooth",
@@ -66,17 +53,14 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
     setTimeout(checkScroll, 50);
   };
 
+  // Lazy load subcategories on hover
   const handleCategoryHover = async (categoryId) => {
-    if (isScrolled) return; // Don't show dropdown in scrolled mode
-
     setHoveredCategoryId(categoryId);
     
-    // Clear previous timeout
     if (dropdownTimeoutRef.current) {
       clearTimeout(dropdownTimeoutRef.current);
     }
 
-    // Don't fetch if already cached
     if (subcategories[categoryId]) return;
 
     try {
@@ -96,172 +80,132 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
   const handleHoverLeave = () => {
     dropdownTimeoutRef.current = setTimeout(() => {
       setHoveredCategoryId(null);
-    }, 100);
+    }, 150);
   };
 
   const categoryList = Array.isArray(categories) ? categories : [];
 
+  if (categoryList.length === 0) {
+    return null;
+  }
+
   return (
-    <div
-      className={`sticky top-16 z-40 border-b bg-white/95 backdrop-blur-xl will-change-none transition-all duration-300 dark:border-slate-800/50 dark:bg-slate-950/95 ${
-        isScrolled ? "border-slate-200/70 shadow-lg" : "border-slate-200/30 shadow-sm"
-      }`}
-    >
-      <div className="mx-auto w-full max-w-[88rem] px-3 lg:px-8 relative">
-        {/* Category Navigation */}
-        <div className="flex items-center gap-2 py-2 relative">
-          {/* Left scroll button */}
-          <button
-            type="button"
-            onClick={() => scroll("left")}
-            disabled={!canScrollLeft}
-            className={`flex-shrink-0 rounded-lg p-2 transition-all duration-200 ${
-              canScrollLeft
-                ? "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
-                : "cursor-not-allowed bg-slate-50 text-slate-300 dark:bg-slate-900/50 dark:text-slate-600"
-            } ${isScrolled ? "opacity-0 w-0 pointer-events-none" : "opacity-100"}`}
-            aria-label="Scroll left"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
+    <>
+      <nav
+        className="sticky top-16 z-30 border-b border-slate-200/40 bg-white/95 backdrop-blur-md will-change-none dark:border-slate-800/50 dark:bg-slate-950/95"
+        style={{ height: "48px" }}
+      >
+        <div className="w-full px-2 lg:px-4 h-full flex items-center relative">
+          {/* Left Arrow */}
+          {canScrollLeft && (
+            <button
+              type="button"
+              onClick={() => scroll("left")}
+              className="hidden lg:flex absolute left-0 z-10 h-full w-12 items-center justify-center bg-gradient-to-r from-white to-transparent dark:from-slate-950 hover:from-slate-50 dark:hover:from-slate-900 transition-colors duration-200 flex-shrink-0"
+              aria-label="Scroll categories left"
+            >
+              <ChevronLeft className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            </button>
+          )}
 
           {/* Categories Container */}
           <div
             ref={scrollContainerRef}
             onScroll={checkScroll}
-            className="flex-1 overflow-x-auto scrollbar-hide"
-            style={{ scrollBehavior: "smooth" }}
+            className="flex-1 overflow-x-auto scrollbar-hide flex items-center"
+            style={{ scrollBehavior: "smooth", msOverflowStyle: "none" }}
           >
-            <div
-              className={`flex px-2 py-2 will-change-none transition-all duration-300 ${
-                isScrolled ? "gap-1" : "gap-4"
-              }`}
-            >
+            <div className="flex items-center gap-1 px-2 h-full whitespace-nowrap lg:px-12">
               {categoryList.map((category) => {
                 const isSelected = selectedCategory?.id === category.id || selectedCategory?.slug === category.slug;
                 
-                // Scrolled mode: compact text-only buttons
-                if (isScrolled) {
-                  return (
-                    <button
-                      key={category.id}
-                      type="button"
-                      onClick={() => handleCategorySelect(category)}
-                      className={`flex items-center gap-1 flex-shrink-0 px-3 py-1 text-xs sm:text-sm font-medium transition-colors duration-200 whitespace-nowrap rounded-full ${
-                        isSelected
-                          ? "text-blue-600 font-bold border-b-2 border-blue-600"
-                          : "text-slate-600 hover:text-slate-900 dark:text-slate-400"
-                      }`}
-                    >
-                      {category.name}
-                    </button>
-                  );
-                }
-
-                // Normal mode: vertical icon + label layout with hover dropdown
                 return (
                   <div
                     key={category.id}
                     onMouseEnter={() => handleCategoryHover(category.id)}
                     onMouseLeave={handleHoverLeave}
+                    className="relative group"
                   >
                     <button
                       type="button"
                       onClick={() => handleCategorySelect(category)}
-                      className={`flex flex-col items-center justify-center gap-2 flex-shrink-0 rounded-lg px-4 py-2 text-center transition-colors duration-200 whitespace-nowrap group ${
-                        isSelected
-                          ? "bg-blue-50 dark:bg-blue-950/30"
-                          : "hover:bg-slate-50 dark:hover:bg-slate-900/50"
-                      }`}
-                    >
-                      {/* Icon */}
-                      {category?.IconComponent ? (
-                        <span className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-200 ${
-                          isSelected 
-                            ? "bg-blue-50 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300" 
-                            : "bg-white text-slate-600 group-hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300"
-                        }`}>
-                          <category.IconComponent className="h-5 w-5" />
-                        </span>
-                      ) : null}
-                      {/* Label */}
-                      <span className={`text-xs font-semibold transition-colors duration-200 ${
+                      className={`flex items-center gap-2 px-3 py-2 h-full text-xs sm:text-sm font-medium transition-all duration-200 relative group/btn ${
                         isSelected
                           ? "text-slate-900 dark:text-white"
-                          : "text-slate-600 dark:text-slate-400"
-                      }`}>
-                        {category.name.length > 12 ? `${category.name.substring(0, 10)}...` : category.name}
-                      </span>
-                      {/* Active indicator */}
-                      {isSelected ? (
-                        <div className="h-1 w-8 rounded-full bg-blue-600"></div>
-                      ) : null}
+                          : "text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                      }`}
+                    >
+                      <span className="flex-shrink-0">{category.name}</span>
+
+                      {isSelected && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full" />
+                      )}
+
+                      {!isSelected && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-300 dark:bg-slate-600 rounded-full transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-center" />
+                      )}
                     </button>
+
+                    {/* Dropdown Submenu */}
+                    {hoveredCategoryId === category.id && (
+                      <div
+                        className="absolute top-full left-0 pt-0 z-50 animate-in fade-in duration-150"
+                        onMouseEnter={() => {
+                          if (dropdownTimeoutRef.current) {
+                            clearTimeout(dropdownTimeoutRef.current);
+                          }
+                        }}
+                        onMouseLeave={handleHoverLeave}
+                      >
+                        <div className="bg-white dark:bg-slate-900 shadow-lg border border-slate-100 dark:border-slate-800 rounded-b-lg min-w-[200px] overflow-hidden">
+                          {loadingSubcategories === category.id ? (
+                            <div className="px-4 py-6 text-center text-xs text-slate-500">
+                              Loading...
+                            </div>
+                          ) : (subcategories[category.id] || []).length > 0 ? (
+                            <div className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800">
+                              {(subcategories[category.id] || []).slice(0, 8).map((sub) => (
+                                <button
+                                  key={sub._id || sub.id}
+                                  type="button"
+                                  onClick={() => {
+                                    onSelect?.(sub);
+                                    setHoveredCategoryId(null);
+                                  }}
+                                  className="px-4 py-2 text-xs sm:text-sm text-left text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800/50 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-150 font-medium"
+                                >
+                                  {sub.name}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="px-4 py-6 text-center text-xs text-slate-500">
+                              No subcategories
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Right scroll button */}
-          <button
-            type="button"
-            onClick={() => scroll("right")}
-            disabled={!canScrollRight}
-            className={`flex-shrink-0 rounded-lg p-2 transition-all duration-200 ${
-              canScrollRight
-                ? "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
-                : "cursor-not-allowed bg-slate-50 text-slate-300 dark:bg-slate-900/50 dark:text-slate-600"
-            } ${isScrolled ? "opacity-0 w-0 pointer-events-none" : "opacity-100"}`}
-            aria-label="Scroll right"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
+          {/* Right Arrow */}
+          {canScrollRight && (
+            <button
+              type="button"
+              onClick={() => scroll("right")}
+              className="hidden lg:flex absolute right-0 z-10 h-full w-12 items-center justify-center bg-gradient-to-l from-white to-transparent dark:from-slate-950 hover:from-slate-50 dark:hover:from-slate-900 transition-colors duration-200 flex-shrink-0"
+              aria-label="Scroll categories right"
+            >
+              <ChevronRight className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            </button>
+          )}
         </div>
+      </nav>
 
-        {/* Dropdown Submenu - Flipkart Style */}
-        {hoveredCategoryId && !isScrolled && (
-          <div
-            className="fixed left-0 right-0 top-[7.5rem] z-40 animate-in fade-in duration-200"
-            onMouseEnter={() => {
-              if (dropdownTimeoutRef.current) {
-                clearTimeout(dropdownTimeoutRef.current);
-              }
-            }}
-            onMouseLeave={handleHoverLeave}
-          >
-            <div className="mx-auto w-full max-w-[88rem] px-3 lg:px-8 py-4">
-              <div className="bg-white shadow-xl border border-slate-100 dark:bg-slate-900 dark:border-slate-800 overflow-hidden backdrop-blur-xl">
-                {loadingSubcategories === hoveredCategoryId ? (
-                  <div className="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading...</div>
-                ) : (subcategories[hoveredCategoryId] || []).length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-0">
-                    {(subcategories[hoveredCategoryId] || []).map((subcategory) => (
-                      <button
-                        key={subcategory._id || subcategory.id}
-                        type="button"
-                        onClick={() => {
-                          onSelect?.(subcategory);
-                          setHoveredCategoryId(null);
-                        }}
-                        className="px-4 py-3 text-left text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors duration-100 group cursor-pointer border-slate-100 dark:border-slate-800"
-                      >
-                        <span className="block group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-100 line-clamp-2">
-                          {subcategory.name}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-400">No subcategories</div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Smooth scroll styling */}
       <style>{`
         .scrollbar-hide {
           -ms-overflow-style: none;
@@ -270,38 +214,27 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
-        
+
         @keyframes fadeInScale {
           from {
             opacity: 0;
-            transform: translateY(-12px) scale(0.95);
+            transform: scale(0.95);
           }
           to {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: scale(1);
           }
         }
-        
-        @keyframes fadeOut {
-          from {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-          to {
-            opacity: 0;
-            transform: translateY(-12px) scale(0.95);
-          }
-        }
-        
+
         .animate-in {
-          animation: fadeInScale 300ms ease-out forwards;
+          animation: fadeInScale 200ms ease-out forwards;
         }
-        
+
         .fade-in {
-          animation: fadeInScale 300ms ease-out;
+          animation: fadeInScale 200ms ease-out;
         }
       `}</style>
-    </div>
+    </>
   );
 }
 
