@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { Heart, ShoppingCart, Star } from "lucide-react";
@@ -8,26 +8,68 @@ import { useCart } from "../hooks/useCart";
 import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
 import { getCartErrorMessage } from "../utils/cartErrors";
+import { extractProductId, getAvailableProductVariant } from "../utils/cartState";
 
 export function ProductCard({ product }) {
   const navigate = useNavigate();
-  const { addItem: addCartItem } = useCart();
+  const { cart, addItem: addCartItem } = useCart();
   const { openDrawer, showToast } = useCartDrawer();
-  const { addItem: addWishlistItem } = useWishlist();
+  const { addItem: addWishlistItem, removeItem: removeWishlistItem, isInWishlist: checkWishlistStatus } = useWishlist();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const imageUrl = resolveApiAssetUrl(product?.images?.[0]?.url || "");
+
+  const { selectedVariant, hasAvailableVariants, availableStock } = useMemo(
+    () => getAvailableProductVariant(product, cart?.items),
+    [cart?.items, product]
+  );
+
   const discountPercent = product?.discountPrice
     ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
     : 0;
 
+  useEffect(() => {
+    let active = true;
+
+    async function resolveWishlistStatus() {
+      try {
+        const status = await checkWishlistStatus(product._id);
+        if (active) {
+          setIsInWishlist(Boolean(status));
+        }
+      } catch (err) {
+        if (active) {
+          setIsInWishlist(false);
+        }
+      }
+    }
+
+    if (product?._id) {
+      resolveWishlistStatus();
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [product?._id, checkWishlistStatus]);
+
   const handleWishlist = async (event) => {
     event.preventDefault();
     event.stopPropagation();
+    if (isSubmitting) return;
+
     try {
       setIsSubmitting(true);
-      await addWishlistItem(product._id);
-      setIsInWishlist(!isInWishlist);
+
+      if (isInWishlist) {
+        await removeWishlistItem(product._id);
+        setIsInWishlist(false);
+      } else {
+        await addWishlistItem(product._id, selectedVariant?.variantId || "");
+        setIsInWishlist(true);
+      }
+    } catch (err) {
+      console.error("Failed to update wishlist:", err);
     } finally {
       setIsSubmitting(false);
     }
@@ -36,12 +78,15 @@ export function ProductCard({ product }) {
   const handleAddToCart = async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    if (isSubmitting) return;
+    if (isSubmitting || !hasAvailableVariants || availableStock <= 0) return;
+
     try {
       setIsSubmitting(true);
-      const added = await addCartItem(product._id, 1);
+      const { selectedVariant: nextSelectedVariant } = getAvailableProductVariant(product, cart?.items);
+      const variantId = nextSelectedVariant?.variantId || "";
+      const added = await addCartItem(product._id, 1, variantId);
       if (added) {
-        openDrawer(product, null, 1);
+        openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
       }
     } catch (err) {
       console.error("Failed to add to cart:", err);
@@ -116,10 +161,10 @@ export function ProductCard({ product }) {
           {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart}
-            disabled={isSubmitting || product?.stock <= 0}
+            disabled={isSubmitting || !hasAvailableVariants || availableStock <= 0}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Add to cart"
-            aria-label="Add to cart"
+            title={hasAvailableVariants ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
+            aria-label={hasAvailableVariants ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
           >
             <ShoppingCart size={20} strokeWidth={2} />
           </button>
@@ -167,10 +212,12 @@ export function ProductCard({ product }) {
 
         {/* Stock Status */}
         <div className="text-xs font-medium">
-          {product?.stock > 0 ? (
-            <span className="text-green-600 dark:text-green-400">In Stock</span>
+          {hasAvailableVariants ? (
+            <span className="text-green-600 dark:text-green-400">
+              {selectedVariant ? `${selectedVariant.title} — ${availableStock} left` : `In stock (${availableStock} available)`}
+            </span>
           ) : (
-            <span className="text-red-600 dark:text-red-400">Out of Stock</span>
+            <span className="text-red-600 dark:text-red-400">Out of stock</span>
           )}
         </div>
       </div>

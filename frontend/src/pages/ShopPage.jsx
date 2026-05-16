@@ -1,9 +1,13 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { ChevronDown, Heart, ShoppingCart } from "lucide-react";
 import * as productService from "../services/productService";
 import * as subcategoryService from "../services/subcategoryService";
 import { formatCurrency } from "../utils/formatCurrency";
+import { extractProductId, getAvailableProductVariant } from "../utils/cartState";
+import { getCartErrorMessage } from "../utils/cartErrors";
+import { useCart } from "../hooks/useCart";
+import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useCategories } from "../hooks/useCategories";
 
 export function ShopPage() {
@@ -309,6 +313,15 @@ export function ShopPage() {
  * - Hover effects for better UX
  */
 function ProductCard({ product, isInWishlist, onToggleWishlist }) {
+  const { cart, addItem: addCartItem } = useCart();
+  const { openDrawer, showToast } = useCartDrawer();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { selectedVariant, hasAvailableVariants, availableStock } = useMemo(
+    () => getAvailableProductVariant(product, cart?.items),
+    [cart?.items, product]
+  );
+
   const discountPercent = product.discountedPrice
     ? Math.round(((product.price - product.discountedPrice) / product.price) * 100)
     : 0;
@@ -365,8 +378,29 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
 
           {/* Add to Cart Button */}
           <button
-            className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200"
-            title="Add to cart"
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (isSubmitting || !hasAvailableVariants || availableStock <= 0) return;
+
+              try {
+                setIsSubmitting(true);
+                const { selectedVariant: nextSelectedVariant } = getAvailableProductVariant(product, cart?.items);
+                const variantId = nextSelectedVariant?.variantId || "";
+                const added = await addCartItem(product._id, 1, variantId);
+                if (added) {
+                  openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
+                }
+              } catch (err) {
+                console.error("Failed to add to cart:", err);
+                showToast(getCartErrorMessage(err, "Failed to add item to cart."));
+              } finally {
+                setIsSubmitting(false);
+              }
+            }}
+            disabled={isSubmitting || !hasAvailableVariants}
+            className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            title={hasAvailableVariants ? "Add to cart" : "Out of stock"}
             aria-label="Add to cart"
           >
             <ShoppingCart size={20} strokeWidth={2} />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Heart, ShoppingCart } from "lucide-react";
 import * as productService from "../services/productService";
@@ -6,6 +6,7 @@ import { formatCurrency } from "../utils/formatCurrency";
 import { useCart } from "../hooks/useCart";
 import { useCartDrawer } from "../hooks/useCartDrawer";
 import { getCartErrorMessage } from "../utils/cartErrors";
+import { extractProductId, getAvailableProductVariant } from "../utils/cartState";
 
 export function ProductSection({ title, icon, sortBy = "createdAt", limit = 8 }) {
   const [products, setProducts] = useState([]);
@@ -95,10 +96,15 @@ export function ProductSection({ title, icon, sortBy = "createdAt", limit = 8 })
 }
 
 function ProductCard({ product }) {
-  const { addItem: addCartItem } = useCart();
+  const { cart, addItem: addCartItem } = useCart();
   const { openDrawer, showToast } = useCartDrawer();
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { selectedVariant, hasAvailableVariants, availableStock } = useMemo(
+    () => getAvailableProductVariant(product, cart?.items),
+    [cart?.items, product]
+  );
 
   const discountPercent = product.discountPrice
     ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
@@ -115,12 +121,14 @@ function ProductCard({ product }) {
   const handleAddToCart = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (isSubmitting) return;
+    if (isSubmitting || !hasAvailableVariants) return;
     try {
       setIsSubmitting(true);
-      const added = await addCartItem(product._id, 1);
+      const { selectedVariant: nextSelectedVariant } = getAvailableProductVariant(product, cart?.items);
+      const variantId = nextSelectedVariant?.variantId || "";
+      const added = await addCartItem(product._id, 1, variantId);
       if (added) {
-        openDrawer(product, null, 1);
+        openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
       }
     } catch (err) {
       console.error("Failed to add to cart:", err);
@@ -181,7 +189,7 @@ function ProductCard({ product }) {
           {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart}
-            disabled={isSubmitting || product?.stock === 0}
+            disabled={isSubmitting || !hasAvailableVariants || availableStock <= 0}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
             title="Add to cart"
             aria-label="Add to cart"

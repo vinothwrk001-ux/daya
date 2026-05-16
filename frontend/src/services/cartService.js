@@ -10,9 +10,10 @@ export async function getCart() {
 
 export async function addToCart(productId, quantity = 1, variantId = "") {
   const { data } = await api.post("/api/cart/add", { productId, quantity, variantId });
-  const cart = normalizeCartPayload(data);
+  const payload = data?.data || data;
+  const cart = normalizeCartPayload(payload);
   emitCartChanged(cart);
-  return cart;
+  return { cart, addedItem: payload?.addedItem || null };
 }
 
 export async function updateCartItem(productId, quantity, variantId = "") {

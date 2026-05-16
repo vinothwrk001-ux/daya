@@ -3,6 +3,7 @@ export function getCartErrorMessage(error, fallback = "Something went wrong with
   const message = error?.response?.data?.message || error?.message || "";
 
   if (
+    code === "OUT_OF_STOCK" ||
     code === "INSUFFICIENT_STOCK" ||
     code === "NOT_AVAILABLE" ||
     /insufficient stock/i.test(message) ||

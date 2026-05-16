@@ -24,9 +24,17 @@ const add = asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new AppError("Login required to add items to cart", 401, "AUTH_REQUIRED");
   }
+  // Normalize incoming payload to be resilient against different client shapes
+  const raw = req.body || {};
+  const productId = raw.productId || raw.product?._id || raw.product?.id || raw.productId || raw.product || null;
+  const quantity = Number(raw.quantity || raw.qty || 1);
+  const variantId = raw.variantId || raw.variant?.variantId || raw.variant || "";
 
-  const cart = await cartService.addItem(req.user.sub, req.body || {});
-  return ok(res, cart, "Added to cart");
+  const itemPayload = { productId, quantity, variantId };
+
+  const result = await cartService.addItem(req.user.sub, itemPayload);
+  const responsePayload = result && result.cart ? { ...result.cart, addedItem: result.addedItem } : result;
+  return ok(res, responsePayload, "Added to cart");
 });
 
 const update = asyncHandler(async (req, res) => {
@@ -35,7 +43,12 @@ const update = asyncHandler(async (req, res) => {
     throw new AppError("Login required to update cart", 401, "AUTH_REQUIRED");
   }
 
-  const cart = await cartService.updateItem(req.user.sub, req.body || {});
+  const raw = req.body || {};
+  const productId = raw.productId || raw.product?._id || raw.product?.id || raw.product || null;
+  const quantity = raw.quantity ?? raw.qty ?? null;
+  const variantId = raw.variantId || raw.variant?.variantId || raw.variant || "";
+
+  const cart = await cartService.updateItem(req.user.sub, { productId, quantity, variantId });
   return ok(res, cart, "Cart updated");
 });
 
@@ -45,8 +58,9 @@ const remove = asyncHandler(async (req, res) => {
     throw new AppError("Login required to modify cart", 401, "AUTH_REQUIRED");
   }
 
-  const productId = req.body?.productId || req.query?.productId;
-  const variantId = req.body?.variantId || req.query?.variantId || "";
+  const raw = req.body || req.query || {};
+  const productId = raw.productId || raw.product?._id || raw.product?.id || raw.product || null;
+  const variantId = raw.variantId || raw.variant?.variantId || raw.variant || "";
   const cart = await cartService.removeItem(req.user.sub, { productId, variantId });
   return ok(res, cart, "Removed from cart");
 });

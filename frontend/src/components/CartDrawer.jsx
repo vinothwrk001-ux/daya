@@ -24,6 +24,8 @@ export function CartDrawer() {
     isAnimating,
     openCount,
     lastAddedProduct,
+    lastAddedVariant,
+    lastAddedQuantity,
     closeDrawer,
     toast,
     showToast,
@@ -100,12 +102,48 @@ export function CartDrawer() {
 
   const normalizedCart = useMemo(() => normalizeCartPayload(cart), [cart]);
   const cartItems = normalizedCart.items;
+
+  const fallbackCartItem = useMemo(() => {
+    if (cartItems.length > 0 || !lastAddedProduct) return null;
+
+    const rawImage =
+      Array.isArray(lastAddedProduct?.images) && lastAddedProduct.images.length
+        ? typeof lastAddedProduct.images[0] === "string"
+          ? lastAddedProduct.images[0]
+          : lastAddedProduct.images[0]?.url
+        : "";
+
+    const itemPrice = Number(
+      lastAddedVariant?.discountPrice ?? lastAddedVariant?.price ?? lastAddedProduct?.discountPrice ?? lastAddedProduct?.price ?? 0
+    );
+
+    return {
+      productId: lastAddedProduct,
+      name: lastAddedProduct?.name || "Product",
+      image: rawImage,
+      quantity: Number(lastAddedQuantity || 1),
+      price: itemPrice,
+      variantId: lastAddedVariant?.variantId || "",
+      variantTitle: lastAddedVariant?.variantTitle || lastAddedVariant?.title || "",
+      variantAttributes: lastAddedVariant?.selectedAttributes || {},
+    };
+  }, [cartItems.length, lastAddedProduct, lastAddedQuantity, lastAddedVariant]);
+
+  const displayItems = fallbackCartItem ? [fallbackCartItem] : cartItems;
   const cartTotals = useMemo(
-    () => ({
-      subtotal: normalizedCart.totalAmount,
-      items: normalizedCart.totalQuantity,
-    }),
-    [normalizedCart]
+    () => {
+      if (fallbackCartItem) {
+        return {
+          subtotal: fallbackCartItem.price * Number(fallbackCartItem.quantity || 0),
+          items: Number(fallbackCartItem.quantity || 0),
+        };
+      }
+      return {
+        subtotal: normalizedCart.totalAmount,
+        items: normalizedCart.totalQuantity,
+      };
+    },
+    [normalizedCart, fallbackCartItem]
   );
 
   const handleDeleteItem = async (productId, variantId) => {
@@ -149,9 +187,22 @@ export function CartDrawer() {
           } pb-[max(1rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)]`}
         >
           <div className="flex items-center justify-between border-b border-slate-200 p-4 sm:p-6 dark:border-slate-800">
-            <h2 id="drawer-title" className="text-lg font-bold text-slate-900 dark:text-white sm:text-xl">
-              Added to Cart
-            </h2>
+            <div>
+              <h2 id="drawer-title" className="text-lg font-bold text-slate-900 dark:text-white sm:text-xl">
+                Added to Cart
+              </h2>
+              {lastAddedVariant ? (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {lastAddedVariant.variantTitle || lastAddedVariant.title
+                    ? `Selected variant: ${lastAddedVariant.variantTitle || lastAddedVariant.title}`
+                    : Object.keys(lastAddedVariant?.selectedAttributes || {}).length > 0
+                    ? `Selected: ${Object.entries(lastAddedVariant.selectedAttributes)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(", ")}`
+                    : "Best available variant auto-selected."}
+                </p>
+              ) : null}
+            </div>
             <button
               ref={closeButtonRef}
               onClick={closeDrawer}
@@ -172,14 +223,14 @@ export function CartDrawer() {
               </div>
             ) : null}
 
-            {cartItems.length > 0 ? (
+            {displayItems.length > 0 ? (
               <div className="border-b border-slate-200 p-4 dark:border-slate-800 sm:p-6">
                 <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Cart Items ({cartItems.length})
+                  Cart Items ({displayItems.length})
                 </h3>
 
                 <div className="space-y-3">
-                  {cartItems.map((item) => {
+                  {displayItems.map((item) => {
                     const product = typeof item?.productId === "object" ? item.productId : null;
                     const productId = extractProductId(item?.productId || item);
                     const variantId = extractVariantId(item);

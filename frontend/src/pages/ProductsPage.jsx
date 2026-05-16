@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState, memo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Heart, ShoppingCart } from "lucide-react";
 import { BackButton } from "../components/BackButton";
 import { useCategories } from "../hooks/useCategories";
 import { getSubcategoriesByCategory } from "../services/subcategoryService";
 import * as productService from "../services/productService";
 import { formatCurrency } from "../utils/formatCurrency";
+import { extractProductId, getAvailableProductVariant } from "../utils/cartState";
+import { useCart } from "../hooks/useCart";
+import { useCartDrawer } from "../hooks/useCartDrawer";
+import { useWishlist } from "../hooks/useWishlist";
+import { getCartErrorMessage } from "../utils/cartErrors";
 
 const RESERVED_QUERY_KEYS = new Set([
   "category",
@@ -792,9 +797,77 @@ function RangeFacetCard({ title, min, max, floor, ceiling, step, onApply, format
 }
 
 const ProductCard = memo(function ProductCard({ product }) {
+  const { cart, addItem: addCartItem } = useCart();
+  const { openDrawer, showToast } = useCartDrawer();
+  const { addItem: addWishlistItem, removeItem: removeWishlistItem, isInWishlist: checkWishlistStatus } = useWishlist();
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const status = await checkWishlistStatus(product._id);
+        if (active) setIsInWishlist(Boolean(status));
+      } catch (err) {
+        if (active) setIsInWishlist(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [product._id, checkWishlistStatus]);
+
+  const { selectedVariant, hasAvailableVariants, availableStock } = useMemo(
+    () => getAvailableProductVariant(product, cart?.items),
+    [cart?.items, product]
+  );
+
   const discountPercent = product.discountPrice
     ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
     : 0;
+
+  const handleWishlist = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+      if (isInWishlist) {
+        await removeWishlistItem(product._id);
+        setIsInWishlist(false);
+      } else {
+        await addWishlistItem(product._id, selectedVariant?.variantId || "");
+        setIsInWishlist(true);
+      }
+    } catch (err) {
+      console.error("Failed to update wishlist:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddToCart = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isSubmitting || !hasAvailableVariants) return;
+
+    try {
+      setIsSubmitting(true);
+      const { selectedVariant: nextSelectedVariant } = getAvailableProductVariant(product, cart?.items);
+      const variantId = nextSelectedVariant?.variantId || "";
+      const added = await addCartItem(product._id, 1, variantId);
+      if (added) {
+        openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
+      }
+    } catch (err) {
+      console.error("Failed to add to cart:", err);
+      showToast(getCartErrorMessage(err, "Failed to add item to cart."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Link
@@ -823,6 +896,36 @@ const ProductCard = memo(function ProductCard({ product }) {
             </div>
           </div>
         ) : null}
+
+        <div className="absolute top-2 right-2 z-10 flex flex-col gap-2 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-out">
+          <button
+            onClick={handleWishlist}
+            disabled={isSubmitting}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+            aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <Heart
+              size={18}
+              strokeWidth={1.5}
+              className={`transition-all duration-300 ${
+                isInWishlist
+                  ? "fill-red-500 text-red-500"
+                  : "text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            />
+          </button>
+
+          <button
+            onClick={handleAddToCart}
+            disabled={isSubmitting || !hasAvailableVariants || availableStock <= 0}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            title={hasAvailableVariants ? "Add to cart" : "Out of stock"}
+            aria-label="Add to cart"
+          >
+            <ShoppingCart size={18} strokeWidth={2} />
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-1.5 p-2 sm:p-2.5">

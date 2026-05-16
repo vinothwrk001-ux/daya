@@ -4,9 +4,10 @@ import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { useWishlist } from "../hooks/useWishlist";
 import { useCart } from "../hooks/useCart";
+import { getCartErrorMessage } from "../utils/cartErrors";
 
-function normalizeError(err) {
-  return err?.response?.data?.message || err?.message || "Failed to load wishlist.";
+function normalizeError(err, fallback = "Failed to load wishlist.") {
+  return getCartErrorMessage(err, fallback);
 }
 
 export function WishlistPage() {
@@ -51,7 +52,7 @@ export function WishlistPage() {
       await removeWishlistItem(productId);
       setError("");
     } catch (err) {
-      setError(normalizeError(err));
+      setError(normalizeError(err, "Failed to move item to cart."));
     } finally {
       setBusyProductId("");
     }
@@ -67,13 +68,13 @@ export function WishlistPage() {
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="h-80 animate-pulse rounded-3xl bg-slate-100 dark:bg-slate-800" />
           ))}
         </div>
       ) : wishlistItems.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {wishlistItems.map((item) => {
             const product = item.product || item;
             const image = resolveApiAssetUrl(product?.images?.[0]?.url || item?.image);

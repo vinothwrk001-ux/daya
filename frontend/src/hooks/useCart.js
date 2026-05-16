@@ -86,15 +86,32 @@ export const useCart = () => {
       const requestKey = `${isGuest ? "guest" : "auth"}:${getCartItemKey(productId, variantId)}`;
 
       if (pendingAddItemRequests.has(requestKey)) {
-        return null;
+        return pendingAddItemRequests.get(requestKey);
       }
 
       const request = (async () => {
         if (isGuest) {
           try {
-            const enrichedItem = await cartService.validateItem(productId, quantity, variantId);
-            guestCart.addItem(enrichedItem);
-            return enrichedItem;
+            const existingItem = guestCart.items.find(
+              (item) =>
+                String(item.productId) === String(productId) &&
+                String(item.variantId || "") === String(variantId || "")
+            );
+            const addQuantity = Number(quantity || 1);
+            const totalQuantity = (existingItem?.quantity || 0) + addQuantity;
+            const enrichedItem = await cartService.validateItem(productId, totalQuantity, variantId);
+            guestCart.addItem({
+              ...enrichedItem,
+              quantity: addQuantity,
+            });
+            return {
+              ...enrichedItem,
+              variant: {
+                variantId: enrichedItem.variantId || "",
+                title: enrichedItem.variantTitle || "",
+                selectedAttributes: enrichedItem.variantAttributes || {},
+              },
+            };
           } catch (err) {
             setError(err.message);
             throw err;
@@ -103,10 +120,19 @@ export const useCart = () => {
 
         try {
           setLoading(true);
-          const updatedCart = await cartService.addToCart(productId, quantity, variantId);
-          const normalized = normalizeCartPayload(updatedCart);
+          const result = await cartService.addToCart(productId, quantity, variantId);
+          const normalized = normalizeCartPayload(result?.cart || result);
           setAuthCart(normalized);
-          return normalized;
+          const addedItem = result?.addedItem || normalized;
+          return {
+            ...addedItem,
+            variant: addedItem?.variant || {
+              variantId: addedItem?.variantId || "",
+              title: addedItem?.variantTitle || "",
+              selectedAttributes: addedItem?.variantAttributes || {},
+            },
+            cart: normalized,
+          };
         } catch (err) {
           setError(err.message);
           throw err;
@@ -133,9 +159,14 @@ export const useCart = () => {
       setError(null);
 
       if (isGuest) {
-        // For guest: update locally
-        guestCart.updateItem(productId, variantId, quantity);
-        return guestCart.getCart();
+        try {
+          await cartService.validateItem(productId, quantity, variantId);
+          guestCart.updateItem(productId, variantId, quantity);
+          return guestCart.getCart();
+        } catch (err) {
+          setError(err.message);
+          throw err;
+        }
       } else {
         // For auth: use backend API
         try {

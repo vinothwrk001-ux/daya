@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const { AppError } = require("../utils/AppError");
 const productRepo = require("../repositories/product.repository");
 const vendorRepo = require("../repositories/vendor.repository");
+const { resolveBestVariant } = require("./variantResolver.service");
 
 /**
  * Guest Cart Service
@@ -22,14 +23,22 @@ function getVariantForProduct(product, variantId) {
   const variants = Array.isArray(product?.variants) ? product.variants : [];
   if (!variants.length) return null;
   if (!variantId) {
-    return (
-      variants.find((item) => item.isDefault && item.isActive && item.stock > 0) ||
-      variants.find((item) => item.isActive && item.stock > 0) ||
-      variants.find((item) => item.isActive) ||
-      null
-    );
+    return resolveBestVariant(product);
   }
   return variants.find((item) => item.variantId === variantId && item.isActive) || null;
+}
+
+function getVariantAvailableQuantity(product, variant, quantityInCart = 0) {
+  if (!variant) return 0;
+  const stock = Number(variant.stock || 0);
+  const reservedStock = Number(variant.reservedStock || 0);
+  return Math.max(0, stock - reservedStock - Number(quantityInCart || 0));
+}
+
+function getAvailableLegacyQuantity(product, quantityInCart = 0) {
+  const stock = Number(product.stock || 0);
+  const reservedStock = Number(product.reservedStock || 0);
+  return Math.max(0, stock - reservedStock - Number(quantityInCart || 0));
 }
 
 function getItemKey(productId, variantId = "") {
@@ -68,12 +77,19 @@ class GuestCartService {
     }
 
     const variant = getVariantForProduct(product, variantId);
-    const availableStock = variant ? Number(variant.stock || 0) : Number(product.stock || 0);
+    const availableStock = variant
+      ? getVariantAvailableQuantity(product, variant, 0)
+      : getAvailableLegacyQuantity(product, 0);
 
     if (!variant && Array.isArray(product?.variants) && product.variants.length && variantId) {
       throw new AppError("Selected variant is not available", 400, "NOT_AVAILABLE");
     }
-    if (availableStock < qty) throw new AppError("Insufficient stock", 400, "INSUFFICIENT_STOCK");
+    if (availableStock === 0) {
+      throw new AppError("Product is out of stock", 400, "OUT_OF_STOCK");
+    }
+    if (availableStock < qty) {
+      throw new AppError(`Only ${availableStock} item${availableStock === 1 ? "" : "s"} available`, 400, "INSUFFICIENT_STOCK");
+    }
 
     const resolvedSellerId = await resolveSellerIdForProduct(product);
     if (!resolvedSellerId) throw new AppError("Seller not found for product", 400, "INVALID_PRODUCT");
@@ -121,12 +137,25 @@ class GuestCartService {
         }
 
         const variant = getVariantForProduct(product, item.variantId);
-        const availableStock = variant ? Number(variant.stock || 0) : Number(product.stock || 0);
+        const availableStock = variant
+          ? getVariantAvailableQuantity(product, variant, 0)
+          : getAvailableLegacyQuantity(product, 0);
 
+        if (availableStock === 0) {
+          errors.push({
+            productId: item.productId,
+            error: "Out of stock",
+            code: "OUT_OF_STOCK",
+            availableStock,
+          });
+          continue;
+        }
         if (availableStock < item.quantity) {
           errors.push({
             productId: item.productId,
-            error: `Only ${availableStock} items available`,
+            error: `Only ${availableStock} item${availableStock === 1 ? "" : "s"} available`,
+            code: "INSUFFICIENT_STOCK",
+            availableStock,
           });
           continue;
         }

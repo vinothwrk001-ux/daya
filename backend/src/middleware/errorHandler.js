@@ -24,16 +24,14 @@ function errorHandler(err, req, res, next) {
   const payload = {
     success: false,
     message,
+    code: err.code || (isAppError ? err.code : "INTERNAL_ERROR"),
   };
 
   if (isAppError && err.details) payload.details = err.details;
-  if (process.env.NODE_ENV !== "production") {
-    payload.code = err.code || (isAppError ? err.code : "INTERNAL_ERROR");
-    if (!isAppError) {
-      payload.debug = {
-        message: err.message,
-      };
-    }
+  if (process.env.NODE_ENV !== "production" && !isAppError) {
+    payload.debug = {
+      message: err.message,
+    };
   }
 
   logger.error("Request error", {

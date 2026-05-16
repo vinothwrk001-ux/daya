@@ -10,6 +10,9 @@ const router = express.Router();
  */
 router.get("/", authRequired, wishlistController.list);
 router.get("/:productId/status", authOptional, wishlistController.status);
+router.post("/validate-items", authOptional, wishlistController.validateWishlistItems);
+router.post("/merge", authRequired, wishlistController.mergeGuestWishlist);
+
 router.post("/:productId", authRequired, wishlistController.add);
 router.delete("/:productId", authRequired, wishlistController.remove);
 
@@ -19,13 +22,6 @@ router.delete("/:productId", authRequired, wishlistController.remove);
  */
 router.post("/:productId/validate", authOptional, wishlistController.validateProduct);
 router.get("/:productId/check", authOptional, wishlistController.getProductStatus);
-router.post("/validate-items", authOptional, wishlistController.validateWishlistItems);
-
-/**
- * MERGE ENDPOINT
- * After guest login - merge guest wishlist into user wishlist
- */
-router.post("/merge", authRequired, wishlistController.mergeGuestWishlist);
 
 module.exports = router;
 
