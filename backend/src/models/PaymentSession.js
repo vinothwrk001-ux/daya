@@ -101,7 +101,6 @@ const paymentSessionSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
@@ -114,8 +113,17 @@ const paymentSessionSchema = new mongoose.Schema(
   }
 );
 
-paymentSessionSchema.index({ userId: 1, status: 1, createdAt: -1 });
-paymentSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+paymentSessionSchema.index(
+  { userId: 1, status: 1, createdAt: -1 },
+  { name: "payment_session_user_status_created_at" }
+);
+paymentSessionSchema.index(
+  { expiresAt: 1 },
+  {
+    expireAfterSeconds: 0,
+    name: "payment_session_ttl",
+  }
+);
 
 module.exports = {
   PaymentSession:
