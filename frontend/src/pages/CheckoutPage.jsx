@@ -13,6 +13,7 @@ import * as checkoutService from "../services/checkoutService";
 import * as paymentService from "../services/paymentService";
 import * as pricingService from "../services/pricingService";
 import * as userService from "../services/userService";
+import { extractProductId, extractVariantId, getCartItemKey } from "../utils/cartState";
 import { formatCurrency } from "../utils/formatCurrency";
 import {
   EMPTY_ADDRESS_FORM,
@@ -145,6 +146,65 @@ function delay(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function reconcileSummaryWithCart(summary, cartLike) {
+  const cartItems = Array.isArray(cartLike?.items) ? cartLike.items : [];
+  if (!cartItems.length) return null;
+  if (!summary || !Array.isArray(summary?.sellers)) return summary;
+
+  const cartItemMap = new Map(
+    cartItems.map((item) => [
+      getCartItemKey(extractProductId(item?.productId || item), extractVariantId(item)),
+      item,
+    ])
+  );
+
+  const sellers = summary.sellers
+    .map((seller) => {
+      const items = Array.isArray(seller?.items)
+        ? seller.items
+            .map((item) => {
+              const key = getCartItemKey(extractProductId(item?.productId || item), extractVariantId(item));
+              const cartItem = cartItemMap.get(key);
+              if (!cartItem) return null;
+              return {
+                ...item,
+                quantity: cartItem.quantity,
+                price: cartItem.price,
+                image: cartItem.image || item.image,
+                variantId: cartItem.variantId || item.variantId || "",
+                variantTitle: cartItem.variantTitle || item.variantTitle || "",
+              };
+            })
+            .filter(Boolean)
+        : [];
+
+      return {
+        ...seller,
+        items,
+        subtotal: items.reduce((sum, item) => sum + Number(item?.price || 0) * Number(item?.quantity || 0), 0),
+      };
+    })
+    .filter((seller) => seller.items.length > 0);
+
+  if (!sellers.length) return null;
+
+  const subtotal = sellers.reduce((sum, seller) => sum + Number(seller?.subtotal || 0), 0);
+  const chargesTotal = Number(summary?.chargesTotal || 0);
+  const itemCount = sellers.reduce(
+    (sum, seller) => sum + seller.items.reduce((itemSum, item) => itemSum + Number(item?.quantity || 0), 0),
+    0
+  );
+
+  return {
+    ...summary,
+    sellers,
+    subtotal,
+    itemCount,
+    total: subtotal + chargesTotal,
+    totalAmount: subtotal + chargesTotal,
+  };
+}
+
 function persistCheckoutSuccessPayload(payload) {
   if (typeof window === "undefined") return;
 
@@ -201,6 +261,10 @@ export function CheckoutPage() {
   const unlockedSteps = useMemo(() => ["address", "summary", "payment"], []);
   const orderItems = useMemo(() => getSummaryItems(summary), [summary]);
   const totalAmount = useMemo(() => summary?.total || summary?.totalAmount || 0, [summary]);
+  const getCheckoutItemKey = useCallback(
+    (item) => `${extractProductId(item?.productId || item)}:${extractVariantId(item)}`,
+    []
+  );
 
   const priceBreakdown = useMemo(() => {
     if (!summary) return null;
@@ -510,20 +574,26 @@ export function CheckoutPage() {
     setUpdatingItemId(`${String(productId)}:${variantId || ""}`);
     setError("");
     try {
-      await updateItem(productId, quantity, variantId);
+      const updatedCart = await updateItem(productId, quantity, variantId);
+      let resolvedSummary = null;
 
       if (isAuthenticated) {
+        resolvedSummary = reconcileSummaryWithCart(summary, updatedCart);
+        setSummary(resolvedSummary);
+        setCodAvailability(resolvedSummary?.codAvailability || codAvailability || null);
         await refreshCart();
+      } else {
+        const guestValidation = await validateCart(Array.isArray(updatedCart?.items) ? updatedCart.items : []);
+        const nextSummary = await loadPreparedCheckout(
+          activeShippingAddress,
+          paymentMethod,
+          guestValidation?.validatedItems
+        );
+        resolvedSummary = nextSummary;
       }
 
-      const guestValidation = !isAuthenticated ? await validateCart() : null;
-      const nextSummary = await loadPreparedCheckout(
-        activeShippingAddress,
-        paymentMethod,
-        guestValidation?.validatedItems
-      );
-      setSummary(nextSummary);
-      setCodAvailability(nextSummary?.codAvailability || null);
+      setSummary(resolvedSummary);
+      setCodAvailability(resolvedSummary?.codAvailability || codAvailability || null);
       setAmountPulse(true);
       setToast({ type: "success", message: "Order summary updated." });
     } catch (quantityError) {
@@ -537,26 +607,32 @@ export function CheckoutPage() {
     setUpdatingItemId(`${String(productId)}:${variantId || ""}`);
     setError("");
     try {
-      await removeItem(productId, variantId);
+      const updatedCart = await removeItem(productId, variantId);
+      let resolvedSummary = null;
 
       if (isAuthenticated) {
+        resolvedSummary = reconcileSummaryWithCart(summary, updatedCart);
+        setSummary(resolvedSummary);
+        setCodAvailability(resolvedSummary?.codAvailability || codAvailability || null);
         await refreshCart();
+      } else {
+        const guestValidation = await validateCart(Array.isArray(updatedCart?.items) ? updatedCart.items : []);
+        const nextSummary = await loadPreparedCheckout(
+          activeShippingAddress,
+          paymentMethod,
+          guestValidation?.validatedItems
+        );
+        resolvedSummary = nextSummary;
       }
 
-      const guestValidation = !isAuthenticated ? await validateCart() : null;
-      const nextSummary = await loadPreparedCheckout(
-        activeShippingAddress,
-        paymentMethod,
-        guestValidation?.validatedItems
-      );
-      const remainingItems = getSummaryItems(nextSummary);
+      const remainingItems = getSummaryItems(resolvedSummary);
 
-      if (!nextSummary || remainingItems.length === 0) {
+      if (!resolvedSummary || remainingItems.length === 0) {
         setSummary(null);
         setToast({ type: "success", message: "Item removed. Your checkout is now empty." });
       } else {
-        setSummary(nextSummary);
-        setCodAvailability(nextSummary?.codAvailability || null);
+        setSummary(resolvedSummary);
+        setCodAvailability(resolvedSummary?.codAvailability || codAvailability || null);
         setAmountPulse(true);
         setToast({ type: "success", message: "Item removed from checkout." });
       }
@@ -945,13 +1021,13 @@ export function CheckoutPage() {
               <div className="mt-5 grid gap-4">
                 {orderItems.map((item) => (
                   <OrderSummaryCard
-                    key={`${String(item.productId)}:${item.variantId || ""}`}
+                    key={getCheckoutItemKey(item)}
                     item={item}
-                    busy={updatingItemId === `${String(item.productId)}:${item.variantId || ""}`}
+                    busy={updatingItemId === getCheckoutItemKey(item)}
                     onQuantityChange={(quantity) =>
-                      handleQuantityChange(String(item.productId), item.variantId || "", quantity)
+                      handleQuantityChange(extractProductId(item?.productId || item), extractVariantId(item), quantity)
                     }
-                    onRemove={() => handleRemoveItem(String(item.productId), item.variantId || "")}
+                    onRemove={() => handleRemoveItem(extractProductId(item?.productId || item), extractVariantId(item))}
                   />
                 ))}
               </div>

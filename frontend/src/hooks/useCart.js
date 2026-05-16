@@ -213,8 +213,16 @@ export const useCart = () => {
   /**
    * Validate cart (recheck inventory, pricing)
    */
-  const validateCart = useCallback(async () => {
-    const currentCart = getCurrentCart();
+  const validateCart = useCallback(async (itemsOverride = null) => {
+    const currentCart = Array.isArray(itemsOverride)
+      ? {
+          items: itemsOverride,
+          totalAmount: itemsOverride.reduce(
+            (sum, item) => sum + Number(item?.price || 0) * Number(item?.quantity || 0),
+            0
+          ),
+        }
+      : getCurrentCart();
 
     if (currentCart.items.length === 0) {
       return { validatedItems: [], errors: [] };
