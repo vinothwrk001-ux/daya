@@ -1,12 +1,25 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion as Motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard } from "./ProductCard";
 
-export function ProductCarousel({ items = [], loading = false, title, subtitle, viewAllHref }) {
+export function ProductCarousel({
+  items = [],
+  loading = false,
+  title,
+  subtitle,
+  viewAllHref,
+  showArrows = true,
+  showDots = true,
+  swipeEnabled = true,
+  autoSlide = false,
+  slideSpeed = 3500,
+  desktopItemsPerView = 6,
+  tabletItemsPerView = 3,
+  mobileItemsPerView = 1.5,
+}) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [itemsPerView, setItemsPerView] = useState(4);
-  const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const touchStartXRef = useRef(0);
@@ -15,27 +28,20 @@ export function ProductCarousel({ items = [], loading = false, title, subtitle, 
   // Detect responsive breakpoints
   useEffect(() => {
     const handleResize = () => {
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.offsetWidth);
-      }
-
       const width = window.innerWidth;
       if (width < 640) {
-        // Mobile: 1.5 products (shows next product peeking)
-        setItemsPerView(1.5);
+        setItemsPerView(mobileItemsPerView);
       } else if (width < 1024) {
-        // Tablet: 3 products
-        setItemsPerView(3);
+        setItemsPerView(tabletItemsPerView);
       } else {
-        // Desktop: 6 products (full page width)
-        setItemsPerView(6);
+        setItemsPerView(desktopItemsPerView);
       }
     };
 
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [desktopItemsPerView, mobileItemsPerView, tabletItemsPerView]);
 
   // Calculate max carousel index
   const maxIndex = Math.max(0, items.length - itemsPerView);
@@ -61,6 +67,7 @@ export function ProductCarousel({ items = [], loading = false, title, subtitle, 
   };
 
   const handleTouchEnd = (e) => {
+    if (!swipeEnabled) return;
     touchEndXRef.current = e.changedTouches[0].clientX;
     handleSwipe();
   };
@@ -82,6 +89,14 @@ export function ProductCarousel({ items = [], loading = false, title, subtitle, 
 
   // Calculate translateX for smooth animation
   const translateX = -currentIndex * (100 / itemsPerView);
+
+  useEffect(() => {
+    if (!autoSlide || items.length <= itemsPerView) return undefined;
+    const timer = window.setInterval(() => {
+      setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+    }, Number(slideSpeed || 3500));
+    return () => window.clearInterval(timer);
+  }, [autoSlide, items.length, itemsPerView, maxIndex, slideSpeed]);
 
   // Show loading skeletons
   if (loading) {
@@ -160,7 +175,7 @@ export function ProductCarousel({ items = [], loading = false, title, subtitle, 
           direction="left"
           onClick={handlePrevious}
           disabled={currentIndex === 0}
-          show={items.length > itemsPerView}
+          show={showArrows && items.length > itemsPerView}
         />
 
         {/* Product Carousel */}
@@ -200,11 +215,11 @@ export function ProductCarousel({ items = [], loading = false, title, subtitle, 
           direction="right"
           onClick={handleNext}
           disabled={currentIndex >= maxIndex}
-          show={items.length > itemsPerView}
+          show={showArrows && items.length > itemsPerView}
         />
 
         {/* Carousel Indicators (Dots) */}
-        {items.length > itemsPerView && (
+        {showDots && items.length > itemsPerView && (
           <div className="mt-4 flex items-center justify-center gap-2">
             {Array.from({ length: Math.ceil(items.length / itemsPerView) }).map((_, index) => (
               <button

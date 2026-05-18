@@ -10,6 +10,7 @@
     "test:shipping": "node src/services/__tests__/shipping-domain.test.js",
     "test:inventory": "node src/services/__tests__/inventory-domain.test.js",
     "test:analytics": "node src/services/__tests__/product-analytics-domain.test.js",
+    "test:homepage-containers": "node src/services/__tests__/homepage-container-registry.test.js",
     "test:cancellation-refund": "node src/services/__tests__/cancellation-refund-domain.test.js",
     "test:order-docs": "node src/services/__tests__/order-document-domain.test.js",
     "test:vendor-payouts": "node src/services/__tests__/vendor-payout-domain.test.js",

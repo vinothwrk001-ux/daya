@@ -6,6 +6,16 @@ export async function getHomepageContainers(params = {}) {
   return data;
 }
 
+export async function getHomepageContainerSchemas() {
+  const { data } = await api.get("/api/homepage-containers/schemas");
+  return data;
+}
+
+export async function getHomepageContainerSchema(type) {
+  const { data } = await api.get(`/api/container-schema/${type}`);
+  return data;
+}
+
 export async function getHomepageContainerProducts(slug, params = {}) {
   const { data } = await api.get(`/api/homepage-containers/${slug}/products`, { params });
   return data;
@@ -38,5 +48,10 @@ export async function reorderAdminHomepageContainers(items) {
 
 export async function previewAdminHomepageContainer(payload) {
   const { data } = await adminHttp.post("/api/admin/homepage-containers/preview", payload);
+  return data;
+}
+
+export async function trackHomepageContainerEvent(id, payload) {
+  const { data } = await api.post(`/api/homepage-containers/${id}/track`, payload);
   return data;
 }

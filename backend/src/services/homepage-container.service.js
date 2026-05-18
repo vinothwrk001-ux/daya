@@ -5,8 +5,37 @@ const { Vendor } = require("../models/Vendor");
 const { Category } = require("../models/Category");
 const { Subcategory } = require("../models/Subcategory");
 const { AppError } = require("../utils/AppError");
+const {
+  normalizeContainerType,
+  getContainerTypeSchema,
+  listContainerTypeSchemas,
+} = require("../config/homepageContainerRegistry");
 
 const DEFAULT_PREVIEW_LIMIT = 12;
+const CACHE_TTL_MS = 60 * 1000;
+const responseCache = new Map();
+
+function setCache(key, value) {
+  responseCache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+function getCache(key) {
+  const cached = responseCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    responseCache.delete(key);
+    return null;
+  }
+  return cached.value;
+}
+
+function invalidateCache(prefix = "homepage:") {
+  for (const key of responseCache.keys()) {
+    if (key.startsWith(prefix)) {
+      responseCache.delete(key);
+    }
+  }
+}
 
 function toObjectIdArray(values = []) {
   return (Array.isArray(values) ? values : [])
@@ -16,7 +45,17 @@ function toObjectIdArray(values = []) {
 }
 
 function toStringArray(values = []) {
-  return (Array.isArray(values) ? values : [])
+  if (!Array.isArray(values)) {
+    if (typeof values === "string") {
+      return values
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }
+
+  return values
     .map((item) => String(item || "").trim())
     .filter(Boolean);
 }
@@ -31,48 +70,135 @@ function normalizePositiveNumber(value, fallback = null) {
   return Number.isFinite(next) ? next : fallback;
 }
 
+function normalizeDate(value, fallback = null) {
+  if (!value) return fallback;
+  const next = new Date(value);
+  return Number.isNaN(next.getTime()) ? fallback : next;
+}
+
+function coerceBoolean(value, fallback = false) {
+  if (value === undefined) return fallback;
+  return Boolean(value);
+}
+
+function getDefaultConfig(type, input = {}) {
+  const schema = getContainerTypeSchema(type);
+  return (schema.typeFields || []).reduce((acc, field) => {
+    if (input[field.name] !== undefined) {
+      acc[field.name] = input[field.name];
+    } else if (field.defaultValue !== undefined) {
+      acc[field.name] = field.defaultValue;
+    }
+    return acc;
+  }, {});
+}
+
 function normalizePayload(payload = {}, actorId = null, { partial = false } = {}) {
+  const containerType = normalizeContainerType(payload.containerType || payload.type || "CAROUSEL");
+  const schema = getContainerTypeSchema(containerType);
+
+  const visibility = payload.visibility || {};
+  const presentation = payload.presentation || {};
+  const filters = payload.filters || {};
+  const schedule = payload.schedule || {};
+  const inputConfig = payload.config || {};
+
   const normalized = {
     ...(payload.title !== undefined ? { title: String(payload.title || "").trim() } : {}),
     ...(payload.slug !== undefined ? { slug: String(payload.slug || "").trim() } : {}),
     ...(payload.description !== undefined ? { description: String(payload.description || "").trim() } : {}),
-    ...(payload.bannerImage !== undefined ? { bannerImage: String(payload.bannerImage || "").trim() } : {}),
-    ...(payload.containerType !== undefined ? { containerType: String(payload.containerType || "").trim().toUpperCase() } : {}),
-    ...(payload.vendorMode !== undefined ? { vendorMode: String(payload.vendorMode || "").trim().toUpperCase() } : {}),
-    ...(payload.vendorIds !== undefined ? { vendorIds: toObjectIdArray(payload.vendorIds) } : {}),
-    ...(payload.categoryIds !== undefined ? { categoryIds: toObjectIdArray(payload.categoryIds) } : {}),
-    ...(payload.subCategoryIds !== undefined ? { subCategoryIds: toObjectIdArray(payload.subCategoryIds) } : {}),
-    ...(payload.brandIds !== undefined ? { brandIds: toStringArray(payload.brandIds) } : {}),
-    ...(payload.tags !== undefined ? { tags: toStringArray(payload.tags).map((item) => item.toLowerCase()) } : {}),
-    ...(payload.offerType !== undefined ? { offerType: String(payload.offerType || "").trim().toUpperCase() } : {}),
-    ...(payload.minDiscountPercentage !== undefined
-      ? { minDiscountPercentage: normalizePositiveNumber(payload.minDiscountPercentage, 0) }
-      : {}),
-    ...(payload.maxDiscountPercentage !== undefined
-      ? { maxDiscountPercentage: normalizePositiveNumber(payload.maxDiscountPercentage, null) }
-      : {}),
-    ...(payload.minPrice !== undefined ? { minPrice: normalizePositiveNumber(payload.minPrice, null) } : {}),
-    ...(payload.maxPrice !== undefined ? { maxPrice: normalizePositiveNumber(payload.maxPrice, null) } : {}),
-    ...(payload.sortBy !== undefined ? { sortBy: String(payload.sortBy || "").trim().toUpperCase() } : {}),
-    ...(payload.productSelectionMode !== undefined
-      ? { productSelectionMode: String(payload.productSelectionMode || "").trim().toUpperCase() }
-      : {}),
-    ...(payload.manualProductIds !== undefined ? { manualProductIds: toObjectIdArray(payload.manualProductIds) } : {}),
-    ...(payload.maxProductsToShow !== undefined
-      ? { maxProductsToShow: Math.min(Math.max(Number(payload.maxProductsToShow || DEFAULT_PREVIEW_LIMIT), 1), 100) }
-      : {}),
-    ...(payload.showOnlyInStock !== undefined ? { showOnlyInStock: Boolean(payload.showOnlyInStock) } : {}),
-    ...(payload.showOnlyActiveProducts !== undefined ? { showOnlyActiveProducts: Boolean(payload.showOnlyActiveProducts) } : {}),
-    ...(payload.deviceVisibility !== undefined
-      ? { deviceVisibility: String(payload.deviceVisibility || "").trim().toUpperCase() }
-      : {}),
+    containerType,
     ...(payload.priority !== undefined ? { priority: Number(payload.priority || 0) } : {}),
-    ...(payload.scheduleEnabled !== undefined ? { scheduleEnabled: Boolean(payload.scheduleEnabled) } : {}),
-    ...(payload.startDate !== undefined ? { startDate: payload.startDate ? new Date(payload.startDate) : null } : {}),
-    ...(payload.endDate !== undefined ? { endDate: payload.endDate ? new Date(payload.endDate) : null } : {}),
-    ...(payload.analyticsEnabled !== undefined ? { analyticsEnabled: Boolean(payload.analyticsEnabled) } : {}),
     ...(payload.status !== undefined ? { status: String(payload.status || "").trim().toUpperCase() } : {}),
+    ...(payload.analyticsEnabled !== undefined ? { analyticsEnabled: Boolean(payload.analyticsEnabled) } : {}),
+    visibility: {
+      desktop:
+        payload.desktopVisible !== undefined
+          ? Boolean(payload.desktopVisible)
+          : visibility.desktop !== undefined
+            ? Boolean(visibility.desktop)
+            : true,
+      mobile:
+        payload.mobileVisible !== undefined
+          ? Boolean(payload.mobileVisible)
+          : visibility.mobile !== undefined
+            ? Boolean(visibility.mobile)
+            : true,
+    },
+    presentation: {
+      backgroundColor: String(payload.backgroundColor ?? presentation.backgroundColor ?? "").trim(),
+      textColor: String(payload.textColor ?? presentation.textColor ?? "").trim(),
+      padding: String(payload.padding ?? presentation.padding ?? "24px").trim(),
+      margin: String(payload.margin ?? presentation.margin ?? "0").trim(),
+      animation: String(payload.animation ?? presentation.animation ?? "FADE_UP").trim().toUpperCase(),
+      customCssClasses: String(payload.customCssClasses ?? presentation.customCssClasses ?? "").trim(),
+      containerWidth: String(payload.containerWidth ?? presentation.containerWidth ?? "full").trim(),
+      containerHeight: String(payload.containerHeight ?? presentation.containerHeight ?? "auto").trim(),
+      containerTheme: String(payload.containerTheme ?? presentation.containerTheme ?? "DEFAULT").trim().toUpperCase(),
+    },
+    schedule: {
+      enabled:
+        payload.scheduleEnabled !== undefined
+          ? Boolean(payload.scheduleEnabled)
+          : schedule.enabled !== undefined
+            ? Boolean(schedule.enabled)
+            : Boolean(payload.scheduleStart || payload.scheduleEnd || payload.startDate || payload.endDate),
+      start: normalizeDate(payload.scheduleStart ?? payload.startDate ?? schedule.start, null),
+      end: normalizeDate(payload.scheduleEnd ?? payload.endDate ?? schedule.end, null),
+    },
+    filters: {
+      vendorIds: toObjectIdArray(payload.vendorIds ?? filters.vendorIds ?? []),
+      categoryIds: toObjectIdArray(payload.categoryIds ?? filters.categoryIds ?? []),
+      subCategoryIds: toObjectIdArray(payload.subCategoryIds ?? filters.subCategoryIds ?? []),
+      brandIds: toStringArray(payload.brandIds ?? filters.brandIds ?? []),
+      tags: toStringArray(payload.tags ?? filters.tags ?? []).map((item) => item.toLowerCase()),
+      minPrice: normalizePositiveNumber(payload.minPrice ?? filters.minPrice, null),
+      maxPrice: normalizePositiveNumber(payload.maxPrice ?? filters.maxPrice, null),
+      minDiscountPercentage: normalizePositiveNumber(payload.minDiscountPercentage ?? filters.minDiscountPercentage, 0),
+      minimumRating: normalizePositiveNumber(payload.minimumRating ?? filters.minimumRating, 0),
+      showOnlyInStock:
+        payload.showOnlyInStock !== undefined
+          ? Boolean(payload.showOnlyInStock)
+          : filters.showOnlyInStock !== undefined
+            ? Boolean(filters.showOnlyInStock)
+            : true,
+      sortBy: String(payload.sortBy ?? filters.sortBy ?? schema.defaultSortBy ?? "TRENDING").trim().toUpperCase(),
+      maxProductsToShow: Math.min(
+        Math.max(Number(payload.maxProductsToShow ?? filters.maxProductsToShow ?? DEFAULT_PREVIEW_LIMIT), 1),
+        100
+      ),
+      productSelectionMode: String(
+        payload.productSelectionMode ?? filters.productSelectionMode ?? "AUTO"
+      ).trim().toUpperCase(),
+      manualProductIds: toObjectIdArray(payload.manualProductIds ?? filters.manualProductIds ?? []),
+    },
+    config: getDefaultConfig(containerType, { ...inputConfig, ...(payload.config || {}) }),
   };
+
+  for (const field of schema.typeFields || []) {
+    if (payload[field.name] !== undefined) {
+      normalized.config[field.name] = payload[field.name];
+    }
+  }
+
+  if (!schema.supportsProductFilters) {
+    normalized.filters = {
+      vendorIds: [],
+      categoryIds: [],
+      subCategoryIds: [],
+      brandIds: [],
+      tags: [],
+      minPrice: null,
+      maxPrice: null,
+      minDiscountPercentage: 0,
+      minimumRating: 0,
+      showOnlyInStock: false,
+      sortBy: schema.defaultSortBy || "TRENDING",
+      maxProductsToShow: DEFAULT_PREVIEW_LIMIT,
+      productSelectionMode: "AUTO",
+      manualProductIds: [],
+    };
+  }
 
   if (!partial && actorId) {
     normalized.createdBy = actorId;
@@ -85,19 +211,20 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
 }
 
 async function validateReferences(payload = {}, existingId = null) {
+  const filters = payload.filters || {};
   const [vendors, categories, subcategories, manualProducts, slugConflict] = await Promise.all([
-    payload.vendorIds?.length
-      ? Vendor.find({ _id: { $in: payload.vendorIds }, status: "approved" }).select("_id").lean()
+    filters.vendorIds?.length
+      ? Vendor.find({ _id: { $in: filters.vendorIds }, status: "approved" }).select("_id").lean()
       : Promise.resolve([]),
-    payload.categoryIds?.length
-      ? Category.find({ _id: { $in: payload.categoryIds }, isActive: true }).select("_id").lean()
+    filters.categoryIds?.length
+      ? Category.find({ _id: { $in: filters.categoryIds }, isActive: true }).select("_id").lean()
       : Promise.resolve([]),
-    payload.subCategoryIds?.length
-      ? Subcategory.find({ _id: { $in: payload.subCategoryIds }, status: "active" }).select("_id categoryId").lean()
+    filters.subCategoryIds?.length
+      ? Subcategory.find({ _id: { $in: filters.subCategoryIds }, status: "active" }).select("_id categoryId").lean()
       : Promise.resolve([]),
-    payload.manualProductIds?.length
+    filters.manualProductIds?.length
       ? Product.find({
-          _id: { $in: payload.manualProductIds },
+          _id: { $in: filters.manualProductIds },
           status: "APPROVED",
           isActive: true,
         })
@@ -118,92 +245,113 @@ async function validateReferences(payload = {}, existingId = null) {
     throw new AppError("Homepage container slug already exists", 409, "SLUG_EXISTS");
   }
 
-  if (payload.vendorMode === "SPECIFIC_VENDORS" && payload.vendorIds?.length && vendors.length !== payload.vendorIds.length) {
+  if (filters.vendorIds?.length && vendors.length !== filters.vendorIds.length) {
     throw new AppError("One or more selected vendors are invalid or not approved", 400, "INVALID_VENDOR_SCOPE");
   }
 
-  if (payload.categoryIds?.length && categories.length !== payload.categoryIds.length) {
+  if (filters.categoryIds?.length && categories.length !== filters.categoryIds.length) {
     throw new AppError("One or more selected categories are invalid", 400, "INVALID_CATEGORY_SCOPE");
   }
 
-  if (payload.subCategoryIds?.length && subcategories.length !== payload.subCategoryIds.length) {
+  if (filters.subCategoryIds?.length && subcategories.length !== filters.subCategoryIds.length) {
     throw new AppError("One or more selected subcategories are invalid", 400, "INVALID_SUBCATEGORY_SCOPE");
   }
 
-  const categorySet = new Set((payload.categoryIds || []).map((item) => String(item)));
+  const categorySet = new Set((filters.categoryIds || []).map((item) => String(item)));
   if (categorySet.size && subcategories.some((item) => !categorySet.has(String(item.categoryId)))) {
     throw new AppError("Selected subcategories must belong to the selected categories", 400, "SUBCATEGORY_CATEGORY_MISMATCH");
   }
 
-  if (payload.productSelectionMode === "MANUAL" && payload.manualProductIds?.length) {
-    if (manualProducts.length !== payload.manualProductIds.length) {
+  if (filters.productSelectionMode === "MANUAL" && filters.manualProductIds?.length) {
+    if (manualProducts.length !== filters.manualProductIds.length) {
       throw new AppError("One or more manual products are invalid or not publicly visible", 400, "INVALID_MANUAL_PRODUCTS");
     }
+  }
 
-    const vendorSet = new Set((payload.vendorIds || []).map((item) => String(item)));
-    const subCategorySet = new Set((payload.subCategoryIds || []).map((item) => String(item)));
+  validateTypeSpecificRules(payload);
+}
 
-    for (const product of manualProducts) {
-      if (payload.vendorMode === "SPECIFIC_VENDORS" && vendorSet.size && !vendorSet.has(String(product.sellerId))) {
-        throw new AppError("Manual products must belong to the selected vendors", 400, "MANUAL_VENDOR_MISMATCH");
-      }
-      if (categorySet.size && !categorySet.has(String(product.categoryId))) {
-        throw new AppError("Manual products must belong to the selected categories", 400, "MANUAL_CATEGORY_MISMATCH");
-      }
-      if (subCategorySet.size && !subCategorySet.has(String(product.subCategoryId))) {
-        throw new AppError("Manual products must belong to the selected subcategories", 400, "MANUAL_SUBCATEGORY_MISMATCH");
-      }
+function validateTypeSpecificRules(payload = {}) {
+  const { containerType, config = {}, filters = {}, schedule = {} } = payload;
+
+  if (schedule.enabled && schedule.start && schedule.end && schedule.start > schedule.end) {
+    throw new AppError("Schedule start must be earlier than schedule end", 400, "INVALID_SCHEDULE");
+  }
+
+  if (containerType === "FLASH_SALE") {
+    const start = normalizeDate(config.startTime, null);
+    const end = normalizeDate(config.endTime, null);
+    if (!start || !end || start >= end) {
+      throw new AppError("Flash sale start time must be earlier than end time", 400, "INVALID_FLASH_SALE_WINDOW");
     }
+  }
+
+  if (containerType === "BANNER" && !String(config.bannerImage || "").trim() && !String(config.bannerVideo || "").trim()) {
+    throw new AppError("Banner image or banner video is required", 400, "BANNER_MEDIA_REQUIRED");
+  }
+
+  if (containerType === "VIDEO_PRODUCTS" && !String(config.videoUpload || "").trim()) {
+    throw new AppError("Video upload is required for video products containers", 400, "VIDEO_REQUIRED");
+  }
+
+  if (containerType === "GRID" && !Number.isFinite(Number(config.desktopColumns))) {
+    throw new AppError("Desktop columns are required for grid containers", 400, "GRID_COLUMNS_REQUIRED");
+  }
+
+  if (filters.maxPrice !== null && filters.minPrice !== null && filters.maxPrice < filters.minPrice) {
+    throw new AppError("Maximum price must be greater than or equal to minimum price", 400, "INVALID_PRICE_RANGE");
   }
 }
 
 function matchesSchedule(container = {}, now = new Date()) {
   if (container.status !== "ACTIVE") return false;
-  if (!container.scheduleEnabled) return true;
-  if (container.startDate && new Date(container.startDate) > now) return false;
-  if (container.endDate && new Date(container.endDate) < now) return false;
+  if (!container.schedule?.enabled) return true;
+  if (container.schedule?.start && new Date(container.schedule.start) > now) return false;
+  if (container.schedule?.end && new Date(container.schedule.end) < now) return false;
   return true;
 }
 
 function matchesDevice(container = {}, device = "all") {
   const normalized = String(device || "all").trim().toLowerCase();
   if (!normalized || normalized === "all") return true;
-  if (container.deviceVisibility === "ALL") return true;
-  if (normalized === "mobile") return container.deviceVisibility === "MOBILE_ONLY";
-  if (normalized === "desktop") return container.deviceVisibility === "DESKTOP_ONLY";
+  if (normalized === "mobile") return container.visibility?.mobile !== false;
+  if (normalized === "desktop") return container.visibility?.desktop !== false;
   return true;
 }
 
 function buildProductBaseMatch(container = {}, approvedVendorIds = []) {
+  const filters = container.filters || {};
   const match = {
     status: "APPROVED",
-    ...(container.showOnlyActiveProducts !== false ? { isActive: true } : {}),
+    isActive: true,
   };
 
-  if (container.vendorMode === "SPECIFIC_VENDORS" && container.vendorIds?.length) {
-    match.sellerId = { $in: container.vendorIds.map((item) => new mongoose.Types.ObjectId(item)) };
-  } else if (approvedVendorIds.length) {
+  if (approvedVendorIds.length) {
     match.sellerId = { $in: approvedVendorIds };
   }
 
-  if (container.categoryIds?.length) {
-    match.categoryId = { $in: container.categoryIds.map((item) => new mongoose.Types.ObjectId(item)) };
+  if (filters.vendorIds?.length) {
+    match.sellerId = { $in: filters.vendorIds.map((item) => new mongoose.Types.ObjectId(item)) };
   }
 
-  if (container.subCategoryIds?.length) {
-    match.subCategoryId = { $in: container.subCategoryIds.map((item) => new mongoose.Types.ObjectId(item)) };
+  if (filters.categoryIds?.length) {
+    match.categoryId = { $in: filters.categoryIds.map((item) => new mongoose.Types.ObjectId(item)) };
   }
 
-  if (container.tags?.length) {
-    match.tags = { $in: container.tags.map((item) => String(item).toLowerCase()) };
+  if (filters.subCategoryIds?.length) {
+    match.subCategoryId = { $in: filters.subCategoryIds.map((item) => new mongoose.Types.ObjectId(item)) };
   }
 
-  if (container.productSelectionMode === "MANUAL" && container.manualProductIds?.length) {
-    match._id = { $in: container.manualProductIds.map((item) => new mongoose.Types.ObjectId(item)) };
+  if (filters.tags?.length) {
+    match.tags = { $in: filters.tags.map((item) => String(item).toLowerCase()) };
   }
 
-  if (container.brandIds?.length) {
-    const brandRegex = container.brandIds.map((item) => new RegExp(`^${escapeRegex(item)}$`, "i"));
+  if (filters.productSelectionMode === "MANUAL" && filters.manualProductIds?.length) {
+    match._id = { $in: filters.manualProductIds.map((item) => new mongoose.Types.ObjectId(item)) };
+  }
+
+  if (filters.brandIds?.length) {
+    const brandRegex = filters.brandIds.map((item) => new RegExp(`^${escapeRegex(item)}$`, "i"));
     match.$or = [
       { "attributes.brand": { $in: brandRegex } },
       { brand: { $in: brandRegex } },
@@ -263,10 +411,7 @@ function buildComputedFields() {
         {
           $multiply: [
             {
-              $divide: [
-                { $subtract: ["$price", "$discountPrice"] },
-                "$price",
-              ],
+              $divide: [{ $subtract: ["$price", "$discountPrice"] }, "$price"],
             },
             100,
           ],
@@ -291,6 +436,8 @@ function buildSortStages(sortBy = "TRENDING") {
       return [{ $sort: { effectivePrice: -1, createdAt: -1 } }];
     case "MOST_VIEWED":
       return [{ $sort: { "analytics.views": -1, createdAt: -1 } }];
+    case "TOP_RATED":
+      return [{ $sort: { "ratings.averageRating": -1, "ratings.totalReviews": -1, createdAt: -1 } }];
     case "RANDOM":
       return [{ $sample: { size: 100 } }];
     case "TRENDING":
@@ -302,7 +449,7 @@ function buildSortStages(sortBy = "TRENDING") {
 async function hydrateProductsByIds(ids = []) {
   if (!ids.length) return [];
   const products = await Product.find({ _id: { $in: ids } })
-    .populate("sellerId", "companyName shopName logoUrl storeSlug")
+    .populate("sellerId", "companyName shopName logoUrl storeSlug bannerUrl")
     .lean();
   const orderMap = new Map(ids.map((id, index) => [String(id), index]));
   return products.sort((a, b) => orderMap.get(String(a._id)) - orderMap.get(String(b._id)));
@@ -313,66 +460,91 @@ async function getApprovedVendorIds() {
   return vendors.map((vendor) => new mongoose.Types.ObjectId(vendor._id));
 }
 
+function applyTypeSpecificProductConstraints(container = {}) {
+  const filters = container.filters || {};
+  const config = container.config || {};
+  const constraint = {};
+
+  if (container.containerType === "NEW_ARRIVALS") {
+    const daysRange = Number(config.daysRange || 30);
+    constraint.createdAt = { $gte: new Date(Date.now() - daysRange * 24 * 60 * 60 * 1000) };
+  }
+
+  if (container.containerType === "TOP_RATED") {
+    constraint["ratings.averageRating"] = { $gte: Number(config.minimumRating ?? filters.minimumRating ?? 4) };
+    constraint["ratings.totalReviews"] = { $gte: Number(config.minimumReviews || 0) };
+  }
+
+  if (container.containerType === "TRENDING") {
+    constraint["analytics.views"] = { $gte: Number(config.viewThreshold || 0) };
+    constraint["analytics.salesCount"] = { $gte: Number(config.salesThreshold || 0) };
+  }
+
+  return constraint;
+}
+
 async function resolveContainerProducts(container, options = {}) {
+  const schema = getContainerTypeSchema(container.containerType);
+  if (!schema.supportsProducts) {
+    return {
+      products: [],
+      pagination: {
+        total: 0,
+        page: 1,
+        limit: 0,
+        pages: 0,
+      },
+    };
+  }
+
+  const filters = container.filters || {};
   const page = Math.max(Number(options.page || 1), 1);
-  const limit = Math.min(Math.max(Number(options.limit || container.maxProductsToShow || DEFAULT_PREVIEW_LIMIT), 1), 100);
+  const limit = Math.min(Math.max(Number(options.limit || filters.maxProductsToShow || DEFAULT_PREVIEW_LIMIT), 1), 100);
   const skip = (page - 1) * limit;
   const approvedVendorIds = options.approvedVendorIds || (await getApprovedVendorIds());
 
   const pipeline = [
     { $match: buildProductBaseMatch(container, approvedVendorIds) },
+    { $match: applyTypeSpecificProductConstraints(container) },
     { $addFields: buildComputedFields() },
   ];
 
   const expressionMatch = {};
-  if (container.showOnlyInStock !== false) {
+  if (filters.showOnlyInStock !== false) {
     expressionMatch.availableStock = { $gt: 0 };
   }
-  if (container.minDiscountPercentage) {
+  if (filters.minDiscountPercentage) {
     expressionMatch.computedDiscountPercentage = {
       ...(expressionMatch.computedDiscountPercentage || {}),
-      $gte: Number(container.minDiscountPercentage || 0),
+      $gte: Number(filters.minDiscountPercentage || 0),
     };
   }
-  if (container.maxDiscountPercentage !== null && container.maxDiscountPercentage !== undefined) {
-    expressionMatch.computedDiscountPercentage = {
-      ...(expressionMatch.computedDiscountPercentage || {}),
-      $lte: Number(container.maxDiscountPercentage),
-    };
-  }
-  if (container.minPrice !== null && container.minPrice !== undefined) {
+  if (filters.minPrice !== null && filters.minPrice !== undefined) {
     expressionMatch.effectivePrice = {
       ...(expressionMatch.effectivePrice || {}),
-      $gte: Number(container.minPrice),
+      $gte: Number(filters.minPrice),
     };
   }
-  if (container.maxPrice !== null && container.maxPrice !== undefined) {
+  if (filters.maxPrice !== null && filters.maxPrice !== undefined) {
     expressionMatch.effectivePrice = {
       ...(expressionMatch.effectivePrice || {}),
-      $lte: Number(container.maxPrice),
+      $lte: Number(filters.maxPrice),
     };
+  }
+  if (filters.minimumRating) {
+    expressionMatch["ratings.averageRating"] = { $gte: Number(filters.minimumRating) };
   }
   if (Object.keys(expressionMatch).length) {
     pipeline.push({ $match: expressionMatch });
   }
 
-  pipeline.push(...buildSortStages(container.sortBy));
+  pipeline.push(...buildSortStages(filters.sortBy));
 
-  const countPipeline = pipeline
-    .filter((stage) => !stage.$sample && !stage.$sort)
-    .concat({ $count: "total" });
+  const countPipeline = pipeline.filter((stage) => !stage.$sample && !stage.$sort).concat({ $count: "total" });
 
-  pipeline.push(
-    { $skip: skip },
-    { $limit: limit },
-    { $project: { _id: 1 } }
-  );
+  pipeline.push({ $skip: skip }, { $limit: limit }, { $project: { _id: 1 } });
 
-  const [rows, totalRows] = await Promise.all([
-    Product.aggregate(pipeline),
-    Product.aggregate(countPipeline),
-  ]);
-
+  const [rows, totalRows] = await Promise.all([Product.aggregate(pipeline), Product.aggregate(countPipeline)]);
   const ids = rows.map((item) => item._id);
   const products = await hydrateProductsByIds(ids);
   const total = Number(totalRows?.[0]?.total || 0);
@@ -389,38 +561,57 @@ async function resolveContainerProducts(container, options = {}) {
 }
 
 function mapContainerDocument(container, productsPayload = null) {
+  const filters = container.filters || {};
+  const metrics = container.metrics || {};
+
+  const normalizedType = normalizeContainerType(container.containerType);
   const mapped = {
     _id: container._id,
     title: container.title,
     slug: container.slug,
-    description: container.description,
-    bannerImage: container.bannerImage,
-    containerType: container.containerType,
-    vendorMode: container.vendorMode,
-    vendorIds: container.vendorIds || [],
-    categoryIds: container.categoryIds || [],
-    subCategoryIds: container.subCategoryIds || [],
-    brandIds: container.brandIds || [],
-    tags: container.tags || [],
-    offerType: container.offerType,
-    minDiscountPercentage: container.minDiscountPercentage,
-    maxDiscountPercentage: container.maxDiscountPercentage,
-    minPrice: container.minPrice,
-    maxPrice: container.maxPrice,
-    sortBy: container.sortBy,
-    productSelectionMode: container.productSelectionMode,
-    manualProductIds: container.manualProductIds || [],
-    maxProductsToShow: container.maxProductsToShow,
-    showOnlyInStock: container.showOnlyInStock,
-    showOnlyActiveProducts: container.showOnlyActiveProducts,
-    deviceVisibility: container.deviceVisibility,
-    priority: container.priority,
-    scheduleEnabled: container.scheduleEnabled,
-    startDate: container.startDate,
-    endDate: container.endDate,
-    analyticsEnabled: container.analyticsEnabled,
+    description: container.description || "",
+    containerType: normalizedType,
+    priority: container.priority ?? 0,
     status: container.status,
-    metrics: container.metrics || { impressions: 0, clicks: 0, orders: 0, revenue: 0 },
+    visibility: {
+      desktop: container.visibility?.desktop !== false,
+      mobile: container.visibility?.mobile !== false,
+    },
+    presentation: container.presentation || {},
+    schedule: container.schedule || { enabled: false, start: null, end: null },
+    filters: {
+      vendorIds: filters.vendorIds || [],
+      categoryIds: filters.categoryIds || [],
+      subCategoryIds: filters.subCategoryIds || [],
+      brandIds: filters.brandIds || [],
+      tags: filters.tags || [],
+      minPrice: filters.minPrice ?? null,
+      maxPrice: filters.maxPrice ?? null,
+      minDiscountPercentage: filters.minDiscountPercentage ?? 0,
+      minimumRating: filters.minimumRating ?? 0,
+      showOnlyInStock: filters.showOnlyInStock !== false,
+      sortBy: filters.sortBy || "TRENDING",
+      maxProductsToShow: filters.maxProductsToShow ?? DEFAULT_PREVIEW_LIMIT,
+      productSelectionMode: filters.productSelectionMode || "AUTO",
+      manualProductIds: filters.manualProductIds || [],
+    },
+    config: container.config || {},
+    analyticsEnabled: container.analyticsEnabled !== false,
+    analytics: {
+      impressions: Number(metrics.impressions || 0),
+      clicks: Number(metrics.clicks || 0),
+      productClicks: Number(metrics.productClicks || 0),
+      conversions: Number(metrics.conversions || 0),
+      revenue: Number(metrics.revenue || 0),
+      ctr:
+        Number(metrics.impressions || 0) > 0
+          ? Number((((metrics.clicks || 0) / metrics.impressions) * 100).toFixed(2))
+          : 0,
+      conversionRate:
+        Number(metrics.clicks || 0) > 0
+          ? Number((((metrics.conversions || 0) / metrics.clicks) * 100).toFixed(2))
+          : 0,
+    },
     createdAt: container.createdAt,
     updatedAt: container.updatedAt,
   };
@@ -433,11 +624,39 @@ function mapContainerDocument(container, productsPayload = null) {
   return mapped;
 }
 
+async function buildAdminAnalyticsSummary(query = {}) {
+  const containers = await HomepageContainer.find(query)
+    .select("title containerType status metrics priority")
+    .sort({ "metrics.clicks": -1, "metrics.impressions": -1, priority: 1 })
+    .lean();
+
+  const items = containers.map((container) => mapContainerDocument(container));
+  const topByCtr = [...items].sort((a, b) => b.analytics.ctr - a.analytics.ctr).slice(0, 5);
+  const topByConversion = [...items].sort((a, b) => b.analytics.conversionRate - a.analytics.conversionRate).slice(0, 5);
+  const topByRevenue = [...items].sort((a, b) => b.analytics.revenue - a.analytics.revenue).slice(0, 5);
+
+  return {
+    totalContainers: items.length,
+    activeContainers: items.filter((item) => item.status === "ACTIVE").length,
+    topByCtr,
+    topByConversion,
+    topByRevenue,
+  };
+}
+
 class HomepageContainerService {
-  async listAdminContainers({ page = 1, limit = 20, search = "", status = "", deviceVisibility = "" } = {}) {
+  getContainerSchemas() {
+    return listContainerTypeSchemas();
+  }
+
+  getContainerSchema(type) {
+    return getContainerTypeSchema(type);
+  }
+
+  async listAdminContainers({ page = 1, limit = 20, search = "", status = "", containerType = "" } = {}) {
     const query = {};
     if (status) query.status = String(status).trim().toUpperCase();
-    if (deviceVisibility) query.deviceVisibility = String(deviceVisibility).trim().toUpperCase();
+    if (containerType) query.containerType = String(containerType).trim().toUpperCase();
     if (search) {
       query.$or = [
         { title: { $regex: escapeRegex(search), $options: "i" } },
@@ -450,20 +669,23 @@ class HomepageContainerService {
     const safeLimit = Math.min(Math.max(Number(limit || 20), 1), 100);
     const skip = (safePage - 1) * safeLimit;
 
-    const [containers, total] = await Promise.all([
+    const [containers, total, analyticsSummary] = await Promise.all([
       HomepageContainer.find(query)
         .sort({ priority: 1, createdAt: -1 })
         .skip(skip)
         .limit(safeLimit)
-        .populate("vendorIds", "companyName shopName")
-        .populate("categoryIds", "name")
-        .populate("subCategoryIds", "name")
+        .populate("filters.vendorIds", "companyName shopName logoUrl")
+        .populate("filters.categoryIds", "name slug")
+        .populate("filters.subCategoryIds", "name categoryId")
+        .populate("filters.manualProductIds", "name slug price discountPrice")
         .lean(),
       HomepageContainer.countDocuments(query),
+      buildAdminAnalyticsSummary(query),
     ]);
 
     return {
       containers: containers.map((item) => mapContainerDocument(item)),
+      analyticsSummary,
       pagination: {
         total,
         page: safePage,
@@ -478,9 +700,10 @@ class HomepageContainerService {
       throw new AppError("Invalid homepage container id", 400, "INVALID_ID");
     }
     const container = await HomepageContainer.findById(id)
-      .populate("vendorIds", "companyName shopName")
-      .populate("categoryIds", "name")
-      .populate("subCategoryIds", "name")
+      .populate("filters.vendorIds", "companyName shopName logoUrl bannerUrl storeSlug")
+      .populate("filters.categoryIds", "name slug")
+      .populate("filters.subCategoryIds", "name categoryId")
+      .populate("filters.manualProductIds", "name slug price discountPrice")
       .lean();
     if (!container) {
       throw new AppError("Homepage container not found", 404, "NOT_FOUND");
@@ -492,7 +715,8 @@ class HomepageContainerService {
     const normalized = normalizePayload(payload, actorId);
     await validateReferences(normalized);
     const created = await HomepageContainer.create(normalized);
-    return await this.getContainerById(created._id);
+    invalidateCache();
+    return this.getContainerById(created._id);
   }
 
   async updateContainer(id, payload = {}, actorId) {
@@ -503,12 +727,37 @@ class HomepageContainerService {
     if (!existing) {
       throw new AppError("Homepage container not found", 404, "NOT_FOUND");
     }
+
     const normalized = normalizePayload(payload, actorId, { partial: true });
-    const merged = { ...existing, ...normalized };
+    const merged = {
+      ...existing,
+      ...normalized,
+      visibility: { ...(existing.visibility || {}), ...(normalized.visibility || {}) },
+      presentation: { ...(existing.presentation || {}), ...(normalized.presentation || {}) },
+      schedule: { ...(existing.schedule || {}), ...(normalized.schedule || {}) },
+      filters: { ...(existing.filters || {}), ...(normalized.filters || {}) },
+      config: { ...(existing.config || {}), ...(normalized.config || {}) },
+    };
+
     await validateReferences(merged, id);
 
-    await HomepageContainer.findByIdAndUpdate(id, { $set: normalized }, { new: false, runValidators: true });
-    return await this.getContainerById(id);
+    await HomepageContainer.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          ...normalized,
+          visibility: merged.visibility,
+          presentation: merged.presentation,
+          schedule: merged.schedule,
+          filters: merged.filters,
+          config: merged.config,
+        },
+      },
+      { runValidators: true }
+    );
+
+    invalidateCache();
+    return this.getContainerById(id);
   }
 
   async deleteContainer(id) {
@@ -519,6 +768,7 @@ class HomepageContainerService {
     if (!deleted) {
       throw new AppError("Homepage container not found", 404, "NOT_FOUND");
     }
+    invalidateCache();
     return { _id: deleted._id };
   }
 
@@ -545,65 +795,70 @@ class HomepageContainerService {
     }
 
     await HomepageContainer.bulkWrite(bulkOps);
+    invalidateCache();
     return { updated: bulkOps.length };
   }
 
   async previewContainer(payload = {}) {
     const normalized = normalizePayload(payload, null, { partial: true });
     await validateReferences(normalized);
-    return await resolveContainerProducts(
+    const productsPayload = await resolveContainerProducts(
       {
         ...normalized,
         status: normalized.status || "ACTIVE",
-        maxProductsToShow: normalized.maxProductsToShow || DEFAULT_PREVIEW_LIMIT,
-        showOnlyActiveProducts: normalized.showOnlyActiveProducts !== false,
-        showOnlyInStock: normalized.showOnlyInStock !== false,
       },
-      { page: 1, limit: normalized.maxProductsToShow || DEFAULT_PREVIEW_LIMIT }
+      { page: 1, limit: normalized.filters?.maxProductsToShow || DEFAULT_PREVIEW_LIMIT }
     );
+
+    return {
+      container: mapContainerDocument({
+        ...normalized,
+        _id: "preview",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metrics: {},
+      }),
+      ...productsPayload,
+    };
   }
 
   async listPublicContainers({ device = "all", includeProducts = true, page = 1, limit } = {}) {
+    const cacheKey = `homepage:list:${device}:${includeProducts}:${page}:${limit || "auto"}`;
+    const cached = getCache(cacheKey);
+    if (cached) return cached;
+
     const now = new Date();
-    const containers = await HomepageContainer.find({
-      status: "ACTIVE",
-      $or: [
-        { scheduleEnabled: false },
-        {
-          scheduleEnabled: true,
-          $and: [
-            {
-              $or: [{ startDate: null }, { startDate: { $lte: now } }],
-            },
-            {
-              $or: [{ endDate: null }, { endDate: { $gte: now } }],
-            },
-          ],
-        },
-      ],
-    })
+    const containers = await HomepageContainer.find({ status: "ACTIVE" })
       .sort({ priority: 1, createdAt: -1 })
       .lean();
 
     const visible = containers.filter((container) => matchesSchedule(container, now) && matchesDevice(container, device));
     if (!includeProducts) {
-      return visible.map((item) => mapContainerDocument(item));
+      const result = visible.map((item) => mapContainerDocument(item));
+      setCache(cacheKey, result);
+      return result;
     }
 
     const approvedVendorIds = await getApprovedVendorIds();
-
     const resolved = await Promise.all(
       visible.map(async (container) => {
         const productsPayload = await resolveContainerProducts(container, {
           page,
-          limit: limit || container.maxProductsToShow || DEFAULT_PREVIEW_LIMIT,
+          limit: limit || container.filters?.maxProductsToShow || DEFAULT_PREVIEW_LIMIT,
           approvedVendorIds,
         });
         return mapContainerDocument(container, productsPayload);
       })
     );
 
-    return resolved.filter((item) => Array.isArray(item.products) && item.products.length > 0);
+    const result = resolved.filter((item) => {
+      const schema = getContainerTypeSchema(item.containerType);
+      if (!schema.supportsProducts) return true;
+      return Array.isArray(item.products) && item.products.length > 0;
+    });
+
+    setCache(cacheKey, result);
+    return result;
   }
 
   async getContainerProductsBySlug(slug, { page = 1, limit = 24, device = "all" } = {}) {
@@ -619,6 +874,52 @@ class HomepageContainerService {
     return {
       container: mapContainerDocument(container),
       ...productsPayload,
+    };
+  }
+
+  async trackContainerEvent(id, eventType, payload = {}) {
+    if (!mongoose.isValidObjectId(id)) {
+      throw new AppError("Invalid homepage container id", 400, "INVALID_ID");
+    }
+
+    const update = {};
+    switch (String(eventType || "").trim().toLowerCase()) {
+      case "impression":
+        update["metrics.impressions"] = 1;
+        break;
+      case "click":
+        update["metrics.clicks"] = 1;
+        break;
+      case "product_click":
+        update["metrics.productClicks"] = 1;
+        break;
+      case "conversion":
+        update["metrics.conversions"] = 1;
+        update["metrics.revenue"] = Number(payload.revenue || 0);
+        break;
+      default:
+        throw new AppError("Unsupported homepage analytics event", 400, "INVALID_EVENT");
+    }
+
+    const inc = {};
+    for (const [key, value] of Object.entries(update)) {
+      inc[key] = Number(value || 0);
+    }
+
+    const container = await HomepageContainer.findByIdAndUpdate(
+      id,
+      { $inc: inc },
+      { new: true, select: "_id metrics analyticsEnabled" }
+    ).lean();
+
+    if (!container) {
+      throw new AppError("Homepage container not found", 404, "NOT_FOUND");
+    }
+
+    invalidateCache();
+    return {
+      _id: container._id,
+      analytics: mapContainerDocument(container).analytics,
     };
   }
 }

@@ -117,6 +117,8 @@ router.post("/refunds/:id/process", requireWorkspacePermission("payments.refund"
 router.post("/refunds/:id/manual", requireWorkspacePermission("payments.refund"), express.json(), adminController.markManualRefundCase);
 router.post("/refunds/:id/wallet", requireWorkspacePermission("payments.refund"), express.json(), adminController.markWalletRefundCase);
 router.post("/refunds/:id/retry", requireWorkspacePermission("payments.refund"), express.json(), adminController.retryRefundCase);
+router.get("/homepage-containers/schemas", requireWorkspacePermission("settings.read"), homepageContainerController.listContainerSchemas);
+router.get("/homepage-containers/schema/:type", requireWorkspacePermission("settings.read"), homepageContainerController.getContainerSchema);
 router.post("/homepage-containers/reorder", requireWorkspacePermission("settings.update"), express.json(), homepageContainerController.reorderAdminContainers);
 router.post("/homepage-containers/preview", requireWorkspacePermission("settings.read"), express.json(), homepageContainerController.previewAdminContainer);
 router.get("/homepage-containers", requireWorkspacePermission("settings.read"), homepageContainerController.listAdminContainers);

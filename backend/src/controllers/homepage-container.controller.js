@@ -10,6 +10,16 @@ const listPublicContainers = asyncHandler(async (req, res) => {
   return ok(res, containers, "Homepage containers retrieved");
 });
 
+const listContainerSchemas = asyncHandler(async (req, res) => {
+  const result = homepageContainerService.getContainerSchemas();
+  return ok(res, result, "Homepage container schemas retrieved");
+});
+
+const getContainerSchema = asyncHandler(async (req, res) => {
+  const result = homepageContainerService.getContainerSchema(req.params.type);
+  return ok(res, result, "Homepage container schema retrieved");
+});
+
 const getContainerProductsBySlug = asyncHandler(async (req, res) => {
   const result = await homepageContainerService.getContainerProductsBySlug(req.params.slug, {
     page: Number(req.query.page || 1),
@@ -25,7 +35,7 @@ const listAdminContainers = asyncHandler(async (req, res) => {
     limit: Number(req.query.limit || 20),
     search: req.query.search || "",
     status: req.query.status || "",
-    deviceVisibility: req.query.deviceVisibility || "",
+    containerType: req.query.containerType || "",
   });
   return ok(res, result, "Homepage containers retrieved");
 });
@@ -60,8 +70,15 @@ const previewAdminContainer = asyncHandler(async (req, res) => {
   return ok(res, result, "Homepage container preview generated");
 });
 
+const trackPublicContainerEvent = asyncHandler(async (req, res) => {
+  const result = await homepageContainerService.trackContainerEvent(req.params.id, req.body?.eventType, req.body || {});
+  return ok(res, result, "Homepage container analytics tracked");
+});
+
 module.exports = {
   listPublicContainers,
+  listContainerSchemas,
+  getContainerSchema,
   getContainerProductsBySlug,
   listAdminContainers,
   getAdminContainerById,
@@ -70,4 +87,5 @@ module.exports = {
   deleteAdminContainer,
   reorderAdminContainers,
   previewAdminContainer,
+  trackPublicContainerEvent,
 };

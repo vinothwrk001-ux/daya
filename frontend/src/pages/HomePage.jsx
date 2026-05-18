@@ -12,12 +12,11 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion as Motion, useReducedMotion } from "framer-motion";
 import { HomepageContentCMS } from "../components/HomepageContentCMS";
-import { ProductCard } from "../components/ProductCard";
-import { ProductCarousel } from "../components/ProductCarousel";
 import { PromoBanner } from "../components/PromoBanner";
 import { MotionItem, MotionStagger, AnimatedSection } from "../components/home/AnimatedSection";
 import { RippleButton } from "../components/home/RippleButton";
 import { ReelFeed } from "../components/reel/ReelFeed";
+import { DynamicHomepageRenderer } from "../components/homepage/DynamicHomepageRenderer";
 import { getHomepageContainers } from "../services/homepageContainerService";
 import { trackClick } from "../services/contentService";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
@@ -135,19 +134,7 @@ export function HomePage() {
         </div>
       ) : null}
 
-      {(loading ? [null, null] : productContainers).map((container, index) => (
-        <ProductShowcaseSection
-          key={container?._id || `loading-${index}`}
-          title={container?.title || "Curated products"}
-          subtitle={
-            container?.description ||
-            "Dynamic merchandising curated from live vendor inventory, discount rules, and storefront demand."
-          }
-          items={container?.products || []}
-          loading={loading}
-          viewAllHref={container?.slug ? `/collections/${container.slug}` : undefined}
-        />
-      ))}
+      <DynamicHomepageRenderer containers={productContainers} loading={loading} />
 
       <AnimatedSection className="w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10" x={20}>
         <BottomPromoSection
@@ -189,22 +176,6 @@ function TrustSection() {
         );
       })}
     </MotionStagger>
-  );
-}
-
-function ProductShowcaseSection({ title, subtitle, items, loading, viewAllHref }) {
-  return (
-    <div className="w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10">
-      <AnimatedSection y={30}>
-        <ProductCarousel
-          items={items}
-          loading={loading}
-          title={title}
-          subtitle={subtitle}
-          viewAllHref={viewAllHref}
-        />
-      </AnimatedSection>
-    </div>
   );
 }
 
