@@ -70,6 +70,11 @@ const previewAdminContainer = asyncHandler(async (req, res) => {
   return ok(res, result, "Homepage container preview generated");
 });
 
+const uploadAdminContainerMedia = asyncHandler(async (req, res) => {
+  const result = await homepageContainerService.uploadContainerMedia(req.files || []);
+  return ok(res, result, "Homepage container media uploaded");
+});
+
 const trackPublicContainerEvent = asyncHandler(async (req, res) => {
   const result = await homepageContainerService.trackContainerEvent(req.params.id, req.body?.eventType, req.body || {});
   return ok(res, result, "Homepage container analytics tracked");
@@ -87,5 +92,6 @@ module.exports = {
   deleteAdminContainer,
   reorderAdminContainers,
   previewAdminContainer,
+  uploadAdminContainerMedia,
   trackPublicContainerEvent,
 };

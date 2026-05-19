@@ -39,55 +39,38 @@ function DynamicHomepageSection({ container }) {
 
   const animationSettings = resolveSectionAnimation(container);
   const visibilityClasses = resolveContainerVisibilityClasses(container);
-  const themeStyles = resolveContainerThemeStyles(container?.presentation?.containerTheme);
-  const widthStyles = resolveContainerWidthStyle(container?.presentation?.containerWidth);
+  const layout = resolveContainerLayout(container);
+  const themeStyles = resolveContainerThemeStyles(layout.theme || container?.presentation?.containerTheme);
+  const widthStyles = resolveContainerWidthStyle(layout);
   const isGridContainer = container?.containerType === "GRID";
 
   const style = {
     ...themeStyles,
-    background: container?.presentation?.backgroundColor || themeStyles.background,
+    background: resolveContainerBackground(layout, themeStyles),
     color: container?.presentation?.textColor || themeStyles.color,
-    padding: container?.presentation?.padding || undefined,
-    margin: container?.presentation?.margin || undefined,
-    minHeight:
-      container?.presentation?.containerHeight && container?.presentation?.containerHeight !== "auto"
-        ? container.presentation.containerHeight
-        : undefined,
+    padding: `${layout.padding}px`,
+    marginTop: `${layout.marginTop}px`,
+    marginBottom: `${layout.marginBottom}px`,
+    marginLeft: `${layout.marginLeft}px`,
+    marginRight: `${layout.marginRight}px`,
+    minHeight: resolveContainerHeight(layout),
     ...widthStyles,
   };
-
-  const normalizeCssValue = (value) => {
-    const raw = String(value || "").trim();
-    if (!raw) return "";
-    if (/^-?\d+(\.\d+)?$/.test(raw)) return `${raw}px`;
-    if (/^-?\d+(\.\d+)?(px|rem|em|%)$/.test(raw)) return raw;
-    return raw;
-  };
-
-  const offsetX = normalizeCssValue(container?.presentation?.containerOffsetX);
-  const offsetY = normalizeCssValue(container?.presentation?.containerOffsetY);
-  const transformParts = [];
-  const isPercent = (v) => String(v).trim().endsWith("%");
-  const useLeftTop = isPercent(offsetX) || isPercent(offsetY);
 
   const wrapperStyle = {};
   const shouldShiftGridUp = container?.containerType === "GRID";
 
-  if (offsetX || offsetY || shouldShiftGridUp) {
-    if (useLeftTop && !shouldShiftGridUp) {
-      wrapperStyle.position = "relative";
-      if (offsetX) wrapperStyle.left = offsetX;
-      if (offsetY) wrapperStyle.top = offsetY;
-    } else {
-      const offsetTransformParts = [];
-      if (offsetX) offsetTransformParts.push(`translateX(${offsetX})`);
-      if (offsetY) offsetTransformParts.push(`translateY(${offsetY})`);
-      if (shouldShiftGridUp) offsetTransformParts.push("translateY(-4rem)");
-      if (offsetTransformParts.length) {
-        wrapperStyle.transform = offsetTransformParts.join(" ");
-      }
+  if (layout.positionX || layout.positionY || shouldShiftGridUp) {
+    const offsetTransformParts = [];
+    if (layout.positionX) offsetTransformParts.push(`translateX(${layout.positionX}px)`);
+    if (layout.positionY) offsetTransformParts.push(`translateY(${layout.positionY}px)`);
+    if (shouldShiftGridUp) offsetTransformParts.push("translateY(-4rem)");
+    if (offsetTransformParts.length) {
+      wrapperStyle.transform = offsetTransformParts.join(" ");
     }
   }
+
+  const backgroundMediaUrl = resolveContainerBackgroundMedia(layout);
 
   return (
     <div className={`w-full px-3 py-6 sm:px-4 lg:px-8 lg:py-8 ${visibilityClasses}`} style={wrapperStyle}>
@@ -97,11 +80,20 @@ function DynamicHomepageSection({ container }) {
         viewport={{ once: true, margin: "-80px" }}
         transition={animationSettings.transition}
         style={style}
-        className={`overflow-hidden rounded-[2rem] border border-white/60 bg-white/80 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75 ${
+        className={`relative overflow-hidden rounded-[2rem] border border-white/60 bg-white/80 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75 ${
           container?.presentation?.customCssClasses || ""
         }`}
       >
-        {renderContainer(container)}
+        {layout.backgroundType === "image" && backgroundMediaUrl ? (
+          <img src={backgroundMediaUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+        ) : null}
+        {layout.backgroundType === "video" && backgroundMediaUrl ? (
+          <video src={backgroundMediaUrl} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
+        ) : null}
+        {(layout.backgroundType === "image" || layout.backgroundType === "video") && backgroundMediaUrl ? (
+          <div className="absolute inset-0 bg-slate-950/20" />
+        ) : null}
+        <div className="relative z-10">{renderContainer(container)}</div>
       </Motion.section>
     </div>
   );
@@ -109,92 +101,136 @@ function DynamicHomepageSection({ container }) {
 
 function resolveContainerVisibilityClasses(container) {
   const desktopVisible = container?.visibility?.desktop ?? container?.desktopVisible ?? true;
+  const tabletVisible = container?.visibility?.tablet ?? container?.tabletVisible ?? true;
   const mobileVisible = container?.visibility?.mobile ?? container?.mobileVisible ?? true;
 
-  if (!desktopVisible && !mobileVisible) {
+  if (!desktopVisible && !tabletVisible && !mobileVisible) {
     return "hidden";
   }
 
-  if (!desktopVisible) {
-    return "lg:hidden";
+  if (desktopVisible && tabletVisible && mobileVisible) {
+    return "";
   }
 
-  if (!mobileVisible) {
-    return "hidden md:block";
-  }
+  const classes = [];
+  classes.push(mobileVisible ? "block" : "hidden");
+  classes.push(tabletVisible ? "md:block" : "md:hidden");
+  classes.push(desktopVisible ? "lg:block" : "lg:hidden");
 
-  return "";
+  return classes.join(" ");
 }
 
 function resolveContainerThemeStyles(themeValue) {
-  const theme = String(themeValue || "DEFAULT").trim().toUpperCase();
+  const theme = String(themeValue || "default").trim().toLowerCase();
   switch (theme) {
-    case "LIGHT":
+    case "light":
       return { background: "#ffffff", color: "#0f172a" };
-    case "DARK":
+    case "dark":
       return { background: "#0f172a", color: "#f8fafc" };
-    case "BRAND":
-      return { background: "#f59e0b", color: "#0f172a" };
-    case "DEFAULT":
+    case "premium":
+      return { background: "linear-gradient(135deg, #fef3c7, #fb923c)", color: "#3f2305" };
+    case "luxury":
+      return { background: "linear-gradient(135deg, #111827, #4b5563)", color: "#f8fafc" };
+    case "modern":
+      return { background: "linear-gradient(135deg, #dbeafe, #bfdbfe)", color: "#0f172a" };
+    case "festival":
+      return { background: "linear-gradient(135deg, #f97316, #ec4899)", color: "#fff7ed" };
+    case "minimal":
+      return { background: "#f8fafc", color: "#0f172a" };
+    case "brand":
+    case "default":
     default:
-      return {};
+      return { background: "#ffffff", color: "#0f172a" };
   }
 }
 
-function resolveContainerWidthStyle(widthValue) {
-  const width = String(widthValue || "full").trim().toLowerCase();
-  switch (width) {
-    case "full":
-      return {};
-    case "wide":
-      return { width: "100%", maxWidth: "1200px", marginInline: "auto" };
+function resolveContainerWidthStyle(layout) {
+  const styles = { width: "100%" };
+  switch (layout.widthType) {
+    case "boxed":
+      styles.maxWidth = "1400px";
+      break;
+    case "medium":
+      styles.maxWidth = "1200px";
+      break;
     case "narrow":
-      return { width: "100%", maxWidth: "900px", marginInline: "auto" };
-    case "content":
-      return { width: "100%", maxWidth: "1140px", marginInline: "auto" };
-    case "screen":
-      return { width: "100vw", marginInline: "auto" };
-    case "auto":
-      return {};
+      styles.maxWidth = "900px";
+      break;
+    case "custom":
+      styles.maxWidth = `${layout.customWidth}px`;
+      break;
+    case "full":
     default:
-      if (/^\d+(\.\d+)?(px|rem|em|%)$/.test(width)) {
-        return { width, marginInline: "auto" };
-      }
-      if (/^\d+(\.\d+)?$/.test(width)) {
-        return { width: `${width}px`, marginInline: "auto" };
-      }
-      return {};
+      break;
   }
+
+  if (layout.alignment === "left") {
+    styles.marginRight = "auto";
+  } else if (layout.alignment === "right") {
+    styles.marginLeft = "auto";
+  } else {
+    styles.marginInline = "auto";
+  }
+
+  return styles;
 }
 
 function resolveSectionAnimation(container) {
-  const animation = String(container?.presentation?.animation || container?.animation || "FADE_UP").toUpperCase();
+  const animation = String(container?.presentation?.layout?.animation || container?.presentation?.animation || container?.animation || "fadeUp")
+    .replace(/_/g, "")
+    .trim()
+    .toLowerCase();
   switch (animation) {
-    case "NONE":
+    case "none":
       return {
         initial: { opacity: 1, x: 0, y: 0 },
         whileInView: { opacity: 1, x: 0, y: 0 },
         transition: { duration: 0.3, ease: "easeOut" },
       };
-    case "FADE_IN":
+    case "fadedown":
       return {
-        initial: { opacity: 0, x: 0, y: 0 },
+        initial: { opacity: 0, x: 0, y: -18 },
         whileInView: { opacity: 1, x: 0, y: 0 },
         transition: { duration: 0.45, ease: "easeOut" },
       };
-    case "SLIDE_LEFT":
+    case "fadeleft":
       return {
-        initial: { opacity: 0, x: 50, y: 0 },
+        initial: { opacity: 0, x: -36, y: 0 },
         whileInView: { opacity: 1, x: 0, y: 0 },
         transition: { duration: 0.45, ease: "easeOut" },
       };
-    case "SLIDE_RIGHT":
+    case "faderight":
       return {
-        initial: { opacity: 0, x: -50, y: 0 },
+        initial: { opacity: 0, x: 36, y: 0 },
         whileInView: { opacity: 1, x: 0, y: 0 },
         transition: { duration: 0.45, ease: "easeOut" },
       };
-    case "FADE_UP":
+    case "zoomin":
+      return {
+        initial: { opacity: 0, scale: 0.94 },
+        whileInView: { opacity: 1, scale: 1 },
+        transition: { duration: 0.45, ease: "easeOut" },
+      };
+    case "zoomout":
+      return {
+        initial: { opacity: 0, scale: 1.06 },
+        whileInView: { opacity: 1, scale: 1 },
+        transition: { duration: 0.45, ease: "easeOut" },
+      };
+    case "bounce":
+      return {
+        initial: { opacity: 0, y: 28 },
+        whileInView: { opacity: 1, y: [0, -10, 0] },
+        transition: { duration: 0.7, ease: "easeOut" },
+      };
+    case "slideup":
+      return {
+        initial: { opacity: 0, y: 36 },
+        whileInView: { opacity: 1, y: 0 },
+        transition: { duration: 0.45, ease: "easeOut" },
+      };
+    case "fadein":
+    case "fadeup":
     default:
       return {
         initial: { opacity: 0, x: 0, y: 18 },
@@ -202,6 +238,69 @@ function resolveSectionAnimation(container) {
         transition: { duration: 0.45, ease: "easeOut" },
       };
   }
+}
+
+function resolveContainerLayout(container) {
+  const layout = container?.presentation?.layout || {};
+  const rawWidth = String(container?.presentation?.containerWidth || "").toLowerCase();
+  const rawHeight = String(container?.presentation?.containerHeight || "").toLowerCase();
+  const theme = String(layout.theme || container?.presentation?.containerTheme || "default").toLowerCase();
+
+  return {
+    widthType: layout.widthType || (rawWidth === "full" ? "full" : rawWidth === "narrow" ? "narrow" : rawWidth === "medium" ? "medium" : rawWidth === "boxed" || rawWidth === "wide" || rawWidth === "content" ? "boxed" : "custom"),
+    customWidth: Number(layout.customWidth || String(rawWidth).replace(/[^\d.-]/g, "") || 1400),
+    heightType: layout.heightType || (rawHeight === "auto" || !rawHeight ? "auto" : "custom"),
+    customHeight: Number(layout.customHeight || String(rawHeight).replace(/[^\d.-]/g, "") || 450),
+    alignment: layout.alignment || "center",
+    positionX: Number(layout.positionX || String(container?.presentation?.containerOffsetX || "0").replace(/[^\d.-]/g, "") || 0),
+    positionY: Number(layout.positionY || String(container?.presentation?.containerOffsetY || "0").replace(/[^\d.-]/g, "") || 0),
+    padding: Number(layout.padding || String(container?.presentation?.padding || "24").replace(/[^\d.-]/g, "") || 24),
+    marginTop: Number(layout.marginTop || 16),
+    marginBottom: Number(layout.marginBottom || 16),
+    marginLeft: Number(layout.marginLeft || 0),
+    marginRight: Number(layout.marginRight || 0),
+    backgroundType: layout.backgroundType || "solid",
+    backgroundColor: layout.backgroundColor || container?.presentation?.backgroundColor || "#ffffff",
+    gradientColor1: layout.gradientColor1 || "#fff7ed",
+    gradientColor2: layout.gradientColor2 || "#fde68a",
+    gradientDirection: layout.gradientDirection || "to right",
+    backgroundImage: layout.backgroundImage || "",
+    backgroundVideo: layout.backgroundVideo || "",
+    theme,
+    animation: layout.animation || "fadeUp",
+  };
+}
+
+function resolveContainerHeight(layout) {
+  switch (layout.heightType) {
+    case "small":
+      return "250px";
+    case "medium":
+      return "450px";
+    case "large":
+      return "650px";
+    case "extraLarge":
+      return "850px";
+    case "custom":
+      return `${layout.customHeight}px`;
+    default:
+      return undefined;
+  }
+}
+
+function resolveContainerBackground(layout, themeStyles) {
+  if (layout.backgroundType === "solid") {
+    return layout.backgroundColor || themeStyles.background;
+  }
+  if (layout.backgroundType === "gradient") {
+    return `linear-gradient(${layout.gradientDirection}, ${layout.gradientColor1}, ${layout.gradientColor2})`;
+  }
+  return themeStyles.background;
+}
+
+function resolveContainerBackgroundMedia(layout) {
+  const raw = layout.backgroundType === "video" ? layout.backgroundVideo : layout.backgroundImage;
+  return raw ? resolveApiAssetUrl(raw) : "";
 }
 
 function renderContainer(container) {

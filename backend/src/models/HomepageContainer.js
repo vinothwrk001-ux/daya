@@ -12,7 +12,35 @@ const {
 const visibilitySchema = new mongoose.Schema(
   {
     desktop: { type: Boolean, default: true },
+    tablet: { type: Boolean, default: true },
     mobile: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
+
+const layoutSchema = new mongoose.Schema(
+  {
+    widthType: { type: String, trim: true, default: "full" },
+    customWidth: { type: Number, default: 1400 },
+    heightType: { type: String, trim: true, default: "auto" },
+    customHeight: { type: Number, default: 450 },
+    alignment: { type: String, trim: true, default: "center" },
+    positionX: { type: Number, default: 0 },
+    positionY: { type: Number, default: 0 },
+    padding: { type: Number, default: 24 },
+    marginTop: { type: Number, default: 16 },
+    marginBottom: { type: Number, default: 16 },
+    marginLeft: { type: Number, default: 0 },
+    marginRight: { type: Number, default: 0 },
+    backgroundType: { type: String, trim: true, default: "solid" },
+    backgroundColor: { type: String, trim: true, default: "#ffffff" },
+    gradientColor1: { type: String, trim: true, default: "#fff7ed" },
+    gradientColor2: { type: String, trim: true, default: "#fde68a" },
+    gradientDirection: { type: String, trim: true, default: "to right" },
+    backgroundImage: { type: String, trim: true, default: "" },
+    backgroundVideo: { type: String, trim: true, default: "" },
+    theme: { type: String, trim: true, default: "default" },
+    animation: { type: String, trim: true, default: "fadeUp" },
   },
   { _id: false }
 );
@@ -30,6 +58,10 @@ const presentationSchema = new mongoose.Schema(
     containerTheme: { type: String, trim: true, default: "DEFAULT" },
     containerOffsetX: { type: String, trim: true, default: "" },
     containerOffsetY: { type: String, trim: true, default: "" },
+    layout: {
+      type: layoutSchema,
+      default: () => ({}),
+    },
   },
   { _id: false }
 );
@@ -195,6 +227,7 @@ homepageContainerSchema.pre("validate", function normalizeContainer() {
 
   this.visibility = {
     desktop: this.visibility?.desktop !== false,
+    tablet: this.visibility?.tablet !== false,
     mobile: this.visibility?.mobile !== false,
   };
 

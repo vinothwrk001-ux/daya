@@ -5,6 +5,7 @@ const { Vendor } = require("../models/Vendor");
 const { Category } = require("../models/Category");
 const { Subcategory } = require("../models/Subcategory");
 const { AppError } = require("../utils/AppError");
+const { uploadMany } = require("../utils/upload");
 const {
   normalizeContainerType,
   getContainerTypeSchema,
@@ -81,6 +82,131 @@ function coerceBoolean(value, fallback = false) {
   return Boolean(value);
 }
 
+function normalizeInteger(value, fallback = 0, { min = Number.NEGATIVE_INFINITY, max = Number.POSITIVE_INFINITY } = {}) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return fallback;
+  return Math.min(Math.max(Math.round(next), min), max);
+}
+
+function extractNumericValue(value, fallback = 0) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const match = String(value).match(/-?\d+(\.\d+)?/);
+  return match ? Number(match[0]) : fallback;
+}
+
+function mapLegacyWidthType(value) {
+  switch (String(value || "full").trim().toLowerCase()) {
+    case "wide":
+    case "content":
+    case "boxed":
+      return "boxed";
+    case "medium":
+      return "medium";
+    case "narrow":
+      return "narrow";
+    case "screen":
+    case "full":
+      return "full";
+    default:
+      return "custom";
+  }
+}
+
+function mapLegacyHeightType(value) {
+  const raw = String(value || "auto").trim().toLowerCase();
+  if (!raw || raw === "auto") return "auto";
+  const numeric = extractNumericValue(raw, null);
+  if (numeric === null) return "custom";
+  if (numeric <= 300) return "small";
+  if (numeric <= 500) return "medium";
+  if (numeric <= 700) return "large";
+  if (numeric <= 900) return "extraLarge";
+  return "custom";
+}
+
+function mapLegacyTheme(value) {
+  switch (String(value || "DEFAULT").trim().toUpperCase()) {
+    case "LIGHT":
+      return "light";
+    case "DARK":
+      return "dark";
+    case "BRAND":
+      return "premium";
+    case "DEFAULT":
+    default:
+      return "default";
+  }
+}
+
+function mapLegacyAnimation(value) {
+  switch (String(value || "FADE_UP").trim().toUpperCase()) {
+    case "NONE":
+      return "none";
+    case "FADE_IN":
+      return "fadeUp";
+    case "SLIDE_LEFT":
+      return "fadeLeft";
+    case "SLIDE_RIGHT":
+      return "fadeRight";
+    case "FADE_UP":
+    default:
+      return "fadeUp";
+  }
+}
+
+function normalizeLayout(input = {}, legacyPresentation = {}, payload = {}) {
+  const backgroundType =
+    input.backgroundType ||
+    payload.backgroundType ||
+    (input.backgroundVideo || payload.backgroundVideo
+      ? "video"
+      : input.backgroundImage || payload.backgroundImage
+        ? "image"
+        : input.gradientColor1 || input.gradientColor2 || payload.gradientColor1 || payload.gradientColor2
+          ? "gradient"
+          : "solid");
+
+  return {
+    widthType: String(input.widthType || payload.widthType || mapLegacyWidthType(payload.containerWidth ?? legacyPresentation.containerWidth)).trim(),
+    customWidth: normalizeInteger(
+      input.customWidth ?? payload.customWidth ?? extractNumericValue(payload.containerWidth ?? legacyPresentation.containerWidth, 1400),
+      1400,
+      { min: 200, max: 2000 }
+    ),
+    heightType: String(input.heightType || payload.heightType || mapLegacyHeightType(payload.containerHeight ?? legacyPresentation.containerHeight)).trim(),
+    customHeight: normalizeInteger(
+      input.customHeight ?? payload.customHeight ?? extractNumericValue(payload.containerHeight ?? legacyPresentation.containerHeight, 450),
+      450,
+      { min: 100, max: 2000 }
+    ),
+    alignment: String(input.alignment || payload.alignment || "center").trim(),
+    positionX: normalizeInteger(
+      input.positionX ?? payload.positionX ?? extractNumericValue(payload.containerOffsetX ?? legacyPresentation.containerOffsetX, 0),
+      0,
+      { min: -500, max: 500 }
+    ),
+    positionY: normalizeInteger(
+      input.positionY ?? payload.positionY ?? extractNumericValue(payload.containerOffsetY ?? legacyPresentation.containerOffsetY, 0),
+      0,
+      { min: -500, max: 500 }
+    ),
+    padding: normalizeInteger(input.padding ?? payload.padding ?? extractNumericValue(legacyPresentation.padding, 24), 24, { min: 0, max: 150 }),
+    marginTop: normalizeInteger(input.marginTop ?? payload.marginTop, 16, { min: 0, max: 150 }),
+    marginBottom: normalizeInteger(input.marginBottom ?? payload.marginBottom, 16, { min: 0, max: 150 }),
+    marginLeft: normalizeInteger(input.marginLeft ?? payload.marginLeft, 0, { min: 0, max: 150 }),
+    marginRight: normalizeInteger(input.marginRight ?? payload.marginRight, 0, { min: 0, max: 150 }),
+    backgroundType: String(backgroundType).trim(),
+    backgroundColor: String(input.backgroundColor ?? payload.backgroundColor ?? legacyPresentation.backgroundColor ?? "#ffffff").trim() || "#ffffff",
+    gradientColor1: String(input.gradientColor1 ?? payload.gradientColor1 ?? "#fff7ed").trim() || "#fff7ed",
+    gradientColor2: String(input.gradientColor2 ?? payload.gradientColor2 ?? "#fde68a").trim() || "#fde68a",
+    gradientDirection: String(input.gradientDirection ?? payload.gradientDirection ?? "to right").trim() || "to right",
+    backgroundImage: String(input.backgroundImage ?? payload.backgroundImage ?? "").trim(),
+    backgroundVideo: String(input.backgroundVideo ?? payload.backgroundVideo ?? "").trim(),
+    theme: String(input.theme || payload.theme || mapLegacyTheme(payload.containerTheme ?? legacyPresentation.containerTheme)).trim(),
+    animation: String(input.animation || payload.animation || mapLegacyAnimation(payload.animation ?? legacyPresentation.animation)).trim(),
+  };
+}
+
 function getDefaultConfig(type, input = {}) {
   const schema = getContainerTypeSchema(type);
   return (schema.typeFields || []).reduce((acc, field) => {
@@ -99,9 +225,11 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
 
   const visibility = payload.visibility || {};
   const presentation = payload.presentation || {};
+  const layoutInput = payload.layout || presentation.layout || {};
   const filters = payload.filters || {};
   const schedule = payload.schedule || {};
   const inputConfig = payload.config || {};
+  const layout = normalizeLayout(layoutInput, presentation, payload);
 
   const normalized = {
     ...(payload.title !== undefined ? { title: String(payload.title || "").trim() } : {}),
@@ -118,6 +246,12 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
           : visibility.desktop !== undefined
             ? Boolean(visibility.desktop)
             : true,
+      tablet:
+        payload.tabletVisible !== undefined
+          ? Boolean(payload.tabletVisible)
+          : visibility.tablet !== undefined
+            ? Boolean(visibility.tablet)
+            : true,
       mobile:
         payload.mobileVisible !== undefined
           ? Boolean(payload.mobileVisible)
@@ -126,17 +260,24 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
             : true,
     },
     presentation: {
-      backgroundColor: String(payload.backgroundColor ?? presentation.backgroundColor ?? "").trim(),
+      backgroundColor: layout.backgroundType === "solid" ? layout.backgroundColor : String(payload.backgroundColor ?? presentation.backgroundColor ?? "").trim(),
       textColor: String(payload.textColor ?? presentation.textColor ?? "").trim(),
-      padding: String(payload.padding ?? presentation.padding ?? "24px").trim(),
-      margin: String(payload.margin ?? presentation.margin ?? "0").trim(),
+      padding: `${layout.padding}px`,
+      margin: `${layout.marginTop}px ${layout.marginRight}px ${layout.marginBottom}px ${layout.marginLeft}px`,
       animation: String(payload.animation ?? presentation.animation ?? "FADE_UP").trim().toUpperCase(),
       customCssClasses: String(payload.customCssClasses ?? presentation.customCssClasses ?? "").trim(),
-      containerWidth: String(payload.containerWidth ?? presentation.containerWidth ?? "full").trim(),
-      containerHeight: String(payload.containerHeight ?? presentation.containerHeight ?? "auto").trim(),
+      containerWidth:
+        layout.widthType === "custom"
+          ? `${layout.customWidth}px`
+          : layout.widthType,
+      containerHeight:
+        layout.heightType === "custom"
+          ? `${layout.customHeight}px`
+          : layout.heightType,
       containerTheme: String(payload.containerTheme ?? presentation.containerTheme ?? "DEFAULT").trim().toUpperCase(),
-      containerOffsetX: String(payload.containerOffsetX ?? presentation.containerOffsetX ?? "").trim(),
-      containerOffsetY: String(payload.containerOffsetY ?? presentation.containerOffsetY ?? "").trim(),
+      containerOffsetX: `${layout.positionX}px`,
+      containerOffsetY: `${layout.positionY}px`,
+      layout,
     },
     schedule: {
       enabled:
@@ -317,6 +458,7 @@ function matchesDevice(container = {}, device = "all") {
   const normalized = String(device || "all").trim().toLowerCase();
   if (!normalized || normalized === "all") return true;
   if (normalized === "mobile") return container.visibility?.mobile !== false;
+  if (normalized === "tablet") return container.visibility?.tablet !== false;
   if (normalized === "desktop") return container.visibility?.desktop !== false;
   return true;
 }
@@ -577,6 +719,7 @@ function mapContainerDocument(container, productsPayload = null) {
     status: container.status,
     visibility: {
       desktop: container.visibility?.desktop !== false,
+      tablet: container.visibility?.tablet !== false,
       mobile: container.visibility?.mobile !== false,
     },
     presentation: container.presentation || {},
@@ -735,7 +878,14 @@ class HomepageContainerService {
       ...existing,
       ...normalized,
       visibility: { ...(existing.visibility || {}), ...(normalized.visibility || {}) },
-      presentation: { ...(existing.presentation || {}), ...(normalized.presentation || {}) },
+      presentation: {
+        ...(existing.presentation || {}),
+        ...(normalized.presentation || {}),
+        layout: {
+          ...(existing.presentation?.layout || {}),
+          ...(normalized.presentation?.layout || {}),
+        },
+      },
       schedule: { ...(existing.schedule || {}), ...(normalized.schedule || {}) },
       filters: { ...(existing.filters || {}), ...(normalized.filters || {}) },
       config: { ...(existing.config || {}), ...(normalized.config || {}) },
@@ -822,6 +972,10 @@ class HomepageContainerService {
       }),
       ...productsPayload,
     };
+  }
+
+  async uploadContainerMedia(files = []) {
+    return await uploadMany(files, { folder: "homepage_containers" });
   }
 
   async listPublicContainers({ device = "all", includeProducts = true, page = 1, limit } = {}) {

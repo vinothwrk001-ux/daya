@@ -51,6 +51,17 @@ export async function previewAdminHomepageContainer(payload) {
   return data;
 }
 
+export async function uploadHomepageContainerMedia(files = []) {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("images", file);
+  }
+  const { data } = await adminHttp.post("/api/admin/homepage-containers/media", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
 export async function trackHomepageContainerEvent(id, payload) {
   const { data } = await api.post(`/api/homepage-containers/${id}/track`, payload);
   return data;
