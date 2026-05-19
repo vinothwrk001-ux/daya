@@ -37,23 +37,65 @@ function DynamicHomepageSection({ container }) {
     return () => window.clearTimeout(timeoutId);
   }, [container?._id]);
 
+  const animationSettings = resolveSectionAnimation(container);
+  const visibilityClasses = resolveContainerVisibilityClasses(container);
+  const themeStyles = resolveContainerThemeStyles(container?.presentation?.containerTheme);
+  const widthStyles = resolveContainerWidthStyle(container?.presentation?.containerWidth);
+  const isGridContainer = container?.containerType === "GRID";
+
   const style = {
-    background: container?.presentation?.backgroundColor || undefined,
-    color: container?.presentation?.textColor || undefined,
+    ...themeStyles,
+    background: container?.presentation?.backgroundColor || themeStyles.background,
+    color: container?.presentation?.textColor || themeStyles.color,
     padding: container?.presentation?.padding || undefined,
     margin: container?.presentation?.margin || undefined,
-    minHeight: container?.presentation?.containerHeight && container?.presentation?.containerHeight !== "auto"
-      ? container.presentation.containerHeight
-      : undefined,
+    minHeight:
+      container?.presentation?.containerHeight && container?.presentation?.containerHeight !== "auto"
+        ? container.presentation.containerHeight
+        : undefined,
+    ...widthStyles,
   };
 
+  const normalizeCssValue = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (/^-?\d+(\.\d+)?$/.test(raw)) return `${raw}px`;
+    if (/^-?\d+(\.\d+)?(px|rem|em|%)$/.test(raw)) return raw;
+    return raw;
+  };
+
+  const offsetX = normalizeCssValue(container?.presentation?.containerOffsetX);
+  const offsetY = normalizeCssValue(container?.presentation?.containerOffsetY);
+  const transformParts = [];
+  const isPercent = (v) => String(v).trim().endsWith("%");
+  const useLeftTop = isPercent(offsetX) || isPercent(offsetY);
+
+  const wrapperStyle = {};
+  const shouldShiftGridUp = container?.containerType === "GRID";
+
+  if (offsetX || offsetY || shouldShiftGridUp) {
+    if (useLeftTop && !shouldShiftGridUp) {
+      wrapperStyle.position = "relative";
+      if (offsetX) wrapperStyle.left = offsetX;
+      if (offsetY) wrapperStyle.top = offsetY;
+    } else {
+      const offsetTransformParts = [];
+      if (offsetX) offsetTransformParts.push(`translateX(${offsetX})`);
+      if (offsetY) offsetTransformParts.push(`translateY(${offsetY})`);
+      if (shouldShiftGridUp) offsetTransformParts.push("translateY(-4rem)");
+      if (offsetTransformParts.length) {
+        wrapperStyle.transform = offsetTransformParts.join(" ");
+      }
+    }
+  }
+
   return (
-    <div className="w-full px-3 py-6 sm:px-4 lg:px-8 lg:py-8">
+    <div className={`w-full px-3 py-6 sm:px-4 lg:px-8 lg:py-8 ${visibilityClasses}`} style={wrapperStyle}>
       <Motion.section
-        initial={{ opacity: 0, y: 18 }}
-        whileInView={{ opacity: 1, y: 0 }}
+        initial={animationSettings.initial}
+        whileInView={animationSettings.whileInView}
         viewport={{ once: true, margin: "-80px" }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
+        transition={animationSettings.transition}
         style={style}
         className={`overflow-hidden rounded-[2rem] border border-white/60 bg-white/80 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75 ${
           container?.presentation?.customCssClasses || ""
@@ -63,6 +105,103 @@ function DynamicHomepageSection({ container }) {
       </Motion.section>
     </div>
   );
+}
+
+function resolveContainerVisibilityClasses(container) {
+  const desktopVisible = container?.visibility?.desktop ?? container?.desktopVisible ?? true;
+  const mobileVisible = container?.visibility?.mobile ?? container?.mobileVisible ?? true;
+
+  if (!desktopVisible && !mobileVisible) {
+    return "hidden";
+  }
+
+  if (!desktopVisible) {
+    return "lg:hidden";
+  }
+
+  if (!mobileVisible) {
+    return "hidden md:block";
+  }
+
+  return "";
+}
+
+function resolveContainerThemeStyles(themeValue) {
+  const theme = String(themeValue || "DEFAULT").trim().toUpperCase();
+  switch (theme) {
+    case "LIGHT":
+      return { background: "#ffffff", color: "#0f172a" };
+    case "DARK":
+      return { background: "#0f172a", color: "#f8fafc" };
+    case "BRAND":
+      return { background: "#f59e0b", color: "#0f172a" };
+    case "DEFAULT":
+    default:
+      return {};
+  }
+}
+
+function resolveContainerWidthStyle(widthValue) {
+  const width = String(widthValue || "full").trim().toLowerCase();
+  switch (width) {
+    case "full":
+      return {};
+    case "wide":
+      return { width: "100%", maxWidth: "1200px", marginInline: "auto" };
+    case "narrow":
+      return { width: "100%", maxWidth: "900px", marginInline: "auto" };
+    case "content":
+      return { width: "100%", maxWidth: "1140px", marginInline: "auto" };
+    case "screen":
+      return { width: "100vw", marginInline: "auto" };
+    case "auto":
+      return {};
+    default:
+      if (/^\d+(\.\d+)?(px|rem|em|%)$/.test(width)) {
+        return { width, marginInline: "auto" };
+      }
+      if (/^\d+(\.\d+)?$/.test(width)) {
+        return { width: `${width}px`, marginInline: "auto" };
+      }
+      return {};
+  }
+}
+
+function resolveSectionAnimation(container) {
+  const animation = String(container?.presentation?.animation || container?.animation || "FADE_UP").toUpperCase();
+  switch (animation) {
+    case "NONE":
+      return {
+        initial: { opacity: 1, x: 0, y: 0 },
+        whileInView: { opacity: 1, x: 0, y: 0 },
+        transition: { duration: 0.3, ease: "easeOut" },
+      };
+    case "FADE_IN":
+      return {
+        initial: { opacity: 0, x: 0, y: 0 },
+        whileInView: { opacity: 1, x: 0, y: 0 },
+        transition: { duration: 0.45, ease: "easeOut" },
+      };
+    case "SLIDE_LEFT":
+      return {
+        initial: { opacity: 0, x: 50, y: 0 },
+        whileInView: { opacity: 1, x: 0, y: 0 },
+        transition: { duration: 0.45, ease: "easeOut" },
+      };
+    case "SLIDE_RIGHT":
+      return {
+        initial: { opacity: 0, x: -50, y: 0 },
+        whileInView: { opacity: 1, x: 0, y: 0 },
+        transition: { duration: 0.45, ease: "easeOut" },
+      };
+    case "FADE_UP":
+    default:
+      return {
+        initial: { opacity: 0, x: 0, y: 18 },
+        whileInView: { opacity: 1, x: 0, y: 0 },
+        transition: { duration: 0.45, ease: "easeOut" },
+      };
+  }
 }
 
 function renderContainer(container) {
@@ -157,10 +296,10 @@ function FeaturedContainer({ container }) {
       <SectionHeader container={container} eyebrow="Featured spotlight" />
       <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
         <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-gradient-to-br from-amber-100 via-white to-rose-100 p-6 dark:border-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
-          {heroProduct ? <TrackedProductCard containerId={container._id} product={heroProduct} featured /> : <EmptyState />}
+          {heroProduct ? <TrackedProductCard containerId={container._id} product={heroProduct} cardStyle={container?.config?.cardStyle} featured /> : <EmptyState />}
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-          {secondary.length ? secondary.map((product) => <TrackedProductCard key={product._id} containerId={container._id} product={product} />) : <EmptyState compact />}
+          {secondary.length ? secondary.map((product) => <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} />) : <EmptyState compact />}
         </div>
       </div>
     </div>
@@ -262,7 +401,7 @@ function GridFamilyContainer({ container }) {
       ) : null}
       {type === "VENDOR_SPOTLIGHT" ? <VendorSpotlightHero container={container} /> : null}
       <div className={`mt-6 grid gap-4 ${gridClass}`}>
-        {items.length ? items.map((product) => <TrackedProductCard key={product._id} containerId={container._id} product={product} compact={type === "DEALS_STRIP" || type === "LIST"} />) : <EmptyState />}
+        {items.length ? items.map((product) => <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} compact={type === "DEALS_STRIP" || type === "LIST"} />) : <EmptyState />}
       </div>
     </div>
   );
@@ -308,7 +447,7 @@ function TabsContainer({ container }) {
         ))}
       </div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {activeItems.length ? activeItems.map((product) => <TrackedProductCard key={product._id} containerId={container._id} product={product} />) : <EmptyState />}
+        {activeItems.length ? activeItems.map((product) => <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} />) : <EmptyState />}
       </div>
     </div>
   );
@@ -347,7 +486,7 @@ function FlashSaleContainer({ container }) {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {(container.products || []).map((product) => (
-            <TrackedProductCard key={product._id} containerId={container._id} product={product} />
+            <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} />
           ))}
         </div>
       </div>
@@ -355,13 +494,13 @@ function FlashSaleContainer({ container }) {
   );
 }
 
-function TrackedProductCard({ containerId, product, compact = false, featured = false }) {
+function TrackedProductCard({ containerId, product, cardStyle = "DEFAULT", compact = false, featured = false }) {
   return (
     <div
       onClickCapture={() => trackHomepageContainerEvent(containerId, { eventType: "product_click", productId: product._id }).catch(() => {})}
       className={featured ? "h-full" : compact ? "max-w-none" : ""}
     >
-      <ProductCard product={product} />
+      <ProductCard product={product} cardStyle={cardStyle} />
     </div>
   );
 }
@@ -446,7 +585,14 @@ function resolveGridClass(type, config) {
     4: "xl:grid-cols-4",
     5: "xl:grid-cols-5",
     6: "xl:grid-cols-6",
+    7: "xl:grid-cols-7",
+    8: "xl:grid-cols-8",
+    9: "xl:grid-cols-9",
+    10: "xl:grid-cols-10",
+    11: "xl:grid-cols-11",
+    12: "xl:grid-cols-12",
   };
+  // if the requested desktopColumns is outside 1..12, fall back to 4
   return `sm:grid-cols-2 ${columnClassMap[desktopColumns] || "xl:grid-cols-4"}`;
 }
 

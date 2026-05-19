@@ -10,7 +10,7 @@ import { useWishlist } from "../hooks/useWishlist";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { extractProductId, getAvailableProductVariant } from "../utils/cartState";
 
-export function ProductCard({ product }) {
+export function ProductCard({ product, cardStyle = "DEFAULT" }) {
   const navigate = useNavigate();
   const { cart, addItem: addCartItem } = useCart();
   const { openDrawer, showToast } = useCartDrawer();
@@ -96,6 +96,32 @@ export function ProductCard({ product }) {
     }
   };
 
+  const styleKey = String(cardStyle || "DEFAULT").toUpperCase();
+  const isEditorial = styleKey === "EDITORIAL";
+  const cardStyleClass = {
+    DEFAULT: "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm hover:shadow-lg dark:hover:shadow-lg dark:hover:shadow-slate-950/50 hover:border-blue-300 dark:hover:border-blue-600",
+    ELEVATED: "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl hover:shadow-[0_30px_90px_-45px_rgba(15,23,42,0.35)]",
+    MINIMAL: "border border-slate-200/50 dark:border-slate-700/50 bg-white/95 dark:bg-slate-950/80 shadow-none hover:shadow-sm",
+    EDITORIAL: "rounded-[2rem] border border-slate-900 bg-slate-950 text-white shadow-2xl ring-1 ring-slate-900/10",
+  }[styleKey] || "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm hover:shadow-lg dark:hover:shadow-lg dark:hover:shadow-slate-950/50 transition-all duration-300 hover:border-blue-300 dark:hover:border-blue-600";
+  const categoryTextClass = isEditorial
+    ? "text-[11px] font-semibold uppercase tracking-wide text-slate-300 line-clamp-1"
+    : "text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 line-clamp-1";
+  const titleTextClass = isEditorial
+    ? "line-clamp-2 text-sm font-semibold text-white transition group-hover:text-slate-100 leading-tight"
+    : "line-clamp-2 text-sm font-semibold text-slate-900 dark:text-white transition group-hover:text-blue-600 dark:group-hover:text-blue-400 leading-tight";
+  const ratingTextClass = isEditorial
+    ? "text-xs font-semibold text-slate-100"
+    : "text-xs font-semibold text-slate-600 dark:text-slate-400";
+  const priceCurrentClass = isEditorial
+    ? "text-sm font-bold text-white"
+    : "text-sm font-bold text-slate-900 dark:text-white";
+  const priceOriginalClass = isEditorial
+    ? "text-xs text-slate-400 line-through"
+    : "text-xs text-slate-500 dark:text-slate-400 line-through";
+  const stockClass = isEditorial ? "text-emerald-300" : "text-green-600 dark:text-green-400";
+  const stockOutClass = isEditorial ? "text-rose-300" : "text-red-600 dark:text-red-400";
+
   return (
     <Motion.article
       whileHover={{ y: -8 }}
@@ -109,7 +135,7 @@ export function ProductCard({ product }) {
       }}
       role="link"
       tabIndex={0}
-      className="group relative flex flex-col h-full overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm hover:shadow-lg dark:hover:shadow-lg dark:hover:shadow-slate-950/50 transition-all duration-300 hover:border-blue-300 dark:hover:border-blue-600"
+      className={`group relative flex flex-col h-full overflow-hidden rounded-2xl transition-all duration-300 ${cardStyleClass}`}
     >
       <div className="relative w-full aspect-[4/5] bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-800 overflow-hidden flex-shrink-0">
         {/* Product Image */}
@@ -174,14 +200,10 @@ export function ProductCard({ product }) {
       {/* Product Info Section */}
       <div className="flex flex-col flex-grow p-4 gap-2">
         {/* Category */}
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 line-clamp-1">
-          {product.category || "Featured"}
-        </p>
+        <p className={categoryTextClass}>{product.category || "Featured"}</p>
 
         {/* Product Name */}
-        <h3 className="line-clamp-2 text-sm font-semibold text-slate-900 dark:text-white transition group-hover:text-blue-600 dark:group-hover:text-blue-400 leading-tight">
-          {product.name}
-        </h3>
+        <h3 className={titleTextClass}>{product.name}</h3>
 
         {/* Spacer */}
         <div className="flex-grow" />
@@ -190,7 +212,7 @@ export function ProductCard({ product }) {
         {product?.ratings?.averageRating > 0 ? (
           <div className="flex items-center gap-1">
             <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+            <span className={ratingTextClass}>
               {Number(product.ratings.averageRating).toFixed(1)}
             </span>
           </div>
@@ -199,11 +221,11 @@ export function ProductCard({ product }) {
         {/* Pricing */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-slate-900 dark:text-white">
+            <span className={priceCurrentClass}>
               {formatCurrency(product.discountPrice || product.price)}
             </span>
             {product.discountPrice && (
-              <span className="text-xs text-slate-500 dark:text-slate-400 line-through">
+              <span className={priceOriginalClass}>
                 {formatCurrency(product.price)}
               </span>
             )}
@@ -213,11 +235,11 @@ export function ProductCard({ product }) {
         {/* Stock Status */}
         <div className="text-xs font-medium">
           {hasAvailableVariants ? (
-            <span className="text-green-600 dark:text-green-400">
+            <span className={stockClass}>
               {selectedVariant ? `${selectedVariant.title} — ${availableStock} left` : `In stock (${availableStock} available)`}
             </span>
           ) : (
-            <span className="text-red-600 dark:text-red-400">Out of stock</span>
+            <span className={stockOutClass}>Out of stock</span>
           )}
         </div>
       </div>

@@ -135,6 +135,8 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
       containerWidth: String(payload.containerWidth ?? presentation.containerWidth ?? "full").trim(),
       containerHeight: String(payload.containerHeight ?? presentation.containerHeight ?? "auto").trim(),
       containerTheme: String(payload.containerTheme ?? presentation.containerTheme ?? "DEFAULT").trim().toUpperCase(),
+      containerOffsetX: String(payload.containerOffsetX ?? presentation.containerOffsetX ?? "").trim(),
+      containerOffsetY: String(payload.containerOffsetY ?? presentation.containerOffsetY ?? "").trim(),
     },
     schedule: {
       enabled:

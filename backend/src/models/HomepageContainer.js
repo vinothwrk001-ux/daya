@@ -28,6 +28,8 @@ const presentationSchema = new mongoose.Schema(
     containerWidth: { type: String, trim: true, default: "full" },
     containerHeight: { type: String, trim: true, default: "auto" },
     containerTheme: { type: String, trim: true, default: "DEFAULT" },
+    containerOffsetX: { type: String, trim: true, default: "" },
+    containerOffsetY: { type: String, trim: true, default: "" },
   },
   { _id: false }
 );

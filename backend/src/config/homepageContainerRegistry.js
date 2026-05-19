@@ -339,6 +339,8 @@ const COMMON_FIELDS = [
   { name: "animation", label: "Animation", type: "select", options: ["NONE", "FADE_UP", "FADE_IN", "SLIDE_LEFT", "SLIDE_RIGHT"], defaultValue: "FADE_UP" },
   { name: "customCssClasses", label: "Custom CSS Classes", type: "text", defaultValue: "" },
   { name: "containerWidth", label: "Container Width", type: "text", defaultValue: "full" },
+  { name: "containerOffsetX", label: "Offset X", type: "text", defaultValue: "" },
+  { name: "containerOffsetY", label: "Offset Y", type: "text", defaultValue: "" },
   { name: "containerHeight", label: "Container Height", type: "text", defaultValue: "auto" },
   { name: "containerTheme", label: "Container Theme", type: "select", options: ["DEFAULT", "LIGHT", "DARK", "BRAND"], defaultValue: "DEFAULT" },
 ];

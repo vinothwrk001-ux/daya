@@ -35,6 +35,8 @@ const initialForm = {
   containerWidth: "full",
   containerHeight: "auto",
   containerTheme: "DEFAULT",
+  containerOffsetX: "",
+  containerOffsetY: "",
   filters: {
     vendorIds: [],
     categoryIds: [],
@@ -86,6 +88,8 @@ function buildPayload(form) {
     customCssClasses: form.customCssClasses,
     containerWidth: form.containerWidth,
     containerHeight: form.containerHeight,
+    containerOffsetX: form.containerOffsetX,
+    containerOffsetY: form.containerOffsetY,
     containerTheme: form.containerTheme,
     filters: {
       vendorIds: form.filters.vendorIds,
@@ -158,6 +162,8 @@ function containerToForm(container, schema) {
     customCssClasses: container?.presentation?.customCssClasses || "",
     containerWidth: container?.presentation?.containerWidth || "full",
     containerHeight: container?.presentation?.containerHeight || "auto",
+    containerOffsetX: container?.presentation?.containerOffsetX || "",
+    containerOffsetY: container?.presentation?.containerOffsetY || "",
     containerTheme: container?.presentation?.containerTheme || "DEFAULT",
     filters: {
       vendorIds: (container?.filters?.vendorIds || []).map((item) => item?._id || item),
@@ -358,6 +364,21 @@ export function AdminHomepageContainersPage() {
     }
   }
 
+  async function handleToggleDisable(container) {
+    const makeSure = container.status === "DISABLED" ? "Enable" : "Disable";
+    if (!window.confirm(`${makeSure} this homepage container?`)) return;
+    try {
+      setSaving(true);
+      const newStatus = container.status === "DISABLED" ? "ACTIVE" : "DISABLED";
+      await updateAdminHomepageContainer(container._id, { status: newStatus });
+      await refresh();
+    } catch (err) {
+      setError(normalizeError(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function commitReorder(nextContainers) {
     const payload = nextContainers.map((item, index) => ({ id: item._id, priority: index }));
     await reorderAdminHomepageContainers(payload);
@@ -488,6 +509,9 @@ export function AdminHomepageContainersPage() {
                         <button type="button" onClick={() => startEdit(container)} className="rounded-2xl bg-slate-900 px-3 py-2 text-sm font-medium text-white dark:bg-white dark:text-slate-900">
                           Edit
                         </button>
+                        <button type="button" onClick={() => handleToggleDisable(container)} className={`rounded-2xl border px-3 py-2 text-sm font-medium ${container.status === "DISABLED" ? "border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-300" : "border-amber-200 text-amber-700 dark:border-amber-900 dark:text-amber-300"}`}>
+                          {container.status === "DISABLED" ? "Enable" : "Disable"}
+                        </button>
                         <button type="button" onClick={() => handleDelete(container._id)} className="rounded-2xl border border-rose-200 px-3 py-2 text-sm font-medium text-rose-700 dark:border-rose-900 dark:text-rose-300">
                           Delete
                         </button>
@@ -586,12 +610,28 @@ export function AdminHomepageContainersPage() {
                 </Field>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <Field label="Container Width">
                   <input value={form.containerWidth} onChange={(event) => setForm((current) => ({ ...current, containerWidth: event.target.value }))} className={inputClassName} />
                 </Field>
                 <Field label="Container Height">
                   <input value={form.containerHeight} onChange={(event) => setForm((current) => ({ ...current, containerHeight: event.target.value }))} className={inputClassName} />
+                </Field>
+                <Field label="Container Theme">
+                  <select value={form.containerTheme} onChange={(event) => setForm((current) => ({ ...current, containerTheme: event.target.value }))} className={inputClassName}>
+                    {['DEFAULT', 'LIGHT', 'DARK', 'BRAND'].map((value) => (
+                      <option key={value} value={value}>{value}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Offset X">
+                  <input placeholder="e.g. 24px or -5%" value={form.containerOffsetX} onChange={(event) => setForm((current) => ({ ...current, containerOffsetX: event.target.value }))} className={inputClassName} />
+                </Field>
+                <Field label="Offset Y">
+                  <input placeholder="e.g. 12px or -10%" value={form.containerOffsetY} onChange={(event) => setForm((current) => ({ ...current, containerOffsetY: event.target.value }))} className={inputClassName} />
                 </Field>
               </div>
 
