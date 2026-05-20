@@ -3,6 +3,7 @@ const homepageLayoutController = require("../controllers/homepage-layout.control
 
 const router = express.Router();
 
+router.get("/containers/schema/:type", homepageLayoutController.getBuilderContainerSchema);
 router.get("/containers", homepageLayoutController.listContainerLibrary);
 router.get("/public", homepageLayoutController.getPublicLayout);
 

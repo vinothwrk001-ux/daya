@@ -7,7 +7,7 @@ import { ProductCarousel } from "../ProductCarousel";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { trackHomepageContainerEvent } from "../../services/homepageContainerService";
 
-export function DynamicHomepageRenderer({ rows = [], containers = [], loading = false }) {
+export function DynamicHomepageRenderer({ rows = [], containers = [], loading = false, bareContainers = false, bareCarouselShell = false }) {
   if (loading) {
     return (
       <>
@@ -22,18 +22,18 @@ export function DynamicHomepageRenderer({ rows = [], containers = [], loading = 
     return (
       <div className="space-y-6">
         {rows.map((row) => (
-          <DynamicHomepageRow key={row.id || row.order} row={row} />
+          <DynamicHomepageRow key={row.id || row.order} row={row} bareContainers={bareContainers} bareCarouselShell={bareCarouselShell} />
         ))}
       </div>
     );
   }
 
   return containers.map((container) => (
-    <DynamicHomepageSection key={container.instanceId || container._id} container={container} />
+    <DynamicHomepageSection key={container.instanceId || container._id} container={container} bareContainers={bareContainers} bareCarouselShell={bareCarouselShell} />
   ));
 }
 
-function DynamicHomepageRow({ row }) {
+function DynamicHomepageRow({ row, bareContainers = false, bareCarouselShell = false }) {
   return (
     <div className="flex flex-wrap gap-6">
       {(row.columns || []).map((column) => {
@@ -50,6 +50,8 @@ function DynamicHomepageRow({ row }) {
                 key={container.instanceId || container._id}
                 container={container}
                 inline
+                bareContainers={bareContainers}
+                bareCarouselShell={bareCarouselShell}
               />
             ))}
           </div>
@@ -59,7 +61,7 @@ function DynamicHomepageRow({ row }) {
   );
 }
 
-function DynamicHomepageSection({ container, inline = false }) {
+function DynamicHomepageSection({ container, inline = false, bareContainers = false, bareCarouselShell = false }) {
   const trackedRef = useRef(false);
 
   useEffect(() => {
@@ -79,18 +81,23 @@ function DynamicHomepageSection({ container, inline = false }) {
   const themeStyles = resolveContainerThemeStyles(layout.theme || container?.presentation?.containerTheme);
   const widthStyles = resolveContainerWidthStyle(layout);
   const isGridContainer = container?.containerType === "GRID";
+  const previewBare = container?.previewBare === true || bareContainers;
 
   const style = {
-    ...themeStyles,
-    background: resolveContainerBackground(layout, themeStyles),
-    color: container?.presentation?.textColor || themeStyles.color,
-    padding: `${layout.padding}px`,
-    marginTop: `${layout.marginTop}px`,
-    marginBottom: `${layout.marginBottom}px`,
-    marginLeft: `${layout.marginLeft}px`,
-    marginRight: `${layout.marginRight}px`,
-    minHeight: resolveContainerHeight(layout),
     ...widthStyles,
+    ...(previewBare
+      ? {}
+      : {
+          ...themeStyles,
+          background: resolveContainerBackground(layout, themeStyles),
+          color: container?.presentation?.textColor || themeStyles.color,
+          padding: `${layout.padding}px`,
+          marginTop: `${layout.marginTop}px`,
+          marginBottom: `${layout.marginBottom}px`,
+          marginLeft: `${layout.marginLeft}px`,
+          marginRight: `${layout.marginRight}px`,
+          minHeight: resolveContainerHeight(layout),
+        }),
   };
 
   const wrapperStyle = {};
@@ -106,28 +113,19 @@ function DynamicHomepageSection({ container, inline = false }) {
   const backgroundMediaUrl = resolveContainerBackgroundMedia(layout);
 
   return (
-    <div className={`${inline ? "w-full" : "w-full px-3 sm:px-4 lg:px-8"} ${visibilityClasses}`} style={wrapperStyle}>
-      <Motion.section
-        initial={animationSettings.initial}
-        whileInView={animationSettings.whileInView}
-        viewport={{ once: true, margin: "-80px" }}
-        transition={animationSettings.transition}
-        style={style}
-        className={`relative overflow-hidden rounded-[2rem] border border-white/60 bg-white/80 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75 ${
-          container?.presentation?.customCssClasses || ""
-        }`}
-      >
-        {layout.backgroundType === "image" && backgroundMediaUrl ? (
-          <img src={backgroundMediaUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
-        ) : null}
-        {layout.backgroundType === "video" && backgroundMediaUrl ? (
-          <video src={backgroundMediaUrl} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
-        ) : null}
-        {(layout.backgroundType === "image" || layout.backgroundType === "video") && backgroundMediaUrl ? (
-          <div className="absolute inset-0 bg-slate-950/20" />
-        ) : null}
-        <div className="relative z-10">{renderContainer(container)}</div>
-      </Motion.section>
+    <div className={`relative ${previewBare ? "" : "overflow-hidden"} ${visibilityClasses}`.trim()} style={wrapperStyle}>
+      {!previewBare && layout.backgroundType === "image" && backgroundMediaUrl ? (
+        <img src={backgroundMediaUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+      ) : null}
+      {!previewBare && layout.backgroundType === "video" && backgroundMediaUrl ? (
+        <video src={backgroundMediaUrl} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
+      ) : null}
+      {!previewBare && (layout.backgroundType === "image" || layout.backgroundType === "video") && backgroundMediaUrl ? (
+        <div className="absolute inset-0 bg-slate-950/20" />
+      ) : null}
+      <div className="relative z-10" style={style}>
+        {renderContainer(container, { bareContainers: previewBare, bareCarouselShell })}
+      </div>
     </div>
   );
 }
@@ -351,7 +349,7 @@ function resolveContainerBackgroundMedia(layout) {
   return raw ? resolveApiAssetUrl(raw) : "";
 }
 
-function renderContainer(container) {
+function renderContainer(container, options = {}) {
   switch (container.containerType) {
     case "BANNER":
       return <BannerContainer container={container} />;
@@ -380,7 +378,7 @@ function renderContainer(container) {
       return <FlashSaleContainer container={container} />;
     case "CAROUSEL":
     default:
-      return <CarouselContainer container={container} />;
+      return <CarouselContainer container={container} bareContainers={options.bareContainers === true} bareCarouselShell={options.bareCarouselShell === true} />;
   }
 }
 
@@ -412,15 +410,16 @@ function SectionHeader({ container, eyebrow, actionLabel = "View all" }) {
   );
 }
 
-function CarouselContainer({ container }) {
+function CarouselContainer({ container, bareContainers = false, bareCarouselShell = false }) {
   const config = container.config || {};
   return (
-    <div className="p-5 sm:p-6 lg:p-8">
+    <div className={bareContainers || container?.previewBare === true ? "" : "p-5 sm:p-6 lg:p-8"}>
       <ProductCarousel
         items={container.products || []}
         title={container.title}
         subtitle={container.description}
         viewAllHref={container.slug ? `/collections/${container.slug}` : undefined}
+        bare={container?.previewBare === true || bareContainers || bareCarouselShell}
         showArrows={config.showArrows !== false}
         showDots={config.showDots !== false}
         swipeEnabled={config.swipeEnabled !== false}

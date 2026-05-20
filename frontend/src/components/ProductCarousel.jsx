@@ -9,6 +9,7 @@ export function ProductCarousel({
   title,
   subtitle,
   viewAllHref,
+  bare = false,
   showArrows = true,
   showDots = true,
   swipeEnabled = true,
@@ -98,10 +99,14 @@ export function ProductCarousel({
     return () => window.clearInterval(timer);
   }, [autoSlide, items.length, itemsPerView, maxIndex, slideSpeed]);
 
+  const shellClassName = bare
+    ? ""
+    : "overflow-hidden rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8";
+
   // Show loading skeletons
   if (loading) {
     return (
-      <section className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8">
+      <section className={shellClassName}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500">Product discovery</p>
@@ -129,7 +134,7 @@ export function ProductCarousel({
   // Show empty state
   if (items.length === 0) {
     return (
-      <section className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8">
+      <section className={shellClassName}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500">Product discovery</p>
@@ -147,7 +152,7 @@ export function ProductCarousel({
   }
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8">
+    <section className={shellClassName}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500">Product discovery</p>

@@ -2,6 +2,10 @@ const { ok } = require("../utils/apiResponse");
 const { asyncHandler } = require("../utils/asyncHandler");
 const homepageLayoutService = require("../services/homepage-layout.service");
 
+const getBuilderContainerSchema = asyncHandler(async (req, res) => {
+  return ok(res, homepageLayoutService.getBuilderContainerSchema(req.params.type), "Homepage builder container schema retrieved");
+});
+
 const listContainerLibrary = asyncHandler(async (req, res) => {
   return ok(res, await homepageLayoutService.getContainerLibrary(), "Homepage builder containers retrieved");
 });
@@ -30,6 +34,10 @@ const publishAdminLayout = asyncHandler(async (req, res) => {
   return ok(res, await homepageLayoutService.publishLayout(req.params.id, req.user.sub), "Homepage layout published");
 });
 
+const deleteAdminLayout = asyncHandler(async (req, res) => {
+  return ok(res, await homepageLayoutService.deleteLayout(req.params.id), "Homepage layout deleted");
+});
+
 const listAdminLayoutVersions = asyncHandler(async (req, res) => {
   return ok(res, await homepageLayoutService.listVersions(req.params.id), "Homepage layout versions retrieved");
 });
@@ -47,6 +55,7 @@ const getPublicLayout = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getBuilderContainerSchema,
   listContainerLibrary,
   listAdminLayouts,
   getAdminLayoutById,
@@ -54,6 +63,7 @@ module.exports = {
   updateAdminLayoutDraft,
   previewAdminLayout,
   publishAdminLayout,
+  deleteAdminLayout,
   listAdminLayoutVersions,
   rollbackAdminLayoutVersion,
   uploadAdminLayoutMedia,

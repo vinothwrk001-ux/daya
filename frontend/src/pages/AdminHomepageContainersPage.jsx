@@ -9,12 +9,15 @@ import {
   GripVertical,
   LayoutTemplate,
   Monitor,
+  Play,
   Plus,
   Save,
+  Settings,
   Smartphone,
   Tablet,
 } from "lucide-react";
 import { AsyncMultiSelect } from "../components/AsyncMultiSelect";
+import { DynamicHomepageRenderer } from "../components/homepage/DynamicHomepageRenderer";
 import {
   createAdminHomepageContainer,
   deleteAdminHomepageContainer,
@@ -1607,86 +1610,6 @@ function toDisplayLabel(value = "") {
     .replace(/^./, (char) => char.toUpperCase());
 }
 
-function resolveThemePreview(theme) {
-  switch (theme) {
-    case "light":
-      return { color: "#0f172a", background: "#ffffff" };
-    case "dark":
-      return { background: "#0f172a", color: "#f8fafc" };
-    case "premium":
-      return { background: "linear-gradient(135deg, #fef3c7, #fb923c)", color: "#3f2305" };
-    case "luxury":
-      return { background: "linear-gradient(135deg, #111827, #4b5563)", color: "#f8fafc" };
-    case "modern":
-      return { background: "linear-gradient(135deg, #dbeafe, #bfdbfe)", color: "#0f172a" };
-    case "festival":
-      return { background: "linear-gradient(135deg, #f97316, #ec4899)", color: "#fff7ed" };
-    case "minimal":
-      return { background: "#f8fafc", color: "#0f172a" };
-    case "default":
-    default:
-      return { background: "#ffffff", color: "#0f172a" };
-  }
-}
-
-function resolvePreviewBackground(layout) {
-  if (layout.backgroundType === "gradient") {
-    return `linear-gradient(${layout.gradientDirection}, ${layout.gradientColor1}, ${layout.gradientColor2})`;
-  }
-  return resolveThemePreview(layout.theme).background;
-}
-
-function resolvePreviewHeight(layout) {
-  switch (layout.heightType) {
-    case "small":
-      return 250;
-    case "medium":
-      return 450;
-    case "large":
-      return 650;
-    case "custom":
-      return layout.customHeight;
-    case "auto":
-    default:
-      return 380;
-  }
-}
-
-function resolvePreviewWidth(layout) {
-  switch (layout.widthType) {
-    case "boxed":
-      return "min(100%, 1400px)";
-    case "narrow":
-      return "min(100%, 900px)";
-    case "custom":
-      return `min(100%, ${layout.customWidth}px)`;
-    case "full":
-    default:
-      return "100%";
-  }
-}
-
-function buildPreviewContainerStyle(layout) {
-  const themeStyles = resolveThemePreview(layout.theme);
-  return {
-    position: "relative",
-    overflow: "hidden",
-    width: resolvePreviewWidth(layout),
-    maxWidth: "100%",
-    boxSizing: "border-box",
-    minHeight: `${resolvePreviewHeight(layout)}px`,
-    marginTop: `${layout.marginTop}px`,
-    marginBottom: `${layout.marginBottom}px`,
-    marginLeft: layout.alignment === "right" ? "auto" : layout.alignment === "center" ? "auto" : `${layout.marginLeft}px`,
-    marginRight: layout.alignment === "left" ? "auto" : layout.alignment === "center" ? "auto" : `${layout.marginRight}px`,
-    padding: `${layout.padding}px`,
-    transform: `translate(${layout.positionX}px, ${layout.positionY}px)`,
-    background: layout.backgroundType === "solid" ? layout.backgroundColor : resolvePreviewBackground(layout),
-    color: themeStyles.color,
-    borderColor: "rgba(255,255,255,0.55)",
-  };
-}
-
 function resolvePreviewAnimation(animation) {
   const transition = { duration: 0.55, ease: "easeOut", repeat: Infinity, repeatDelay: 1.2, repeatType: "mirror" };
   switch (animation) {
@@ -1714,10 +1637,29 @@ function resolvePreviewAnimation(animation) {
 
 function LiveLayoutPreview({ form, preview, device }) {
   const layout = form.layout || defaultLayout;
-  const previewStyle = buildPreviewContainerStyle(layout);
-  const animationProps = resolvePreviewAnimation(layout.animation);
   const deviceOption = deviceOptions.find((option) => option.value === device) || deviceOptions[0];
-  const products = preview?.products?.slice(0, 4) || [];
+  const previewContainer = {
+    ...(preview?.container || {}),
+    previewBare: true,
+    title: form.title || preview?.container?.title || "",
+    slug: form.slug || preview?.container?.slug || "",
+    description: form.description || preview?.container?.description || "",
+    containerType: form.containerType || preview?.container?.containerType || "CAROUSEL",
+    config: {
+      ...(preview?.container?.config || {}),
+      ...(form.config || {}),
+    },
+    products: preview?.products || preview?.container?.products || [],
+    presentation: {
+      ...(preview?.container?.presentation || {}),
+      layout,
+    },
+    visibility: {
+      desktop: form.desktopVisible,
+      tablet: form.tabletVisible,
+      mobile: form.mobileVisible,
+    },
+  };
 
   return (
     <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40">
@@ -1726,36 +1668,9 @@ function LiveLayoutPreview({ form, preview, device }) {
           <span>{deviceOption.label} View</span>
           <span>{toDisplayLabel(layout.theme)}</span>
         </div>
-        <div className="min-h-[560px] rounded-[22px] border border-white/70 bg-white/45 p-4 shadow-inner dark:border-white/10 dark:bg-slate-900/30">
+        <div className="min-h-[560px]">
           <div className={deviceOption.widthClassName}>
-            <Motion.div {...animationProps} className="rounded-[22px] border shadow-[0_30px_80px_-40px_rgba(15,23,42,0.45)]" style={previewStyle}>
-              {layout.backgroundType === "video" && layout.backgroundVideo ? (
-                <video src={resolveApiAssetUrl(layout.backgroundVideo)} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full rounded-[inherit] object-cover" />
-              ) : null}
-              {layout.backgroundType === "image" && layout.backgroundImage ? (
-                <img src={resolveApiAssetUrl(layout.backgroundImage)} alt="Container preview" className="absolute inset-0 h-full w-full rounded-[inherit] object-cover" />
-              ) : null}
-              <div className="relative z-10 space-y-5">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] opacity-70">{form.containerType}</div>
-                  <div className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{form.title || "Container headline"}</div>
-                  <div className="mt-2 max-w-2xl text-sm leading-6 opacity-80">{form.description || "This preview updates instantly as the admin changes layout controls."}</div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {(products.length ? products : Array.from({ length: 4 })).map((product, index) => (
-                    <div key={product?._id || index} className="rounded-2xl border border-black/5 bg-white/70 p-3 backdrop-blur dark:border-white/10 dark:bg-white/10">
-                      <div className="h-28 rounded-xl bg-black/10 dark:bg-white/10" />
-                      <div className="mt-3 text-sm font-semibold">{product?.name || "Product title"}</div>
-                      <div className="mt-1 text-xs opacity-70">{product?.category || "Category"}</div>
-                      <div className="mt-3 flex items-center justify-between">
-                        <span className="text-sm font-semibold">{product ? formatCurrency(product.discountPrice || product.price || 0) : formatCurrency(999)}</span>
-                        <span className="rounded-full bg-black/5 px-2.5 py-1 text-[11px] font-semibold dark:bg-white/10">Offer</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Motion.div>
+            <DynamicHomepageRenderer containers={[previewContainer]} />
           </div>
         </div>
       </div>
@@ -1851,7 +1766,8 @@ function AnimationSwatch({ animation }) {
 
 function PreviewPanel({ preview, loading, large = false }) {
   const products = preview?.products || [];
-  const shellClassName = large ? "min-h-[500px]" : "min-h-[360px]";
+  const shellClassName = large ? "min-h-[700px]" : "min-h-[360px]";
+  const wrapperClassName = large ? "-translate-y-8" : "";
 
   if (loading) {
     return <div className={`animate-pulse rounded-3xl bg-slate-100 dark:bg-slate-800 ${shellClassName}`} />;
@@ -1868,13 +1784,31 @@ function PreviewPanel({ preview, loading, large = false }) {
   }
 
   return (
-    <div className={`rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40 ${shellClassName}`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusPill>{preview?.container?.containerType}</StatusPill>
-        <StatusPill>{products.length} products</StatusPill>
-        <StatusPill>{toDisplayLabel(preview?.container?.presentation?.layout?.theme || "default")}</StatusPill>
+    <div className={`rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40 ${shellClassName} ${wrapperClassName} transition-transform`}>
+      <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-700">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill>{preview?.container?.containerType}</StatusPill>
+          <StatusPill>{products.length} products</StatusPill>
+          <StatusPill>{toDisplayLabel(preview?.container?.presentation?.layout?.theme || "default")}</StatusPill>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            title="Live Preview"
+          >
+            <Play className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            title="Canvas Settings"
+          >
+            <Settings className="h-5 w-5" />
+          </button>
+        </div>
       </div>
-      <div className={`mt-4 grid gap-4 ${large ? "md:grid-cols-2 xl:grid-cols-3" : "sm:grid-cols-2"}`}>
+      <div className={`grid gap-4 ${large ? "md:grid-cols-2 xl:grid-cols-3" : "sm:grid-cols-2"}`}>
         {(products.length ? products : Array.from({ length: large ? 6 : 4 })).slice(0, large ? 6 : 4).map((product, index) => (
           <div key={product?._id || index} className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
             <div className="h-28 rounded-xl bg-slate-100 dark:bg-slate-800" />

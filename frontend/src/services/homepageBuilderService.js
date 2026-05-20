@@ -11,6 +11,11 @@ export async function listHomepageBuilderContainers() {
   return data;
 }
 
+export async function getHomepageBuilderContainerSchema(type) {
+  const { data } = await adminHttp.get(`/api/admin/homepage-builder/containers/schema/${type}`);
+  return data;
+}
+
 export async function listHomepageBuilderLayouts() {
   const { data } = await adminHttp.get("/api/admin/homepage-builder/layouts");
   return data;
@@ -38,6 +43,11 @@ export async function previewHomepageBuilderLayout(payload) {
 
 export async function publishHomepageBuilderLayout(id) {
   const { data } = await adminHttp.post(`/api/admin/homepage-builder/layouts/${id}/publish`);
+  return data;
+}
+
+export async function deleteHomepageBuilderLayout(id) {
+  const { data } = await adminHttp.delete(`/api/admin/homepage-builder/layouts/${id}`);
   return data;
 }
 

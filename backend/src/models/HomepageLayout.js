@@ -94,6 +94,8 @@ const layoutSnapshotSchema = new mongoose.Schema(
     name: { type: String, trim: true, default: "" },
     slug: { type: String, trim: true, default: "" },
     seo: { type: seoSchema, default: () => ({}) },
+    builder: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+    layouts: { type: [mongoose.Schema.Types.Mixed], default: [] },
     rows: { type: [layoutRowSchema], default: [] },
     notes: { type: String, trim: true, default: "" },
     savedAt: { type: Date, default: null },
@@ -159,6 +161,8 @@ homepageLayoutSchema.pre("validate", function normalizeLayout() {
   }
   this.draft.name = this.draft.name || this.name;
   this.draft.slug = generateSlug(this.draft.slug || this.slug);
+  this.draft.builder = this.draft.builder && typeof this.draft.builder === "object" ? this.draft.builder : {};
+  this.draft.layouts = Array.isArray(this.draft.layouts) ? this.draft.layouts : [];
   this.draft.rows = Array.isArray(this.draft.rows) ? this.draft.rows : [];
 });
 

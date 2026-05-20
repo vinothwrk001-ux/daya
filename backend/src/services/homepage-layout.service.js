@@ -7,6 +7,13 @@ const { AppError } = require("../utils/AppError");
 const { uploadMany } = require("../utils/upload");
 
 const PUBLIC_CACHE_TTL_MS = 60 * 1000;
+const DEFAULT_GRID_SIZE = 20;
+const DEFAULT_CANVAS = Object.freeze({
+  desktop: { width: 1200, height: 2200 },
+  tablet: { width: 840, height: 2400 },
+  mobile: { width: 390, height: 2600 },
+});
+const DEVICE_KEYS = ["desktop", "tablet", "mobile"];
 const responseCache = new Map();
 
 function setCache(key, value) {
@@ -55,6 +62,8 @@ function normalizeSeo(seo = {}) {
 
 function normalizeDeviceConfig(input = {}) {
   return {
+    x: clamp(input.x, 0, { min: 0, max: 5000 }),
+    y: clamp(input.y, 0, { min: 0, max: 5000 }),
     width: clamp(input.width, 0, { min: 0, max: 2400 }),
     height: clamp(input.height, 0, { min: 0, max: 2400 }),
     columns: clamp(input.columns, 0, { min: 0, max: 12 }),
@@ -73,6 +82,33 @@ function normalizeSettings(settings = {}) {
     marginLeft: clamp(settings.marginLeft, 0, { min: 0, max: 160 }),
     backgroundColor: String(settings.backgroundColor || "").trim(),
     customCssClasses: String(settings.customCssClasses || "").trim(),
+    lockAspectRatio: settings.lockAspectRatio === true,
+  };
+}
+
+function normalizeContainerOverrides(input = {}) {
+  return input && typeof input === "object" && !Array.isArray(input) ? JSON.parse(JSON.stringify(input)) : {};
+}
+
+function normalizeBuilderConfig(input = {}) {
+  const canvas = input?.canvas && typeof input.canvas === "object" ? input.canvas : {};
+  return {
+    mode: String(input.mode || "visual").trim().toLowerCase(),
+    gridSize: clamp(input.gridSize, DEFAULT_GRID_SIZE, { min: 4, max: 80 }),
+    canvas: {
+      desktop: {
+        width: clamp(canvas?.desktop?.width, DEFAULT_CANVAS.desktop.width, { min: 320, max: 2400 }),
+        height: clamp(canvas?.desktop?.height, DEFAULT_CANVAS.desktop.height, { min: 400, max: 6000 }),
+      },
+      tablet: {
+        width: clamp(canvas?.tablet?.width, DEFAULT_CANVAS.tablet.width, { min: 320, max: 1800 }),
+        height: clamp(canvas?.tablet?.height, DEFAULT_CANVAS.tablet.height, { min: 400, max: 6000 }),
+      },
+      mobile: {
+        width: clamp(canvas?.mobile?.width, DEFAULT_CANVAS.mobile.width, { min: 280, max: 1200 }),
+        height: clamp(canvas?.mobile?.height, DEFAULT_CANVAS.mobile.height, { min: 400, max: 6000 }),
+      },
+    },
   };
 }
 
@@ -229,7 +265,277 @@ function convertLegacyContainersToRows(containers = []) {
   return rows;
 }
 
+function snapToGrid(value, gridSize = DEFAULT_GRID_SIZE) {
+  const safeGrid = Math.max(1, Number(gridSize || DEFAULT_GRID_SIZE));
+  return Math.round(Number(value || 0) / safeGrid) * safeGrid;
+}
+
+function resolveCanvasWidth(builder, device = "desktop") {
+  return Number(builder?.canvas?.[device]?.width || DEFAULT_CANVAS[device]?.width || DEFAULT_CANVAS.desktop.width);
+}
+
+function resolveCanvasHeight(builder, device = "desktop") {
+  return Number(builder?.canvas?.[device]?.height || DEFAULT_CANVAS[device]?.height || DEFAULT_CANVAS.desktop.height);
+}
+
+function normalizeVisualConfig(input = {}, fallback = {}, builder = normalizeBuilderConfig()) {
+  return {
+    x: snapToGrid(clamp(input.x, fallback.x, { min: 0, max: 5000 }), builder.gridSize),
+    y: snapToGrid(clamp(input.y, fallback.y, { min: 0, max: 5000 }), builder.gridSize),
+    width: snapToGrid(clamp(input.width, fallback.width, { min: 80, max: 2400 }), builder.gridSize),
+    height: snapToGrid(clamp(input.height, fallback.height, { min: 80, max: 2400 }), builder.gridSize),
+    columns: clamp(input.columns, fallback.columns, { min: 0, max: 12 }),
+    spacing: clamp(input.spacing, fallback.spacing, { min: 0, max: 120 }),
+    visible: input.visible !== false,
+  };
+}
+
+function normalizeVisualLayout(layout = {}, index = 0, builder = normalizeBuilderConfig()) {
+  const baseWidth = resolveCanvasWidth(builder, "desktop");
+  const defaultWidth = Math.max(builder.gridSize * 10, Math.min(baseWidth, baseWidth - builder.gridSize * 2));
+  const defaultHeight = 320;
+  const base = {
+    x: snapToGrid(clamp(layout.x, 0, { min: 0, max: 5000 }), builder.gridSize),
+    y: snapToGrid(clamp(layout.y, index * (defaultHeight + builder.gridSize), { min: 0, max: 5000 }), builder.gridSize),
+    width: snapToGrid(clamp(layout.width, defaultWidth, { min: 80, max: 2400 }), builder.gridSize),
+    height: snapToGrid(clamp(layout.height, defaultHeight, { min: 80, max: 2400 }), builder.gridSize),
+    columns: clamp(layout.columns, 0, { min: 0, max: 12 }),
+    spacing: clamp(layout.spacing, 0, { min: 0, max: 120 }),
+    visible: layout.visible !== false,
+  };
+
+  return {
+    id: String(layout.id || layout.instanceId || createId("layout")).trim(),
+    containerId: layout.containerId ? String(layout.containerId).trim() : null,
+    x: base.x,
+    y: base.y,
+    width: base.width,
+    height: base.height,
+    visible: layout.visible !== false,
+    zIndex: clamp(layout.zIndex, index + 1, { min: 0, max: 500 }),
+    settings: normalizeSettings(layout.settings || layout.style || {}),
+    containerSettings: normalizeContainerOverrides(layout.containerSettings || layout.configOverrides),
+    desktopConfig: normalizeVisualConfig(layout.desktopConfig || {}, base, builder),
+    tabletConfig: normalizeVisualConfig(layout.tabletConfig || {}, {
+      ...base,
+      width: Math.min(base.width, resolveCanvasWidth(builder, "tablet")),
+    }, builder),
+    mobileConfig: normalizeVisualConfig(layout.mobileConfig || {}, {
+      ...base,
+      width: Math.min(base.width, resolveCanvasWidth(builder, "mobile")),
+    }, builder),
+  };
+}
+
+function resolveSlotConfig(layout = {}, device = "desktop") {
+  if (device === "mobile") return layout.mobileConfig || {};
+  if (device === "tablet") return layout.tabletConfig || {};
+  return layout.desktopConfig || {};
+}
+
+function resolveSlotRect(layout = {}, builder = normalizeBuilderConfig(), device = "desktop") {
+  const deviceConfig = resolveSlotConfig(layout, device);
+  const canvasWidth = resolveCanvasWidth(builder, device);
+  const canvasHeight = resolveCanvasHeight(builder, device);
+  const width = clamp(deviceConfig.width || layout.width, layout.width || 320, { min: 80, max: canvasWidth });
+  const height = clamp(deviceConfig.height || layout.height, layout.height || 320, { min: 80, max: 2400 });
+  const x = clamp(deviceConfig.x ?? layout.x, layout.x || 0, { min: 0, max: Math.max(0, canvasWidth - width) });
+  const y = clamp(deviceConfig.y ?? layout.y, layout.y || 0, { min: 0, max: Math.max(0, canvasHeight - height) });
+  return { x, y, width, height, right: x + width, bottom: y + height };
+}
+
+function rectsOverlap(a, b, tolerance = 4) {
+  return a.x + tolerance < b.right && a.right - tolerance > b.x && a.y + tolerance < b.bottom && a.bottom - tolerance > b.y;
+}
+
+function assertNoVisualCollisions(layouts = [], builder = normalizeBuilderConfig()) {
+  for (const device of DEVICE_KEYS) {
+    const visibleLayouts = layouts
+      .filter((layout) => layout?.containerId && layout.visible !== false && resolveSlotConfig(layout, device).visible !== false)
+      .map((layout) => ({ id: layout.id, rect: resolveSlotRect(layout, builder, device) }));
+
+    for (let index = 0; index < visibleLayouts.length; index += 1) {
+      for (let compareIndex = index + 1; compareIndex < visibleLayouts.length; compareIndex += 1) {
+        if (rectsOverlap(visibleLayouts[index].rect, visibleLayouts[compareIndex].rect)) {
+          throw new AppError(
+            `Homepage layout collision detected on ${device} between ${visibleLayouts[index].id} and ${visibleLayouts[compareIndex].id}`,
+            400,
+            "LAYOUT_COLLISION"
+          );
+        }
+      }
+    }
+  }
+}
+
+function convertRowsToLayouts(rows = [], builder = normalizeBuilderConfig()) {
+  const safeRows = (Array.isArray(rows) ? rows : []).map((row, index) => normalizeRow(row, index));
+  const canvasWidth = resolveCanvasWidth(builder, "desktop");
+  const canvasTabletWidth = resolveCanvasWidth(builder, "tablet");
+  const canvasMobileWidth = resolveCanvasWidth(builder, "mobile");
+  const layouts = [];
+  let cursorY = 0;
+
+  for (const row of safeRows) {
+    const rowHeights = [];
+    const columnSlots = [];
+    let columnOffset = 0;
+
+    for (const column of row.columns || []) {
+      const columnWidthPx = snapToGrid((Number(column.desktopWidth || column.width || 100) / 100) * canvasWidth, builder.gridSize);
+      let columnCursorY = cursorY;
+
+      for (const instance of column.containers || []) {
+        const desktopHeight = Number(instance.desktopConfig?.height || instance.settings?.minHeight || 320) || 320;
+        const tabletHeight = Number(instance.tabletConfig?.height || desktopHeight) || desktopHeight;
+        const mobileHeight = Number(instance.mobileConfig?.height || desktopHeight) || desktopHeight;
+        const desktopWidth = columnWidthPx;
+        const tabletWidth = snapToGrid((Number(column.tabletWidth || column.width || 100) / 100) * canvasTabletWidth, builder.gridSize);
+        const mobileWidth = snapToGrid((Number(column.mobileWidth || column.width || 100) / 100) * canvasMobileWidth, builder.gridSize);
+
+        columnSlots.push({
+          id: instance.instanceId || createId("layout"),
+          containerId: instance.containerId ? String(instance.containerId) : null,
+          x: columnOffset,
+          y: columnCursorY,
+          width: desktopWidth,
+          height: snapToGrid(desktopHeight, builder.gridSize),
+          visible: instance.visible !== false,
+          zIndex: layouts.length + columnSlots.length + 1,
+          settings: normalizeSettings(instance.settings || {}),
+          containerSettings: {},
+          desktopConfig: normalizeVisualConfig(
+            {
+              x: columnOffset,
+              y: columnCursorY,
+              width: desktopWidth,
+              height: desktopHeight,
+              columns: instance.desktopConfig?.columns,
+              spacing: instance.desktopConfig?.spacing,
+              visible: instance.desktopConfig?.visible,
+            },
+            {},
+            builder
+          ),
+          tabletConfig: normalizeVisualConfig(
+            {
+              x: 0,
+              y: columnCursorY,
+              width: tabletWidth,
+              height: tabletHeight,
+              columns: instance.tabletConfig?.columns,
+              spacing: instance.tabletConfig?.spacing,
+              visible: instance.tabletConfig?.visible,
+            },
+            {},
+            builder
+          ),
+          mobileConfig: normalizeVisualConfig(
+            {
+              x: 0,
+              y: columnCursorY,
+              width: mobileWidth,
+              height: mobileHeight,
+              columns: instance.mobileConfig?.columns,
+              spacing: instance.mobileConfig?.spacing,
+              visible: instance.mobileConfig?.visible,
+            },
+            {},
+            builder
+          ),
+        });
+        columnCursorY += snapToGrid(desktopHeight, builder.gridSize) + builder.gridSize;
+      }
+
+      rowHeights.push(Math.max(columnCursorY - cursorY, 0));
+      columnOffset += columnWidthPx;
+    }
+
+    layouts.push(...columnSlots);
+    cursorY += Math.max(...rowHeights, 320) + builder.gridSize;
+  }
+
+  return layouts.map((layout, index) => normalizeVisualLayout(layout, index, builder));
+}
+
+function layoutsToRows(layouts = [], builder = normalizeBuilderConfig(), device = "desktop") {
+  const sorted = (Array.isArray(layouts) ? layouts : [])
+    .filter((layout) => layout?.containerId)
+    .map((layout) => ({
+      layout,
+      rect: resolveSlotRect(layout, builder, device),
+    }))
+    .sort((left, right) => {
+      if (left.rect.y !== right.rect.y) return left.rect.y - right.rect.y;
+      if (left.rect.x !== right.rect.x) return left.rect.x - right.rect.x;
+      return (left.layout.zIndex || 0) - (right.layout.zIndex || 0);
+    });
+
+  const rows = [];
+  const tolerance = Math.max(12, builder.gridSize);
+
+  for (const item of sorted) {
+    let targetRow = rows.find(
+      (row) =>
+        Math.abs(item.rect.y - row.top) <= tolerance ||
+        (item.rect.y < row.bottom - tolerance && item.rect.bottom > row.top + tolerance)
+    );
+
+    if (!targetRow) {
+      targetRow = {
+        id: createId("row"),
+        order: rows.length,
+        top: item.rect.y,
+        bottom: item.rect.bottom,
+        items: [],
+      };
+      rows.push(targetRow);
+    }
+
+    targetRow.top = Math.min(targetRow.top, item.rect.y);
+    targetRow.bottom = Math.max(targetRow.bottom, item.rect.bottom);
+    targetRow.items.push(item);
+  }
+
+  return rows.map((row, rowIndex) => {
+    const items = row.items.sort((left, right) => left.rect.x - right.rect.x);
+    const widthPercents = items.map((item) =>
+      Number(((item.rect.width / Math.max(resolveCanvasWidth(builder, device), 1)) * 100).toFixed(2))
+    );
+
+    return {
+      id: row.id,
+      order: rowIndex,
+      type: resolveRowType(items.length > 4 ? 4 : items.length || 1, "custom"),
+      collapsed: false,
+      columns: items.map((item, columnIndex) => ({
+        id: createId("column"),
+        order: columnIndex,
+        width: widthPercents[columnIndex],
+        span: percentToSpan(widthPercents[columnIndex]),
+        desktopWidth: device === "desktop" ? widthPercents[columnIndex] : widthPercents[columnIndex],
+        tabletWidth: device === "tablet" ? widthPercents[columnIndex] : widthPercents[columnIndex],
+        mobileWidth: device === "mobile" ? widthPercents[columnIndex] : widthPercents[columnIndex],
+        minWidth: 8,
+        containers: [
+          {
+            instanceId: item.layout.id,
+            containerId: item.layout.containerId,
+            order: 0,
+            visible: item.layout.visible !== false,
+            settings: item.layout.settings || {},
+            desktopConfig: item.layout.desktopConfig || {},
+            tabletConfig: item.layout.tabletConfig || {},
+            mobileConfig: item.layout.mobileConfig || {},
+          },
+        ],
+      })),
+    };
+  });
+}
+
 function normalizeSnapshot(payload = {}, fallback = {}) {
+  const builder = normalizeBuilderConfig(payload.builder || fallback.builder);
   const fallbackRows = Array.isArray(fallback.rows)
     ? fallback.rows
     : convertLegacyContainersToRows(fallback.containers || []);
@@ -238,13 +544,24 @@ function normalizeSnapshot(payload = {}, fallback = {}) {
     : Array.isArray(payload.containers)
       ? convertLegacyContainersToRows(payload.containers)
       : fallbackRows;
+  const sourceLayouts = Array.isArray(payload.layouts)
+    ? payload.layouts
+    : Array.isArray(fallback.layouts) && fallback.layouts.length
+      ? fallback.layouts
+      : convertRowsToLayouts(sourceRows, builder);
+  const layouts = sourceLayouts.map((layout, index) => normalizeVisualLayout(layout, index, builder));
+  const rows = Array.isArray(sourceRows) && sourceRows.length
+    ? sourceRows.map((row, index) => normalizeRow(row, index)).sort((a, b) => a.order - b.order)
+    : layoutsToRows(layouts, builder, "desktop");
 
   return {
     name: String(payload.name || fallback.name || "").trim(),
     slug: String(payload.slug || fallback.slug || "").trim(),
     seo: normalizeSeo(payload.seo || fallback.seo),
     notes: String(payload.notes || fallback.notes || "").trim(),
-    rows: sourceRows.map((row, index) => normalizeRow(row, index)).sort((a, b) => a.order - b.order),
+    builder,
+    layouts,
+    rows,
   };
 }
 
@@ -326,6 +643,37 @@ function applyInstanceToContainer(container, instance, { device = "desktop", row
   return merged;
 }
 
+function applyVisualLayoutToContainer(container, layout, { device = "desktop", rowId = "", columnId = "", widthPercent = 100 } = {}) {
+  const baseInstance = {
+    instanceId: layout.id,
+    containerId: layout.containerId,
+    order: Number(layout.zIndex || 0),
+    visible: layout.visible !== false,
+    settings: layout.settings || {},
+    desktopConfig: layout.desktopConfig || {},
+    tabletConfig: layout.tabletConfig || {},
+    mobileConfig: layout.mobileConfig || {},
+  };
+  const merged = applyInstanceToContainer(container, baseInstance, {
+    device,
+    rowId,
+    columnId,
+    widthPercent,
+  });
+  merged.builderLayout.slotId = layout.id;
+  merged.builderLayout.x = layout.x;
+  merged.builderLayout.y = layout.y;
+  merged.builderLayout.width = layout.width;
+  merged.builderLayout.height = layout.height;
+  merged.builderLayout.zIndex = layout.zIndex;
+  merged.builderLayout.containerSettings = layout.containerSettings || {};
+  merged.config = {
+    ...(merged.config || {}),
+    ...(layout.containerSettings || {}),
+  };
+  return merged;
+}
+
 function matchesSchedule(container = {}, now = new Date()) {
   if (!container.schedule?.enabled) return true;
   if (container.schedule.start && new Date(container.schedule.start) > now) return false;
@@ -351,34 +699,63 @@ async function ensureUniqueSlug(slug, excludeId = null) {
   }
 }
 
-function collectContainerIds(rows = []) {
-  return rows.flatMap((row) =>
+function collectContainerIds(snapshot = {}) {
+  const sourceLayouts = Array.isArray(snapshot.layouts) ? snapshot.layouts : [];
+  if (sourceLayouts.length) {
+    return sourceLayouts.map((layout) => layout.containerId).filter(Boolean);
+  }
+  return (snapshot.rows || []).flatMap((row) =>
     (row.columns || []).flatMap((column) => (column.containers || []).map((instance) => instance.containerId))
   );
 }
 
-async function validateContainerReferences(snapshot) {
-  const rawIds = collectContainerIds(snapshot.rows || []);
-  const ids = rawIds.filter((item) => mongoose.isValidObjectId(item));
-  if (ids.length !== rawIds.length) {
-    throw new AppError("One or more homepage layout containers are invalid", 400, "INVALID_LAYOUT_CONTAINER");
+async function inspectContainerReferences(snapshot) {
+  const rawIds = collectContainerIds(snapshot);
+  const validIds = [];
+  const invalidIds = [];
+
+  for (const item of rawIds) {
+    if (!item) continue;
+    if (mongoose.isValidObjectId(item)) {
+      validIds.push(String(item));
+    } else {
+      invalidIds.push(String(item));
+    }
   }
 
-  const uniqueIds = [...new Set(ids.map(String))];
-  const existing = await HomepageContainer.find({
-    _id: { $in: uniqueIds },
-    status: "ACTIVE",
-  })
-    .select("_id")
-    .lean();
+  const uniqueIds = [...new Set(validIds)];
+  const existing = uniqueIds.length
+    ? await HomepageContainer.find({
+        _id: { $in: uniqueIds },
+        status: "ACTIVE",
+      })
+        .select("_id")
+        .lean()
+    : [];
 
-  if (existing.length !== uniqueIds.length) {
+  const existingIds = new Set(existing.map((item) => String(item._id)));
+  const missingIds = uniqueIds.filter((id) => !existingIds.has(String(id)));
+
+  return {
+    invalidIds,
+    missingIds,
+    existingIds,
+  };
+}
+
+async function validateContainerReferences(snapshot, options = {}) {
+  const referenceState = await inspectContainerReferences(snapshot);
+  if (referenceState.invalidIds.length) {
+    throw new AppError("One or more homepage layout containers are invalid", 400, "INVALID_LAYOUT_CONTAINER");
+  }
+  if (!options.allowMissing && referenceState.missingIds.length) {
     throw new AppError(
       "One or more homepage layout containers do not exist or are not active",
       400,
       "LAYOUT_CONTAINER_NOT_FOUND"
     );
   }
+  return referenceState;
 }
 
 async function ensureSingleDefault(layoutId) {
@@ -388,8 +765,8 @@ async function ensureSingleDefault(layoutId) {
   );
 }
 
-async function buildLayoutRows(rows = [], options = {}) {
-  const ids = [...new Set(collectContainerIds(rows).filter(Boolean))];
+async function buildLayoutRowsFromRows(rows = [], options = {}) {
+  const ids = [...new Set(collectContainerIds({ rows }).filter(Boolean))];
   const resolved = await homepageContainerService.getResolvedContainersByIds(ids, {
     device: options.device || "all",
     includeProducts: options.includeProducts !== false,
@@ -447,11 +824,66 @@ async function buildLayoutRows(rows = [], options = {}) {
   return layoutRows.filter((row) => row.columns.some((column) => column.containers.length > 0));
 }
 
+async function buildLayoutRowsFromLayouts(layouts = [], builder = normalizeBuilderConfig(), options = {}) {
+  const safeLayouts = Array.isArray(layouts) ? layouts : [];
+  const ids = [...new Set(safeLayouts.map((layout) => layout.containerId).filter(Boolean))];
+  const resolved = await homepageContainerService.getResolvedContainersByIds(ids, {
+    device: options.device || "all",
+    includeProducts: options.includeProducts !== false,
+    respectVisibility: false,
+  });
+  const containerMap = new Map(resolved.map((item) => [String(item._id), item]));
+  const now = new Date();
+  const rows = layoutsToRows(safeLayouts, builder, options.device || "desktop");
+
+  return rows
+    .map((row) => ({
+      ...row,
+      columns: row.columns.map((column) => {
+        const widthPercent =
+          options.device === "mobile"
+            ? column.mobileWidth
+            : options.device === "tablet"
+              ? column.tabletWidth
+              : column.desktopWidth;
+        const instance = column.containers[0];
+        const sourceLayout = safeLayouts.find((item) => item.id === instance.instanceId);
+        const container = sourceLayout?.containerId ? containerMap.get(String(sourceLayout.containerId)) : null;
+        const merged = sourceLayout && container
+          ? applyVisualLayoutToContainer(container, sourceLayout, {
+              device: options.device || "desktop",
+              rowId: row.id,
+              columnId: column.id,
+              widthPercent,
+            })
+          : null;
+
+        const containers =
+          merged &&
+          (options.respectVisibility === false ||
+            (matchesSchedule(merged, now) && isVisibleForDevice(merged, options.device || "desktop")))
+            ? [merged]
+            : [];
+
+        return {
+          ...column,
+          widthPercent,
+          containers,
+        };
+      }),
+    }))
+    .filter((row) => row.columns.some((column) => column.containers.length > 0));
+}
+
 function flattenRows(rows = []) {
   return rows.flatMap((row) => row.columns.flatMap((column) => column.containers));
 }
 
 class HomepageLayoutService {
+  getBuilderContainerSchema(type) {
+    return homepageContainerService.getContainerSchema(type);
+  }
+
   async getContainerLibrary() {
     return await homepageContainerService.listActiveContainersForBuilder();
   }
@@ -475,9 +907,10 @@ class HomepageLayoutService {
   async createLayout(payload = {}, actorId) {
     const name = String(payload.name || "Homepage Layout").trim();
     const slug = String(payload.slug || name).trim().toLowerCase();
-    const snapshot = normalizeSnapshot(payload.draft || {}, { name, slug, rows: [] });
+    const snapshot = normalizeSnapshot(payload.draft || {}, { name, slug, rows: [], layouts: [] });
     await ensureUniqueSlug(slug);
-    await validateContainerReferences(snapshot);
+    await validateContainerReferences(snapshot, { allowMissing: true });
+    assertNoVisualCollisions(snapshot.layouts, snapshot.builder);
 
     const created = await HomepageLayout.create({
       name,
@@ -523,11 +956,14 @@ class HomepageLayoutService {
       slug,
       seo: layout.draft?.seo,
       rows: layout.draft?.rows,
+      layouts: layout.draft?.layouts,
+      builder: layout.draft?.builder,
       notes: layout.draft?.notes,
     });
 
     await ensureUniqueSlug(slug, layout._id);
-    await validateContainerReferences(snapshot);
+    await validateContainerReferences(snapshot, { allowMissing: true });
+    assertNoVisualCollisions(snapshot.layouts, snapshot.builder);
 
     layout.name = name;
     layout.slug = slug;
@@ -556,22 +992,39 @@ class HomepageLayoutService {
       name: payload.name,
       slug: payload.slug,
     });
-    await validateContainerReferences(snapshot);
+    const referenceState = await validateContainerReferences(snapshot, { allowMissing: true });
+    assertNoVisualCollisions(snapshot.layouts, snapshot.builder);
 
-    const rows = await buildLayoutRows(snapshot.rows, {
-      device: payload.device || "desktop",
-      includeProducts: true,
-      respectVisibility: false,
-    });
+    const rows = snapshot.layouts?.length
+      ? await buildLayoutRowsFromLayouts(snapshot.layouts, snapshot.builder, {
+          device: payload.device || "desktop",
+          includeProducts: true,
+          respectVisibility: true,
+        })
+      : await buildLayoutRowsFromRows(snapshot.rows || [], {
+          device: payload.device || "desktop",
+          includeProducts: true,
+          respectVisibility: true,
+        });
 
     return {
       layout: {
         name: snapshot.name || "Homepage Preview",
         slug: snapshot.slug || "",
         seo: snapshot.seo,
+        builder: snapshot.builder,
       },
       rows,
       containers: flattenRows(rows),
+      warnings: referenceState.missingIds.length
+        ? [
+            {
+              code: "MISSING_CONTAINERS",
+              message: "One or more containers referenced by the layout are missing or inactive.",
+              containerIds: referenceState.missingIds,
+            },
+          ]
+        : [],
     };
   }
 
@@ -590,10 +1043,13 @@ class HomepageLayoutService {
       slug: layout.slug,
       seo: layout.draft?.seo,
       rows: layout.draft?.rows,
+      layouts: layout.draft?.layouts,
+      builder: layout.draft?.builder,
       notes: layout.draft?.notes,
     });
 
     await validateContainerReferences(snapshot);
+    assertNoVisualCollisions(snapshot.layouts, snapshot.builder);
 
     const nextVersion = Number(layout.versionCounter || 0) + 1;
     const now = new Date();
@@ -640,6 +1096,19 @@ class HomepageLayoutService {
         publishedAt: version.publishedAt,
       },
     };
+  }
+
+  async deleteLayout(id) {
+    if (!mongoose.isValidObjectId(id)) {
+      throw new AppError("Invalid homepage layout id", 400, "INVALID_LAYOUT_ID");
+    }
+    const deleted = await HomepageLayout.findByIdAndDelete(id).lean();
+    if (!deleted) {
+      throw new AppError("Homepage layout not found", 404, "LAYOUT_NOT_FOUND");
+    }
+    await HomepageLayoutVersion.deleteMany({ layoutId: deleted._id });
+    invalidateCache();
+    return { _id: deleted._id };
   }
 
   async listVersions(layoutId) {
@@ -717,11 +1186,21 @@ class HomepageLayoutService {
       return null;
     }
 
-    const rows = await buildLayoutRows(layout.publishedSnapshot.rows || [], {
-      device,
-      includeProducts: true,
-      respectVisibility: true,
+    const snapshot = normalizeSnapshot(layout.publishedSnapshot, {
+      name: layout.name,
+      slug: layout.slug,
     });
+    const rows = snapshot.layouts?.length
+      ? await buildLayoutRowsFromLayouts(snapshot.layouts || [], snapshot.builder, {
+          device,
+          includeProducts: true,
+          respectVisibility: true,
+        })
+      : await buildLayoutRowsFromRows(snapshot.rows || [], {
+          device,
+          includeProducts: true,
+          respectVisibility: true,
+        });
 
     const result = {
       layout: {
@@ -729,7 +1208,8 @@ class HomepageLayoutService {
         name: layout.name,
         slug: layout.slug,
         version: layout.publishedSnapshot.version || 0,
-        seo: normalizeSeo(layout.publishedSnapshot.seo),
+        seo: normalizeSeo(snapshot.seo),
+        builder: snapshot.builder,
         publishedAt: layout.publishedAt,
       },
       rows,
@@ -745,4 +1225,13 @@ class HomepageLayoutService {
   }
 }
 
-module.exports = new HomepageLayoutService();
+const homepageLayoutService = new HomepageLayoutService();
+
+module.exports = homepageLayoutService;
+module.exports.__test = {
+  normalizeSnapshot,
+  layoutsToRows,
+  resolveSlotRect,
+  normalizeBuilderConfig,
+  assertNoVisualCollisions,
+};

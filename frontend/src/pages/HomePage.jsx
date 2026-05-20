@@ -132,7 +132,7 @@ export function HomePage() {
   return (
     <div className="w-full space-y-0 lg:space-y-0">
       {builderLayout?.layout ? (
-        <DynamicHomepageRenderer rows={builderLayout.rows || []} containers={builderLayout.containers || []} loading={loading} />
+        <DynamicHomepageRenderer rows={builderLayout.rows || []} containers={builderLayout.containers || []} loading={loading} bareCarouselShell />
       ) : (
         <>
       {/* DYNAMIC HOMEPAGE CONTENT CMS */}
@@ -166,7 +166,7 @@ export function HomePage() {
         </div>
       ) : null}
 
-      <DynamicHomepageRenderer containers={productContainers} loading={loading} />
+      <DynamicHomepageRenderer containers={productContainers} loading={loading} bareCarouselShell />
 
       <AnimatedSection className="w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10" x={20}>
         <BottomPromoSection
