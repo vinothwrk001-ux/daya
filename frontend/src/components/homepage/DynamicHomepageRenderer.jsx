@@ -7,7 +7,7 @@ import { ProductCarousel } from "../ProductCarousel";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { trackHomepageContainerEvent } from "../../services/homepageContainerService";
 
-export function DynamicHomepageRenderer({ containers = [], loading = false }) {
+export function DynamicHomepageRenderer({ rows = [], containers = [], loading = false }) {
   if (loading) {
     return (
       <>
@@ -18,12 +18,48 @@ export function DynamicHomepageRenderer({ containers = [], loading = false }) {
     );
   }
 
+  if (Array.isArray(rows) && rows.length) {
+    return (
+      <div className="space-y-6">
+        {rows.map((row) => (
+          <DynamicHomepageRow key={row.id || row.order} row={row} />
+        ))}
+      </div>
+    );
+  }
+
   return containers.map((container) => (
-    <DynamicHomepageSection key={container._id} container={container} />
+    <DynamicHomepageSection key={container.instanceId || container._id} container={container} />
   ));
 }
 
-function DynamicHomepageSection({ container }) {
+function DynamicHomepageRow({ row }) {
+  return (
+    <div className="flex flex-wrap gap-6">
+      {(row.columns || []).map((column) => {
+        const widthPercent = Number(column.widthPercent || column.desktopWidth || column.width || 100);
+        const columnStyle =
+          widthPercent >= 99
+            ? { flexBasis: "100%", maxWidth: "100%" }
+            : { flexBasis: `calc(${widthPercent}% - 1rem)`, maxWidth: `calc(${widthPercent}% - 1rem)` };
+
+        return (
+          <div key={column.id || column.order} style={columnStyle} className="min-w-[260px] flex-1 space-y-6">
+            {(column.containers || []).map((container) => (
+              <DynamicHomepageSection
+                key={container.instanceId || container._id}
+                container={container}
+                inline
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DynamicHomepageSection({ container, inline = false }) {
   const trackedRef = useRef(false);
 
   useEffect(() => {
@@ -58,22 +94,19 @@ function DynamicHomepageSection({ container }) {
   };
 
   const wrapperStyle = {};
-  const shouldShiftGridUp = container?.containerType === "GRID";
 
-  if (layout.positionX || layout.positionY || shouldShiftGridUp) {
-    const offsetTransformParts = [];
-    if (layout.positionX) offsetTransformParts.push(`translateX(${layout.positionX}px)`);
-    if (layout.positionY) offsetTransformParts.push(`translateY(${layout.positionY}px)`);
-    if (shouldShiftGridUp) offsetTransformParts.push("translateY(-4rem)");
-    if (offsetTransformParts.length) {
-      wrapperStyle.transform = offsetTransformParts.join(" ");
-    }
+  // Apply position offsets via transform
+  const offsetTransformParts = [];
+  if (layout.positionX) offsetTransformParts.push(`translateX(${layout.positionX}px)`);
+  if (layout.positionY) offsetTransformParts.push(`translateY(${layout.positionY}px)`);
+  if (offsetTransformParts.length) {
+    wrapperStyle.transform = offsetTransformParts.join(" ");
   }
 
   const backgroundMediaUrl = resolveContainerBackgroundMedia(layout);
 
   return (
-    <div className={`w-full px-3 py-6 sm:px-4 lg:px-8 lg:py-8 ${visibilityClasses}`} style={wrapperStyle}>
+    <div className={`${inline ? "w-full" : "w-full px-3 sm:px-4 lg:px-8"} ${visibilityClasses}`} style={wrapperStyle}>
       <Motion.section
         initial={animationSettings.initial}
         whileInView={animationSettings.whileInView}
@@ -240,8 +273,23 @@ function resolveSectionAnimation(container) {
   }
 }
 
+function parseLegacyMargin(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { top: undefined, right: undefined, bottom: undefined, left: undefined };
+  const numbers = raw
+    .split(/\s+/)
+    .map((token) => Number(String(token).replace(/[^\d.-]/g, "")))
+    .filter((value) => Number.isFinite(value));
+  if (numbers.length === 0) return { top: undefined, right: undefined, bottom: undefined, left: undefined };
+  if (numbers.length === 1) return { top: numbers[0], right: numbers[0], bottom: numbers[0], left: numbers[0] };
+  if (numbers.length === 2) return { top: numbers[0], right: numbers[1], bottom: numbers[0], left: numbers[1] };
+  if (numbers.length === 3) return { top: numbers[0], right: numbers[1], bottom: numbers[2], left: numbers[1] };
+  return { top: numbers[0], right: numbers[1], bottom: numbers[2], left: numbers[3] };
+}
+
 function resolveContainerLayout(container) {
   const layout = container?.presentation?.layout || {};
+  const legacyMargins = parseLegacyMargin(container?.presentation?.margin);
   const rawWidth = String(container?.presentation?.containerWidth || "").toLowerCase();
   const rawHeight = String(container?.presentation?.containerHeight || "").toLowerCase();
   const theme = String(layout.theme || container?.presentation?.containerTheme || "default").toLowerCase();
@@ -255,10 +303,10 @@ function resolveContainerLayout(container) {
     positionX: Number(layout.positionX || String(container?.presentation?.containerOffsetX || "0").replace(/[^\d.-]/g, "") || 0),
     positionY: Number(layout.positionY || String(container?.presentation?.containerOffsetY || "0").replace(/[^\d.-]/g, "") || 0),
     padding: Number(layout.padding || String(container?.presentation?.padding || "24").replace(/[^\d.-]/g, "") || 24),
-    marginTop: Number(layout.marginTop || 16),
-    marginBottom: Number(layout.marginBottom || 16),
-    marginLeft: Number(layout.marginLeft || 0),
-    marginRight: Number(layout.marginRight || 0),
+    marginTop: Number(layout.marginTop ?? legacyMargins.top ?? 16),
+    marginBottom: Number(layout.marginBottom ?? legacyMargins.bottom ?? 16),
+    marginLeft: Number(layout.marginLeft ?? legacyMargins.left ?? 0),
+    marginRight: Number(layout.marginRight ?? legacyMargins.right ?? 0),
     backgroundType: layout.backgroundType || "solid",
     backgroundColor: layout.backgroundColor || container?.presentation?.backgroundColor || "#ffffff",
     gradientColor1: layout.gradientColor1 || "#fff7ed",

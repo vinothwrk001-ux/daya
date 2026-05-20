@@ -35,6 +35,7 @@ const exportRoutes = require("./routes/export.routes");
 const vendorModuleRoutes = require("./routes/vendorModule.routes");
 const contentRoutes = require("./routes/content.routes");
 const homepageContainerRoutes = require("./routes/homepage-container.routes");
+const homepageLayoutRoutes = require("./routes/homepage-layout.routes");
 const homepageContainerController = require("./controllers/homepage-container.controller");
 const pricingRoutes = require("./routes/pricing.routes");
 const staffRoutes = require("./modules/staff/routes");
@@ -169,6 +170,7 @@ function createApp() {
   app.use("/api/content", contentRoutes);
   app.get("/api/container-schema/:type", homepageContainerController.getContainerSchema);
   app.use("/api/homepage-containers", homepageContainerRoutes);
+  app.use("/api/homepage-builder", homepageLayoutRoutes);
   app.use("/api/pricing", pricingRoutes);
   app.use("/api/inventory", inventoryRoutes);
   app.use("/api/staff", staffRoutes);

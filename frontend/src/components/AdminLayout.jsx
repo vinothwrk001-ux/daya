@@ -75,6 +75,10 @@ const pageMeta = {
     title: "Homepage Containers",
     subtitle: "Configure dynamic merchandising rails, scheduling, and container-driven storefront discovery.",
   },
+  "/admin/marketing/homepage-builder": {
+    title: "Homepage Builder",
+    subtitle: "Visually build, preview, publish, and roll back homepage layouts with shared storefront rendering.",
+  },
   "/admin/vendor-access": {
     title: "Vendor Module Access",
     subtitle: "Control which modules are accessible to vendors globally.",

@@ -44,6 +44,7 @@ import { AdminAttributesPage } from "./pages/AdminAttributesPage";
 import { AdminProductModulesPage } from "./pages/AdminProductModulesPage";
 import { AdminContentPage } from "./pages/AdminContentPage";
 import { AdminHomepageContainersPage } from "./pages/AdminHomepageContainersPage";
+import { AdminHomepageBuilderPage } from "./pages/AdminHomepageBuilderPage";
 import AdminVendorAccessPage from "./pages/AdminVendorAccessPage";
 import { AdminSettingsPage } from "./pages/AdminSettingsPage";
 import { AdminRolesPage } from "./pages/AdminRolesPage";
@@ -252,6 +253,7 @@ export default function App() {
               <Route path="product-modules" element={<AdminProductModulesPage />} />
               <Route path="content" element={<AdminContentPage />} />
               <Route path="homepage-containers" element={<AdminHomepageContainersPage />} />
+              <Route path="marketing/homepage-builder" element={<AdminHomepageBuilderPage />} />
               <Route path="vendor-access" element={<AdminVendorAccessPage />} />
               <Route path="vendor-access/shipping" element={<AdminShippingModesPage />} />
               <Route path="shipping" element={<AdminShippingConfigPage />} />

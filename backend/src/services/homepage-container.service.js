@@ -183,12 +183,12 @@ function normalizeLayout(input = {}, legacyPresentation = {}, payload = {}) {
     positionX: normalizeInteger(
       input.positionX ?? payload.positionX ?? extractNumericValue(payload.containerOffsetX ?? legacyPresentation.containerOffsetX, 0),
       0,
-      { min: -500, max: 500 }
+      { min: -2000, max: 2000 }
     ),
     positionY: normalizeInteger(
       input.positionY ?? payload.positionY ?? extractNumericValue(payload.containerOffsetY ?? legacyPresentation.containerOffsetY, 0),
       0,
-      { min: -500, max: 500 }
+      { min: -2000, max: 2000 }
     ),
     padding: normalizeInteger(input.padding ?? payload.padding ?? extractNumericValue(legacyPresentation.padding, 24), 24, { min: 0, max: 150 }),
     marginTop: normalizeInteger(input.marginTop ?? payload.marginTop, 16, { min: 0, max: 150 }),
@@ -1077,6 +1077,59 @@ class HomepageContainerService {
       _id: container._id,
       analytics: mapContainerDocument(container).analytics,
     };
+  }
+
+  async listActiveContainersForBuilder() {
+    const containers = await HomepageContainer.find({ status: "ACTIVE" })
+      .sort({ createdAt: -1, priority: 1 })
+      .lean();
+
+    return containers.map((item) => mapContainerDocument(item));
+  }
+
+  async getResolvedContainersByIds(
+    ids = [],
+    { device = "all", includeProducts = true, page = 1, limit, respectVisibility = true } = {}
+  ) {
+    const objectIds = ids
+      .map((item) => String(item || "").trim())
+      .filter((item) => mongoose.isValidObjectId(item))
+      .map((item) => new mongoose.Types.ObjectId(item));
+
+    if (!objectIds.length) return [];
+
+    const rows = await HomepageContainer.find({
+      _id: { $in: objectIds },
+      status: "ACTIVE",
+    }).lean();
+
+    const now = new Date();
+    const orderMap = new Map(objectIds.map((id, index) => [String(id), index]));
+    const filtered = rows
+      .filter((container) => (respectVisibility ? matchesSchedule(container, now) && matchesDevice(container, device) : true))
+      .sort((a, b) => orderMap.get(String(a._id)) - orderMap.get(String(b._id)));
+
+    if (!includeProducts) {
+      return filtered.map((item) => mapContainerDocument(item));
+    }
+
+    const approvedVendorIds = await getApprovedVendorIds();
+    const resolved = await Promise.all(
+      filtered.map(async (container) => {
+        const productsPayload = await resolveContainerProducts(container, {
+          page,
+          limit: limit || container.filters?.maxProductsToShow || DEFAULT_PREVIEW_LIMIT,
+          approvedVendorIds,
+        });
+        return mapContainerDocument(container, productsPayload);
+      })
+    );
+
+    return resolved.filter((item) => {
+      const schema = getContainerTypeSchema(item.containerType);
+      if (!schema.supportsProducts) return true;
+      return Array.isArray(item.products) && item.products.length > 0;
+    });
   }
 }
 

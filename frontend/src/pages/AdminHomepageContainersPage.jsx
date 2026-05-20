@@ -120,6 +120,37 @@ function pickNumber(value, fallback = 0) {
   return Number.isFinite(next) ? next : fallback;
 }
 
+function createUniqueId(prefix = "id") {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function parseSlides(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function parseLegacyMargin(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { top: undefined, right: undefined, bottom: undefined, left: undefined };
+  const numbers = raw
+    .split(/\s+/)
+    .map((token) => Number(String(token).replace(/[^\d.-]/g, "")))
+    .filter((value) => Number.isFinite(value));
+  if (numbers.length === 0) return { top: undefined, right: undefined, bottom: undefined, left: undefined };
+  if (numbers.length === 1) return { top: numbers[0], right: numbers[0], bottom: numbers[0], left: numbers[0] };
+  if (numbers.length === 2) return { top: numbers[0], right: numbers[1], bottom: numbers[0], left: numbers[1] };
+  if (numbers.length === 3) return { top: numbers[0], right: numbers[1], bottom: numbers[2], left: numbers[1] };
+  return { top: numbers[0], right: numbers[1], bottom: numbers[2], left: numbers[3] };
+}
+
 function legacyWidthType(value) {
   switch (String(value || "").toLowerCase()) {
     case "boxed":
@@ -260,6 +291,10 @@ function containerToForm(container, schema) {
     }
   }
 
+  if (container?.containerType === "SLIDER" && Array.isArray(container?.config?.slides)) {
+    config.slides = container.config.slides;
+  }
+
   return {
     title: container.title || "",
     slug: container.slug || "",
@@ -307,6 +342,7 @@ export function AdminHomepageContainersPage() {
   const [imageUploading, setImageUploading] = useState(false);
   const [preview, setPreview] = useState(null);
   const [editingId, setEditingId] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
   const [error, setError] = useState("");
   const [analyticsSummary, setAnalyticsSummary] = useState(null);
   const [draggedId, setDraggedId] = useState("");
@@ -779,9 +815,16 @@ export function AdminHomepageContainersPage() {
                     ) : null}
 
                     <EditorSection icon={Save} title="Advanced Settings" description="Schema-driven fields for the selected container type appear here so admins only see the controls that matter.">
+                      {form.containerType === "SLIDER" ? (
+                        <SlideEditor
+                          slides={parseSlides(form.config.slides)}
+                          onChange={(nextSlides) => setForm((current) => ({ ...current, config: { ...current.config, slides: nextSlides } }))}
+                        />
+                      ) : null}
+
                       {(activeSchema?.typeFields || []).length ? (
                         <div className="grid gap-6 lg:grid-cols-2">
-                          {(activeSchema?.typeFields || []).map((field) => (
+                          {(activeSchema?.typeFields || []).filter((field) => !(form.containerType === "SLIDER" && field.name === "slides")).map((field) => (
                             <div key={field.name} className={field.type === "textarea" || field.type === "array" ? "lg:col-span-2" : ""}>
                               <FieldRenderer
                                 field={field}
@@ -793,7 +836,7 @@ export function AdminHomepageContainersPage() {
                           ))}
                         </div>
                       ) : (
-                        <div className="rounded-xl border border-dashed border-slate-300 px-5 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                        <div className="rounded-xl border border-dashed border-slate-300 px-5 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/10 dark:text-slate-400">
                           No type-specific fields are required for this container type.
                         </div>
                       )}
@@ -823,17 +866,21 @@ export function AdminHomepageContainersPage() {
 
                       <SectionTitle title="Container Height" description="Pick a comfortable height preset and refine it only when needed." />
                       <ChoiceGrid
-                        value={form.layout.heightType === "custom" ? "large" : form.layout.heightType}
+                        value={form.layout.heightType}
                         onChange={(value) => setLayoutField("heightType", value)}
-                        columns="grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
+                        columns="grid-cols-1 sm:grid-cols-2 xl:grid-cols-5"
                         cardHeight="h-[100px]"
                         options={[
                           { value: "auto", label: "Auto", hint: "Content-driven height" },
                           { value: "small", label: "Small", hint: "250px" },
                           { value: "medium", label: "Medium", hint: "450px" },
                           { value: "large", label: "Large", hint: "650px" },
+                          { value: "custom", label: "Custom", hint: "Use a custom height" },
                         ]}
                       />
+                      {form.layout.heightType === "custom" ? (
+                        <SliderRow label="Custom Height" min={100} max={2000} step={10} value={form.layout.customHeight} onChange={(value) => setLayoutField("customHeight", value)} />
+                      ) : null}
 
                       <SectionTitle title="Alignment" description="Position the container along the page flow without clipping or awkward spacing." />
                       <ChoiceGrid
@@ -933,8 +980,8 @@ export function AdminHomepageContainersPage() {
                             </select>
                           </Field>
                           <div className="space-y-4">
-                            <SliderRow label="Position X" min={-500} max={500} step={5} value={form.layout.positionX} onChange={(value) => setLayoutField("positionX", value)} compact />
-                            <SliderRow label="Position Y" min={-500} max={500} step={5} value={form.layout.positionY} onChange={(value) => setLayoutField("positionY", value)} compact />
+                            <SliderRow label="Position X" min={-2000} max={2000} step={5} value={form.layout.positionX} onChange={(value) => setLayoutField("positionX", value)} compact />
+                            <SliderRow label="Position Y" min={-2000} max={2000} step={5} value={form.layout.positionY} onChange={(value) => setLayoutField("positionY", value)} compact />
                           </div>
                         </div>
                         <AnimationSwatch animation={form.layout.animation} />
@@ -1026,14 +1073,56 @@ export function AdminHomepageContainersPage() {
         </div>
 
         <div className="mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-slate-500 dark:text-slate-400">Select containers to update height / offsets</div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-slate-600 dark:text-slate-300">{selectedIds.length} selected</div>
+              <button
+                type="button"
+                disabled={selectedIds.length < 2}
+                onClick={async () => {
+                  if (selectedIds.length < 2) return;
+                  const currentHeights = selectedIds
+                    .map((id) => containers.find((c) => c._id === id))
+                    .map((c) => Number(c?.presentation?.layout?.customHeight || c?.presentation?.customHeight || c?.presentation?.containerHeight?.replace?.(/[^\d]/g, "") || 0));
+                  const defaultHeight = Math.max(...currentHeights, 450);
+                  const input = window.prompt("Enter custom height in px to apply to selected containers:", String(defaultHeight));
+                  const nextHeight = Number(input);
+                  if (!Number.isFinite(nextHeight) || nextHeight <= 0) return alert("Please enter a valid positive number for height.");
+                  try {
+                    setSaving(true);
+                    await Promise.all(
+                      selectedIds.map((id) =>
+                        updateAdminHomepageContainer(id, {
+                          layout: { heightType: "custom", customHeight: Number(nextHeight), positionX: 0, positionY: 0 },
+                        })
+                      )
+                    );
+                    setSelectedIds([]);
+                    await refresh();
+                    alert("Selected containers updated.");
+                  } catch (err) {
+                    setError(normalizeError(err));
+                    alert("Failed to update containers: " + normalizeError(err));
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-slate-900"
+              >
+                Match Selected
+              </button>
+            </div>
+          </div>
           {loading ? (
             Array.from({ length: 5 }).map((_, index) => (
               <div key={index} className="h-32 animate-pulse rounded-3xl bg-slate-100 dark:bg-slate-800" />
             ))
           ) : containers.length ? (
-            containers
+                containers
               .slice()
               .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+              .filter((container) => draggedId !== container._id)
               .map((container, index) => (
                 <article
                   key={container._id}
@@ -1045,6 +1134,20 @@ export function AdminHomepageContainersPage() {
                 >
                   <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div className="flex min-w-0 gap-4">
+                      <div className="flex items-start pt-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(container._id)}
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            setSelectedIds((current) => {
+                              if (checked) return [...current, container._id];
+                              return current.filter((id) => id !== container._id);
+                            });
+                          }}
+                          className="h-4 w-4 rounded border-slate-300 text-slate-900"
+                        />
+                      </div>
                       <div className="mt-1 shrink-0 text-slate-400">
                         <GripVertical className="h-5 w-5" />
                       </div>
@@ -1237,6 +1340,52 @@ function FieldRenderer({ field, value, onChange, loadOptions }) {
     return <BooleanField label={field.label} checked={Boolean(value)} onChange={onChange} />;
   }
 
+  if (
+    field.type === "file" ||
+    field.type === "image" ||
+    field.type === "video" ||
+    /image|video/i.test(field.name || "") ||
+    /image|video/i.test(field.label || "")
+  ) {
+    const [uploading, setUploading] = useState(false);
+    const accept = field.accept || (field.type === "video" ? "video/*" : "image/*");
+    async function handleFileChange(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      setUploading(true);
+      try {
+        const response = await uploadHomepageContainerMedia([file]);
+        const uploadedUrl = response?.data?.[0]?.url || "";
+        onChange(uploadedUrl);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+        window.alert("Upload failed: " + (err?.message || "unknown"));
+      } finally {
+        setUploading(false);
+        event.target.value = "";
+      }
+    }
+
+    return (
+      <Field label={field.label}>
+        <div className="flex items-center gap-3">
+          <input type="file" accept={accept} onChange={handleFileChange} className={inputClassName + " cursor-pointer"} />
+          <div className="text-sm text-slate-500">{uploading ? "Uploading..." : value ? "Ready" : "No file"}</div>
+        </div>
+        {value ? (
+          <div className="mt-2">
+            {field.type === "video" ? (
+              <video src={value} controls className="max-h-40 rounded-md" />
+            ) : (
+              <img src={value} alt="preview" className="max-h-40 rounded-md object-cover" />
+            )}
+          </div>
+        ) : null}
+      </Field>
+    );
+  }
+
   if (field.type === "async-multiselect") {
     return (
       <Field label={field.label}>
@@ -1291,6 +1440,161 @@ function FieldRenderer({ field, value, onChange, loadOptions }) {
         className={inputClassName}
       />
     </Field>
+  );
+}
+
+function SlideEditor({ slides = [], onChange }) {
+  const [uploadingIndex, setUploadingIndex] = useState(null);
+  const resolvedSlides = Array.isArray(slides) ? slides : [];
+
+  function updateSlide(index, updater) {
+    const next = resolvedSlides.map((slide, slideIndex) =>
+      slideIndex !== index ? slide : typeof updater === "function" ? updater(slide || {}) : updater
+    );
+    onChange(next);
+  }
+
+  function addSlide() {
+    onChange([
+      ...resolvedSlides,
+      {
+        id: createUniqueId("slide"),
+        heading: "",
+        subheading: "",
+        ctaLabel: "Shop Now",
+        ctaUrl: "",
+        image: "",
+      },
+    ]);
+  }
+
+  function duplicateSlide(index) {
+    const slide = resolvedSlides[index];
+    if (!slide) return;
+    const next = [...resolvedSlides];
+    next.splice(index + 1, 0, { ...slide, id: createUniqueId("slide") });
+    onChange(next);
+  }
+
+  function deleteSlide(index) {
+    const next = resolvedSlides.filter((_, slideIndex) => slideIndex !== index);
+    onChange(next);
+  }
+
+  function moveSlide(index, direction) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= resolvedSlides.length) return;
+    const next = [...resolvedSlides];
+    const [item] = next.splice(index, 1);
+    next.splice(nextIndex, 0, item);
+    onChange(next);
+  }
+
+  async function uploadSlideImage(index, file) {
+    if (!file) return;
+    setUploadingIndex(index);
+    try {
+      const response = await uploadHomepageContainerMedia([file]);
+      const uploadedUrl = response?.data?.[0]?.url || "";
+      updateSlide(index, (slide) => ({ ...slide, image: uploadedUrl }));
+    } catch (err) {
+      window.alert("Image upload failed: " + (err?.message || "unknown"));
+    } finally {
+      setUploadingIndex(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-slate-950 dark:text-white">Slides</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Add, reorder, duplicate, or remove slides in your slider container.</div>
+        </div>
+        <button type="button" onClick={addSlide} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          + Add Slide
+        </button>
+      </div>
+
+      {!resolvedSlides.length ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
+          No slides yet. Use the button above to add a slide.
+        </div>
+      ) : null}
+
+      <div className="space-y-4">
+        {resolvedSlides.map((slide, index) => (
+          <div key={slide.id || index} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-slate-950 dark:text-white">Slide {index + 1}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => moveSlide(index, -1)} disabled={index === 0} className="rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:text-slate-200">
+                  ↑
+                </button>
+                <button type="button" onClick={() => moveSlide(index, 1)} disabled={index === resolvedSlides.length - 1} className="rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:text-slate-200">
+                  ↓
+                </button>
+                <button type="button" onClick={() => duplicateSlide(index)} className="rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:text-slate-200">
+                  Duplicate
+                </button>
+                <button type="button" onClick={() => deleteSlide(index)} className="rounded-full border border-rose-200 px-3 py-2 text-xs text-rose-600 dark:border-rose-900 dark:text-rose-300">
+                  Delete
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Title">
+                <input
+                  value={slide.heading || ""}
+                  onChange={(event) => updateSlide(index, (current) => ({ ...current, heading: event.target.value }))}
+                  className={inputClassName}
+                />
+              </Field>
+              <Field label="Subtitle">
+                <input
+                  value={slide.subheading || ""}
+                  onChange={(event) => updateSlide(index, (current) => ({ ...current, subheading: event.target.value }))}
+                  className={inputClassName}
+                />
+              </Field>
+              <Field label="Button Text">
+                <input
+                  value={slide.ctaLabel || ""}
+                  onChange={(event) => updateSlide(index, (current) => ({ ...current, ctaLabel: event.target.value }))}
+                  className={inputClassName}
+                />
+              </Field>
+              <Field label="Button Link">
+                <input
+                  value={slide.ctaUrl || ""}
+                  onChange={(event) => updateSlide(index, (current) => ({ ...current, ctaUrl: event.target.value }))}
+                  className={inputClassName}
+                  placeholder="/sale"
+                />
+              </Field>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Field label="Upload Banner Image">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) => uploadSlideImage(index, event.target.files?.[0])}
+                    className={`${inputClassName} cursor-pointer`}
+                  />
+                  <div className="text-sm text-slate-500">{uploadingIndex === index ? "Uploading..." : slide.image ? "Image ready" : "No image"}</div>
+                </div>
+                {slide.image ? (
+                  <img src={resolveApiAssetUrl(slide.image)} alt={`Slide ${index + 1}`} className="mt-3 max-h-48 w-full rounded-2xl object-cover" />
+                ) : null}
+              </Field>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1368,6 +1672,8 @@ function buildPreviewContainerStyle(layout) {
     position: "relative",
     overflow: "hidden",
     width: resolvePreviewWidth(layout),
+    maxWidth: "100%",
+    boxSizing: "border-box",
     minHeight: `${resolvePreviewHeight(layout)}px`,
     marginTop: `${layout.marginTop}px`,
     marginBottom: `${layout.marginBottom}px`,
@@ -1502,10 +1808,17 @@ function SliderRow({ label, value, onChange, min, max, step = 1, compact = false
         </div>
         <div className={`flex items-center gap-2 ${compact ? "w-full" : "min-w-0 flex-1"}`}>
           <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} className="w-full accent-slate-900 dark:accent-white" />
-          <div className="shrink-0">
-            <div className={`inline-flex justify-center rounded-full bg-white font-semibold shadow-sm dark:bg-slate-900 dark:text-slate-200 ${compact ? "min-w-[50px] px-2 py-1 text-xs text-slate-700" : "min-w-[80px] px-3 py-2 text-sm text-slate-700"}`}>
-              {value}px
-            </div>
+          <div className="shrink-0 flex items-center gap-2">
+            <input
+              type="number"
+              min={min}
+              max={max}
+              step={step}
+              value={value}
+              onChange={(event) => onChange(Number(event.target.value || 0))}
+              className={`rounded-full bg-white font-semibold shadow-sm dark:bg-slate-900 dark:text-slate-200 text-slate-700 outline-none border px-3 py-2 ${compact ? "min-w-[50px] px-2 py-1 text-xs" : "min-w-[80px] px-3 py-2 text-sm"}`}
+            />
+            <div className={`text-slate-700 dark:text-slate-200 ${compact ? "text-xs" : "text-sm"}`}>px</div>
           </div>
         </div>
       </div>

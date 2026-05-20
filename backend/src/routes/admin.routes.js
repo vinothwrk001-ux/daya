@@ -48,6 +48,7 @@ const pricingController = require("../controllers/pricing.controller");
 const codController = require("../controllers/cod.controller");
 const commissionController = require("../controllers/commission.controller");
 const homepageContainerController = require("../controllers/homepage-container.controller");
+const homepageLayoutController = require("../controllers/homepage-layout.controller");
 const shippingConfigRoutes = require("./shippingConfig.routes");
 
 const router = express.Router();
@@ -127,6 +128,16 @@ router.post("/homepage-containers", requireWorkspacePermission("settings.update"
 router.get("/homepage-containers/:id", requireWorkspacePermission("settings.read"), homepageContainerController.getAdminContainerById);
 router.put("/homepage-containers/:id", requireWorkspacePermission("settings.update"), express.json(), homepageContainerController.updateAdminContainer);
 router.delete("/homepage-containers/:id", requireWorkspacePermission("settings.update"), homepageContainerController.deleteAdminContainer);
+router.get("/homepage-builder/containers", requireWorkspacePermission("settings.read"), homepageLayoutController.listContainerLibrary);
+router.get("/homepage-builder/layouts", requireWorkspacePermission("settings.read"), homepageLayoutController.listAdminLayouts);
+router.post("/homepage-builder/layouts", requireWorkspacePermission("settings.update"), express.json(), homepageLayoutController.createAdminLayout);
+router.get("/homepage-builder/layouts/:id", requireWorkspacePermission("settings.read"), homepageLayoutController.getAdminLayoutById);
+router.put("/homepage-builder/layouts/:id/draft", requireWorkspacePermission("settings.update"), express.json(), homepageLayoutController.updateAdminLayoutDraft);
+router.post("/homepage-builder/layouts/:id/publish", requireWorkspacePermission("settings.update"), homepageLayoutController.publishAdminLayout);
+router.get("/homepage-builder/layouts/:id/versions", requireWorkspacePermission("settings.read"), homepageLayoutController.listAdminLayoutVersions);
+router.post("/homepage-builder/layouts/:id/rollback/:versionId", requireWorkspacePermission("settings.update"), homepageLayoutController.rollbackAdminLayoutVersion);
+router.post("/homepage-builder/preview", requireWorkspacePermission("settings.read"), express.json(), homepageLayoutController.previewAdminLayout);
+router.post("/homepage-builder/media", requireWorkspacePermission("settings.update"), upload.array("images", 10), homepageLayoutController.uploadAdminLayoutMedia);
 router.get("/payouts", requireWorkspacePermission("payouts.read"), adminController.listPayouts);
 router.get("/payout-accounts", requireWorkspacePermission("payouts.read"), adminPayoutController.listPayoutAccounts);
 router.get("/payout-requests", requireWorkspacePermission("payouts.read"), adminPayoutController.listPayoutRequests);

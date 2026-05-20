@@ -18,6 +18,7 @@ import { RippleButton } from "../components/home/RippleButton";
 import { ReelFeed } from "../components/reel/ReelFeed";
 import { DynamicHomepageRenderer } from "../components/homepage/DynamicHomepageRenderer";
 import { getHomepageContainers } from "../services/homepageContainerService";
+import { getHomepageBuilderPublicLayout } from "../services/homepageBuilderService";
 import { trackClick } from "../services/contentService";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
@@ -56,6 +57,22 @@ export function HomePage() {
     collection: [],
   });
   const [productContainers, setProductContainers] = useState([]);
+  const [builderLayout, setBuilderLayout] = useState(null);
+  const [device, setDevice] = useState(() => {
+    if (typeof window === "undefined") return "desktop";
+    if (window.innerWidth < 768) return "mobile";
+    if (window.innerWidth < 1200) return "tablet";
+    return "desktop";
+  });
+
+  useEffect(() => {
+    function handleResize() {
+      const nextDevice = window.innerWidth < 768 ? "mobile" : window.innerWidth < 1200 ? "tablet" : "desktop";
+      setDevice((current) => (current === nextDevice ? current : nextDevice));
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,14 +82,25 @@ export function HomePage() {
       setError("");
 
       try {
-        const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
-        const containersRes = await getHomepageContainers({
-          device: isMobile ? "mobile" : "desktop",
+        const builderRes = await getHomepageBuilderPublicLayout({
+          device,
         });
 
         if (cancelled) return;
 
-        setProductContainers(Array.isArray(containersRes?.data) ? containersRes.data : []);
+        if (builderRes?.data?.layout && Array.isArray(builderRes?.data?.rows) && builderRes.data.rows.length) {
+          setBuilderLayout(builderRes.data);
+          setProductContainers([]);
+        } else {
+          const containersRes = await getHomepageContainers({
+            device,
+          });
+
+          if (cancelled) return;
+
+          setBuilderLayout(null);
+          setProductContainers(Array.isArray(containersRes?.data) ? containersRes.data : []);
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e?.response?.data?.message || "Failed to load storefront");
@@ -89,7 +117,7 @@ export function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [device]);
 
   const spotlightProducts = useMemo(
     () =>
@@ -103,6 +131,10 @@ export function HomePage() {
 
   return (
     <div className="w-full space-y-0 lg:space-y-0">
+      {builderLayout?.layout ? (
+        <DynamicHomepageRenderer rows={builderLayout.rows || []} containers={builderLayout.containers || []} loading={loading} />
+      ) : (
+        <>
       {/* DYNAMIC HOMEPAGE CONTENT CMS */}
       <div className="w-full px-3 py-0 sm:px-4 lg:px-8 lg:py-0">
         <HomepageContentCMS
@@ -143,6 +175,8 @@ export function HomePage() {
           onExploreCollection={() => navigate("/shop")}
         />
       </AnimatedSection>
+        </>
+      )}
     </div>
   );
 }
