@@ -274,6 +274,26 @@ export async function deleteReview(id) {
   return data;
 }
 
+export async function listProductReviewsForModeration(params = {}) {
+  const { data } = await adminHttp.get("/api/reviews/admin", { params });
+  return data;
+}
+
+export async function deleteProductReview(id) {
+  const { data } = await adminHttp.delete(`/api/reviews/${id}`);
+  return data;
+}
+
+export async function updateProductReviewModeration(id, payload) {
+  const { data } = await adminHttp.put(`/api/reviews/${id}`, payload);
+  return data;
+}
+
+export async function getReviewDashboard() {
+  const { data } = await adminHttp.get("/api/reviews/admin/dashboard");
+  return data;
+}
+
 export async function updateOrderStatus(id, status) {
   const { data } = await adminHttp.patch(`/api/admin/orders/${id}/status`, { status });
   return data;

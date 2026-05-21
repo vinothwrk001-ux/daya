@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { ProductImageGallery } from "../components/ProductImageGallery";
+import { ProductReviewsSection } from "../components/ProductReviewsSection";
 import * as productService from "../services/productService";
 import { getAttributes } from "../services/attributeService";
 import { getProductModules } from "../services/productModuleService";
@@ -477,6 +478,8 @@ export function ProductDetailsPage() {
                 ))}
             </div>
           </section>
+
+          <ProductReviewsSection productId={product._id} />
         </div>
 
         <aside className="xl:sticky xl:top-24 xl:self-start">

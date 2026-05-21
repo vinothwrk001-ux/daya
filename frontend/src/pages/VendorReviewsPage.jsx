@@ -73,17 +73,17 @@ export function VendorReviewsPage() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-slate-950 dark:text-white">{review.productId?.name || "Product review"}</div>
-                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">By {review.userId?.name || "Customer"} • {review.rating}/5</div>
-                <div className="mt-3 text-sm text-slate-700 dark:text-slate-300">{review.comment || review.title || "No written review."}</div>
-                {review.sellerResponse?.message ? (
+                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">By {review.customerId?.name || review.userId?.name || "Customer"} · {review.rating}/5 · {review.status}</div>
+                <div className="mt-3 text-sm text-slate-700 dark:text-slate-300">{review.review || review.comment || review.title || "No written review."}</div>
+                {review.vendorReply || review.sellerResponse?.message ? (
                   <div className="mt-3 rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-                    Seller response: {review.sellerResponse.message}
+                    Vendor reply: {review.vendorReply || review.sellerResponse.message}
                   </div>
                 ) : null}
               </div>
               {can("reviews.update") ? (
                 <button onClick={() => respondToReview(review._id)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">
-                  {review.sellerResponse?.message ? "Edit Reply" : "Reply"}
+                  {review.vendorReply || review.sellerResponse?.message ? "Edit Reply" : "Reply"}
                 </button>
               ) : null}
             </div>

@@ -171,12 +171,12 @@ export async function markVendorNotificationRead(id) {
 }
 
 export async function getVendorReviews(params) {
-  const { data } = await api.get("/api/vendor/reviews", { params });
+  const { data } = await api.get("/api/reviews/vendor", { params });
   return data;
 }
 
 export async function respondToVendorReview(id, payload) {
-  const { data } = await api.post(`/api/vendor/reviews/${id}/respond`, payload);
+  const { data } = await api.post(`/api/reviews/${id}/reply`, payload);
   return data;
 }
 
