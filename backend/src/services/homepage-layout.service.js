@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
 const { HomepageLayout } = require("../models/HomepageLayout");
+const { HomepageLayoutAssignment } = require("../models/HomepageLayoutAssignment");
+const { HomepageLayoutDraft } = require("../models/HomepageLayoutDraft");
 const { HomepageLayoutVersion } = require("../models/HomepageLayoutVersion");
 const { HomepageContainer } = require("../models/HomepageContainer");
 const homepageContainerService = require("./homepage-container.service");
@@ -9,11 +11,13 @@ const { uploadMany } = require("../utils/upload");
 const PUBLIC_CACHE_TTL_MS = 60 * 1000;
 const DEFAULT_GRID_SIZE = 20;
 const DEFAULT_CANVAS = Object.freeze({
-  desktop: { width: 1200, height: 2200 },
-  tablet: { width: 840, height: 2400 },
-  mobile: { width: 390, height: 2600 },
+  desktop: { width: 1440, height: 2200 },
+  tablet: { width: 768, height: 2400 },
+  mobile: { width: 375, height: 2600 },
 });
 const DEVICE_KEYS = ["desktop", "tablet", "mobile"];
+const DEVICE_COLUMNS = Object.freeze({ desktop: 12, tablet: 6, mobile: 1 });
+const DEFAULT_LAYOUT_HEIGHT = Object.freeze({ desktop: 360, tablet: 320, mobile: 280 });
 const responseCache = new Map();
 
 function setCache(key, value) {
@@ -52,10 +56,14 @@ function normalizeSeo(seo = {}) {
   return {
     metaTitle: String(seo.metaTitle || "").trim(),
     metaDescription: String(seo.metaDescription || "").trim(),
+    canonicalUrl: String(seo.canonicalUrl || "").trim(),
     openGraphTitle: String(seo.openGraphTitle || "").trim(),
     openGraphDescription: String(seo.openGraphDescription || "").trim(),
     openGraphImage: String(seo.openGraphImage || "").trim(),
-    canonicalUrl: String(seo.canonicalUrl || "").trim(),
+    twitterTitle: String(seo.twitterTitle || "").trim(),
+    twitterDescription: String(seo.twitterDescription || "").trim(),
+    twitterImage: String(seo.twitterImage || "").trim(),
+    twitterCard: String(seo.twitterCard || "summary_large_image").trim(),
     schemaMarkup: String(seo.schemaMarkup || "").trim(),
   };
 }
@@ -561,8 +569,201 @@ function normalizeSnapshot(payload = {}, fallback = {}) {
     notes: String(payload.notes || fallback.notes || "").trim(),
     builder,
     layouts,
+    assignments: layouts
+      .filter((layout) => layout.assignedContainerId)
+      .map((layout) => ({
+        layoutId: layout.id,
+        assignedContainerId: layout.assignedContainerId,
+        sortOrder: layout.sortOrder,
+      })),
     rows,
+    visibility:
+      payload.visibility && typeof payload.visibility === "object"
+        ? JSON.parse(JSON.stringify(payload.visibility))
+        : fallback.visibility && typeof fallback.visibility === "object"
+          ? JSON.parse(JSON.stringify(fallback.visibility))
+          : {},
+    scheduling:
+      payload.scheduling && typeof payload.scheduling === "object"
+        ? JSON.parse(JSON.stringify(payload.scheduling))
+        : fallback.scheduling && typeof fallback.scheduling === "object"
+          ? JSON.parse(JSON.stringify(fallback.scheduling))
+          : {},
+    typography:
+      payload.typography && typeof payload.typography === "object"
+        ? JSON.parse(JSON.stringify(payload.typography))
+        : fallback.typography && typeof fallback.typography === "object"
+          ? JSON.parse(JSON.stringify(fallback.typography))
+          : {},
+    auditLog: Array.isArray(payload.auditLog) ? payload.auditLog.slice(-200) : Array.isArray(fallback.auditLog) ? fallback.auditLog.slice(-200) : [],
   };
+}
+
+function spanFromPixels(width, canvasWidth, maxColumns) {
+  const nextWidth = Number(width);
+  const baseWidth = Math.max(Number(canvasWidth || 0), 1);
+  if (!Number.isFinite(nextWidth) || nextWidth <= 0) return maxColumns;
+  return clamp(Math.round((nextWidth / baseWidth) * maxColumns), maxColumns, { min: 1, max: maxColumns });
+}
+
+function normalizeGridDeviceConfig(input = {}, device = "desktop", fallback = {}) {
+  const maxColumns = DEVICE_COLUMNS[device] || DEVICE_COLUMNS.desktop;
+  return {
+    colSpan: clamp(input.colSpan ?? input.span ?? fallback.colSpan, maxColumns, { min: 1, max: maxColumns }),
+    rowSpan: clamp(input.rowSpan ?? fallback.rowSpan, 1, { min: 1, max: 24 }),
+    height: clamp(input.height ?? fallback.height, DEFAULT_LAYOUT_HEIGHT[device], { min: 80, max: 2400 }),
+    visible: input.visible !== false,
+  };
+}
+
+function inferLayoutType(layout = {}) {
+  return String(layout.type || layout.layoutType || layout.name || "Custom Layout").trim();
+}
+
+function normalizeVisualLayout(layout = {}, index = 0, builder = normalizeBuilderConfig()) {
+  const desktopFallback = {
+    colSpan: spanFromPixels(layout.width || layout.desktopConfig?.width, resolveCanvasWidth(builder, "desktop"), 12),
+    rowSpan: 1,
+    height: layout.height || layout.desktopConfig?.height || DEFAULT_LAYOUT_HEIGHT.desktop,
+  };
+  const tabletFallback = {
+    colSpan: spanFromPixels(layout.tabletConfig?.width || layout.width, resolveCanvasWidth(builder, "tablet"), 6),
+    rowSpan: 1,
+    height: layout.tabletConfig?.height || layout.height || DEFAULT_LAYOUT_HEIGHT.tablet,
+  };
+  const mobileFallback = {
+    colSpan: 1,
+    rowSpan: 1,
+    height: layout.mobileConfig?.height || layout.height || DEFAULT_LAYOUT_HEIGHT.mobile,
+  };
+  const assignedContainerId = layout.assignedContainerId || layout.containerId || null;
+  const now = new Date().toISOString();
+
+  return {
+    id: String(layout.id || layout.instanceId || createId("layout")).trim(),
+    name: String(layout.name || inferLayoutType(layout)).trim(),
+    slug: String(layout.slug || layout.name || `layout-${index + 1}`).trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+    type: inferLayoutType(layout),
+    desktop: normalizeGridDeviceConfig(layout.desktop || layout.desktopConfig || {}, "desktop", desktopFallback),
+    tablet: normalizeGridDeviceConfig(layout.tablet || layout.tabletConfig || {}, "tablet", tabletFallback),
+    mobile: normalizeGridDeviceConfig(layout.mobile || layout.mobileConfig || {}, "mobile", mobileFallback),
+    sortOrder: clamp(layout.sortOrder ?? layout.zIndex ?? layout.order, index, { min: 0, max: 10000 }),
+    assignedContainerId: assignedContainerId ? String(assignedContainerId).trim() : null,
+    visible: layout.visible !== false,
+    visibility: layout.visibility && typeof layout.visibility === "object" ? JSON.parse(JSON.stringify(layout.visibility)) : {},
+    animation: layout.animation && typeof layout.animation === "object" ? JSON.parse(JSON.stringify(layout.animation)) : {},
+    spacing: layout.spacing && typeof layout.spacing === "object" ? JSON.parse(JSON.stringify(layout.spacing)) : {},
+    background: layout.background && typeof layout.background === "object" ? JSON.parse(JSON.stringify(layout.background)) : {},
+    typography: layout.typography && typeof layout.typography === "object" ? JSON.parse(JSON.stringify(layout.typography)) : {},
+    advanced: layout.advanced && typeof layout.advanced === "object" ? JSON.parse(JSON.stringify(layout.advanced)) : {},
+    settings: normalizeSettings(layout.settings || layout.style || {}),
+    containerSettings: normalizeContainerOverrides(layout.containerSettings || layout.configOverrides),
+    createdAt: layout.createdAt || now,
+    updatedAt: now,
+  };
+}
+
+function resolveSlotConfig(layout = {}, device = "desktop") {
+  if (device === "mobile") return layout.mobile || layout.mobileConfig || {};
+  if (device === "tablet") return layout.tablet || layout.tabletConfig || {};
+  return layout.desktop || layout.desktopConfig || {};
+}
+
+function resolveSlotRect(layout = {}, builder = normalizeBuilderConfig(), device = "desktop") {
+  const config = resolveSlotConfig(layout, device);
+  const maxColumns = DEVICE_COLUMNS[device] || DEVICE_COLUMNS.desktop;
+  return {
+    x: 0,
+    y: Number(layout.sortOrder || 0),
+    width: Number(config.colSpan || maxColumns),
+    height: Number(config.height || DEFAULT_LAYOUT_HEIGHT[device]),
+    right: Number(config.colSpan || maxColumns),
+    bottom: Number(config.height || DEFAULT_LAYOUT_HEIGHT[device]),
+  };
+}
+
+function assertNoVisualCollisions(layouts = []) {
+  const assigned = new Set();
+  for (const device of DEVICE_KEYS) {
+    const maxColumns = DEVICE_COLUMNS[device];
+    let rowTotal = 0;
+    for (const layout of [...(layouts || [])].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))) {
+      if (layout.visible === false || resolveSlotConfig(layout, device).visible === false) continue;
+      const config = resolveSlotConfig(layout, device);
+      if (config.colSpan < 1 || config.colSpan > maxColumns || config.height < 0 || config.rowSpan < 1) {
+        throw new AppError(`Invalid ${device} responsive span for homepage layout ${layout.id}`, 400, "INVALID_LAYOUT_SPAN");
+      }
+      if (rowTotal + config.colSpan > maxColumns) rowTotal = 0;
+      rowTotal += config.colSpan;
+      if (rowTotal === maxColumns) rowTotal = 0;
+    }
+  }
+
+  for (const layout of layouts || []) {
+    if (!layout.assignedContainerId) continue;
+    if (assigned.has(layout.assignedContainerId)) {
+      throw new AppError("A homepage container can only be assigned to one layout slot", 400, "DUPLICATE_LAYOUT_ASSIGNMENT");
+    }
+    assigned.add(layout.assignedContainerId);
+  }
+}
+
+function layoutsToRows(layouts = [], builder = normalizeBuilderConfig(), device = "desktop") {
+  const maxColumns = DEVICE_COLUMNS[device] || DEVICE_COLUMNS.desktop;
+  const sorted = (Array.isArray(layouts) ? layouts : [])
+    .filter((layout) => layout?.assignedContainerId || layout?.containerId)
+    .filter((layout) => layout.visible !== false && resolveSlotConfig(layout, device).visible !== false)
+    .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0));
+
+  const rows = [];
+  let currentRow = { id: createId("row"), order: 0, type: "custom", collapsed: false, columns: [] };
+  let usedColumns = 0;
+
+  sorted.forEach((layout) => {
+    const config = resolveSlotConfig(layout, device);
+    const colSpan = clamp(config.colSpan, maxColumns, { min: 1, max: maxColumns });
+    if (currentRow.columns.length && usedColumns + colSpan > maxColumns) {
+      rows.push(currentRow);
+      currentRow = { id: createId("row"), order: rows.length, type: "custom", collapsed: false, columns: [] };
+      usedColumns = 0;
+    }
+
+    const widthPercent = Number(((colSpan / maxColumns) * 100).toFixed(4));
+    currentRow.columns.push({
+      id: createId("column"),
+      order: currentRow.columns.length,
+      span: colSpan,
+      width: widthPercent,
+      desktopWidth: widthPercent,
+      tabletWidth: widthPercent,
+      mobileWidth: 100,
+      minWidth: 1,
+      colSpan,
+      height: config.height,
+      containers: [
+        {
+          instanceId: layout.id,
+          containerId: layout.assignedContainerId || layout.containerId,
+          order: layout.sortOrder || 0,
+          visible: layout.visible !== false,
+          settings: layout.settings || {},
+          containerSettings: layout.containerSettings || {},
+          desktopConfig: layout.desktop || {},
+          tabletConfig: layout.tablet || {},
+          mobileConfig: layout.mobile || {},
+        },
+      ],
+    });
+    usedColumns += colSpan;
+    if (usedColumns === maxColumns) {
+      rows.push(currentRow);
+      currentRow = { id: createId("row"), order: rows.length, type: "custom", collapsed: false, columns: [] };
+      usedColumns = 0;
+    }
+  });
+
+  if (currentRow.columns.length) rows.push(currentRow);
+  return rows;
 }
 
 function toAdminLayout(layout) {
@@ -646,13 +847,13 @@ function applyInstanceToContainer(container, instance, { device = "desktop", row
 function applyVisualLayoutToContainer(container, layout, { device = "desktop", rowId = "", columnId = "", widthPercent = 100 } = {}) {
   const baseInstance = {
     instanceId: layout.id,
-    containerId: layout.containerId,
-    order: Number(layout.zIndex || 0),
+    containerId: layout.assignedContainerId || layout.containerId,
+    order: Number(layout.sortOrder || layout.zIndex || 0),
     visible: layout.visible !== false,
     settings: layout.settings || {},
-    desktopConfig: layout.desktopConfig || {},
-    tabletConfig: layout.tabletConfig || {},
-    mobileConfig: layout.mobileConfig || {},
+    desktopConfig: layout.desktop || layout.desktopConfig || {},
+    tabletConfig: layout.tablet || layout.tabletConfig || {},
+    mobileConfig: layout.mobile || layout.mobileConfig || {},
   };
   const merged = applyInstanceToContainer(container, baseInstance, {
     device,
@@ -661,11 +862,13 @@ function applyVisualLayoutToContainer(container, layout, { device = "desktop", r
     widthPercent,
   });
   merged.builderLayout.slotId = layout.id;
-  merged.builderLayout.x = layout.x;
-  merged.builderLayout.y = layout.y;
-  merged.builderLayout.width = layout.width;
-  merged.builderLayout.height = layout.height;
-  merged.builderLayout.zIndex = layout.zIndex;
+  merged.builderLayout.name = layout.name;
+  merged.builderLayout.slug = layout.slug;
+  merged.builderLayout.type = layout.type;
+  merged.builderLayout.sortOrder = layout.sortOrder;
+  merged.builderLayout.desktop = layout.desktop;
+  merged.builderLayout.tablet = layout.tablet;
+  merged.builderLayout.mobile = layout.mobile;
   merged.builderLayout.containerSettings = layout.containerSettings || {};
   merged.config = {
     ...(merged.config || {}),
@@ -702,7 +905,7 @@ async function ensureUniqueSlug(slug, excludeId = null) {
 function collectContainerIds(snapshot = {}) {
   const sourceLayouts = Array.isArray(snapshot.layouts) ? snapshot.layouts : [];
   if (sourceLayouts.length) {
-    return sourceLayouts.map((layout) => layout.containerId).filter(Boolean);
+    return sourceLayouts.map((layout) => layout.assignedContainerId || layout.containerId).filter(Boolean);
   }
   return (snapshot.rows || []).flatMap((row) =>
     (row.columns || []).flatMap((column) => (column.containers || []).map((instance) => instance.containerId))
@@ -762,6 +965,46 @@ async function ensureSingleDefault(layoutId) {
   await HomepageLayout.updateMany(
     { _id: { $ne: layoutId }, isDefault: true },
     { $set: { isDefault: false } }
+  );
+}
+
+async function syncLayoutSidecars(layoutId, snapshot = {}, { status = "draft", actorId = null } = {}) {
+  await HomepageLayoutDraft.findOneAndUpdate(
+    { layoutDocumentId: layoutId },
+    {
+      $set: {
+        snapshot,
+        status: snapshot?.scheduling?.status || status,
+        savedBy: actorId,
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  const assignments = (snapshot.layouts || []).filter((layout) => layout.assignedContainerId);
+  const activeLayoutIds = assignments.map((layout) => layout.id);
+  await HomepageLayoutAssignment.deleteMany({
+    layoutDocumentId: layoutId,
+    ...(activeLayoutIds.length ? { layoutId: { $nin: activeLayoutIds } } : {}),
+  });
+
+  await Promise.all(
+    assignments.map((layout) =>
+      HomepageLayoutAssignment.findOneAndUpdate(
+        { layoutDocumentId: layoutId, layoutId: layout.id },
+        {
+          $set: {
+            assignedContainerId: layout.assignedContainerId,
+            sortOrder: layout.sortOrder,
+            desktop: layout.desktop,
+            tablet: layout.tablet,
+            mobile: layout.mobile,
+            status,
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
+    )
   );
 }
 
@@ -826,7 +1069,7 @@ async function buildLayoutRowsFromRows(rows = [], options = {}) {
 
 async function buildLayoutRowsFromLayouts(layouts = [], builder = normalizeBuilderConfig(), options = {}) {
   const safeLayouts = Array.isArray(layouts) ? layouts : [];
-  const ids = [...new Set(safeLayouts.map((layout) => layout.containerId).filter(Boolean))];
+  const ids = [...new Set(safeLayouts.map((layout) => layout.assignedContainerId || layout.containerId).filter(Boolean))];
   const resolved = await homepageContainerService.getResolvedContainersByIds(ids, {
     device: options.device || "all",
     includeProducts: options.includeProducts !== false,
@@ -848,7 +1091,8 @@ async function buildLayoutRowsFromLayouts(layouts = [], builder = normalizeBuild
               : column.desktopWidth;
         const instance = column.containers[0];
         const sourceLayout = safeLayouts.find((item) => item.id === instance.instanceId);
-        const container = sourceLayout?.containerId ? containerMap.get(String(sourceLayout.containerId)) : null;
+        const sourceContainerId = sourceLayout?.assignedContainerId || sourceLayout?.containerId;
+        const container = sourceContainerId ? containerMap.get(String(sourceContainerId)) : null;
         const merged = sourceLayout && container
           ? applyVisualLayoutToContainer(container, sourceLayout, {
               device: options.device || "desktop",
@@ -931,6 +1175,7 @@ class HomepageLayoutService {
       await ensureSingleDefault(created._id);
     }
 
+    await syncLayoutSidecars(created._id, snapshot, { status: "draft", actorId });
     invalidateCache();
     return this.getLayoutById(created._id);
   }
@@ -983,6 +1228,7 @@ class HomepageLayoutService {
       await ensureSingleDefault(layout._id);
     }
 
+    await syncLayoutSidecars(layout._id, snapshot, { status: "draft", actorId });
     invalidateCache();
     return this.getLayoutById(layout._id);
   }
@@ -1086,6 +1332,7 @@ class HomepageLayoutService {
 
     await layout.save();
     await ensureSingleDefault(layout._id);
+    await syncLayoutSidecars(layout._id, snapshot, { status: "published", actorId });
 
     invalidateCache();
     return {
@@ -1107,6 +1354,8 @@ class HomepageLayoutService {
       throw new AppError("Homepage layout not found", 404, "LAYOUT_NOT_FOUND");
     }
     await HomepageLayoutVersion.deleteMany({ layoutId: deleted._id });
+    await HomepageLayoutAssignment.deleteMany({ layoutDocumentId: deleted._id });
+    await HomepageLayoutDraft.deleteOne({ layoutDocumentId: deleted._id });
     invalidateCache();
     return { _id: deleted._id };
   }

@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { motion as Motion } from "framer-motion";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Clock3, Flame, Store } from "lucide-react";
 import { ProductCard } from "../ProductCard";
@@ -7,7 +6,42 @@ import { ProductCarousel } from "../ProductCarousel";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { trackHomepageContainerEvent } from "../../services/homepageContainerService";
 
-export function DynamicHomepageRenderer({ rows = [], containers = [], loading = false, bareContainers = false, bareCarouselShell = false }) {
+const DEFAULT_CANVAS_WIDTH = {
+  desktop: 1440,
+  tablet: 768,
+  mobile: 375,
+};
+
+const DEVICE_COLUMNS = {
+  desktop: 12,
+  tablet: 6,
+  mobile: 1,
+};
+
+export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
+  rows = [],
+  containers = [],
+  loading = false,
+  bareContainers = false,
+  bareCarouselShell = false,
+  device = "desktop",
+  canvasWidth,
+}) {
+  const renderContext = useMemo(
+    () => ({
+      device,
+      canvasWidth: resolveCanvasWidth(canvasWidth, device),
+    }),
+    [canvasWidth, device]
+  );
+
+  const resolvedRows = useMemo(() => {
+    if (Array.isArray(rows) && rows.length) {
+      return rows;
+    }
+    return buildRowsFromContainers(containers, renderContext.canvasWidth);
+  }, [containers, rows, renderContext.canvasWidth]);
+
   if (loading) {
     return (
       <>
@@ -18,33 +52,49 @@ export function DynamicHomepageRenderer({ rows = [], containers = [], loading = 
     );
   }
 
-  if (Array.isArray(rows) && rows.length) {
+  if (Array.isArray(resolvedRows) && resolvedRows.length) {
     return (
       <div className="space-y-6">
-        {rows.map((row) => (
-          <DynamicHomepageRow key={row.id || row.order} row={row} bareContainers={bareContainers} bareCarouselShell={bareCarouselShell} />
+        {resolvedRows.map((row) => (
+          <DynamicHomepageRow
+            key={row.id || row.order}
+            row={row}
+            bareContainers={bareContainers}
+            bareCarouselShell={bareCarouselShell}
+            renderContext={renderContext}
+          />
         ))}
       </div>
     );
   }
 
   return containers.map((container) => (
-    <DynamicHomepageSection key={container.instanceId || container._id} container={container} bareContainers={bareContainers} bareCarouselShell={bareCarouselShell} />
+    <DynamicHomepageSection
+      key={container.instanceId || container._id}
+      container={container}
+      bareContainers={bareContainers}
+      bareCarouselShell={bareCarouselShell}
+      renderContext={renderContext}
+    />
   ));
-}
+});
 
-function DynamicHomepageRow({ row, bareContainers = false, bareCarouselShell = false }) {
+const DynamicHomepageRow = memo(function DynamicHomepageRow({ row, bareContainers = false, bareCarouselShell = false, renderContext }) {
+  const columnCount = DEVICE_COLUMNS[renderContext.device] || DEVICE_COLUMNS.desktop;
+
   return (
-    <div className="flex flex-wrap gap-6">
+    <div
+      className="grid gap-6"
+      style={{
+        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+        gridAutoFlow: "row dense",
+      }}
+    >
       {(row.columns || []).map((column) => {
-        const widthPercent = Number(column.widthPercent || column.desktopWidth || column.width || 100);
-        const columnStyle =
-          widthPercent >= 99
-            ? { flexBasis: "100%", maxWidth: "100%" }
-            : { flexBasis: `calc(${widthPercent}% - 1rem)`, maxWidth: `calc(${widthPercent}% - 1rem)` };
+        const columnStyle = resolveColumnStyle(column, renderContext);
 
         return (
-          <div key={column.id || column.order} style={columnStyle} className="min-w-[260px] flex-1 space-y-6">
+          <div key={column.id || column.order} style={columnStyle} className="min-w-0 space-y-6">
             {(column.containers || []).map((container) => (
               <DynamicHomepageSection
                 key={container.instanceId || container._id}
@@ -52,6 +102,7 @@ function DynamicHomepageRow({ row, bareContainers = false, bareCarouselShell = f
                 inline
                 bareContainers={bareContainers}
                 bareCarouselShell={bareCarouselShell}
+                renderContext={renderContext}
               />
             ))}
           </div>
@@ -59,9 +110,9 @@ function DynamicHomepageRow({ row, bareContainers = false, bareCarouselShell = f
       })}
     </div>
   );
-}
+});
 
-function DynamicHomepageSection({ container, inline = false, bareContainers = false, bareCarouselShell = false }) {
+const DynamicHomepageSection = memo(function DynamicHomepageSection({ container, inline = false, bareContainers = false, bareCarouselShell = false, renderContext }) {
   const trackedRef = useRef(false);
 
   useEffect(() => {
@@ -75,12 +126,10 @@ function DynamicHomepageSection({ container, inline = false, bareContainers = fa
     return () => window.clearTimeout(timeoutId);
   }, [container?._id]);
 
-  const animationSettings = resolveSectionAnimation(container);
   const visibilityClasses = resolveContainerVisibilityClasses(container);
   const layout = resolveContainerLayout(container);
   const themeStyles = resolveContainerThemeStyles(layout.theme || container?.presentation?.containerTheme);
-  const widthStyles = resolveContainerWidthStyle(layout);
-  const isGridContainer = container?.containerType === "GRID";
+  const widthStyles = resolveContainerDimensionStyle(layout, renderContext, { inline });
   const previewBare = container?.previewBare === true || bareContainers;
 
   const style = {
@@ -96,7 +145,6 @@ function DynamicHomepageSection({ container, inline = false, bareContainers = fa
           marginBottom: `${layout.marginBottom}px`,
           marginLeft: `${layout.marginLeft}px`,
           marginRight: `${layout.marginRight}px`,
-          minHeight: resolveContainerHeight(layout),
         }),
   };
 
@@ -128,7 +176,7 @@ function DynamicHomepageSection({ container, inline = false, bareContainers = fa
       </div>
     </div>
   );
-}
+});
 
 function resolveContainerVisibilityClasses(container) {
   const desktopVisible = container?.visibility?.desktop ?? container?.desktopVisible ?? true;
@@ -175,24 +223,31 @@ function resolveContainerThemeStyles(themeValue) {
   }
 }
 
-function resolveContainerWidthStyle(layout) {
-  const styles = { width: "100%" };
-  switch (layout.widthType) {
-    case "boxed":
-      styles.maxWidth = "1400px";
-      break;
-    case "medium":
-      styles.maxWidth = "1200px";
-      break;
-    case "narrow":
-      styles.maxWidth = "900px";
-      break;
-    case "custom":
-      styles.maxWidth = `${layout.customWidth}px`;
-      break;
-    case "full":
-    default:
-      break;
+function resolveContainerDimensionStyle(layout, renderContext, options = {}) {
+  const width = resolveConfiguredWidth(layout, renderContext.canvasWidth);
+  const height = resolveConfiguredHeight(layout);
+  const exactSize = resolveResponsiveSize(width, height, renderContext);
+  const styles = {};
+
+  if (options.inline) {
+    styles.width = "100%";
+    if (exactSize.height) {
+      styles.height = `${exactSize.height}px`;
+    } else if (height && width) {
+      styles.aspectRatio = `${width} / ${height}`;
+    }
+  } else if (exactSize.width) {
+    styles.width = `${exactSize.width}px`;
+    if (exactSize.height) {
+      styles.height = `${exactSize.height}px`;
+    } else if (height && width) {
+      styles.aspectRatio = `${width} / ${height}`;
+    }
+  } else {
+    styles.width = "100%";
+    if (exactSize.height) {
+      styles.height = `${exactSize.height}px`;
+    }
   }
 
   if (layout.alignment === "left") {
@@ -204,71 +259,6 @@ function resolveContainerWidthStyle(layout) {
   }
 
   return styles;
-}
-
-function resolveSectionAnimation(container) {
-  const animation = String(container?.presentation?.layout?.animation || container?.presentation?.animation || container?.animation || "fadeUp")
-    .replace(/_/g, "")
-    .trim()
-    .toLowerCase();
-  switch (animation) {
-    case "none":
-      return {
-        initial: { opacity: 1, x: 0, y: 0 },
-        whileInView: { opacity: 1, x: 0, y: 0 },
-        transition: { duration: 0.3, ease: "easeOut" },
-      };
-    case "fadedown":
-      return {
-        initial: { opacity: 0, x: 0, y: -18 },
-        whileInView: { opacity: 1, x: 0, y: 0 },
-        transition: { duration: 0.45, ease: "easeOut" },
-      };
-    case "fadeleft":
-      return {
-        initial: { opacity: 0, x: -36, y: 0 },
-        whileInView: { opacity: 1, x: 0, y: 0 },
-        transition: { duration: 0.45, ease: "easeOut" },
-      };
-    case "faderight":
-      return {
-        initial: { opacity: 0, x: 36, y: 0 },
-        whileInView: { opacity: 1, x: 0, y: 0 },
-        transition: { duration: 0.45, ease: "easeOut" },
-      };
-    case "zoomin":
-      return {
-        initial: { opacity: 0, scale: 0.94 },
-        whileInView: { opacity: 1, scale: 1 },
-        transition: { duration: 0.45, ease: "easeOut" },
-      };
-    case "zoomout":
-      return {
-        initial: { opacity: 0, scale: 1.06 },
-        whileInView: { opacity: 1, scale: 1 },
-        transition: { duration: 0.45, ease: "easeOut" },
-      };
-    case "bounce":
-      return {
-        initial: { opacity: 0, y: 28 },
-        whileInView: { opacity: 1, y: [0, -10, 0] },
-        transition: { duration: 0.7, ease: "easeOut" },
-      };
-    case "slideup":
-      return {
-        initial: { opacity: 0, y: 36 },
-        whileInView: { opacity: 1, y: 0 },
-        transition: { duration: 0.45, ease: "easeOut" },
-      };
-    case "fadein":
-    case "fadeup":
-    default:
-      return {
-        initial: { opacity: 0, x: 0, y: 18 },
-        whileInView: { opacity: 1, x: 0, y: 0 },
-        transition: { duration: 0.45, ease: "easeOut" },
-      };
-  }
 }
 
 function parseLegacyMargin(value) {
@@ -293,8 +283,10 @@ function resolveContainerLayout(container) {
   const theme = String(layout.theme || container?.presentation?.containerTheme || "default").toLowerCase();
 
   return {
+    width: pickFinite(layout.width),
     widthType: layout.widthType || (rawWidth === "full" ? "full" : rawWidth === "narrow" ? "narrow" : rawWidth === "medium" ? "medium" : rawWidth === "boxed" || rawWidth === "wide" || rawWidth === "content" ? "boxed" : "custom"),
     customWidth: Number(layout.customWidth || String(rawWidth).replace(/[^\d.-]/g, "") || 1400),
+    height: pickFinite(layout.height),
     heightType: layout.heightType || (rawHeight === "auto" || !rawHeight ? "auto" : "custom"),
     customHeight: Number(layout.customHeight || String(rawHeight).replace(/[^\d.-]/g, "") || 450),
     alignment: layout.alignment || "center",
@@ -317,21 +309,132 @@ function resolveContainerLayout(container) {
   };
 }
 
-function resolveContainerHeight(layout) {
+function pickFinite(value) {
+  const next = Number(value);
+  return Number.isFinite(next) && next > 0 ? next : null;
+}
+
+function resolveCanvasWidth(canvasWidth, device) {
+  const next = Number(canvasWidth);
+  if (Number.isFinite(next) && next > 0) {
+    return next;
+  }
+  return DEFAULT_CANVAS_WIDTH[device] || DEFAULT_CANVAS_WIDTH.desktop;
+}
+
+function resolveConfiguredWidth(layout, canvasWidth) {
+  if (pickFinite(layout.width)) {
+    return pickFinite(layout.width);
+  }
+  if (pickFinite(layout.customWidth)) {
+    return pickFinite(layout.customWidth);
+  }
+  switch (layout.widthType) {
+    case "full":
+      return canvasWidth || DEFAULT_CANVAS_WIDTH.desktop;
+    case "narrow":
+      return 900;
+    case "medium":
+      return 1200;
+    case "boxed":
+      return 1400;
+    default:
+      return null;
+  }
+}
+
+function resolveConfiguredHeight(layout) {
+  if (pickFinite(layout.height)) {
+    return pickFinite(layout.height);
+  }
+  if (pickFinite(layout.customHeight)) {
+    return pickFinite(layout.customHeight);
+  }
   switch (layout.heightType) {
     case "small":
-      return "250px";
+      return 250;
     case "medium":
-      return "450px";
+      return 450;
     case "large":
-      return "650px";
+      return 650;
     case "extraLarge":
-      return "850px";
-    case "custom":
-      return `${layout.customHeight}px`;
+      return 850;
     default:
-      return undefined;
+      return null;
   }
+}
+
+function resolveResponsiveSize(width, height, renderContext) {
+  if (!width) {
+    return {
+      width: null,
+      height,
+    };
+  }
+
+  if (renderContext.device === "desktop") {
+    return { width, height };
+  }
+
+  const availableWidth = renderContext.canvasWidth || width;
+  const nextWidth = Math.min(width, availableWidth);
+  if (!height) {
+    return { width: nextWidth, height: null };
+  }
+  return {
+    width: nextWidth,
+    height: Math.round((height * nextWidth) / width),
+  };
+}
+
+function resolveColumnStyle(column, renderContext) {
+  const maxColumns = DEVICE_COLUMNS[renderContext.device] || DEVICE_COLUMNS.desktop;
+  const span = Math.min(Math.max(Number(column?.colSpan || column?.span || maxColumns), 1), maxColumns);
+  return {
+    gridColumn: `span ${span} / span ${span}`,
+    minWidth: 0,
+  };
+}
+
+function buildRowsFromContainers(containers, canvasWidth) {
+  const list = Array.isArray(containers) ? containers.filter(Boolean) : [];
+  if (!list.length) return [];
+
+  const rows = [];
+  let currentRow = [];
+  let currentRowWidth = 0;
+
+  list.forEach((container, index) => {
+    const layout = resolveContainerLayout(container);
+    const width = resolveConfiguredWidth(layout, canvasWidth) || canvasWidth;
+    if (currentRow.length && currentRowWidth + width > canvasWidth) {
+      rows.push({
+        id: `row-${rows.length + 1}`,
+        order: rows.length + 1,
+        columns: currentRow,
+      });
+      currentRow = [];
+      currentRowWidth = 0;
+    }
+
+    currentRow.push({
+      id: container.instanceId || container._id || `column-${index + 1}`,
+      order: currentRow.length + 1,
+      widthPx: width,
+      containers: [container],
+    });
+    currentRowWidth += width;
+  });
+
+  if (currentRow.length) {
+    rows.push({
+      id: `row-${rows.length + 1}`,
+      order: rows.length + 1,
+      columns: currentRow,
+    });
+  }
+
+  return rows;
 }
 
 function resolveContainerBackground(layout, themeStyles) {
@@ -456,21 +559,28 @@ function BannerContainer({ container }) {
   const config = container.config || {};
   const mediaUrl = resolveApiAssetUrl(config.bannerImage || config.bannerVideo || "");
   const isVideo = Boolean(config.bannerVideo);
+  const imageFit = config.bannerFit === "contain" ? "contain" : "cover";
 
   return (
-    <div className="relative min-h-[280px] overflow-hidden">
+    <div className="hero-banner relative h-full w-full overflow-hidden">
       {mediaUrl ? (
         isVideo ? (
-          <video src={mediaUrl} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
+          <video src={mediaUrl} autoPlay muted loop playsInline className="block h-full w-full object-cover" />
         ) : (
-          <img src={mediaUrl} alt={config.heading || container.title} className="absolute inset-0 h-full w-full object-cover" />
+          <img
+            src={mediaUrl}
+            alt={config.heading || container.title}
+            className={`block h-full w-full object-center ${imageFit === "contain" ? "object-contain" : "object-cover"}`}
+          />
         )
       ) : null}
-      <div
-        className="absolute inset-0"
-        style={{ background: `rgba(15, 23, 42, ${Number(config.overlayOpacity ?? 0.35)})` }}
-      />
-      <div className="relative z-10 flex min-h-[280px] items-center p-6 sm:p-8 lg:p-10">
+      {mediaUrl ? (
+        <div
+          className="absolute inset-0 bg-slate-950/20"
+          style={{ background: `rgba(15, 23, 42, ${Number(config.overlayOpacity ?? 0.35)})` }}
+        />
+      ) : null}
+      <div className="absolute inset-0 z-10 flex items-center p-6 sm:p-8 lg:p-10">
         <div className={`max-w-2xl ${resolveTextAlign(config.textPosition)}`}>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Marketplace campaign</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">
@@ -518,10 +628,10 @@ function SliderContainer({ container }) {
   const imageUrl = resolveApiAssetUrl(currentSlide?.image || "");
 
   return (
-    <div className="relative min-h-[340px] overflow-hidden">
-      {imageUrl ? <img src={imageUrl} alt={currentSlide?.heading || container.title} className="absolute inset-0 h-full w-full object-cover" /> : null}
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/35 to-transparent" />
-      <div className="relative z-10 flex min-h-[340px] items-end p-6 sm:p-8 lg:p-10">
+    <div className="relative h-full w-full overflow-hidden">
+      {imageUrl ? <img src={imageUrl} alt={currentSlide?.heading || container.title} className="block h-full w-full object-cover" /> : null}
+      {imageUrl ? <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/35 to-transparent" /> : null}
+      <div className={`relative z-10 ${imageUrl ? "absolute inset-0" : ""} flex items-end p-6 sm:p-8 lg:p-10`}>
         <div className="max-w-xl">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Curated story</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">{currentSlide?.heading || container.title}</h2>
@@ -592,7 +702,7 @@ function TabsContainer({ container }) {
           </button>
         ))}
       </div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {activeItems.length ? activeItems.map((product) => <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} />) : <EmptyState />}
       </div>
     </div>
@@ -630,7 +740,7 @@ function FlashSaleContainer({ container }) {
             Ends in {hours}:{minutes}:{seconds}
           </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {(container.products || []).map((product) => (
             <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} />
           ))}
@@ -689,7 +799,7 @@ function SectionSkeleton() {
       <div className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/75 p-6 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75">
         <div className="h-8 w-52 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
         <div className="mt-3 h-4 w-80 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800" />
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div key={index} className="h-80 animate-pulse rounded-[1.5rem] bg-slate-100 dark:bg-slate-800" />
           ))}
@@ -721,25 +831,25 @@ function resolveGridClass(type, config) {
     return "grid-cols-1";
   }
   if (type === "MASONRY") {
-    return "sm:grid-cols-2 xl:grid-cols-4";
+    return "sm:grid-cols-2 lg:grid-cols-4";
   }
   const desktopColumns = Number(config.desktopColumns || 4);
   const columnClassMap = {
-    1: "xl:grid-cols-1",
-    2: "xl:grid-cols-2",
-    3: "xl:grid-cols-3",
-    4: "xl:grid-cols-4",
-    5: "xl:grid-cols-5",
-    6: "xl:grid-cols-6",
-    7: "xl:grid-cols-7",
-    8: "xl:grid-cols-8",
-    9: "xl:grid-cols-9",
-    10: "xl:grid-cols-10",
-    11: "xl:grid-cols-11",
-    12: "xl:grid-cols-12",
+    1: "lg:grid-cols-1",
+    2: "lg:grid-cols-2",
+    3: "lg:grid-cols-3",
+    4: "lg:grid-cols-4",
+    5: "lg:grid-cols-5",
+    6: "lg:grid-cols-6",
+    7: "lg:grid-cols-7",
+    8: "lg:grid-cols-8",
+    9: "lg:grid-cols-9",
+    10: "lg:grid-cols-10",
+    11: "lg:grid-cols-11",
+    12: "lg:grid-cols-12",
   };
   // if the requested desktopColumns is outside 1..12, fall back to 4
-  return `sm:grid-cols-2 ${columnClassMap[desktopColumns] || "xl:grid-cols-4"}`;
+  return `sm:grid-cols-2 ${columnClassMap[desktopColumns] || "lg:grid-cols-4"}`;
 }
 
 function resolveTextAlign(position) {

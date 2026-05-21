@@ -5,10 +5,14 @@ const seoSchema = new mongoose.Schema(
   {
     metaTitle: { type: String, trim: true, default: "" },
     metaDescription: { type: String, trim: true, default: "" },
+    canonicalUrl: { type: String, trim: true, default: "" },
     openGraphTitle: { type: String, trim: true, default: "" },
     openGraphDescription: { type: String, trim: true, default: "" },
     openGraphImage: { type: String, trim: true, default: "" },
-    canonicalUrl: { type: String, trim: true, default: "" },
+    twitterTitle: { type: String, trim: true, default: "" },
+    twitterDescription: { type: String, trim: true, default: "" },
+    twitterImage: { type: String, trim: true, default: "" },
+    twitterCard: { type: String, trim: true, default: "summary_large_image" },
     schemaMarkup: { type: String, trim: true, default: "" },
   },
   { _id: false }
@@ -16,10 +20,9 @@ const seoSchema = new mongoose.Schema(
 
 const deviceConfigSchema = new mongoose.Schema(
   {
-    width: { type: Number, default: 0 },
-    height: { type: Number, default: 0 },
-    columns: { type: Number, default: 0 },
-    spacing: { type: Number, default: 0 },
+    colSpan: { type: Number, default: 12 },
+    rowSpan: { type: Number, default: 1 },
+    height: { type: Number, default: 320 },
     visible: { type: Boolean, default: true },
   },
   { _id: false }
@@ -96,7 +99,12 @@ const layoutSnapshotSchema = new mongoose.Schema(
     seo: { type: seoSchema, default: () => ({}) },
     builder: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     layouts: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    assignments: { type: [mongoose.Schema.Types.Mixed], default: [] },
     rows: { type: [layoutRowSchema], default: [] },
+    visibility: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+    scheduling: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+    typography: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+    auditLog: { type: [mongoose.Schema.Types.Mixed], default: [] },
     notes: { type: String, trim: true, default: "" },
     savedAt: { type: Date, default: null },
     savedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
@@ -150,7 +158,7 @@ const homepageLayoutSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    collection: "homepage_layouts",
+    collection: "homepageLayouts",
   }
 );
 

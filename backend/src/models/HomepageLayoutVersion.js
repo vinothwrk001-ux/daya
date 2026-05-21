@@ -40,7 +40,7 @@ const versionSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    collection: "homepage_layout_versions",
+    collection: "homepageLayoutVersions",
   }
 );
 

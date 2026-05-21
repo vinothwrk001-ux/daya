@@ -97,9 +97,9 @@ const editorSteps = [
 ];
 
 const deviceOptions = [
-  { value: "desktop", label: "Desktop", icon: Monitor, widthClassName: "w-full" },
-  { value: "tablet", label: "Tablet", icon: Tablet, widthClassName: "mx-auto w-[82%]" },
-  { value: "mobile", label: "Mobile", icon: Smartphone, widthClassName: "mx-auto w-[56%] min-w-[220px]" },
+  { value: "desktop", label: "Desktop", icon: Monitor, viewportWidth: null },
+  { value: "tablet", label: "Tablet", icon: Tablet, viewportWidth: 840 },
+  { value: "mobile", label: "Mobile", icon: Smartphone, viewportWidth: 390 },
 ];
 
 const sectionCardClassName = "rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900";
@@ -193,8 +193,10 @@ function normalizeLayoutForm(layout = {}, presentation = {}) {
   return {
     ...defaultLayout,
     ...layout,
+    width: pickNumber(layout?.width, pickNumber(layout?.customWidth ?? String(widthValue).replace(/[^\d.-]/g, ""), defaultLayout.customWidth)),
     widthType: layout?.widthType || legacyWidthType(widthValue || defaultLayout.widthType),
     customWidth: pickNumber(layout?.customWidth ?? String(widthValue).replace(/[^\d.-]/g, ""), defaultLayout.customWidth),
+    height: pickNumber(layout?.height, pickNumber(layout?.customHeight ?? String(heightValue).replace(/[^\d.-]/g, ""), defaultLayout.customHeight)),
     heightType: layout?.heightType || legacyHeightType(heightValue || defaultLayout.heightType),
     customHeight: pickNumber(layout?.customHeight ?? String(heightValue).replace(/[^\d.-]/g, ""), defaultLayout.customHeight),
     positionX: pickNumber(layout?.positionX ?? String(offsetX).replace(/[^\d.-]/g, ""), 0),
@@ -216,7 +218,43 @@ function normalizeLayoutForm(layout = {}, presentation = {}) {
   };
 }
 
+function resolveLayoutWidth(layout = {}) {
+  if (pickNumber(layout.width, 0) > 0) return Number(layout.width);
+  if (pickNumber(layout.customWidth, 0) > 0) return Number(layout.customWidth);
+  switch (layout.widthType) {
+    case "full":
+      return 1920;
+    case "narrow":
+      return 900;
+    case "medium":
+      return 1200;
+    case "boxed":
+      return 1400;
+    default:
+      return defaultLayout.customWidth;
+  }
+}
+
+function resolveLayoutHeight(layout = {}) {
+  if (pickNumber(layout.height, 0) > 0) return Number(layout.height);
+  if (pickNumber(layout.customHeight, 0) > 0) return Number(layout.customHeight);
+  switch (layout.heightType) {
+    case "small":
+      return 250;
+    case "medium":
+      return 450;
+    case "large":
+      return 650;
+    case "extraLarge":
+      return 850;
+    default:
+      return defaultLayout.customHeight;
+  }
+}
+
 function buildPayload(form) {
+  const width = resolveLayoutWidth(form.layout);
+  const height = resolveLayoutHeight(form.layout);
   return {
     title: form.title,
     slug: form.slug || slugify(form.title),
@@ -232,6 +270,8 @@ function buildPayload(form) {
     layout: {
       ...defaultLayout,
       ...form.layout,
+      width,
+      height,
       customWidth: Number(form.layout.customWidth || defaultLayout.customWidth),
       customHeight: Number(form.layout.customHeight || defaultLayout.customHeight),
       positionX: Number(form.layout.positionX || 0),
@@ -1636,8 +1676,14 @@ function resolvePreviewAnimation(animation) {
 }
 
 function LiveLayoutPreview({ form, preview, device }) {
-  const layout = form.layout || defaultLayout;
+  const layout = {
+    ...defaultLayout,
+    ...(form.layout || {}),
+    width: resolveLayoutWidth(form.layout || defaultLayout),
+    height: resolveLayoutHeight(form.layout || defaultLayout),
+  };
   const deviceOption = deviceOptions.find((option) => option.value === device) || deviceOptions[0];
+  const previewViewportWidth = deviceOption.viewportWidth || layout.width;
   const previewContainer = {
     ...(preview?.container || {}),
     previewBare: true,
@@ -1666,11 +1712,11 @@ function LiveLayoutPreview({ form, preview, device }) {
       <div className="rounded-[22px] bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.16),_transparent_42%),linear-gradient(180deg,_#f8fafc,_#e2e8f0)] p-4 dark:bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.18),_transparent_42%),linear-gradient(180deg,_#0f172a,_#020617)]">
         <div className="mb-4 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">
           <span>{deviceOption.label} View</span>
-          <span>{toDisplayLabel(layout.theme)}</span>
+          <span>{layout.width} x {layout.height}</span>
         </div>
-        <div className="min-h-[560px]">
-          <div className={deviceOption.widthClassName}>
-            <DynamicHomepageRenderer containers={[previewContainer]} />
+        <div className="min-h-[560px] overflow-auto">
+          <div className="mx-auto" style={{ width: previewViewportWidth ? `${previewViewportWidth}px` : "fit-content", maxWidth: "100%" }}>
+            <DynamicHomepageRenderer containers={[previewContainer]} device={device} canvasWidth={previewViewportWidth} />
           </div>
         </div>
       </div>

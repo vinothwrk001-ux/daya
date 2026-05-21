@@ -132,7 +132,7 @@ export function HomePage() {
   return (
     <div className="w-full space-y-0 lg:space-y-0">
       {builderLayout?.layout ? (
-        <DynamicHomepageRenderer rows={builderLayout.rows || []} containers={builderLayout.containers || []} loading={loading} bareCarouselShell />
+        <DynamicHomepageRenderer rows={builderLayout.rows || []} containers={builderLayout.containers || []} loading={loading} bareCarouselShell device={device} />
       ) : (
         <>
       {/* DYNAMIC HOMEPAGE CONTENT CMS */}
