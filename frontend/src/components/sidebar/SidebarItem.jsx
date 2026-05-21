@@ -1,11 +1,12 @@
 import { NavLink } from "react-router-dom";
 
-export function SidebarItem({ item, onNavigate }) {
+export function SidebarItem({ item, onNavigate, collapsed = false }) {
   const Icon = item.icon;
 
   return (
     <NavLink
       to={item.path}
+      title={item.name}
       onClick={onNavigate}
       className={({ isActive }) =>
         [
@@ -17,8 +18,8 @@ export function SidebarItem({ item, onNavigate }) {
       }
     >
       {Icon ? <Icon className="h-4 w-4 flex-shrink-0" /> : null}
-      <span className="truncate">{item.name}</span>
-      {item.badgeCount > 0 ? (
+      {!collapsed ? <span className="truncate">{item.name}</span> : null}
+      {item.badgeCount > 0 && !collapsed ? (
         <span className="ml-auto inline-flex flex-shrink-0 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-semibold text-white">
           {item.badgeCount}
         </span>

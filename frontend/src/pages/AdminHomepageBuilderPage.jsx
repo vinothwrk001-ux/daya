@@ -369,6 +369,9 @@ export function AdminHomepageBuilderPage() {
   const [activeDrag, setActiveDrag] = useState(null);
   const [showVersions, setShowVersions] = useState(false);
   const saveTimerRef = useRef(null);
+  const prevDraftJsonRef = useRef("");
+  const prevPreviewDeviceRef = useRef(null);
+  const previewBackoffRef = useRef(0);
 
   const authUser = useAuthStore((store) => store.user);
   const authToken = useAuthStore((store) => store.token);
@@ -416,7 +419,7 @@ export function AdminHomepageBuilderPage() {
   }, []);
 
   const openLayout = useCallback(
-    async (layoutId, nextLibrary = containerLibrary) => {
+    async (layoutId, nextLibrary) => {
       if (!layoutId) return;
       setLayoutLoading(true);
       setError("");
@@ -431,7 +434,9 @@ export function AdminHomepageBuilderPage() {
         setIsDefault(Boolean(layout?.isDefault));
         setDraft(nextDraft);
         setSelectedSlotId(nextDraft.layouts[0]?.id || "");
-        setContainerLibrary(nextLibrary);
+        if (Array.isArray(nextLibrary)) {
+          setContainerLibrary(nextLibrary);
+        }
         await refreshVersions(layoutId);
       } catch (loadError) {
         setError(normalizeError(loadError));
@@ -439,7 +444,7 @@ export function AdminHomepageBuilderPage() {
         setLayoutLoading(false);
       }
     },
-    [containerLibrary, refreshVersions]
+    [refreshVersions]
   );
 
   const loadAll = useCallback(async () => {
@@ -518,18 +523,46 @@ export function AdminHomepageBuilderPage() {
 
   useEffect(() => {
     if (!activeLayoutId || !hasAuth) return undefined;
+    // build a stable JSON snapshot of the draft we send to preview
+    const draftSnapshot = buildSavePayload(layoutName, draft, isDefault, layoutUpdatedAt).draft;
+    let draftJson;
+    try {
+      draftJson = JSON.stringify(draftSnapshot);
+    } catch {
+      draftJson = "";
+    }
+
+    // If nothing meaningful changed since last preview, skip calling the preview API
+    if (prevDraftJsonRef.current === draftJson && prevPreviewDeviceRef.current === selectedDevice) {
+      return undefined;
+    }
+
+    // Respect backoff if server asked us to slow down
+    if (previewBackoffRef.current && Date.now() < previewBackoffRef.current) {
+      prevDraftJsonRef.current = draftJson;
+      prevPreviewDeviceRef.current = selectedDevice;
+      return undefined;
+    }
+
+    prevDraftJsonRef.current = draftJson;
+    prevPreviewDeviceRef.current = selectedDevice;
+
     let active = true;
     const timeoutId = window.setTimeout(async () => {
       try {
-        const response = await previewHomepageBuilderLayout({
-          draft: buildSavePayload(layoutName, draft, isDefault, layoutUpdatedAt).draft,
-          device: selectedDevice,
-        });
+        const response = await previewHomepageBuilderLayout({ draft: JSON.parse(draftJson), device: selectedDevice });
         if (active) setPreview(response?.data || { layout: null, rows: [], containers: [], warnings: [] });
       } catch (previewError) {
-        if (active) setError(normalizeError(previewError));
+        if (!active) return;
+        const message = normalizeError(previewError);
+        setError(message);
+        // if server rate-limits us, back off for 10s
+        if (previewError?.response?.status === 429) {
+          previewBackoffRef.current = Date.now() + 10000;
+        }
       }
     }, 450);
+
     return () => {
       active = false;
       window.clearTimeout(timeoutId);

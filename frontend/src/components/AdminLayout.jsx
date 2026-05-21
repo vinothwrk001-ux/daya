@@ -17,18 +17,6 @@ const pageMeta = {
   },
   "/admin/sellers": {
     title: "Sellers",
-    subtitle: "Review applications and control seller approvals.",
-  },
-  "/admin/products": {
-    title: "Products",
-    subtitle: "Moderate product catalog quality and approval workflow.",
-  },
-  "/admin/inventory": {
-    title: "Inventory",
-    subtitle: "Manage platform-owned product variants, warehouse stock, and low-stock exposure.",
-  },
-  "/admin/categories": {
-    title: "Categories",
     subtitle: "Control category visibility, ordering, and storefront presentation.",
   },
   "/admin/orders": {
@@ -155,7 +143,7 @@ const pageMeta = {
 
 export function AdminLayout() {
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   let activeNotificationTarget = null;
   for (const section of ADMIN_SECTION_ITEMS) {
     const item = section.items.find(
@@ -194,11 +182,16 @@ export function AdminLayout() {
     meta = pageMeta["/admin/finance/invoices"];
   }
 
+  function handleMenuToggle() {
+    setSidebarOpen((open) => !open);
+  }
+
   return (
-    <div className="flex min-h-screen max-w-full overflow-x-hidden bg-slate-100 dark:bg-slate-950">
+    <div className={`flex min-h-screen max-w-full overflow-x-hidden bg-slate-100 dark:bg-slate-950 ${sidebarOpen ? "lg:ml-20" : "lg:ml-0"}`}>
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onNavigate={() => setSidebarOpen(false)}
         title={sidebarData.title}
         subtitle={sidebarData.subtitle}
         primaryItem={sidebarData.primaryItem}
@@ -210,7 +203,8 @@ export function AdminLayout() {
         <Topbar
           title={meta.title}
           subtitle={meta.subtitle}
-          onMenuToggle={() => setSidebarOpen((open) => !open)}
+          onMenuToggle={handleMenuToggle}
+          sidebarOpen={sidebarOpen}
         />
         <main className="min-w-0 max-w-full flex-1 overflow-x-hidden px-4 py-4 sm:px-6 lg:px-8">
           <Outlet />

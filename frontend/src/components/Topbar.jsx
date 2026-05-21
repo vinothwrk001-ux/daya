@@ -4,7 +4,7 @@ import { useAuthStore } from "../context/authStore";
 import { useStaffAuthStore } from "../context/staffAuthStore";
 import { useAdminSession } from "../hooks/useAdminSession";
 
-export function Topbar({ title, subtitle, onMenuToggle }) {
+export function Topbar({ title, subtitle, onMenuToggle, sidebarOpen }) {
   const authRefreshToken = useAuthStore((s) => s.refreshToken);
   const authLogout = useAuthStore((s) => s.logout);
   const staffRefreshToken = useStaffAuthStore((s) => s.refreshToken);
@@ -46,10 +46,15 @@ export function Topbar({ title, subtitle, onMenuToggle }) {
           <button
             type="button"
             onClick={onMenuToggle}
-            className="inline-flex flex-shrink-0 h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
+            className="inline-flex flex-shrink-0 h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
           >
-            <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path strokeLinecap="round" d="M3 5h14M3 10h14M3 15h14" />
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              {sidebarOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 12 6 6v12z" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 6L6 12l12 6V6z" />
+              )}
             </svg>
           </button>
           <div className="min-w-0 flex-1">
