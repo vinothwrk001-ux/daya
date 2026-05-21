@@ -33,7 +33,6 @@ const attributeRoutes = require("./routes/attribute.routes");
 const productModuleRoutes = require("./routes/product-module.routes");
 const exportRoutes = require("./routes/export.routes");
 const vendorModuleRoutes = require("./routes/vendorModule.routes");
-const contentRoutes = require("./routes/content.routes");
 const homepageContainerRoutes = require("./routes/homepage-container.routes");
 const homepageLayoutRoutes = require("./routes/homepage-layout.routes");
 const homepageContainerController = require("./controllers/homepage-container.controller");
@@ -168,7 +167,6 @@ function createApp() {
   app.use("/api/product-modules", productModuleRoutes);
   app.use("/api/export", exportRoutes);
   app.use("/api/modules", vendorModuleRoutes);
-  app.use("/api/content", contentRoutes);
   app.get("/api/container-schema/:type", homepageContainerController.getContainerSchema);
   app.use("/api/homepage-containers", homepageContainerRoutes);
   app.use("/api/homepage-builder", homepageLayoutRoutes);

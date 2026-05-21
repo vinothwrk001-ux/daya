@@ -107,19 +107,6 @@ const VENDOR_MODULE_CONFIG = {
       vendorEnabled: true,
     },
   },
-
-  homepage_content: {
-    key: "homepage_content",
-    name: "Homepage Content",
-    description: "Create and manage homepage banners and promotional content",
-    icon: "Image",
-    category: "marketing",
-    requiredPermission: "homepage_content:read",
-    default: {
-      enabled: true,
-      vendorEnabled: true,
-    },
-  },
 };
 
 /**

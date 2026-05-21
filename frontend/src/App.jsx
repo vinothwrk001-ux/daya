@@ -42,7 +42,6 @@ import { AdminCategoriesPage } from "./pages/AdminCategoriesPage";
 import { AdminSubcategoriesPage } from "./pages/AdminSubcategoriesPage";
 import { AdminAttributesPage } from "./pages/AdminAttributesPage";
 import { AdminProductModulesPage } from "./pages/AdminProductModulesPage";
-import { AdminContentPage } from "./pages/AdminContentPage";
 import { AdminHomepageContainersPage } from "./pages/AdminHomepageContainersPage";
 import { AdminHomepageBuilderPage } from "./pages/AdminHomepageBuilderPage";
 import AdminVendorAccessPage from "./pages/AdminVendorAccessPage";
@@ -88,7 +87,6 @@ import { VendorNotificationsPage } from "./pages/VendorNotificationsPage";
 import { VendorReviewsPage } from "./pages/VendorReviewsPage";
 import { VendorReturnsPage } from "./pages/VendorReturnsPage";
 import { VendorOffersPage } from "./pages/VendorOffersPage";
-import { VendorContentPage } from "./pages/VendorContentPage";
 import { VendorSupportPage } from "./pages/VendorSupportPage";
 import { VendorSettingsPage } from "./pages/VendorSettingsPage";
 import { VendorInfluencerPage } from "./pages/VendorInfluencerPage";
@@ -228,7 +226,6 @@ export default function App() {
               <Route path="reviews" element={<VendorModuleRoute moduleKey="reviews"><VendorReviewsPage /></VendorModuleRoute>} />
               <Route path="returns" element={<VendorModuleRoute moduleKey="returns"><VendorReturnsPage /></VendorModuleRoute>} />
               <Route path="offers" element={<VendorOffersPage />} />
-              <Route path="content" element={<VendorModuleRoute moduleKey="homepage_content"><VendorContentPage /></VendorModuleRoute>} />
               <Route path="influencer-commerce" element={<VendorInfluencerPage />} />
               <Route path="support" element={<VendorSupportPage />} />
               <Route path="settings" element={<VendorSettingsPage />} />
@@ -251,7 +248,6 @@ export default function App() {
               <Route path="subcategories" element={<AdminSubcategoriesPage />} />
               <Route path="attributes" element={<AdminAttributesPage />} />
               <Route path="product-modules" element={<AdminProductModulesPage />} />
-              <Route path="content" element={<AdminContentPage />} />
               <Route path="homepage-containers" element={<AdminHomepageContainersPage />} />
               <Route path="marketing/homepage-builder" element={<AdminHomepageBuilderPage />} />
               <Route path="vendor-access" element={<AdminVendorAccessPage />} />

@@ -63,7 +63,6 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Subcategories", path: "/admin/subcategories", permission: "categories.read", icon: Tags, legacyOnly: true },
       { name: "Attributes", path: "/admin/attributes", permission: "categories.read", icon: Tags, legacyOnly: true },
       { name: "Product Modules", path: "/admin/product-modules", permission: "categories.read", icon: Boxes, legacyOnly: true },
-      { name: "Homepage Content", path: "/admin/content", permission: "dashboard.read", icon: Image, legacyOnly: true },
       { name: "Homepage Containers", path: "/admin/homepage-containers", permission: "settings.read", icon: Image },
       { name: "Homepage Builder", path: "/admin/marketing/homepage-builder", permission: "settings.read", icon: LayoutDashboard },
       { name: "Vendor Access", path: "/admin/vendor-access", permission: "dashboard.read", icon: ShieldCheck, legacyOnly: true },
@@ -108,7 +107,6 @@ export const VENDOR_PRIMARY_ITEM = {
 export const VENDOR_DYNAMIC_MODULE_META = {
   analytics: { section: "Finance", path: "/vendor/analytics", icon: BarChart3 },
   delivery: { section: "Management", path: "/vendor/delivery", icon: Truck, notificationModule: "MANAGEMENT", notificationSubModule: "DELIVERY" },
-  homepage_content: { section: "Marketing", path: "/vendor/content", icon: Image },
   inventory: { section: "Management", path: "/vendor/inventory", icon: Package2, notificationModule: "MANAGEMENT", notificationSubModule: "INVENTORY" },
   orders: { section: "Management", path: "/vendor/orders", icon: ShoppingCart, notificationModule: "MANAGEMENT", notificationSubModule: "ORDERS" },
   payments: { section: "Finance", path: "/vendor/finance", icon: CreditCard, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },

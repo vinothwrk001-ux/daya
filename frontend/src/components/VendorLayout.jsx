@@ -84,10 +84,6 @@ const pageMeta = {
     title: "Discounts & Offers",
     subtitle: "Launch time-bound promotions and vendor-specific campaigns.",
   },
-  "/vendor/content": {
-    title: "Homepage Content",
-    subtitle: "Create promotional banners and content to showcase on the homepage.",
-  },
   "/vendor/influencer-commerce": {
     title: "Influencer Commerce",
     subtitle: "Launch campaigns, recruit creators, and monitor reel-driven sales attribution.",
