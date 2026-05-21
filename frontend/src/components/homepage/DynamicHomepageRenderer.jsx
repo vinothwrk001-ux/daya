@@ -1,10 +1,11 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Clock3, Flame, Store } from "lucide-react";
+import { ArrowRight, BadgePercent, Clock3, CreditCard, Eye, Flame, Gift, Heart, Megaphone, ShoppingCart, Star, Store, Truck, Wallet, Zap } from "lucide-react";
 import { ProductCard } from "../ProductCard";
 import { ProductCarousel } from "../ProductCarousel";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { trackHomepageContainerEvent } from "../../services/homepageContainerService";
+import { formatCurrency } from "../../utils/formatCurrency";
 
 const DEFAULT_CANVAS_WIDTH = {
   desktop: 1440,
@@ -90,14 +91,14 @@ const DynamicHomepageRow = memo(function DynamicHomepageRow({ row, bareContainer
         gridAutoFlow: "row dense",
       }}
     >
-      {(row.columns || []).map((column) => {
+      {(row.columns || []).map((column, columnIndex) => {
         const columnStyle = resolveColumnStyle(column, renderContext);
 
         return (
-          <div key={column.id || column.order} style={columnStyle} className="min-w-0 space-y-6">
-            {(column.containers || []).map((container) => (
+          <div key={column.id || `${row.id || row.order || "row"}-column-${column.order ?? columnIndex}`} style={columnStyle} className="min-w-0 space-y-6">
+            {(column.containers || []).map((container, containerIndex) => (
               <DynamicHomepageSection
-                key={container.instanceId || container._id}
+                key={container.instanceId || container._id || `${column.id || column.order || columnIndex}-container-${containerIndex}`}
                 container={container}
                 inline
                 bareContainers={bareContainers}
@@ -172,7 +173,7 @@ const DynamicHomepageSection = memo(function DynamicHomepageSection({ container,
         <div className="absolute inset-0 bg-slate-950/20" />
       ) : null}
       <div className="relative z-10" style={style}>
-        {renderContainer(container, { bareContainers: previewBare, bareCarouselShell })}
+        {renderContainer(container, { bareContainers: previewBare, bareCarouselShell, renderContext })}
       </div>
     </div>
   );
@@ -344,6 +345,9 @@ function resolveConfiguredWidth(layout, canvasWidth) {
 }
 
 function resolveConfiguredHeight(layout) {
+  if (layout.heightType === "auto") {
+    return null;
+  }
   if (pickFinite(layout.height)) {
     return pickFinite(layout.height);
   }
@@ -458,15 +462,12 @@ function renderContainer(container, options = {}) {
       return <BannerContainer container={container} />;
     case "SLIDER":
       return <SliderContainer container={container} />;
-    case "FEATURED":
-      return <FeaturedContainer container={container} />;
-    case "GRID":
+    case "FEATURED_PRODUCTS":
+      return <FeaturedProductsContainer container={container} renderContext={options.renderContext} />;
     case "MASONRY":
-    case "LIST":
-    case "DEALS_STRIP":
-    case "COMBO_DEALS":
+      return <MasonryContainer container={container} />;
+    case "GRID":
     case "VIDEO_PRODUCTS":
-    case "CATEGORY_SHOWCASE":
     case "BRAND_SHOWCASE":
     case "RECENTLY_VIEWED":
     case "RECOMMENDED":
@@ -475,8 +476,12 @@ function renderContainer(container, options = {}) {
     case "TOP_RATED":
     case "VENDOR_SPOTLIGHT":
       return <GridFamilyContainer container={container} />;
-    case "TABS":
-      return <TabsContainer container={container} />;
+    case "COMBO_DEALS":
+      return <ComboDealsContainer container={container} />;
+    case "CATEGORY_SHOWCASE":
+      return <CategoryShowcaseContainer container={container} />;
+    case "DEALS_STRIP":
+      return <DealsStripContainer container={container} renderContext={options.renderContext} />;
     case "FLASH_SALE":
       return <FlashSaleContainer container={container} />;
     case "CAROUSEL":
@@ -534,42 +539,57 @@ function CarouselContainer({ container, bareContainers = false, bareCarouselShel
   );
 }
 
-function FeaturedContainer({ container }) {
-  const items = container.products || [];
-  const heroId = String(container?.config?.heroProduct?.[0] || "");
-  const heroProduct = items.find((item) => String(item._id) === heroId) || items[0];
-  const secondary = items.filter((item) => String(item._id) !== String(heroProduct?._id)).slice(0, 4);
-
-  return (
-    <div className="p-5 sm:p-6 lg:p-8">
-      <SectionHeader container={container} eyebrow="Featured spotlight" />
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
-        <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-gradient-to-br from-amber-100 via-white to-rose-100 p-6 dark:border-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
-          {heroProduct ? <TrackedProductCard containerId={container._id} product={heroProduct} cardStyle={container?.config?.cardStyle} featured /> : <EmptyState />}
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-          {secondary.length ? secondary.map((product) => <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} />) : <EmptyState compact />}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function BannerContainer({ container }) {
   const config = container.config || {};
-  const mediaUrl = resolveApiAssetUrl(config.bannerImage || config.bannerVideo || "");
-  const isVideo = Boolean(config.bannerVideo);
+  const mediaItems = Array.isArray(config.bannerMedia) && config.bannerMedia.length
+    ? config.bannerMedia
+    : [
+        config.bannerVideo
+          ? { type: "video", url: config.bannerVideo }
+          : { type: "image", url: config.bannerImage || "" },
+      ].filter((item) => item.url);
+  const [index, setIndex] = useState(0);
+  const activeItem = mediaItems[index] || mediaItems[0] || {};
+  const mediaUrl = resolveApiAssetUrl(activeItem.url || "");
+  const isVideo = activeItem.type === "video" || /\.(mp4|webm|mov)$/i.test(activeItem.url || "");
   const imageFit = config.bannerFit === "contain" ? "contain" : "cover";
+  const autoSlide = config.autoSlide !== false;
+  const showArrows = config.showArrows !== false;
+  const showDots = config.showDots !== false;
+
+  useEffect(() => {
+    if (!autoSlide || mediaItems.length <= 1) return undefined;
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % mediaItems.length);
+    }, Number(config.slideSpeed || 3500));
+    return () => window.clearInterval(timer);
+  }, [autoSlide, config.slideSpeed, mediaItems.length]);
+
+  function goTo(nextIndex) {
+    if (!mediaItems.length) return;
+    const lastIndex = mediaItems.length - 1;
+    if (config.infiniteLoop === false) {
+      setIndex(Math.min(Math.max(nextIndex, 0), lastIndex));
+      return;
+    }
+    setIndex((nextIndex + mediaItems.length) % mediaItems.length);
+  }
+
+  const heading = activeItem.heading || config.heading || container.title;
+  const subheading = activeItem.subheading || config.subheading;
+  const ctaLabel = activeItem.ctaLabel || config.ctaButton;
+  const ctaUrl = activeItem.ctaUrl || config.ctaUrl;
 
   return (
-    <div className="hero-banner relative h-full w-full overflow-hidden">
+    <div className="hero-banner group relative h-full w-full overflow-hidden">
       {mediaUrl ? (
         isVideo ? (
           <video src={mediaUrl} autoPlay muted loop playsInline className="block h-full w-full object-cover" />
         ) : (
           <img
             src={mediaUrl}
-            alt={config.heading || container.title}
+            alt={heading}
             className={`block h-full w-full object-center ${imageFit === "contain" ? "object-contain" : "object-cover"}`}
           />
         )
@@ -581,24 +601,214 @@ function BannerContainer({ container }) {
         />
       ) : null}
       <div className="absolute inset-0 z-10 flex items-center p-6 sm:p-8 lg:p-10">
-        <div className={`max-w-2xl ${resolveTextAlign(config.textPosition)}`}>
+        <div className={`max-w-2xl transition duration-300 ${resolveTextAlign(config.textPosition)} ${config.showCtaOnHover ? "opacity-0 translate-y-3 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto" : ""}`}>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Marketplace campaign</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">
-            {config.heading || container.title}
+            {heading}
           </h2>
-          {config.subheading ? <p className="mt-4 text-sm leading-7 text-white/85 sm:text-base">{config.subheading}</p> : null}
-          {config.ctaButton && config.ctaUrl ? (
+          {subheading ? <p className="mt-4 text-sm leading-7 text-white/85 sm:text-base">{subheading}</p> : null}
+          {ctaLabel && ctaUrl ? (
             <a
-              href={config.ctaUrl}
+              href={ctaUrl}
               className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
             >
-              {config.ctaButton}
+              {ctaLabel}
               <ArrowRight className="h-4 w-4" />
             </a>
           ) : null}
         </div>
       </div>
+      {showArrows && mediaItems.length > 1 ? (
+        <>
+          <button type="button" onClick={() => goTo(index - 1)} className="absolute left-4 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-slate-900 shadow-lg transition hover:bg-white" aria-label="Previous banner media">
+            {"<"}
+          </button>
+          <button type="button" onClick={() => goTo(index + 1)} className="absolute right-4 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-slate-900 shadow-lg transition hover:bg-white" aria-label="Next banner media">
+            {">"}
+          </button>
+        </>
+      ) : null}
+      {showDots && mediaItems.length > 1 ? (
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+          {mediaItems.map((item, itemIndex) => (
+            <button
+              key={item.id || item.url || itemIndex}
+              type="button"
+              onClick={() => goTo(itemIndex)}
+              className={`h-2.5 rounded-full transition ${itemIndex === index ? "w-8 bg-white" : "w-2.5 bg-white/50 hover:bg-white/80"}`}
+              aria-label={`Show banner media ${itemIndex + 1}`}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function FeaturedProductsContainer({ container, renderContext }) {
+  const config = container.config || {};
+  const items = container.products || [];
+  const heroId = String(config.heroProduct?.[0] || config.heroProduct || "");
+  const heroProduct = items.find((item) => String(item._id) === heroId) || items[0];
+  const secondary = items.filter((item) => String(item._id) !== String(heroProduct?._id));
+  const layoutStyle = String(config.featuredLayoutStyle || "LEFT_HERO").toUpperCase();
+  const columnCount =
+    renderContext?.device === "mobile"
+      ? Number(config.productsPerRowMobile || config.responsiveMobileColumns || 1)
+      : renderContext?.device === "tablet"
+        ? Number(config.productsPerRowTablet || config.responsiveTabletColumns || 2)
+        : Number(config.productsPerRowDesktop || config.responsiveDesktopColumns || 4);
+  const gap = Number(config.gridGap ?? 20);
+  const sectionStyle = {
+    backgroundColor: config.featuredBackgroundColor || "transparent",
+    backgroundImage: config.featuredBackgroundImage ? `url(${resolveApiAssetUrl(config.featuredBackgroundImage)})` : undefined,
+    backgroundSize: config.featuredBackgroundImage ? "cover" : undefined,
+    backgroundPosition: config.featuredBackgroundImage ? "center" : undefined,
+    borderRadius: `${Number(config.borderRadius ?? 24)}px`,
+    padding: `${Number(config.containerPadding ?? 32)}px`,
+    margin: `${Number(config.containerMargin ?? 0)}px`,
+    color: config.bodyTextColor || undefined,
+  };
+  const gridStyle = {
+    display: "grid",
+    gap: `${gap}px`,
+    gridTemplateColumns: `repeat(${Math.max(1, Math.min(columnCount, 6))}, minmax(0, 1fr))`,
+  };
+  const heroFirst = !["RIGHT_HERO", "BOTTOM_HERO"].includes(layoutStyle);
+  const stacked = ["TOP_HERO", "BOTTOM_HERO", "CUSTOM_GRID"].includes(layoutStyle);
+  const carousel = layoutStyle === "HERO_PLUS_CAROUSEL" || config.enableCarousel === true;
+  const gridLimit = carousel ? Number(config.carouselLimit || config.gridLimit || config.maxProductsToShow || 12) : Number(config.gridLimit || config.maxProductsToShow || 12);
+  const buttonStyles = resolveFeaturedButtonStyles(config);
+
+  const heroNode = heroProduct ? (
+    <div key="hero" className={stacked ? "" : "min-w-0"}>
+      <FeaturedProductTile product={heroProduct} config={config} hero />
+    </div>
+  ) : null;
+  const gridNode = (
+    <div key="grid" className={carousel ? "flex gap-4 overflow-x-auto pb-2" : ""} style={carousel ? undefined : gridStyle}>
+      {(secondary.length ? secondary : items).slice(0, gridLimit).map((product) => (
+        <div key={product._id} className={carousel ? "w-[230px] shrink-0" : ""}>
+          <FeaturedProductTile product={product} config={config} />
+        </div>
+      ))}
+    </div>
+  );
+  const orderedNodes = heroFirst ? [heroNode, gridNode] : [gridNode, heroNode];
+
+  return (
+    <section className="featured-products-container relative min-w-0 overflow-hidden" style={sectionStyle} aria-label={config.featuredHeading || container.title}>
+      {config.featuredBackgroundImage ? (
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundColor: config.overlayColor || "#0f172a",
+            opacity: Number(config.overlayOpacityFeatured ?? 0.08),
+          }}
+        />
+      ) : null}
+      <div className="relative z-10">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-3xl">
+          {config.badgeText ? <div className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-amber-500">{config.badgeText}</div> : null}
+          <h2 className="text-2xl font-semibold tracking-[-0.04em] sm:text-3xl" style={{ color: config.headingTextColor || undefined }}>
+            {config.featuredHeading || container.title}
+          </h2>
+          {config.featuredSubHeading ? <div className="mt-2 text-base font-medium" style={{ color: config.bodyTextColor || undefined }}>{config.featuredSubHeading}</div> : null}
+          {config.featuredDescription || container.description ? <p className="mt-3 text-sm leading-7" style={{ color: config.bodyTextColor || undefined }}>{config.featuredDescription || container.description}</p> : null}
+        </div>
+        {config.ctaButtonText && config.ctaUrl ? (
+          <a
+            href={config.ctaUrl}
+            target={config.ctaTarget === "BLANK" ? "_blank" : undefined}
+            rel={config.ctaTarget === "BLANK" ? "noreferrer" : undefined}
+            className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold"
+            style={buttonStyles}
+          >
+            {config.ctaButtonText}
+            <ArrowRight className="h-4 w-4" />
+          </a>
+        ) : null}
+      </div>
+      {stacked ? (
+        <div className="space-y-5">{heroNode}{gridNode}</div>
+      ) : (
+        <div className={`grid gap-5 ${heroFirst ? "lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.5fr)]" : "lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.9fr)]"}`}>
+          {orderedNodes}
+        </div>
+      )}
+      </div>
+    </section>
+  );
+}
+
+function resolveFeaturedButtonStyles(config = {}) {
+  const base = {
+    backgroundColor: config.buttonColor || "#0f172a",
+    color: config.buttonTextColor || "#ffffff",
+    border: `1px solid ${config.buttonColor || "#0f172a"}`,
+  };
+  if (config.buttonStyle === "OUTLINE") {
+    return { ...base, backgroundColor: "transparent", color: config.buttonColor || "#0f172a" };
+  }
+  if (config.buttonStyle === "GHOST") {
+    return { ...base, backgroundColor: "transparent", borderColor: "transparent", color: config.buttonColor || "#0f172a" };
+  }
+  if (config.buttonStyle === "SECONDARY") {
+    return { ...base, backgroundColor: "#f1f5f9", borderColor: "#e2e8f0", color: config.buttonColor || "#0f172a" };
+  }
+  return base;
+}
+
+function FeaturedProductTile({ product, config = {}, hero = false }) {
+  const imageUrl = resolveApiAssetUrl(product?.images?.[0]?.url || "");
+  const price = product.discountPrice || product.price || 0;
+  const discount = product.discountPrice && product.price ? Math.round(((product.price - product.discountPrice) / product.price) * 100) : 0;
+  const brand = product?.attributes?.brand || product?.brand || product?.sellerId?.shopName || "";
+  const lowStock = Number(product.stock || 0) > 0 && Number(product.stock || 0) <= 10;
+  const cardStyle = {
+    borderRadius: `${Number(config.cardRadius ?? 18)}px`,
+    border: config.cardBorder === false ? "none" : "1px solid rgba(148, 163, 184, 0.35)",
+    boxShadow: config.cardShadow === false ? "none" : "0 24px 70px -48px rgba(15, 23, 42, 0.45)",
+  };
+
+  return (
+    <article className={`group relative flex h-full min-h-0 flex-col overflow-hidden bg-white transition ${config.cardHoverEffect === "LIFT" ? "hover:-translate-y-1" : ""}`} style={cardStyle}>
+      {config.showProductImage !== false ? (
+        <a href={`/product/${product._id}`} className={hero ? "block aspect-[16/11] bg-slate-100" : "block aspect-[4/3] bg-slate-100"}>
+          {imageUrl ? <img src={imageUrl} alt={product.name} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center text-sm text-slate-400">Image coming soon</div>}
+        </a>
+      ) : null}
+      <div className={hero ? "flex flex-1 flex-col gap-3 p-5" : "flex flex-1 flex-col gap-2 p-4"}>
+        <div className="flex flex-wrap gap-2">
+          {config.showDiscountBadge !== false && discount > 0 ? <span className="rounded-full bg-orange-500 px-2.5 py-1 text-xs font-bold text-white">{discount}% OFF</span> : null}
+          {config.showBestSellerBadge ? <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">Best Seller</span> : null}
+          {config.showNewArrivalBadge ? <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white">New</span> : null}
+          {config.showLimitedStockBadge !== false && lowStock ? <span className="rounded-full bg-rose-600 px-2.5 py-1 text-xs font-bold text-white">Limited</span> : null}
+          {config.showDeliveryBadge ? <span className="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-bold text-white">Fast Delivery</span> : null}
+        </div>
+        {config.showBrand !== false && brand ? <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{brand}</div> : null}
+        {config.showProductName !== false ? <a href={`/product/${product._id}`} className={`${hero ? "text-xl" : "text-sm"} line-clamp-2 font-semibold text-slate-950 hover:text-blue-600`}>{product.name}</a> : null}
+        {config.showRating !== false && product?.ratings?.averageRating > 0 ? (
+          <div className="flex items-center gap-1 text-xs text-slate-600">
+            <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+            <span>{Number(product.ratings.averageRating).toFixed(1)}</span>
+            {config.showReviewCount !== false ? <span>({product.ratings.totalReviews || 0})</span> : null}
+          </div>
+        ) : null}
+        <div className="mt-auto flex flex-wrap items-center gap-2">
+          {config.showPrice !== false ? <span className="text-base font-bold text-slate-950">{formatCurrency(price)}</span> : null}
+          {config.showSalePrice !== false && product.discountPrice ? <span className="text-xs text-slate-400 line-through">{formatCurrency(product.price)}</span> : null}
+        </div>
+        {config.showStockStatus !== false ? <div className="text-xs font-medium text-emerald-600">{Number(product.stock || 0) > 0 ? "In stock" : "Out of stock"}</div> : null}
+        <div className="mt-2 flex flex-wrap gap-2">
+          {config.showAddToCart !== false ? <a href={`/product/${product._id}`} className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white"><ShoppingCart className="h-3.5 w-3.5" /> Add</a> : null}
+          {config.showWishlist !== false ? <button type="button" className="rounded-full border border-slate-200 p-2 text-slate-600" aria-label="Wishlist"><Heart className="h-4 w-4" /></button> : null}
+          {config.showQuickView ? <a href={`/product/${product._id}`} className="rounded-full border border-slate-200 p-2 text-slate-600" aria-label="Quick view"><Eye className="h-4 w-4" /></a> : null}
+          {config.showCompare ? <button type="button" className="rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600" aria-label="Compare product">Compare</button> : null}
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -642,6 +852,291 @@ function SliderContainer({ container }) {
   );
 }
 
+function DealsStripContainer({ container, renderContext }) {
+  const config = container.config || {};
+  const products = container.products || [];
+  const [now, setNow] = useState(() => Date.now());
+  const variant = String(config.dealLayoutVariant || "LEFT_CONTENT_RIGHT_BUTTON").toUpperCase();
+  const isMarquee = variant === "SCROLLING_MARQUEE" || config.dealAnimation === "MARQUEE" || config.scrollingDeals === true;
+  const countdownEnd = config.countdownEndDate || config.offerEndDate || config.endTime || container?.schedule?.end;
+  const showCountdown = Boolean(countdownEnd) && (config.enableCountdown !== false || variant === "COUNTDOWN_BANNER");
+  const countdown = resolveDealCountdown(countdownEnd, now);
+  const expired = showCountdown && countdownEnd && countdown.total <= 0;
+
+  useEffect(() => {
+    if (!showCountdown) return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [showCountdown]);
+
+  if (expired && config.countdownAutoHide) return null;
+
+  const device = renderContext?.device || "desktop";
+  const padding = device === "mobile" ? config.dealMobilePadding : device === "tablet" ? config.dealTabletPadding : config.dealDesktopPadding;
+  const fontSize = device === "mobile" ? config.dealMobileFontSize : device === "tablet" ? config.dealTabletFontSize : config.dealDesktopFontSize;
+  const configuredHeight = device === "mobile" ? config.dealMobileHeight : device === "tablet" ? config.dealTabletHeight : config.dealDesktopHeight;
+  const backgroundMedia = config.dealBackgroundType === "VIDEO" ? config.dealBackgroundVideo : config.dealBackgroundImage;
+  const heading = config.dealPrimaryHeading || config.offerText || container.title;
+  const subheading = config.dealSecondaryHeading || config.campaignName || "";
+  const description = config.dealDescription || container.description || "";
+  const iconNode = <DealIcon config={config} />;
+  const wrapperStyle = {
+    ...resolveDealBackground(config),
+    borderRadius: `${Number(config.dealBorderRadius ?? 28)}px`,
+    border: `1px solid ${config.dealBorderColor || "rgba(255,255,255,0.22)"}`,
+    boxShadow: config.dealShadow === false ? "none" : "0 28px 90px -48px rgba(15,23,42,0.65)",
+    color: config.dealTextColor || "#ffffff",
+    margin: `${Number(config.dealMargin ?? 0)}px`,
+    minHeight: Number(config.dealHeight || configuredHeight || 0) > 0 ? `${Number(config.dealHeight || configuredHeight)}px` : undefined,
+    padding: `${Number(padding ?? config.dealPadding ?? 28)}px`,
+  };
+  const contentClass = resolveDealAlignment(config.dealAlignment);
+  const promoItems = buildDealPromoItems(config);
+  const sectionWidthClass = resolveDealWidth(config.dealWidth);
+  const spacing = Number(config.dealSpacing ?? 16);
+  const countdownStyle = config.timerStyle || config.countdownStyle;
+
+  return (
+    <section className={`h-full p-5 sm:p-6 lg:p-8 ${sectionWidthClass}`} aria-label={heading || "Deals promotion"}>
+      <style>{`@keyframes deal-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
+      <div className={`relative overflow-hidden ${resolveDealAnimation(config.dealAnimation)}`} style={wrapperStyle}>
+        {backgroundMedia ? (
+          config.dealBackgroundType === "VIDEO" ? (
+            <video src={resolveApiAssetUrl(backgroundMedia)} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            <img src={resolveApiAssetUrl(backgroundMedia)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+          )
+        ) : null}
+        {backgroundMedia ? (
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{ backgroundColor: config.dealOverlayColor || "#0f172a", opacity: Number(config.dealOverlayOpacity ?? 0.25) }}
+          />
+        ) : null}
+
+        <div className="relative z-10">
+          {variant === "THREE_COLUMN_STRIP" ? (
+            <div className="space-y-4">
+              <div className="grid md:grid-cols-3" style={{ gap: `${spacing}px` }}>
+                {promoItems.map((item) => (
+                  <div key={item.label} className="flex items-center gap-3 rounded-2xl bg-white/12 px-4 py-3 backdrop-blur">
+                    {item.icon}
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-bold uppercase tracking-wide">{item.label}</div>
+                      <div className="truncate text-xs opacity-80">{item.detail}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <DealActionGroup config={config} showCountdown={showCountdown} countdown={countdown} countdownStyle={countdownStyle} compact />
+            </div>
+          ) : isMarquee ? (
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between" style={{ gap: `${spacing}px` }}>
+              <div className="min-w-0 lg:max-w-md">
+                <DealBadge config={config} iconNode={iconNode} />
+                <h2 className="mt-2 truncate font-black leading-tight" style={{ color: config.dealHeadingColor || "#ffffff", fontSize: `${Math.max(18, Number(fontSize || 28) * 0.65)}px` }}>
+                  {heading}
+                </h2>
+                {description ? <p className="mt-1 line-clamp-1 text-sm opacity-85">{description}</p> : null}
+              </div>
+              <div className="min-w-0 flex-1 overflow-hidden whitespace-nowrap rounded-full bg-white/10 px-3 py-2 backdrop-blur" role="status" aria-live="polite">
+                <div className="hidden">
+                {promoItems.map((item) => item.label).join(" • ")} • {heading} • {config.couponCode ? `Use ${config.couponCode}` : "Limited time offer"} •
+                </div>
+                <div className="animate-[deal-marquee_22s_linear_infinite] text-sm font-bold uppercase tracking-[0.22em]">
+                  {buildDealMarqueeText(promoItems, heading, config)}
+                  <span aria-hidden="true"> / </span>
+                  {buildDealMarqueeText(promoItems, heading, config)}
+                </div>
+              </div>
+              <DealActionGroup config={config} showCountdown={showCountdown} countdown={countdown} countdownStyle={countdownStyle} compact />
+            </div>
+          ) : (
+            <div className={`flex flex-col ${variant === "LEFT_CONTENT_RIGHT_BUTTON" || variant === "COUNTDOWN_BANNER" || variant === "MARKETPLACE_PROMO_STRIP" ? "lg:flex-row lg:items-center lg:justify-between" : "items-center text-center"} ${contentClass}`} style={{ gap: `${spacing}px` }}>
+              <div className={`min-w-0 ${variant === "LEFT_CONTENT_RIGHT_BUTTON" ? "max-w-4xl" : "max-w-3xl"}`}>
+                <DealBadge config={config} iconNode={iconNode} />
+                {subheading ? <div className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] opacity-80">{subheading}</div> : null}
+                <h2 className="mt-2 font-black leading-tight tracking-[-0.05em]" style={{ color: config.dealHeadingColor || "#ffffff", fontSize: `${Number(fontSize || 34)}px` }}>
+                  {heading}
+                </h2>
+                {description ? <p className="mt-3 max-w-2xl text-sm leading-6 opacity-85">{description}</p> : null}
+                {config.couponCode ? (
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-dashed border-white/50 bg-white/12 px-4 py-2 text-sm font-bold">
+                    <Gift className="h-4 w-4" />
+                    {config.couponCode}
+                  </div>
+                ) : null}
+                {config.disclaimer ? <div className="mt-3 text-xs opacity-65">{config.disclaimer}</div> : null}
+              </div>
+
+              <DealActionGroup config={config} showCountdown={showCountdown} countdown={countdown} countdownStyle={countdownStyle} prominent={variant === "COUNTDOWN_BANNER"} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {products.length ? (
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {products.slice(0, 8).map((product) => (
+            <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} compact={config.compactCards !== false} />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function DealBadge({ config = {}, iconNode }) {
+  return (
+    <div className="inline-flex max-w-full items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em]">
+      {iconNode}
+      <span className="truncate">{config.dealBadgeText || toDealLabel(config.promotionType || "FLASH_SALE")}</span>
+    </div>
+  );
+}
+
+function DealActionGroup({ config = {}, showCountdown, countdown, countdownStyle, compact = false, prominent = false }) {
+  return (
+    <div className={`flex shrink-0 flex-wrap items-center gap-3 ${prominent ? "justify-center" : ""}`}>
+      {showCountdown ? <DealCountdown countdown={countdown} styleName={countdownStyle} compact={compact} prominent={prominent} /> : null}
+      <DealCtaButton config={config} compact={compact} />
+    </div>
+  );
+}
+
+function DealCtaButton({ config = {}, compact = false }) {
+  if (config.showDealCta === false || !config.dealCtaText) return null;
+
+  return (
+    <a
+      href={config.dealCtaUrl || "/shop"}
+      target={config.dealCtaTarget === "BLANK" ? "_blank" : undefined}
+      rel={config.dealCtaTarget === "BLANK" ? "noreferrer" : undefined}
+      className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-sm font-bold transition hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-white/70 ${
+        compact ? "px-4 py-2" : "px-5 py-3"
+      }`}
+      style={resolveDealButtonStyle(config)}
+    >
+      {config.dealButtonIconPosition === "LEFT" ? <ArrowRight className="h-4 w-4" /> : null}
+      {config.dealCtaText}
+      {config.dealButtonIconPosition !== "LEFT" ? <ArrowRight className="h-4 w-4" /> : null}
+    </a>
+  );
+}
+
+function DealIcon({ config = {} }) {
+  if (config.dealIcon === "CUSTOM" && config.dealCustomIconImage) {
+    return <img src={resolveApiAssetUrl(config.dealCustomIconImage)} alt="" className="h-4 w-4 rounded-full object-cover" />;
+  }
+  const icons = {
+    FLASH: Zap,
+    GIFT: Gift,
+    DISCOUNT: BadgePercent,
+    COUPON: Gift,
+    TRUCK: Truck,
+    WALLET: Wallet,
+    BANK: CreditCard,
+    CREDIT_CARD: CreditCard,
+    CASHBACK: Wallet,
+    FESTIVAL: Gift,
+    FIRE: Flame,
+    LIGHTNING: Zap,
+    ANNOUNCEMENT: Megaphone,
+  };
+  const Icon = icons[String(config.dealIcon || config.promotionType || "FLASH").toUpperCase()] || Flame;
+  return <Icon className="h-4 w-4" />;
+}
+
+function DealCountdown({ countdown, styleName, compact = false, prominent = false }) {
+  const units = [
+    ["D", countdown.days],
+    ["H", countdown.hours],
+    ["M", countdown.minutes],
+    ["S", countdown.seconds],
+  ];
+  if (styleName === "MINIMAL") {
+    return <div className="rounded-full bg-slate-950/25 px-4 py-2 text-sm font-bold">Ends in {countdown.hours}:{countdown.minutes}:{countdown.seconds}</div>;
+  }
+  return (
+    <div className={`flex items-center gap-2 rounded-2xl bg-slate-950/25 p-2 ${compact || styleName === "COMPACT" ? "text-xs" : "text-sm"} ${prominent ? "shadow-2xl shadow-slate-950/20" : ""}`} aria-label="Promotion countdown">
+      {units.map(([label, value]) => (
+        <div key={label} className={`${compact ? "min-w-9" : "min-w-12"} rounded-xl bg-white/15 px-2 py-1 text-center`}>
+          <div className="font-black tabular-nums">{value}</div>
+          <div className="text-[10px] font-semibold opacity-70">{label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function resolveDealCountdown(endDate, now) {
+  const end = new Date(endDate || now).getTime();
+  const total = Number.isFinite(end) ? Math.max(0, end - now) : 0;
+  const days = String(Math.floor(total / 86400000)).padStart(2, "0");
+  const hours = String(Math.floor((total % 86400000) / 3600000)).padStart(2, "0");
+  const minutes = String(Math.floor((total % 3600000) / 60000)).padStart(2, "0");
+  const seconds = String(Math.floor((total % 60000) / 1000)).padStart(2, "0");
+  return { total, days, hours, minutes, seconds };
+}
+
+function buildDealMarqueeText(promoItems = [], heading, config = {}) {
+  return [
+    ...promoItems.map((item) => item.label),
+    heading,
+    config.couponCode ? `Use ${config.couponCode}` : "Limited time offer",
+  ]
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function resolveDealWidth(width) {
+  const value = String(width || "FULL").toUpperCase();
+  if (value === "NARROW") return "mx-auto max-w-4xl";
+  if (value === "BOXED") return "mx-auto max-w-7xl";
+  return "";
+}
+
+function resolveDealBackground(config = {}) {
+  const type = String(config.dealBackgroundType || "GRADIENT").toUpperCase();
+  if (type === "SOLID") return { background: config.dealBackgroundColor || "#0f172a" };
+  if (type === "IMAGE" || type === "VIDEO") return { background: config.dealBackgroundColor || "#0f172a" };
+  return { background: `linear-gradient(120deg, ${config.dealGradientColor1 || "#e11d48"}, ${config.dealGradientColor2 || "#f97316"})` };
+}
+
+function resolveDealButtonStyle(config = {}) {
+  const color = config.dealButtonColor || "#ffffff";
+  const text = config.dealButtonTextColor || "#0f172a";
+  if (config.dealButtonStyle === "OUTLINE") return { border: `1px solid ${color}`, color, background: "transparent" };
+  if (config.dealButtonStyle === "GHOST") return { color, background: "rgba(255,255,255,0.12)" };
+  if (config.dealButtonStyle === "GRADIENT") return { color: text, background: `linear-gradient(120deg, ${color}, ${config.dealButtonHoverColor || "#f8fafc"})` };
+  return { color: text, background: color };
+}
+
+function resolveDealAlignment(alignment) {
+  if (alignment === "CENTER") return "mx-auto text-center";
+  if (alignment === "RIGHT") return "ml-auto text-right";
+  return "";
+}
+
+function resolveDealAnimation(animation) {
+  const value = String(animation || "FADE").toUpperCase();
+  if (value === "PULSE") return "animate-pulse";
+  if (value === "GLOW") return "ring-1 ring-white/20";
+  return "";
+}
+
+function buildDealPromoItems(config = {}) {
+  return [
+    { label: config.offerText || "Flash sale", detail: config.dealPrimaryHeading || "Limited time deals", icon: <Zap className="h-5 w-5" /> },
+    { label: config.couponCode ? `Use ${config.couponCode}` : "Extra savings", detail: config.dealSecondaryHeading || "Coupons and offers", icon: <Gift className="h-5 w-5" /> },
+    { label: config.campaignTag || "Fast checkout", detail: config.disclaimer || "Selected products only", icon: <CreditCard className="h-5 w-5" /> },
+  ];
+}
+
+function toDealLabel(value) {
+  return String(value || "").replace(/_/g, " ");
+}
+
 function GridFamilyContainer({ container }) {
   const items = container.products || [];
   const type = container.containerType;
@@ -663,51 +1158,295 @@ function GridFamilyContainer({ container }) {
   );
 }
 
-function TabsContainer({ container }) {
-  const grouped = useMemo(() => {
-    const map = new Map();
-    for (const product of container.products || []) {
-      const key = product?.category || "General";
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
-      map.get(key).push(product);
-    }
-    return Array.from(map.entries());
-  }, [container.products]);
-  const [activeTab, setActiveTab] = useState(grouped[0]?.[0] || "");
-
-  useEffect(() => {
-    setActiveTab(grouped[0]?.[0] || "");
-  }, [grouped]);
-
-  const activeItems = grouped.find(([label]) => label === activeTab)?.[1] || grouped[0]?.[1] || [];
+function MasonryContainer({ container }) {
+  const config = container.config || {};
+  const items = (container.products || []).slice(0, Number(config.maxProducts || config.maxProductsToShow || 24));
+  const gap = Number(config.gapSize ?? 16);
+  const columnsClass = resolveMasonryColumns(config);
+  const imagePattern = resolveMasonryImagePattern(config.cardHeights, config.masonryImagePattern);
+  const masonryImage = config.masonryImage || config.image || config.bannerImage || "";
+  const masonryImageUrl = resolveApiAssetUrl(masonryImage);
+  const masonryImageHeight = Number(config.masonryImageHeight || 260);
 
   return (
     <div className="p-5 sm:p-6 lg:p-8">
-      <SectionHeader container={container} eyebrow="Shoppable tabs" />
-      <div className="mt-6 flex flex-wrap gap-2">
-        {grouped.map(([label]) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => setActiveTab(label)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              activeTab === label
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                : "border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <SectionHeader container={container} eyebrow={resolveEyebrow(container.containerType)} />
+      {masonryImageUrl ? (
+        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <img
+            src={masonryImageUrl}
+            alt={container.title || "Masonry feature"}
+            className="w-full object-cover"
+            style={{ height: `${Math.min(Math.max(masonryImageHeight, 120), 700)}px` }}
+            loading="lazy"
+          />
+        </div>
+      ) : null}
+      {items.length ? (
+        <div className={`mt-6 ${columnsClass}`} style={{ columnGap: `${gap}px` }}>
+          {items.map((product, index) => (
+            <div
+              key={product._id}
+              onClickCapture={() => trackHomepageContainerEvent(container._id, { eventType: "product_click", productId: product._id }).catch(() => {})}
+              className="inline-block w-full break-inside-avoid"
+              style={{ marginBottom: `${gap}px` }}
+            >
+              <ProductCard product={product} cardStyle={config.cardStyle} imageAspectClass={imagePattern[index % imagePattern.length]} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-6">
+          <EmptyState />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoryShowcaseContainer({ container }) {
+  const config = container.config || {};
+  const items = resolveCategoryShowcaseItems(config);
+  const layout = String(config.categoryLayout || "CARDS").toUpperCase();
+  const bannerUrl = resolveApiAssetUrl(config.categoryBanner || "");
+  const gap = Number(config.gapSize ?? 16);
+  const gridClass = resolveCategoryShowcaseGrid(config);
+
+  return (
+    <div className="p-5 sm:p-6 lg:p-8">
+      <SectionHeader container={container} eyebrow={resolveEyebrow(container.containerType)} />
+      {bannerUrl ? (
+        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900">
+          <img src={bannerUrl} alt={container.title || "Category showcase"} className="h-56 w-full object-cover sm:h-72" loading="lazy" />
+        </div>
+      ) : null}
+      {items.length ? (
+        layout === "STRIP" ? (
+          <div className="mt-6 flex overflow-x-auto pb-2 scrollbar-hide" style={{ gap: `${gap}px` }}>
+            {items.map((category) => (
+              <CategoryShowcaseCard key={category._id || category.slug || category.name} category={category} config={config} layout={layout} />
+            ))}
+          </div>
+        ) : (
+          <div className={`mt-6 grid ${gridClass}`} style={{ gap: `${gap}px` }}>
+            {items.map((category, index) => (
+              <CategoryShowcaseCard key={category._id || category.slug || category.name || index} category={category} config={config} layout={layout} featured={layout === "EDITORIAL" && index === 0} />
+            ))}
+          </div>
+        )
+      ) : (
+        <div className="mt-6">
+          <EmptyState />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoryShowcaseCard({ category, config = {}, layout = "CARDS", featured = false }) {
+  const imageUrl = resolveApiAssetUrl(category.logo || category.image || "");
+  const color = category.color || "#0f172a";
+  const href = category.linkUrl || (category._id ? `/shop?categoryId=${category._id}` : category.slug ? `/shop?category=${category.slug}` : "/shop");
+  const compact = layout === "COMPACT_GRID";
+  const strip = layout === "STRIP";
+  const ctaText = config.categoryCtaText || "Shop now";
+
+  return (
+    <Link
+      to={href}
+      className={`group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-xl dark:border-slate-800 dark:bg-slate-950 ${
+        strip ? "w-64 shrink-0" : featured ? "sm:col-span-2 sm:row-span-2" : ""
+      }`}
+    >
+      <div className={`${compact ? "h-28" : featured ? "h-72" : "h-44"} relative overflow-hidden bg-slate-100 dark:bg-slate-900`}>
+        {imageUrl ? (
+          <img src={imageUrl} alt={category.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
+        ) : (
+          <div className="flex h-full items-center justify-center" style={{ background: `linear-gradient(135deg, ${color}, #f59e0b)` }}>
+            <span className="text-4xl font-black uppercase text-white">{String(category.code || category.name || "C").slice(0, 2)}</span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
       </div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {activeItems.length ? activeItems.map((product) => <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} />) : <EmptyState />}
+      <div className={compact ? "p-4" : "p-5"}>
+        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-500">Category</div>
+        <h3 className={`${featured ? "text-2xl" : "text-lg"} mt-2 line-clamp-2 font-semibold tracking-[-0.03em] text-slate-950 dark:text-white`}>
+          {category.name}
+        </h3>
+        {config.categoryShowProductCount !== false ? (
+          <div className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+            {Number(category.productCount || 0)} products
+          </div>
+        ) : null}
+        {config.categoryShowDescription !== false && category.description ? (
+          <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{category.description}</p>
+        ) : null}
+        <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 transition group-hover:text-amber-600 dark:text-white">
+          {ctaText}
+          <ArrowRight className="h-4 w-4" />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function ComboDealsContainer({ container }) {
+  const config = container.config || {};
+  const products = (container.products || []).slice(0, Number(config.comboMaxProducts || 4));
+  const layout = String(config.comboLayout || "HERO_BUNDLE").toUpperCase();
+  const bannerUrl = resolveApiAssetUrl(config.comboBanner || "");
+  const subtotal = products.reduce((sum, product) => sum + Number(product.discountPrice || product.price || 0), 0);
+  const originalTotal = products.reduce((sum, product) => sum + Number(product.price || product.discountPrice || 0), 0);
+  const discountPercent = Math.min(Math.max(Number(config.comboDiscount || 0), 0), 100);
+  const comboTotal = Math.max(subtotal - (subtotal * discountPercent) / 100, 0);
+  const savings = Math.max(originalTotal - comboTotal, 0);
+  const ctaUrl = config.comboCtaUrl || (products[0]?._id ? `/product/${products[0]._id}` : "/shop");
+  const title = config.comboTitle || container.title || "Combo deal";
+  const subtitle = config.comboSubtitle || container.description || "";
+
+  if (!products.length) {
+    return (
+      <div className="p-5 sm:p-6 lg:p-8">
+        <SectionHeader container={container} eyebrow={resolveEyebrow(container.containerType)} />
+        <div className="mt-6">
+          <EmptyState />
+        </div>
+      </div>
+    );
+  }
+
+  if (layout === "PRODUCT_GRID") {
+    return (
+      <div className="p-5 sm:p-6 lg:p-8">
+        <ComboDealHeader container={container} config={config} title={title} subtitle={subtitle} bannerUrl={bannerUrl} comboTotal={comboTotal} subtotal={subtotal} savings={savings} ctaUrl={ctaUrl} />
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {products.map((product) => (
+            <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (layout === "COMPACT_STRIP") {
+    return (
+      <div className="p-5 sm:p-6 lg:p-8">
+        <div className="flex flex-col gap-5 rounded-2xl border border-amber-200 bg-white p-5 shadow-sm dark:border-amber-900/50 dark:bg-slate-950 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-xs font-bold uppercase tracking-[0.24em] text-amber-500">{config.comboBadgeText || "Bundle deal"}</div>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">{title}</h2>
+            {subtitle ? <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{subtitle}</p> : null}
+          </div>
+          <ComboProductStack products={products} />
+          <ComboPriceBlock config={config} subtotal={subtotal} comboTotal={comboTotal} savings={savings} ctaUrl={ctaUrl} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-5 sm:p-6 lg:p-8">
+      <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-xl shadow-slate-950/5 dark:border-slate-800 dark:bg-slate-950">
+        <div className="grid lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="relative min-h-[320px] bg-slate-950 text-white">
+            {bannerUrl ? <img src={bannerUrl} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-70" loading="lazy" /> : null}
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-slate-950/55 to-amber-600/40" />
+            <div className="relative z-10 flex h-full flex-col justify-between p-6 sm:p-8">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em]">
+                  <Gift className="h-4 w-4" />
+                  {config.comboBadgeText || "Bundle deal"}
+                </div>
+                <h2 className="mt-5 text-3xl font-black leading-tight tracking-[-0.05em] sm:text-4xl">{title}</h2>
+                {subtitle ? <p className="mt-4 max-w-xl text-sm leading-7 text-white/80">{subtitle}</p> : null}
+              </div>
+              <ComboPriceBlock config={config} subtotal={subtotal} comboTotal={comboTotal} savings={savings} ctaUrl={ctaUrl} inverted />
+            </div>
+          </div>
+          <div className="p-5 sm:p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-[0.2em] text-amber-500">Included products</div>
+                <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{products.length} items in this combo</div>
+              </div>
+            </div>
+            {config.comboShowProducts === false ? (
+              <ComboProductStack products={products} />
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {products.map((product) => (
+                  <CompactComboProduct key={product._id} product={product} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
+function ComboDealHeader({ container, config, title, subtitle, bannerUrl, comboTotal, subtotal, savings, ctaUrl }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+      {bannerUrl ? <img src={bannerUrl} alt={title} className="h-56 w-full object-cover" loading="lazy" /> : null}
+      <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+        <SectionHeader container={{ ...container, title, description: subtitle }} eyebrow={resolveEyebrow(container.containerType)} />
+        <ComboPriceBlock config={config} subtotal={subtotal} comboTotal={comboTotal} savings={savings} ctaUrl={ctaUrl} />
+      </div>
+    </div>
+  );
+}
+
+function ComboPriceBlock({ config = {}, subtotal, comboTotal, savings, ctaUrl, inverted = false }) {
+  const textClass = inverted ? "text-white" : "text-slate-950 dark:text-white";
+  const mutedClass = inverted ? "text-white/70" : "text-slate-500 dark:text-slate-400";
+  return (
+    <div className="shrink-0">
+      <div className={`text-sm font-medium ${mutedClass}`}>Combo price</div>
+      <div className={`mt-1 text-3xl font-black tracking-[-0.04em] ${textClass}`}>{formatCurrency(comboTotal)}</div>
+      <div className={`mt-1 text-sm ${mutedClass}`}>
+        <span className="line-through">{formatCurrency(subtotal)}</span>
+        {config.comboShowSavings !== false ? <span className="ml-2 font-semibold text-emerald-500">Save {formatCurrency(savings)}</span> : null}
+      </div>
+      <Link to={ctaUrl} className={`mt-4 inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-bold transition hover:-translate-y-0.5 ${inverted ? "bg-white text-slate-950" : "bg-slate-950 text-white dark:bg-white dark:text-slate-950"}`}>
+        {config.comboCtaText || "View combo"}
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </div>
+  );
+}
+
+function ComboProductStack({ products = [] }) {
+  return (
+    <div className="flex -space-x-3">
+      {products.slice(0, 5).map((product) => {
+        const imageUrl = resolveApiAssetUrl(product?.images?.[0]?.url || product?.thumbnail || "");
+        return (
+          <div key={product._id} className="h-14 w-14 overflow-hidden rounded-full border-2 border-white bg-slate-100 dark:border-slate-950 dark:bg-slate-800">
+            {imageUrl ? <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" loading="lazy" /> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CompactComboProduct({ product }) {
+  const imageUrl = resolveApiAssetUrl(product?.images?.[0]?.url || product?.thumbnail || "");
+  return (
+    <Link to={`/product/${product._id}`} className="flex gap-3 rounded-2xl border border-slate-200 p-3 transition hover:border-amber-300 hover:bg-amber-50/50 dark:border-slate-800 dark:hover:bg-slate-900">
+      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+        {imageUrl ? <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" loading="lazy" /> : null}
+      </div>
+      <div className="min-w-0">
+        <div className="line-clamp-2 text-sm font-semibold text-slate-950 dark:text-white">{product.name}</div>
+        <div className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{formatCurrency(product.discountPrice || product.price)}</div>
+      </div>
+    </Link>
+  );
+}
+
 
 function FlashSaleContainer({ container }) {
   const [now, setNow] = useState(() => new Date().getTime());
@@ -830,9 +1569,6 @@ function resolveGridClass(type, config) {
   if (type === "LIST") {
     return "grid-cols-1";
   }
-  if (type === "MASONRY") {
-    return "sm:grid-cols-2 lg:grid-cols-4";
-  }
   const desktopColumns = Number(config.desktopColumns || 4);
   const columnClassMap = {
     1: "lg:grid-cols-1",
@@ -850,6 +1586,83 @@ function resolveGridClass(type, config) {
   };
   // if the requested desktopColumns is outside 1..12, fall back to 4
   return `sm:grid-cols-2 ${columnClassMap[desktopColumns] || "lg:grid-cols-4"}`;
+}
+
+function resolveMasonryColumns(config = {}) {
+  const desktopColumns = Number(config.columnCount || config.desktopColumns || 4);
+  const tabletColumns = Number(config.tabletColumns || 2);
+  const mobileColumns = Number(config.mobileColumns || 1);
+  const mobileMap = {
+    1: "columns-1",
+    2: "columns-2",
+  };
+  const tabletMap = {
+    1: "sm:columns-1",
+    2: "sm:columns-2",
+    3: "sm:columns-3",
+  };
+  const desktopMap = {
+    2: "lg:columns-2",
+    3: "lg:columns-3",
+    4: "lg:columns-4",
+    5: "lg:columns-5",
+    6: "lg:columns-6",
+  };
+
+  return [mobileMap[mobileColumns] || "columns-1", tabletMap[tabletColumns] || "sm:columns-2", desktopMap[desktopColumns] || "lg:columns-4"].join(" ");
+}
+
+function resolveMasonryImagePattern(cardHeights, imagePattern) {
+  const pattern = String(imagePattern || cardHeights || "MIXED").toUpperCase();
+  if (pattern === "AUTO" || pattern === "BALANCED") {
+    return ["aspect-[4/5]", "aspect-[1/1]", "aspect-[4/5]", "aspect-[1/1]"];
+  }
+  if (pattern === "TALL") {
+    return ["aspect-[3/4]", "aspect-[2/3]", "aspect-[4/5]", "aspect-[2/3]"];
+  }
+  if (pattern === "WIDE") {
+    return ["aspect-[4/3]", "aspect-[1/1]", "aspect-[3/2]", "aspect-[4/5]"];
+  }
+  return ["aspect-[4/5]", "aspect-[1/1]", "aspect-[3/4]", "aspect-[4/3]", "aspect-[2/3]"];
+}
+
+function resolveCategoryShowcaseItems(config = {}) {
+  const items = Array.isArray(config.categoryCards) && config.categoryCards.length
+    ? config.categoryCards
+    : Array.isArray(config.categoryItems) && config.categoryItems.length
+      ? config.categoryItems
+      : config.categories || [];
+  return (Array.isArray(items) ? items : [])
+    .map((item) => {
+      if (item && typeof item === "object") {
+        return {
+          _id: item._id || item.id || item.value || "",
+          name: item.name || item.label || "",
+          slug: item.slug || "",
+          code: item.code || "",
+          icon: item.icon || "",
+          logo: item.logo || item.image || "",
+          color: item.color || "",
+          productCount: item.productCount || 0,
+          description: item.description || "",
+          linkUrl: item.linkUrl || item.url || "",
+        };
+      }
+      return { _id: String(item), name: "", productCount: 0 };
+    })
+    .filter((item) => item.name);
+}
+
+function resolveCategoryShowcaseGrid(config = {}) {
+  const columns = Number(config.categoryColumns || config.desktopColumns || 4);
+  const columnClassMap = {
+    2: "lg:grid-cols-2",
+    3: "lg:grid-cols-3",
+    4: "lg:grid-cols-4",
+    5: "lg:grid-cols-5",
+    6: "lg:grid-cols-6",
+  };
+  return `sm:grid-cols-2 ${columnClassMap[columns] || "lg:grid-cols-4"}`;
 }
 
 function resolveTextAlign(position) {

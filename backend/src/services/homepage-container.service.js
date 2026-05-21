@@ -355,7 +355,17 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
 
 async function validateReferences(payload = {}, existingId = null) {
   const filters = payload.filters || {};
-  const [vendors, categories, subcategories, manualProducts, slugConflict] = await Promise.all([
+  const config = payload.config || {};
+  const featuredProductIds =
+    payload.containerType === "FEATURED_PRODUCTS"
+      ? [
+          ...(Array.isArray(config.heroProduct) ? config.heroProduct : config.heroProduct ? [config.heroProduct] : []),
+          ...(Array.isArray(config.secondaryProducts) ? config.secondaryProducts : []),
+        ].filter(Boolean)
+      : [];
+  const comboProductIds = payload.containerType === "COMBO_DEALS" ? extractConfigIds(config.bundleProducts) : [];
+  const showcaseCategoryIds = payload.containerType === "CATEGORY_SHOWCASE" ? extractConfigIds(config.categories) : [];
+  const [vendors, categories, subcategories, manualProducts, featuredProducts, comboProducts, showcaseCategories, slugConflict] = await Promise.all([
     filters.vendorIds?.length
       ? Vendor.find({ _id: { $in: filters.vendorIds }, status: "approved" }).select("_id").lean()
       : Promise.resolve([]),
@@ -373,6 +383,27 @@ async function validateReferences(payload = {}, existingId = null) {
         })
           .select("_id sellerId categoryId subCategoryId")
           .lean()
+      : Promise.resolve([]),
+    featuredProductIds.length
+      ? Product.find({
+          _id: { $in: featuredProductIds },
+          status: "APPROVED",
+          isActive: true,
+        })
+          .select("_id")
+          .lean()
+      : Promise.resolve([]),
+    comboProductIds.length
+      ? Product.find({
+          _id: { $in: comboProductIds },
+          status: "APPROVED",
+          isActive: true,
+        })
+          .select("_id")
+          .lean()
+      : Promise.resolve([]),
+    showcaseCategoryIds.length
+      ? Category.find({ _id: { $in: showcaseCategoryIds }, isActive: true }).select("_id").lean()
       : Promise.resolve([]),
     payload.slug
       ? HomepageContainer.findOne({
@@ -411,6 +442,18 @@ async function validateReferences(payload = {}, existingId = null) {
     }
   }
 
+  if (featuredProductIds.length && featuredProducts.length !== new Set(featuredProductIds.map(String)).size) {
+    throw new AppError("One or more featured products are invalid or not publicly visible", 400, "INVALID_FEATURED_PRODUCTS");
+  }
+
+  if (comboProductIds.length && comboProducts.length !== new Set(comboProductIds).size) {
+    throw new AppError("One or more combo products are invalid or not publicly visible", 400, "INVALID_COMBO_PRODUCTS");
+  }
+
+  if (showcaseCategoryIds.length && showcaseCategories.length !== new Set(showcaseCategoryIds).size) {
+    throw new AppError("One or more showcase categories are invalid", 400, "INVALID_SHOWCASE_CATEGORIES");
+  }
+
   validateTypeSpecificRules(payload);
 }
 
@@ -429,7 +472,8 @@ function validateTypeSpecificRules(payload = {}) {
     }
   }
 
-  if (containerType === "BANNER" && !String(config.bannerImage || "").trim() && !String(config.bannerVideo || "").trim()) {
+  const bannerMedia = Array.isArray(config.bannerMedia) ? config.bannerMedia : [];
+  if (containerType === "BANNER" && !bannerMedia.length && !String(config.bannerImage || "").trim() && !String(config.bannerVideo || "").trim()) {
     throw new AppError("Banner image or banner video is required", 400, "BANNER_MEDIA_REQUIRED");
   }
 
@@ -574,20 +618,34 @@ function buildSortStages(sortBy = "TRENDING") {
       return [{ $sort: { computedDiscountPercentage: -1, createdAt: -1 } }];
     case "NEWEST":
       return [{ $sort: { createdAt: -1 } }];
+    case "OLDEST":
+      return [{ $sort: { createdAt: 1 } }];
     case "PRICE_LOW_TO_HIGH":
       return [{ $sort: { effectivePrice: 1, createdAt: -1 } }];
     case "PRICE_HIGH_TO_LOW":
       return [{ $sort: { effectivePrice: -1, createdAt: -1 } }];
     case "MOST_VIEWED":
+    case "MOST_POPULAR":
       return [{ $sort: { "analytics.views": -1, createdAt: -1 } }];
     case "TOP_RATED":
       return [{ $sort: { "ratings.averageRating": -1, "ratings.totalReviews": -1, createdAt: -1 } }];
     case "RANDOM":
       return [{ $sample: { size: 100 } }];
+    case "CUSTOM_ORDER":
+      return [];
     case "TRENDING":
     default:
       return [{ $sort: { "analytics.views": -1, "analytics.salesCount": -1, createdAt: -1 } }];
   }
+}
+
+function resolveFeaturedSortBy(container = {}) {
+  const mode = String(container?.config?.productSourceMode || "").toUpperCase();
+  if (mode === "BEST_SELLERS") return "BEST_SELLING";
+  if (mode === "TRENDING_PRODUCTS") return "TRENDING";
+  if (mode === "NEWEST_PRODUCTS") return "NEWEST";
+  if (mode === "HIGHEST_RATED_PRODUCTS") return "TOP_RATED";
+  return container?.filters?.sortBy || "TRENDING";
 }
 
 async function hydrateProductsByIds(ids = []) {
@@ -597,6 +655,91 @@ async function hydrateProductsByIds(ids = []) {
     .lean();
   const orderMap = new Map(ids.map((id, index) => [String(id), index]));
   return products.sort((a, b) => orderMap.get(String(a._id)) - orderMap.get(String(b._id)));
+}
+
+function extractConfigIds(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => {
+      if (item && typeof item === "object") {
+        return item.value || item._id || item.id || "";
+      }
+      return item;
+    })
+    .filter(Boolean)
+    .map(String);
+}
+
+function normalizeCategoryCards(cards = []) {
+  const parsedCards = typeof cards === "string" ? parseJsonArray(cards) : cards;
+  return (Array.isArray(parsedCards) ? parsedCards : [])
+    .map((card, index) => ({
+      _id: String(card?._id || card?.id || `custom-category-${index}`),
+      name: String(card?.name || card?.title || card?.label || "").trim(),
+      slug: String(card?.slug || "").trim(),
+      code: String(card?.code || "").trim(),
+      icon: String(card?.icon || "").trim(),
+      logo: String(card?.logo || card?.image || "").trim(),
+      color: String(card?.color || "").trim(),
+      productCount: Number(card?.productCount || 0),
+      description: String(card?.description || "").trim(),
+      linkUrl: String(card?.linkUrl || card?.url || "").trim(),
+    }))
+    .filter((card) => card.name);
+}
+
+function parseJsonArray(value) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function resolveCategoryShowcaseItems(container = {}) {
+  if (container.containerType !== "CATEGORY_SHOWCASE") return [];
+
+  const customCards = normalizeCategoryCards(container.config?.categoryCards);
+  if (customCards.length) return customCards;
+
+  const selectedIds = extractConfigIds(container.config?.categories);
+  const limit = Math.min(Math.max(Number(container.config?.categoryColumns || 4) * 2, 4), 24);
+  const query = selectedIds.length ? { _id: { $in: selectedIds }, isActive: true } : { isActive: true };
+  const categories = await Category.find(query).sort({ order: 1, name: 1, createdAt: 1 }).lean();
+  const orderedCategories = selectedIds.length
+    ? categories.sort((left, right) => selectedIds.indexOf(String(left._id)) - selectedIds.indexOf(String(right._id)))
+    : categories.slice(0, limit);
+  const categoryIds = orderedCategories.map((item) => item._id);
+  const productCounts = categoryIds.length
+    ? await Product.aggregate([
+        { $match: { categoryId: { $in: categoryIds }, status: "APPROVED", isActive: true } },
+        { $group: { _id: "$categoryId", count: { $sum: 1 } } },
+      ])
+    : [];
+  const countMap = new Map(productCounts.map((item) => [String(item._id), Number(item.count || 0)]));
+
+  return orderedCategories.map((category) => ({
+    _id: category._id,
+    name: category.name,
+    slug: category.slug,
+    code: category.code,
+    icon: category.icon,
+    logo: category.logo,
+    color: category.color,
+    productCount: countMap.get(String(category._id)) || 0,
+  }));
+}
+
+async function withCategoryShowcaseData(container = {}) {
+  if (container.containerType !== "CATEGORY_SHOWCASE") return container;
+  const categoryItems = await resolveCategoryShowcaseItems(container);
+  return {
+    ...container,
+    config: {
+      ...(container.config || {}),
+      categoryItems,
+    },
+  };
 }
 
 async function getApprovedVendorIds() {
@@ -642,10 +785,49 @@ async function resolveContainerProducts(container, options = {}) {
   }
 
   const filters = container.filters || {};
+  const config = container.config || {};
   const page = Math.max(Number(options.page || 1), 1);
   const limit = Math.min(Math.max(Number(options.limit || filters.maxProductsToShow || DEFAULT_PREVIEW_LIMIT), 1), 100);
   const skip = (page - 1) * limit;
   const approvedVendorIds = options.approvedVendorIds || (await getApprovedVendorIds());
+  const featuredIds =
+    container.containerType === "FEATURED_PRODUCTS"
+      ? [
+          ...(Array.isArray(config.heroProduct) ? config.heroProduct : config.heroProduct ? [config.heroProduct] : []),
+          ...(Array.isArray(config.secondaryProducts) ? config.secondaryProducts : []),
+        ].filter(Boolean)
+      : [];
+
+  if (container.containerType === "FEATURED_PRODUCTS" && featuredIds.length && String(config.productSourceMode || "MANUAL").toUpperCase() === "MANUAL") {
+    const uniqueIds = [...new Set(featuredIds.map(String))].slice(0, limit);
+    const products = await hydrateProductsByIds(uniqueIds);
+    return {
+      products,
+      pagination: {
+        total: products.length,
+        page: 1,
+        limit,
+        pages: 1,
+      },
+    };
+  }
+
+  if (container.containerType === "COMBO_DEALS") {
+    const comboIds = extractConfigIds(config.bundleProducts);
+    if (comboIds.length) {
+      const uniqueIds = [...new Set(comboIds)].slice(0, Math.min(Number(config.comboMaxProducts || limit), limit));
+      const products = await hydrateProductsByIds(uniqueIds);
+      return {
+        products,
+        pagination: {
+          total: products.length,
+          page: 1,
+          limit,
+          pages: 1,
+        },
+      };
+    }
+  }
 
   const pipeline = [
     { $match: buildProductBaseMatch(container, approvedVendorIds) },
@@ -682,7 +864,7 @@ async function resolveContainerProducts(container, options = {}) {
     pipeline.push({ $match: expressionMatch });
   }
 
-  pipeline.push(...buildSortStages(filters.sortBy));
+  pipeline.push(...buildSortStages(container.containerType === "FEATURED_PRODUCTS" ? resolveFeaturedSortBy(container) : filters.sortBy));
 
   const countPipeline = pipeline.filter((stage) => !stage.$sample && !stage.$sort).concat({ $count: "total" });
 
@@ -954,17 +1136,18 @@ class HomepageContainerService {
   async previewContainer(payload = {}) {
     const normalized = normalizePayload(payload, null, { partial: true });
     await validateReferences(normalized);
+    const displayContainer = await withCategoryShowcaseData(normalized);
     const productsPayload = await resolveContainerProducts(
       {
-        ...normalized,
-        status: normalized.status || "ACTIVE",
+        ...displayContainer,
+        status: displayContainer.status || "ACTIVE",
       },
       { page: 1, limit: normalized.filters?.maxProductsToShow || DEFAULT_PREVIEW_LIMIT }
     );
 
     return {
       container: mapContainerDocument({
-        ...normalized,
+        ...displayContainer,
         _id: "preview",
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -998,12 +1181,13 @@ class HomepageContainerService {
     const approvedVendorIds = await getApprovedVendorIds();
     const resolved = await Promise.all(
       visible.map(async (container) => {
+        const displayContainer = await withCategoryShowcaseData(container);
         const productsPayload = await resolveContainerProducts(container, {
           page,
           limit: limit || container.filters?.maxProductsToShow || DEFAULT_PREVIEW_LIMIT,
           approvedVendorIds,
         });
-        return mapContainerDocument(container, productsPayload);
+        return mapContainerDocument(displayContainer, productsPayload);
       })
     );
 

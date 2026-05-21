@@ -22,6 +22,34 @@ function Stars({ value = 0, large = false }) {
   );
 }
 
+function RatingStars({ value = 0, large = false, onChange }) {
+  const numericValue = Number(value) || 0;
+  const size = large ? "text-2xl" : "text-sm";
+  return (
+    <span className={`inline-flex items-center gap-1 ${size} tracking-normal`} role={onChange ? "radiogroup" : "img"} aria-label={`${numericValue} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const filled = numericValue >= star;
+        const half = numericValue >= star - 0.5 && numericValue < star;
+        return (
+          <button
+            key={star}
+            type="button"
+            disabled={!onChange}
+            onClick={() => onChange?.(star)}
+            className={`leading-none ${onChange ? "cursor-pointer transition hover:scale-110" : "cursor-default"} ${filled || half ? "text-amber-500" : "text-slate-300 dark:text-slate-700"}`}
+            title={`${star} star${star > 1 ? "s" : ""}`}
+          >
+            <span className="relative inline-block">
+              <span className={half ? "text-slate-300 dark:text-slate-700" : ""}>★</span>
+              {half ? <span className="absolute inset-0 w-1/2 overflow-hidden text-amber-500">★</span> : null}
+            </span>
+          </button>
+        );
+      })}
+    </span>
+  );
+}
+
 function EmptyReviewState() {
   return (
     <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
@@ -109,7 +137,7 @@ export function ProductReviewsSection({ productId }) {
         <div>
           <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Customer Reviews</h2>
           <div className="mt-3 flex flex-wrap items-end gap-3">
-            <Stars value={summary.averageRating || 0} large />
+            <RatingStars value={summary.averageRating || 0} large />
             <span className="text-2xl font-bold text-slate-950 dark:text-white">{Number(summary.averageRating || 0).toFixed(1)}</span>
             <span className="pb-1 text-sm text-slate-500">Based on {summary.totalRatings || 0} ratings</span>
           </div>
@@ -161,9 +189,9 @@ export function ProductReviewsSection({ productId }) {
         <form onSubmit={handleSubmit} className="mt-6 grid gap-4 rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
           <div className="flex flex-wrap items-center gap-3">
             <label className="text-sm font-semibold text-slate-900 dark:text-white">Overall Rating</label>
-            <select value={form.rating} onChange={(event) => setForm((next) => ({ ...next, rating: Number(event.target.value) }))} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900">
-              {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} Star</option>)}
-            </select>
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+              <RatingStars value={form.rating} onChange={(rating) => setForm((next) => ({ ...next, rating }))} large />
+            </div>
           </div>
           <input value={form.title} onChange={(event) => setForm((next) => ({ ...next, title: event.target.value }))} maxLength={160} placeholder="Review title" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900" />
           <textarea value={form.review} onChange={(event) => setForm((next) => ({ ...next, review: event.target.value }))} maxLength={2000} rows={4} placeholder="Review description" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900" />
@@ -186,7 +214,7 @@ export function ProductReviewsSection({ productId }) {
           <article key={review._id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <Stars value={review.rating} />
+                <RatingStars value={review.rating} />
                 <div className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{review.title || "Customer review"}</div>
                 <div className="mt-1 text-xs text-slate-500">By {review.customerId?.name || "Customer"} {review.verifiedPurchase ? "· Verified Purchase" : ""}</div>
               </div>

@@ -1,5 +1,5 @@
 const multer = require("multer");
-const { ALLOWED_MIME, MAX_FILE_SIZE } = require("../utils/upload");
+const { ALLOWED_MIME, MAX_FILE_SIZE, MAX_VIDEO_FILE_SIZE } = require("../utils/upload");
 
 const storage = multer.memoryStorage();
 
@@ -13,7 +13,7 @@ function fileFilter(req, file, cb) {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: MAX_FILE_SIZE },
+  limits: { fileSize: Math.max(MAX_FILE_SIZE, MAX_VIDEO_FILE_SIZE) },
 });
 
 module.exports = { upload };

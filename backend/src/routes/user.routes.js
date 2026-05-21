@@ -50,9 +50,10 @@ router.post("/wishlist/:productId/move-to-cart", userController.moveWishlistToCa
 router.get("/billing", userController.getBilling);
 router.get("/returns", userController.listReturns);
 
+router.get("/reviews/eligible", userController.listReviewableProducts);
 router.get("/reviews", userController.listReviews);
-router.post("/reviews", validate(reviewSchema), userController.createReview);
-router.patch("/reviews/:id", validate(reviewUpdateSchema), userController.updateReview);
+router.post("/reviews", upload.array("photos", 10), validate(reviewSchema), userController.createReview);
+router.patch("/reviews/:id", upload.array("photos", 10), validate(reviewUpdateSchema), userController.updateReview);
 router.delete("/reviews/:id", userController.deleteReview);
 
 router.get("/notifications", userController.listNotifications);

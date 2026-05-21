@@ -10,7 +10,7 @@ import { useWishlist } from "../hooks/useWishlist";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { extractProductId, getAvailableProductVariant } from "../utils/cartState";
 
-export function ProductCard({ product, cardStyle = "DEFAULT" }) {
+export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[4/5]" }) {
   const navigate = useNavigate();
   const { cart, addItem: addCartItem } = useCart();
   const { openDrawer, showToast } = useCartDrawer();
@@ -137,7 +137,7 @@ export function ProductCard({ product, cardStyle = "DEFAULT" }) {
       tabIndex={0}
       className={`group relative flex flex-col h-full overflow-hidden rounded-2xl transition-all duration-300 ${cardStyleClass}`}
     >
-      <div className="relative w-full aspect-[4/5] bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-800 overflow-hidden flex-shrink-0">
+      <div className={`relative w-full ${imageAspectClass} bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-800 overflow-hidden flex-shrink-0`}>
         {/* Product Image */}
         {imageUrl ? (
           <img

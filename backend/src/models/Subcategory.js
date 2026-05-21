@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { generateSlug } = require("../utils/slug");
 
 const SUBCATEGORY_STATUS = ["active", "disabled"];
 
@@ -16,6 +17,12 @@ const subcategorySchema = new mongoose.Schema(
       trim: true,
       maxlength: 10,
     },
+    slug: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
@@ -32,8 +39,17 @@ const subcategorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+subcategorySchema.pre("validate", function setSubcategorySlug() {
+  if (!this.slug && this.name) {
+    this.slug = generateSlug(this.name);
+  } else if (this.slug) {
+    this.slug = generateSlug(this.slug);
+  }
+});
+
 subcategorySchema.index({ categoryId: 1, name: 1 }, { unique: true });
 subcategorySchema.index({ categoryId: 1, code: 1 }, { unique: true });
+subcategorySchema.index({ categoryId: 1, slug: 1 }, { unique: true, sparse: true });
 subcategorySchema.index({ categoryId: 1, status: 1, name: 1 });
 
 module.exports = {

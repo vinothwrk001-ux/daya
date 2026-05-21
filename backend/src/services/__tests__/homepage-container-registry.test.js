@@ -17,9 +17,13 @@ async function runTest(name, fn) {
 
 async function main() {
   await runTest("supports all requested homepage container types", () => {
-    assert.equal(CONTAINER_TYPES.length, 20);
+    assert.equal(CONTAINER_TYPES.length, 18);
     assert.ok(CONTAINER_TYPES.includes("CAROUSEL"));
+    assert.ok(CONTAINER_TYPES.includes("FEATURED_PRODUCTS"));
     assert.ok(CONTAINER_TYPES.includes("VIDEO_PRODUCTS"));
+    assert.equal(CONTAINER_TYPES.includes("FEATURED"), false);
+    assert.equal(CONTAINER_TYPES.includes("LIST"), false);
+    assert.equal(CONTAINER_TYPES.includes("TABS"), false);
   });
 
   await runTest("normalizes legacy product carousel type", () => {
@@ -32,8 +36,18 @@ async function main() {
     assert.equal(schema.productFilterFields.length, 0);
     assert.deepEqual(
       schema.typeFields.map((field) => field.name),
-      ["bannerImage", "bannerVideo", "heading", "subheading", "ctaButton", "ctaUrl", "overlayOpacity", "textPosition"]
+      ["bannerMedia", "overlayOpacity", "textPosition", "autoSlide", "slideSpeed", "showArrows", "showDots", "infiniteLoop", "swipeEnabled", "showCtaOnHover"]
     );
+  });
+
+  await runTest("featured products schema exposes product showcase controls", () => {
+    const schema = getContainerTypeSchema("FEATURED_PRODUCTS");
+    const fieldNames = schema.typeFields.map((field) => field.name);
+    assert.equal(schema.supportsProducts, true);
+    assert.ok(fieldNames.includes("heroProduct"));
+    assert.ok(fieldNames.includes("secondaryProducts"));
+    assert.ok(fieldNames.includes("featuredLayoutStyle"));
+    assert.ok(fieldNames.includes("productSourceMode"));
   });
 
   await runTest("flash sale schema includes countdown fields", () => {

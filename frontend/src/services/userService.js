@@ -157,13 +157,32 @@ export async function getUserReviews() {
   return data;
 }
 
-export async function createUserReview(payload) {
-  const { data } = await api.post("/api/user/reviews", payload);
+export async function getUserReviewableProducts() {
+  const { data } = await api.get("/api/user/reviews/eligible");
   return data;
 }
 
-export async function updateUserReview(id, payload) {
-  const { data } = await api.patch(`/api/user/reviews/${id}`, payload);
+export async function createUserReview(payload, photos = []) {
+  const formData = new FormData();
+  Object.entries(payload || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") formData.append(key, value);
+  });
+  photos.forEach((file) => formData.append("photos", file));
+  const { data } = await api.post("/api/user/reviews", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function updateUserReview(id, payload, photos = []) {
+  const formData = new FormData();
+  Object.entries(payload || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") formData.append(key, value);
+  });
+  photos.forEach((file) => formData.append("photos", file));
+  const { data } = await api.patch(`/api/user/reviews/${id}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return data;
 }
 

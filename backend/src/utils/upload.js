@@ -6,11 +6,15 @@ const { AppError } = require("./AppError");
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE_BYTES || 5 * 1024 * 1024); // 5MB
+const MAX_VIDEO_FILE_SIZE = Number(process.env.MAX_VIDEO_FILE_SIZE_BYTES || 50 * 1024 * 1024); // 50MB
 
 const ALLOWED_MIME = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
   "application/pdf",
 ]);
 
@@ -23,7 +27,8 @@ function validateFiles(files) {
     if (!ALLOWED_MIME.has(f.mimetype)) {
       throw new AppError(`Unsupported file type: ${f.mimetype}`, 400, "FILE_TYPE");
     }
-    if (f.size > MAX_FILE_SIZE) {
+    const maxSize = f.mimetype.startsWith("video/") ? MAX_VIDEO_FILE_SIZE : MAX_FILE_SIZE;
+    if (f.size > maxSize) {
       throw new AppError("File too large", 400, "FILE_SIZE");
     }
   }
@@ -46,7 +51,7 @@ async function uploadToCloudinary(files, folder) {
       const stream = cloudinary.uploader.upload_stream(
         {
           folder,
-          resource_type: file.mimetype === "application/pdf" ? "raw" : "image",
+            resource_type: file.mimetype === "application/pdf" ? "raw" : file.mimetype.startsWith("video/") ? "video" : "image",
         },
         (err, res) => (err ? reject(err) : resolve(res))
       );
@@ -95,5 +100,5 @@ async function uploadMany(files, { folder } = {}) {
   return await uploadToLocal(files);
 }
 
-module.exports = { uploadMany, validateFiles, ALLOWED_MIME, MAX_FILE_SIZE };
+module.exports = { uploadMany, validateFiles, ALLOWED_MIME, MAX_FILE_SIZE, MAX_VIDEO_FILE_SIZE };
 

@@ -199,21 +199,30 @@ async function refreshProductSummary(productId) {
   ]);
 
   const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  const productBreakdown = { five: 0, four: 0, three: 0, two: 0, one: 0 };
   let totalReviews = 0;
   let ratingSum = 0;
 
   for (const item of aggregate) {
     breakdown[item._id] = item.count;
+    if (item._id === 5) productBreakdown.five = item.count;
+    if (item._id === 4) productBreakdown.four = item.count;
+    if (item._id === 3) productBreakdown.three = item.count;
+    if (item._id === 2) productBreakdown.two = item.count;
+    if (item._id === 1) productBreakdown.one = item.count;
     totalReviews += item.count;
     ratingSum += item._id * item.count;
   }
 
-  return await ProductReviewSummary.findOneAndUpdate(
+  const averageRating = totalReviews ? Number((ratingSum / totalReviews).toFixed(1)) : 0;
+
+  const [summary] = await Promise.all([
+    ProductReviewSummary.findOneAndUpdate(
     { productId },
     {
       $set: {
         productId,
-        averageRating: totalReviews ? Number((ratingSum / totalReviews).toFixed(1)) : 0,
+        averageRating,
         totalRatings: totalReviews,
         totalReviews,
         ratingBreakdown: breakdown,
@@ -221,7 +230,17 @@ async function refreshProductSummary(productId) {
       },
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+    ),
+    Product.findByIdAndUpdate(productId, {
+      $set: {
+        "ratings.averageRating": averageRating,
+        "ratings.totalReviews": totalReviews,
+        "ratings.ratingBreakdown": productBreakdown,
+      },
+    }),
+  ]);
+
+  return summary;
 }
 
 async function buildProductSummary(productId) {
@@ -341,8 +360,11 @@ class ReviewService {
             ? "no"
             : null,
       verifiedPurchase: true,
-      status: "pending",
+      status: "approved",
+      moderatedAt: new Date(),
     });
+
+    await refreshProductSummary(payload.productId);
 
     await auditService.log({
       actor: { sub: customerId, role: "user" },
@@ -362,7 +384,7 @@ class ReviewService {
         subModule: "REVIEWS",
         type: "SYSTEM_ALERT",
         title: "New review submitted",
-        message: `${product.name} received a new review pending moderation.`,
+        message: `${product.name} received a new published review.`,
         referenceId: review._id,
       })
     );

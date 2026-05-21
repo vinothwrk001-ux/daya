@@ -683,7 +683,6 @@ function resolveSlotRect(layout = {}, builder = normalizeBuilderConfig(), device
 }
 
 function assertNoVisualCollisions(layouts = []) {
-  const assigned = new Set();
   for (const device of DEVICE_KEYS) {
     const maxColumns = DEVICE_COLUMNS[device];
     let rowTotal = 0;
@@ -697,14 +696,6 @@ function assertNoVisualCollisions(layouts = []) {
       rowTotal += config.colSpan;
       if (rowTotal === maxColumns) rowTotal = 0;
     }
-  }
-
-  for (const layout of layouts || []) {
-    if (!layout.assignedContainerId) continue;
-    if (assigned.has(layout.assignedContainerId)) {
-      throw new AppError("A homepage container can only be assigned to one layout slot", 400, "DUPLICATE_LAYOUT_ASSIGNMENT");
-    }
-    assigned.add(layout.assignedContainerId);
   }
 }
 

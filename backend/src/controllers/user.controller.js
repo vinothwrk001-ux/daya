@@ -45,9 +45,10 @@ const moveWishlistToCart = asyncHandler(async (req, res) => ok(res, await userSe
 const getBilling = asyncHandler(async (req, res) => ok(res, await userService.getBilling(req.user.sub, req.query), "Billing loaded"));
 const listReturns = asyncHandler(async (req, res) => ok(res, await userService.listReturns(req.user.sub), "Returns loaded"));
 
+const listReviewableProducts = asyncHandler(async (req, res) => ok(res, await userService.listReviewableProducts(req.user.sub), "Reviewable products loaded"));
 const listReviews = asyncHandler(async (req, res) => ok(res, await userService.listReviews(req.user.sub), "Reviews loaded"));
-const createReview = asyncHandler(async (req, res) => ok(res, await userService.createReview(req.user.sub, req.body, getMeta(req)), "Review created"));
-const updateReview = asyncHandler(async (req, res) => ok(res, await userService.updateReview(req.user.sub, req.params.id, req.body, getMeta(req)), "Review updated"));
+const createReview = asyncHandler(async (req, res) => ok(res, await userService.createReview(req.user.sub, req.body, getMeta(req), req.files || []), "Review created"));
+const updateReview = asyncHandler(async (req, res) => ok(res, await userService.updateReview(req.user.sub, req.params.id, req.body, getMeta(req), req.files || []), "Review updated"));
 const deleteReview = asyncHandler(async (req, res) => ok(res, await userService.deleteReview(req.user.sub, req.params.id, getMeta(req)), "Review deleted"));
 
 const listNotifications = asyncHandler(async (req, res) => ok(res, await userService.listNotifications(req.user.sub, req.query), "Notifications loaded"));
@@ -87,6 +88,7 @@ module.exports = {
   moveWishlistToCart,
   getBilling,
   listReturns,
+  listReviewableProducts,
   listReviews,
   createReview,
   updateReview,

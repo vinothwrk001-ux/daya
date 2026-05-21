@@ -14,7 +14,8 @@ const { UserSupportTicket } = require("../models/UserSupportTicket");
 const { Wishlist } = require("../models/Wishlist");
 const { Order } = require("../models/Order");
 const { Payment } = require("../models/Payment");
-const { Review } = require("../models/Review");
+const { ProductReview } = require("../models/ProductReview");
+const { ProductReviewSummary } = require("../models/ProductReviewSummary");
 const { Product } = require("../models/Product");
 const { ReturnRequest } = require("../models/ReturnRequest");
 const { AuditLog } = require("../models/AuditLog");
@@ -112,10 +113,22 @@ async function resolveDeliveredOrderForReview(userId, productId, orderId) {
   return order;
 }
 
+function assertReviewPhotoFiles(files = []) {
+  const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  const unsupported = files.find((file) => !allowedTypes.has(file.mimetype));
+  if (unsupported) {
+    throw new AppError("Review photos support JPEG, PNG, and WEBP only", 400, "FILE_TYPE");
+  }
+  if (files.length > 10) {
+    throw new AppError("A review can include up to 10 photos", 400, "FILE_LIMIT");
+  }
+}
+
 async function recomputeProductRatings(productId) {
-  const reviews = await Review.find({ productId }).select("rating");
+  const reviews = await ProductReview.find({ productId, status: "approved" }).select("rating");
   const totalReviews = reviews.length;
   const breakdown = { five: 0, four: 0, three: 0, two: 0, one: 0 };
+  const numericBreakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
 
   for (const review of reviews) {
     const value = Number(review.rating);
@@ -124,6 +137,7 @@ async function recomputeProductRatings(productId) {
     if (value === 3) breakdown.three += 1;
     if (value === 2) breakdown.two += 1;
     if (value === 1) breakdown.one += 1;
+    if (numericBreakdown[value] !== undefined) numericBreakdown[value] += 1;
   }
 
   const averageRating =
@@ -131,13 +145,29 @@ async function recomputeProductRatings(productId) {
       ? 0
       : Number((reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / totalReviews).toFixed(1));
 
-  await Product.findByIdAndUpdate(productId, {
-    $set: {
-      "ratings.averageRating": averageRating,
-      "ratings.totalReviews": totalReviews,
-      "ratings.ratingBreakdown": breakdown,
-    },
-  });
+  await Promise.all([
+    Product.findByIdAndUpdate(productId, {
+      $set: {
+        "ratings.averageRating": averageRating,
+        "ratings.totalReviews": totalReviews,
+        "ratings.ratingBreakdown": breakdown,
+      },
+    }),
+    ProductReviewSummary.findOneAndUpdate(
+      { productId },
+      {
+        $set: {
+          productId,
+          averageRating,
+          totalRatings: totalReviews,
+          totalReviews,
+          ratingBreakdown: numericBreakdown,
+          refreshedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ),
+  ]);
 }
 
 class UserService {
@@ -597,16 +627,70 @@ class UserService {
       .sort({ createdAt: -1 });
   }
 
+  async listReviewableProducts(userId) {
+    const deliveredOrders = await Order.find({
+      userId,
+      status: "Delivered",
+      isActive: { $ne: false },
+    })
+      .populate("items.productId", "name images price discountPrice")
+      .select("_id orderNumber status createdAt updatedAt sellerId items")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const pairs = deliveredOrders.flatMap((order) =>
+      (order.items || [])
+        .filter((item) => item.productId?._id || item.productId)
+        .map((item) => ({
+          orderId: order._id,
+          productId: item.productId?._id || item.productId,
+        }))
+    );
+
+    const existingReviews = pairs.length
+      ? await ProductReview.find({
+          customerId: userId,
+          status: { $ne: "deleted" },
+          $or: pairs.map((pair) => ({
+            orderId: pair.orderId,
+            productId: pair.productId,
+          })),
+        })
+          .select("orderId productId")
+          .lean()
+      : [];
+    const reviewedKeys = new Set(existingReviews.map((review) => `${review.orderId}:${review.productId}`));
+
+    return deliveredOrders.flatMap((order) =>
+      (order.items || [])
+        .filter((item) => item.productId?._id || item.productId)
+        .filter((item) => !reviewedKeys.has(`${order._id}:${item.productId?._id || item.productId}`))
+        .map((item) => ({
+          orderId: order._id,
+          orderNumber: order.orderNumber,
+          deliveredAt: order.updatedAt || order.createdAt,
+          product: item.productId,
+          productId: item.productId?._id || item.productId,
+          productName: item.productId?.name || item.name,
+          image: item.productId?.images?.[0]?.url || item.image || "",
+          variantTitle: item.variantTitle || "",
+          quantity: item.quantity,
+        }))
+    );
+  }
+
   async listReviews(userId) {
-    return await Review.find({ userId })
+    return await ProductReview.find({ customerId: userId, status: { $ne: "deleted" } })
       .populate("productId", "name images")
       .populate("orderId", "orderNumber")
+      .populate("vendorId", "shopName companyName")
       .sort({ createdAt: -1 });
   }
 
-  async createReview(userId, payload, meta) {
+  async createReview(userId, payload, meta, files = []) {
     assertObjectId(payload.productId, "productId");
     if (payload.orderId) assertObjectId(payload.orderId, "orderId");
+    assertReviewPhotoFiles(files);
 
     const product = await Product.findById(payload.productId).select("_id sellerId");
     if (!product) throw new AppError("Product not found", 404, "NOT_FOUND");
@@ -617,45 +701,68 @@ class UserService {
       throw new AppError("Vendor not found for reviewed product", 400, "INVALID_OPERATION");
     }
 
-    const existing = await Review.findOne({ userId, productId: payload.productId });
-    if (existing) throw new AppError("Review already exists for this product", 409, "ALREADY_EXISTS");
+    const existing = await ProductReview.findOne({
+      customerId: userId,
+      productId: payload.productId,
+      orderId: deliveredOrder._id,
+      status: { $ne: "deleted" },
+    });
+    if (existing) throw new AppError("Review already exists for this delivered product", 409, "ALREADY_EXISTS");
 
-    const review = await Review.create({
+    const photos = await uploadMany(files, { folder: "reviews" });
+    const review = await ProductReview.create({
       vendorId,
       productId: payload.productId,
       orderId: deliveredOrder._id,
-      userId,
+      customerId: userId,
       rating: payload.rating,
       title: payload.title,
-      comment: payload.comment,
+      review: payload.comment || payload.review || "",
+      images: photos,
+      verifiedPurchase: true,
+      status: "approved",
+      moderatedAt: new Date(),
     });
 
     await recomputeProductRatings(payload.productId);
-    await logUserAction(userId, "user.review.created", "Review", review._id, { productId: payload.productId }, meta);
+    await logUserAction(userId, "user.review.created", "ProductReview", review._id, { productId: payload.productId }, meta);
     return await this.listReviews(userId);
   }
 
-  async updateReview(userId, reviewId, payload, meta) {
+  async updateReview(userId, reviewId, payload, meta, files = []) {
     assertObjectId(reviewId, "reviewId");
-    const review = await Review.findOneAndUpdate(
-      { _id: reviewId, userId },
-      { $set: payload },
+    assertReviewPhotoFiles(files);
+    const update = {};
+    if (payload.rating !== undefined) update.rating = payload.rating;
+    if (payload.title !== undefined) update.title = payload.title;
+    if (payload.comment !== undefined || payload.review !== undefined) update.review = payload.comment || payload.review || "";
+    if (files.length) {
+      update.images = await uploadMany(files, { folder: "reviews" });
+    }
+
+    const review = await ProductReview.findOneAndUpdate(
+      { _id: reviewId, customerId: userId, status: { $ne: "deleted" } },
+      { $set: update },
       { new: true, runValidators: true }
     );
     if (!review) throw new AppError("Review not found", 404, "NOT_FOUND");
 
     await recomputeProductRatings(review.productId);
-    await logUserAction(userId, "user.review.updated", "Review", reviewId, Object.keys(payload), meta);
+    await logUserAction(userId, "user.review.updated", "ProductReview", reviewId, Object.keys(update), meta);
     return await this.listReviews(userId);
   }
 
   async deleteReview(userId, reviewId, meta) {
     assertObjectId(reviewId, "reviewId");
-    const review = await Review.findOneAndDelete({ _id: reviewId, userId });
+    const review = await ProductReview.findOneAndUpdate(
+      { _id: reviewId, customerId: userId, status: { $ne: "deleted" } },
+      { $set: { status: "deleted" } },
+      { new: true }
+    );
     if (!review) throw new AppError("Review not found", 404, "NOT_FOUND");
 
     await recomputeProductRatings(review.productId);
-    await logUserAction(userId, "user.review.deleted", "Review", reviewId, null, meta);
+    await logUserAction(userId, "user.review.deleted", "ProductReview", reviewId, null, meta);
     return { _id: reviewId };
   }
 

@@ -308,6 +308,7 @@ function resolveContainerThumbnail(container) {
   const raw =
     container?.thumbnail ||
     container?.config?.bannerImage ||
+    container?.config?.masonryImage ||
     container?.config?.image ||
     container?.config?.categoryBanner ||
     container?.config?.brandBanner ||
@@ -320,7 +321,6 @@ function resolveContainerThumbnail(container) {
 
 function validateDraft(draft) {
   const messages = [];
-  const assigned = new Set();
   for (const layout of draft.layouts || []) {
     for (const device of Object.keys(DEVICE_CONFIG)) {
       const config = layout[device];
@@ -328,12 +328,6 @@ function validateDraft(draft) {
       if (!config || config.colSpan < 1 || config.colSpan > columns || config.height < 0 || config.rowSpan < 1) {
         messages.push(`${layout.name} has invalid ${device} sizing.`);
       }
-    }
-    if (layout.assignedContainerId) {
-      if (assigned.has(layout.assignedContainerId)) {
-        messages.push("A container is assigned more than once.");
-      }
-      assigned.add(layout.assignedContainerId);
     }
   }
   return messages;
@@ -618,11 +612,6 @@ export function AdminHomepageBuilderPage() {
   const assignContainer = useCallback(
     (slotId, containerId) => {
       if (!canEdit) return;
-      const duplicate = draft.layouts.some((layout) => layout.id !== slotId && String(layout.assignedContainerId || "") === String(containerId));
-      if (duplicate) {
-        setNotice("That container is already assigned to another layout slot.");
-        return;
-      }
       updateSlot(slotId, (slot) => ({
         ...slot,
         assignedContainerId: containerId,
@@ -631,7 +620,7 @@ export function AdminHomepageBuilderPage() {
       }));
       setSelectedSlotId(slotId);
     },
-    [canEdit, draft.layouts, updateSlot]
+    [canEdit, updateSlot]
   );
 
   const handleDragStart = useCallback((event) => {
@@ -670,7 +659,6 @@ export function AdminHomepageBuilderPage() {
         clone.id = createId("layout");
         clone.name = `${source.name} Copy`;
         clone.slug = slugify(clone.name);
-        clone.assignedContainerId = null;
         clone.sortOrder = current.layouts.length;
         clone.createdAt = new Date().toISOString();
         clone.updatedAt = new Date().toISOString();
@@ -1399,7 +1387,7 @@ function LayoutChooser({ layouts, activeLayoutId, onSelect }) {
       <option value="">Select layout</option>
       {layouts.map((layout) => (
         <option key={layout._id} value={layout._id}>
-          {layout.name}
+          {layout.name}{layout.status === "published" ? " - Live" : ""}
         </option>
       ))}
     </select>

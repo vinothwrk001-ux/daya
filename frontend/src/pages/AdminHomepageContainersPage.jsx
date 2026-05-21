@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import {
   BarChart3,
@@ -140,20 +140,6 @@ function parseSlides(value) {
   return [];
 }
 
-function parseLegacyMargin(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return { top: undefined, right: undefined, bottom: undefined, left: undefined };
-  const numbers = raw
-    .split(/\s+/)
-    .map((token) => Number(String(token).replace(/[^\d.-]/g, "")))
-    .filter((value) => Number.isFinite(value));
-  if (numbers.length === 0) return { top: undefined, right: undefined, bottom: undefined, left: undefined };
-  if (numbers.length === 1) return { top: numbers[0], right: numbers[0], bottom: numbers[0], left: numbers[0] };
-  if (numbers.length === 2) return { top: numbers[0], right: numbers[1], bottom: numbers[0], left: numbers[1] };
-  if (numbers.length === 3) return { top: numbers[0], right: numbers[1], bottom: numbers[2], left: numbers[1] };
-  return { top: numbers[0], right: numbers[1], bottom: numbers[2], left: numbers[3] };
-}
-
 function legacyWidthType(value) {
   switch (String(value || "").toLowerCase()) {
     case "boxed":
@@ -236,6 +222,7 @@ function resolveLayoutWidth(layout = {}) {
 }
 
 function resolveLayoutHeight(layout = {}) {
+  if (layout.heightType === "auto") return null;
   if (pickNumber(layout.height, 0) > 0) return Number(layout.height);
   if (pickNumber(layout.customHeight, 0) > 0) return Number(layout.customHeight);
   switch (layout.heightType) {
@@ -337,6 +324,9 @@ function containerToForm(container, schema) {
   if (container?.containerType === "SLIDER" && Array.isArray(container?.config?.slides)) {
     config.slides = container.config.slides;
   }
+  if (container?.containerType === "BANNER" && Array.isArray(container?.config?.bannerMedia)) {
+    config.bannerMedia = container.config.bannerMedia;
+  }
 
   return {
     title: container.title || "",
@@ -398,7 +388,13 @@ export function AdminHomepageContainersPage() {
       products.map((product) => ({
         value: String(product._id),
         label: product.name,
-        meta: `${formatCurrency(product.discountPrice || product.price || 0)} • ${product.category || "General"}`,
+        meta: `${formatCurrency(product.discountPrice || product.price || 0)} • ${product.sku || product.categoryId?.name || product.category || "General"}`,
+        image: product.images?.[0]?.url || product.thumbnail || product.image || "",
+        price: product.discountPrice || product.price || 0,
+        salePrice: product.discountPrice ? product.price : null,
+        sku: product.sku || "",
+        stock: product.stock ?? product.inventory?.available ?? product.availableStock,
+        brand: product.attributes?.brand || product.brand || "",
       })),
     [products]
   );
@@ -656,7 +652,10 @@ export function AdminHomepageContainersPage() {
         filteredSubcategories
           .filter((item) => item.name?.toLowerCase().includes(query.toLowerCase()))
           .map((item) => ({ value: String(item._id), label: item.name })),
-      products: async (query = "") => productCatalog.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
+      products: async (query = "") => {
+        const needle = query.toLowerCase();
+        return productCatalog.filter((item) => `${item.label} ${item.meta} ${item.sku} ${item.brand}`.toLowerCase().includes(needle));
+      },
       brands: async (query = "") => brandCatalog.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
       tags: async (query = "") => tagCatalog.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
     }),
@@ -814,7 +813,7 @@ export function AdminHomepageContainersPage() {
                           </Field>
                           <Field label="Sort By">
                             <select value={form.filters.sortBy} onChange={(event) => setNestedField(setForm, "filters", "sortBy", event.target.value)} className={inputClassName}>
-                              {["BEST_SELLING", "HIGHEST_DISCOUNT", "NEWEST", "TRENDING", "PRICE_LOW_TO_HIGH", "PRICE_HIGH_TO_LOW", "MOST_VIEWED", "TOP_RATED", "RANDOM"].map((value) => (
+                              {["BEST_SELLING", "HIGHEST_DISCOUNT", "NEWEST", "OLDEST", "TRENDING", "PRICE_LOW_TO_HIGH", "PRICE_HIGH_TO_LOW", "MOST_VIEWED", "MOST_POPULAR", "TOP_RATED", "CUSTOM_ORDER", "RANDOM"].map((value) => (
                                 <option key={value} value={value}>{toDisplayLabel(value)}</option>
                               ))}
                             </select>
@@ -858,6 +857,13 @@ export function AdminHomepageContainersPage() {
                     ) : null}
 
                     <EditorSection icon={Save} title="Advanced Settings" description="Schema-driven fields for the selected container type appear here so admins only see the controls that matter.">
+                      {form.containerType === "BANNER" ? (
+                        <BannerMediaEditor
+                          media={parseSlides(form.config.bannerMedia)}
+                          onChange={(nextMedia) => setForm((current) => ({ ...current, config: { ...current.config, bannerMedia: nextMedia } }))}
+                        />
+                      ) : null}
+
                       {form.containerType === "SLIDER" ? (
                         <SlideEditor
                           slides={parseSlides(form.config.slides)}
@@ -867,8 +873,11 @@ export function AdminHomepageContainersPage() {
 
                       {(activeSchema?.typeFields || []).length ? (
                         <div className="grid gap-6 lg:grid-cols-2">
-                          {(activeSchema?.typeFields || []).filter((field) => !(form.containerType === "SLIDER" && field.name === "slides")).map((field) => (
-                            <div key={field.name} className={field.type === "textarea" || field.type === "array" ? "lg:col-span-2" : ""}>
+                          {(activeSchema?.typeFields || [])
+                            .filter((field) => !(form.containerType === "SLIDER" && field.name === "slides"))
+                            .filter((field) => !(form.containerType === "BANNER" && field.name === "bannerMedia"))
+                            .map((field) => (
+                            <div key={field.name} className={field.type === "textarea" || field.type === "array" || field.type === "category-cards" ? "lg:col-span-2" : ""}>
                               <FieldRenderer
                                 field={field}
                                 value={form.config[field.name] ?? ""}
@@ -1292,12 +1301,12 @@ function StepProgressBar({ steps, currentStep, onSelect }) {
   );
 }
 
-function EditorSection({ icon: Icon, title, description, children }) {
+function EditorSection({ icon, title, description, children }) {
   return (
     <section className={sectionCardClassName}>
       <div className="flex items-start gap-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-          <Icon className="h-5 w-5" />
+          {createElement(icon, { className: "h-5 w-5" })}
         </div>
         <div className="min-w-0">
           <h2 className="text-xl font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">{title}</h2>
@@ -1379,6 +1388,21 @@ function SummaryItem({ label, value }) {
 }
 
 function FieldRenderer({ field, value, onChange, loadOptions }) {
+  if (field.type === "category-cards") {
+    return <CategoryCardsField field={field} value={value} onChange={onChange} />;
+  }
+
+  if (field.source === "products" || field.name === "heroProduct" || field.name === "secondaryProducts") {
+    return (
+      <ProductPickerField
+        field={{ ...field, type: "async-multiselect", source: "products" }}
+        value={Array.isArray(value) ? value : []}
+        onChange={onChange}
+        loadOptions={loadOptions}
+      />
+    );
+  }
+
   if (field.type === "boolean") {
     return <BooleanField label={field.label} checked={Boolean(value)} onChange={onChange} />;
   }
@@ -1390,43 +1414,7 @@ function FieldRenderer({ field, value, onChange, loadOptions }) {
     /image|video/i.test(field.name || "") ||
     /image|video/i.test(field.label || "")
   ) {
-    const [uploading, setUploading] = useState(false);
-    const accept = field.accept || (field.type === "video" ? "video/*" : "image/*");
-    async function handleFileChange(event) {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      setUploading(true);
-      try {
-        const response = await uploadHomepageContainerMedia([file]);
-        const uploadedUrl = response?.data?.[0]?.url || "";
-        onChange(uploadedUrl);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(err);
-        window.alert("Upload failed: " + (err?.message || "unknown"));
-      } finally {
-        setUploading(false);
-        event.target.value = "";
-      }
-    }
-
-    return (
-      <Field label={field.label}>
-        <div className="flex items-center gap-3">
-          <input type="file" accept={accept} onChange={handleFileChange} className={inputClassName + " cursor-pointer"} />
-          <div className="text-sm text-slate-500">{uploading ? "Uploading..." : value ? "Ready" : "No file"}</div>
-        </div>
-        {value ? (
-          <div className="mt-2">
-            {field.type === "video" ? (
-              <video src={value} controls className="max-h-40 rounded-md" />
-            ) : (
-              <img src={value} alt="preview" className="max-h-40 rounded-md object-cover" />
-            )}
-          </div>
-        ) : null}
-      </Field>
-    );
+    return <MediaUploadField field={field} value={value} onChange={onChange} />;
   }
 
   if (field.type === "async-multiselect") {
@@ -1483,6 +1471,431 @@ function FieldRenderer({ field, value, onChange, loadOptions }) {
         className={inputClassName}
       />
     </Field>
+  );
+}
+
+function MediaUploadField({ field, value, onChange }) {
+  const [uploading, setUploading] = useState(false);
+  const accept = field.accept || (field.type === "video" ? "video/*" : "image/*");
+  const mediaValue = Array.isArray(value) ? value[0] : value;
+  const mediaUrl = typeof mediaValue === "object" && mediaValue ? mediaValue.url || mediaValue.secureUrl || mediaValue.path || mediaValue.src || "" : mediaValue || "";
+
+  async function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const response = await uploadHomepageContainerMedia([file]);
+      const uploadedUrl = response?.data?.[0]?.url || "";
+      onChange(uploadedUrl);
+    } catch (err) {
+      console.error(err);
+      window.alert("Upload failed: " + (err?.message || "unknown"));
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  }
+
+  return (
+    <Field label={field.label}>
+      <div className="flex items-center gap-3">
+        <input type="file" accept={accept} onChange={handleFileChange} className={inputClassName + " cursor-pointer"} />
+        <div className="text-sm text-slate-500">{uploading ? "Uploading..." : mediaUrl ? "Ready" : "No file"}</div>
+      </div>
+      {mediaUrl ? (
+        <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/40">
+          {field.type === "video" || /video/i.test(field.name || "") || /\.(mp4|webm|mov)$/i.test(String(mediaUrl)) ? (
+            <video src={resolveApiAssetUrl(mediaUrl)} controls className="max-h-56 w-full object-cover" />
+          ) : (
+            <img src={resolveApiAssetUrl(mediaUrl)} alt={field.label} className="max-h-56 w-full object-cover" />
+          )}
+        </div>
+      ) : null}
+    </Field>
+  );
+}
+
+function CategoryCardsField({ field, value, onChange }) {
+  const cards = Array.isArray(value) ? value : [];
+
+  function updateCard(index, patch) {
+    onChange(cards.map((card, cardIndex) => (cardIndex === index ? { ...card, ...patch } : card)));
+  }
+
+  function addCard() {
+    onChange([
+      ...cards,
+      {
+        name: "",
+        image: "",
+        linkUrl: "",
+        color: "#0f172a",
+        productCount: 0,
+        description: "",
+      },
+    ]);
+  }
+
+  function removeCard(index) {
+    onChange(cards.filter((_, cardIndex) => cardIndex !== index));
+  }
+
+  return (
+    <Field label={field.label}>
+      <div className="space-y-4">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+          Required per custom card: name. Optional: image, link URL, color, product count, and description.
+        </div>
+        {cards.map((card, index) => (
+          <div key={card.id || index} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-slate-950 dark:text-white">Card {index + 1}</div>
+              <button type="button" onClick={() => removeCard(index)} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:border-rose-900/60 dark:hover:bg-rose-950/30">
+                Remove
+              </button>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Field label="Card Name">
+                <input value={card.name || ""} onChange={(event) => updateCard(index, { name: event.target.value })} className={inputClassName} placeholder="Electronics" />
+              </Field>
+              <Field label="Link URL">
+                <input value={card.linkUrl || ""} onChange={(event) => updateCard(index, { linkUrl: event.target.value })} className={inputClassName} placeholder="/shop?categoryId=..." />
+              </Field>
+              <Field label="Color">
+                <input type="color" value={card.color || "#0f172a"} onChange={(event) => updateCard(index, { color: event.target.value })} className="h-12 w-full rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900" />
+              </Field>
+              <Field label="Product Count">
+                <input type="number" min="0" value={card.productCount ?? 0} onChange={(event) => updateCard(index, { productCount: event.target.value })} className={inputClassName} />
+              </Field>
+              <div className="lg:col-span-2">
+                <CategoryCardImageField value={card.image || card.logo || ""} onChange={(image) => updateCard(index, { image, logo: image })} />
+              </div>
+              <div className="lg:col-span-2">
+                <Field label="Description">
+                  <textarea value={card.description || ""} onChange={(event) => updateCard(index, { description: event.target.value })} rows={3} className={`${inputClassName} min-h-[96px]`} />
+                </Field>
+              </div>
+            </div>
+          </div>
+        ))}
+        <button type="button" onClick={addCard} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950">
+          <Plus className="h-4 w-4" />
+          Add category card
+        </button>
+      </div>
+    </Field>
+  );
+}
+
+function CategoryCardImageField({ value, onChange }) {
+  const [uploading, setUploading] = useState(false);
+  const imageUrl = resolveApiAssetUrl(value || "");
+
+  async function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const response = await uploadHomepageContainerMedia([file]);
+      onChange(response?.data?.[0]?.url || "");
+    } catch (err) {
+      console.error(err);
+      window.alert("Upload failed: " + (err?.message || "unknown"));
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  }
+
+  return (
+    <Field label="Card Image">
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+        <input value={value || ""} onChange={(event) => onChange(event.target.value)} className={inputClassName} placeholder="/uploads/category.jpg" />
+        <input type="file" accept="image/*" onChange={handleFileChange} className={inputClassName + " cursor-pointer"} />
+      </div>
+      <div className="mt-2 text-sm text-slate-500">{uploading ? "Uploading..." : value ? "Image ready" : "Optional image"}</div>
+      {imageUrl ? (
+        <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/40">
+          <img src={imageUrl} alt="" className="max-h-48 w-full object-cover" />
+        </div>
+      ) : null}
+    </Field>
+  );
+}
+
+function ProductPickerField({ field, value = [], onChange, loadOptions }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [options, setOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const maxItems = Number(field.maxItems || 0);
+  const selectedValues = value.map((item) => String(typeof item === "object" ? item.value : item));
+  const selectedMap = useMemo(() => {
+    const map = new Map();
+    for (const option of options) {
+      map.set(String(option.value), option);
+    }
+    return map;
+  }, [options]);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      if (!loadOptions) return;
+      setLoading(true);
+      try {
+        const result = await loadOptions(searchTerm);
+        if (active) setOptions(Array.isArray(result) ? result.slice(0, 30) : []);
+      } catch {
+        if (active) setOptions([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      active = false;
+    };
+  }, [loadOptions, searchTerm]);
+
+  function toggleProduct(option) {
+    const id = String(option.value);
+    if (selectedValues.includes(id)) {
+      onChange(selectedValues.filter((item) => item !== id));
+      return;
+    }
+    if (maxItems === 1) {
+      onChange([id]);
+      return;
+    }
+    if (maxItems && selectedValues.length >= maxItems) return;
+    onChange([...selectedValues, id]);
+  }
+
+  function removeProduct(id) {
+    onChange(selectedValues.filter((item) => item !== String(id)));
+  }
+
+  const selectedItems = selectedValues.map((id) => selectedMap.get(id) || { value: id, label: id });
+
+  return (
+    <Field label={field.label}>
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950/40">
+        <input
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          className={inputClassName}
+          placeholder="Search products by name, SKU, brand, or category..."
+        />
+
+        {selectedItems.length ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedItems.map((item) => (
+              <span key={item.value} className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white dark:bg-white dark:text-slate-900">
+                {item.label}
+                <button type="button" onClick={() => removeProduct(item.value)} className="text-white/70 hover:text-white dark:text-slate-500 dark:hover:text-slate-900" aria-label={`Remove ${item.label}`}>
+                  x
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="mt-3 max-h-80 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
+          {loading ? (
+            <div className="px-3 py-6 text-center text-sm text-slate-500">Loading products...</div>
+          ) : options.length ? (
+            <div className="grid gap-2">
+              {options.map((option) => {
+                const selected = selectedValues.includes(String(option.value));
+                const imageUrl = resolveApiAssetUrl(option.image || "");
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => toggleProduct(option)}
+                    className={`flex w-full items-center gap-3 rounded-xl border p-2 text-left transition ${
+                      selected
+                        ? "border-slate-900 bg-slate-100 dark:border-white dark:bg-slate-800"
+                        : "border-transparent hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-700 dark:hover:bg-slate-950"
+                    }`}
+                  >
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+                      {imageUrl ? (
+                        <img src={imageUrl} alt={option.label} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">No image</div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-slate-950 dark:text-white">{option.label}</div>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                        <span>{formatCurrency(option.price || 0)}</span>
+                        {option.sku ? <span>SKU: {option.sku}</span> : null}
+                        {option.brand ? <span>{option.brand}</span> : null}
+                        {option.stock !== undefined && option.stock !== null ? <span>{Number(option.stock) > 0 ? `${option.stock} in stock` : "Out of stock"}</span> : null}
+                      </div>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${selected ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
+                      {selected ? "Selected" : maxItems === 1 ? "Choose" : "Add"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="px-3 py-6 text-center text-sm text-slate-500">No products found</div>
+          )}
+        </div>
+      </div>
+    </Field>
+  );
+}
+
+function BannerMediaEditor({ media = [], onChange }) {
+  const [uploadingIndex, setUploadingIndex] = useState(null);
+  const resolvedMedia = Array.isArray(media) ? media : [];
+
+  function updateItem(index, updater) {
+    const next = resolvedMedia.map((item, itemIndex) =>
+      itemIndex !== index ? item : typeof updater === "function" ? updater(item || {}) : updater
+    );
+    onChange(next);
+  }
+
+  function addItem(type = "image") {
+    onChange([
+      ...resolvedMedia,
+      {
+        id: createUniqueId("banner-media"),
+        type,
+        url: "",
+        heading: "",
+        subheading: "",
+        ctaLabel: "",
+        ctaUrl: "",
+      },
+    ]);
+  }
+
+  function deleteItem(index) {
+    onChange(resolvedMedia.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  function moveItem(index, direction) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= resolvedMedia.length) return;
+    const next = [...resolvedMedia];
+    const [item] = next.splice(index, 1);
+    next.splice(nextIndex, 0, item);
+    onChange(next);
+  }
+
+  async function uploadMedia(index, file) {
+    if (!file) return;
+    setUploadingIndex(index);
+    try {
+      const response = await uploadHomepageContainerMedia([file]);
+      const uploaded = response?.data?.[0] || {};
+      const uploadedUrl = uploaded.url || "";
+      const uploadedType = uploaded.mimeType?.startsWith("video/") ? "video" : "image";
+      updateItem(index, (item) => ({ ...item, type: uploadedType, url: uploadedUrl }));
+    } catch (err) {
+      window.alert("Media upload failed: " + (err?.message || "unknown"));
+    } finally {
+      setUploadingIndex(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-slate-950 dark:text-white">Banner Media</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Add images, videos, or a mixed media sequence for the banner auto-scroll.</div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => addItem("image")} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+            + Image
+          </button>
+          <button type="button" onClick={() => addItem("video")} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+            + Video
+          </button>
+        </div>
+      </div>
+
+      {!resolvedMedia.length ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
+          No banner media yet. Add an image or video to build the auto-scroll banner.
+        </div>
+      ) : null}
+
+      <div className="space-y-4">
+        {resolvedMedia.map((item, index) => {
+          const isVideo = item.type === "video" || /\.(mp4|webm|mov)$/i.test(item.url || "");
+          return (
+            <div key={item.id || index} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-slate-950 dark:text-white">Media {index + 1}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => moveItem(index, -1)} disabled={index === 0} className="rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:text-slate-200">
+                    Up
+                  </button>
+                  <button type="button" onClick={() => moveItem(index, 1)} disabled={index === resolvedMedia.length - 1} className="rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:text-slate-200">
+                    Down
+                  </button>
+                  <button type="button" onClick={() => deleteItem(index)} className="rounded-full border border-rose-200 px-3 py-2 text-xs text-rose-600 dark:border-rose-900 dark:text-rose-300">
+                    Delete
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <Field label="Type">
+                  <select value={item.type || "image"} onChange={(event) => updateItem(index, (current) => ({ ...current, type: event.target.value }))} className={inputClassName}>
+                    <option value="image">Image</option>
+                    <option value="video">Video</option>
+                  </select>
+                </Field>
+                <Field label="Upload Media">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime"
+                      onChange={(event) => uploadMedia(index, event.target.files?.[0])}
+                      className={`${inputClassName} cursor-pointer`}
+                    />
+                    <div className="text-sm text-slate-500">{uploadingIndex === index ? "Uploading..." : item.url ? "Ready" : "No file"}</div>
+                  </div>
+                </Field>
+                <Field label="Heading">
+                  <input value={item.heading || ""} onChange={(event) => updateItem(index, (current) => ({ ...current, heading: event.target.value }))} className={inputClassName} />
+                </Field>
+                <Field label="Subheading">
+                  <input value={item.subheading || ""} onChange={(event) => updateItem(index, (current) => ({ ...current, subheading: event.target.value }))} className={inputClassName} />
+                </Field>
+                <Field label="Button Text">
+                  <input value={item.ctaLabel || ""} onChange={(event) => updateItem(index, (current) => ({ ...current, ctaLabel: event.target.value }))} className={inputClassName} />
+                </Field>
+                <Field label="Button Link">
+                  <input value={item.ctaUrl || ""} onChange={(event) => updateItem(index, (current) => ({ ...current, ctaUrl: event.target.value }))} className={inputClassName} placeholder="/sale" />
+                </Field>
+              </div>
+
+              {item.url ? (
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-950">
+                  {isVideo ? (
+                    <video src={resolveApiAssetUrl(item.url)} controls className="max-h-56 w-full object-cover" />
+                  ) : (
+                    <img src={resolveApiAssetUrl(item.url)} alt={item.heading || `Banner media ${index + 1}`} className="max-h-56 w-full object-cover" />
+                  )}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
