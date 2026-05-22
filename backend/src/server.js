@@ -14,6 +14,7 @@ const {
   initializePaymentMaintenanceJobs,
   shutdownPaymentMaintenanceJobs,
 } = require("./jobs/payment-maintenance.job");
+const { initializeRecommendationJobs } = require("./modules/recommendation/job");
 
 async function start() {
   await connectDb();
@@ -47,6 +48,14 @@ async function start() {
     logger.info("Payment maintenance jobs initialized", paymentJobs);
   } catch (error) {
     logger.error("Failed to initialize payment maintenance jobs", {
+      error: error?.message,
+    });
+  }
+
+  try {
+    await initializeRecommendationJobs();
+  } catch (error) {
+    logger.error("Failed to initialize recommendation jobs", {
       error: error?.message,
     });
   }

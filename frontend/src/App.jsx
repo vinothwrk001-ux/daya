@@ -133,6 +133,7 @@ import InfluencerReelsPage from "./pages/influencer/reels.jsx";
 import InfluencerEarningsPage from "./pages/influencer/earnings.jsx";
 import InfluencerProfilePage from "./pages/influencer/profile.jsx";
 import { AdminInfluencerPage } from "./pages/AdminInfluencerPage";
+import { AdminCommerceIntelligencePage } from "./pages/AdminCommerceIntelligencePage";
 
 function LegacySellerProductEditRedirect() {
   const { productId } = useParams();
@@ -272,6 +273,15 @@ export default function App() {
               <Route path="orders/create" element={<AdminOrderCreatePage />} />
               <Route path="orders/:id" element={<AdminOrderDetailsPage />} />
               <Route path="analytics" element={<AdminAnalyticsPage />} />
+              <Route path="commerce-intelligence/settings" element={<AdminCommerceIntelligencePage />} />
+              <Route path="commerce-intelligence/related-products" element={<AdminCommerceIntelligencePage />} />
+              <Route path="commerce-intelligence/frequently-bought-together" element={<AdminCommerceIntelligencePage />} />
+              <Route path="commerce-intelligence/cross-sell" element={<AdminCommerceIntelligencePage />} />
+              <Route path="commerce-intelligence/upsell" element={<AdminCommerceIntelligencePage />} />
+              <Route path="commerce-intelligence/analytics" element={<AdminCommerceIntelligencePage />} />
+              <Route path="commerce-intelligence/ai-scoring" element={<AdminCommerceIntelligencePage />} />
+              <Route path="commerce-intelligence/preview" element={<AdminCommerceIntelligencePage />} />
+              <Route path="commerce-intelligence/cache" element={<AdminCommerceIntelligencePage />} />
               <Route path="analytics/products/:productId" element={<AdminProductAnalyticsDetailPage />} />
               <Route path="revenue" element={<AdminRevenuePage />} />
               <Route path="audit-logs" element={<AuditLogsPage />} />

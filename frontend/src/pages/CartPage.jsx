@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
+import { RecommendationSection } from "../components/RecommendationSection";
+import { getCartRecommendations } from "../services/recommendationService";
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatWeight, getFormattedWeight, getWeightUnit, getWeightValue } from "../utils/weight";
 import { useCart } from "../hooks/useCart";
@@ -13,6 +15,7 @@ export function CartPage() {
   const navigate = useNavigate();
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
+  const [recommendations, setRecommendations] = useState(null);
   const { cart, isGuest, loading, refreshCart, updateItem, removeItem, validateCart } = useCart();
 
   async function refresh() {
@@ -34,6 +37,34 @@ export function CartPage() {
 
   const items = useMemo(() => (Array.isArray(cart?.items) ? cart.items : []), [cart]);
   const total = Number(cart?.totalAmount || 0);
+  const productIds = useMemo(
+    () => items.map((item) => item?.productId?._id || item?.productId).filter(Boolean).map(String),
+    [items]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRecommendations() {
+      if (!productIds.length) {
+        setRecommendations(null);
+        return;
+      }
+      try {
+        const response = await getCartRecommendations(productIds);
+        if (!cancelled) {
+          setRecommendations(response?.data || null);
+        }
+      } catch {
+        if (!cancelled) {
+          setRecommendations(null);
+        }
+      }
+    }
+    loadRecommendations();
+    return () => {
+      cancelled = true;
+    };
+  }, [productIds]);
 
   async function changeQty(productId, variantId, nextQty) {
     setBusyId(`${productId}:${variantId || ""}`);
@@ -96,9 +127,10 @@ export function CartPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[1fr_minmax(300px,380px)]">
-          <div className="grid gap-3 sm:gap-4">
-            {items.map((item) => {
+        <div className="grid gap-6">
+          <div className="grid gap-4 lg:grid-cols-[1fr_minmax(300px,380px)]">
+            <div className="grid gap-3 sm:gap-4">
+              {items.map((item) => {
               const p = item?.productId;
               const id = p?._id || item.productId;
               const name = p?.name || item?.name || "Product";
@@ -211,30 +243,36 @@ export function CartPage() {
                   </div>
                 </div>
               );
-            })}
-          </div>
-
-          <div className="h-fit rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-4">
-            <div className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">Summary</div>
-            <div className="mt-3 flex items-center justify-between text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-              <span>Total</span>
-              <span className="font-semibold text-slate-950 dark:text-white">{formatCurrency(total)}</span>
+              })}
             </div>
-            <button
-              type="button"
-              onClick={() => navigate("/checkout")}
-              className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              Proceed to Checkout
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/shop")}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              Continue Shopping
-            </button>
+
+            <div className="h-fit rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:top-4">
+              <div className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">Summary</div>
+              <div className="mt-3 flex items-center justify-between text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                <span>Total</span>
+                <span className="font-semibold text-slate-950 dark:text-white">{formatCurrency(total)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/checkout")}
+                className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Proceed to Checkout
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/shop")}
+                className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Continue Shopping
+              </button>
+            </div>
           </div>
+          <RecommendationSection
+            title="Recommended add-ons"
+            subtitle="Cross-sell picks generated from cart contents and co-purchase behavior."
+            items={recommendations?.crossSell || []}
+          />
         </div>
       )}
     </div>

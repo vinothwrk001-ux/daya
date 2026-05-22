@@ -9,8 +9,10 @@ import { motion as Motion } from "framer-motion";
 import { MotionItem, MotionStagger, AnimatedSection } from "../components/home/AnimatedSection";
 import { ReelFeed } from "../components/reel/ReelFeed";
 import { DynamicHomepageRenderer } from "../components/homepage/DynamicHomepageRenderer";
+import { RecommendationSection } from "../components/RecommendationSection";
 import { getHomepageContainers } from "../services/homepageContainerService";
 import { getHomepageBuilderPublicLayout } from "../services/homepageBuilderService";
+import { getGuestRecentlyViewed, getHomeRecommendations } from "../services/recommendationService";
 import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
 
 const trustItems = [
@@ -42,6 +44,7 @@ export function HomePage() {
   const [error, setError] = useState("");
   const [productContainers, setProductContainers] = useState([]);
   const [builderLayout, setBuilderLayout] = useState(null);
+  const [recommendations, setRecommendations] = useState(null);
   const [device, setDevice] = useState(() => {
     if (typeof window === "undefined") return "desktop";
     if (window.innerWidth < 768) return "mobile";
@@ -103,10 +106,47 @@ export function HomePage() {
     };
   }, [device]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRecommendations() {
+      try {
+        const response = await getHomeRecommendations();
+        if (!cancelled) {
+          setRecommendations({
+            ...(response?.data || {}),
+            recentlyViewed:
+              Array.isArray(response?.data?.recentlyViewed) && response.data.recentlyViewed.length
+                ? response.data.recentlyViewed
+                : getGuestRecentlyViewed(),
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setRecommendations({
+            trending: [],
+            personalized: [],
+            recentlyViewed: getGuestRecentlyViewed(),
+          });
+        }
+      }
+    }
+    loadRecommendations();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="w-full space-y-0 lg:space-y-0">
       {builderLayout?.layout ? (
-        <DynamicHomepageRenderer rows={builderLayout.rows || []} containers={builderLayout.containers || []} loading={loading} bareCarouselShell device={device} />
+        <>
+          <DynamicHomepageRenderer rows={builderLayout.rows || []} containers={builderLayout.containers || []} loading={loading} bareCarouselShell device={device} />
+          <div className="w-full space-y-8 px-3 py-8 sm:px-4 lg:px-8 lg:py-10">
+            <RecommendationSection title="Trending now" subtitle="Fast-moving products across the marketplace." items={recommendations?.trending || []} />
+            <RecommendationSection title="Recommended for you" subtitle="Personalized picks based on your shopping signals." items={recommendations?.personalized || []} />
+            <RecommendationSection title="Recently viewed" subtitle="Resume browsing where you left off." items={recommendations?.recentlyViewed || []} />
+          </div>
+        </>
       ) : (
         <>
       <AnimatedSection className="relative w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10" y={24}>
@@ -128,6 +168,11 @@ export function HomePage() {
       ) : null}
 
       <DynamicHomepageRenderer containers={productContainers} loading={loading} bareCarouselShell />
+      <div className="w-full space-y-8 px-3 py-8 sm:px-4 lg:px-8 lg:py-10">
+        <RecommendationSection title="Trending now" subtitle="Fast-moving products across the marketplace." items={recommendations?.trending || []} />
+        <RecommendationSection title="Recommended for you" subtitle="Personalized picks based on your shopping signals." items={recommendations?.personalized || []} />
+        <RecommendationSection title="Recently viewed" subtitle="Resume browsing where you left off." items={recommendations?.recentlyViewed || []} />
+      </div>
         </>
       )}
     </div>

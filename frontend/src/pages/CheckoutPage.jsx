@@ -7,11 +7,13 @@ import { CheckoutStepper } from "../components/commerce/CheckoutStepper";
 import { InlineToast } from "../components/commerce/InlineToast";
 import { OrderSummaryCard } from "../components/commerce/OrderSummaryCard";
 import { PriceBreakdown } from "../components/commerce/PriceBreakdown";
+import { RecommendationSection } from "../components/RecommendationSection";
 import { useAuthStore } from "../context/authStore";
 import { useCart } from "../hooks/useCart";
 import * as checkoutService from "../services/checkoutService";
 import * as paymentService from "../services/paymentService";
 import * as pricingService from "../services/pricingService";
+import { getCheckoutRecommendations } from "../services/recommendationService";
 import * as userService from "../services/userService";
 import { extractProductId, extractVariantId, getCartItemKey } from "../utils/cartState";
 import { formatCurrency } from "../utils/formatCurrency";
@@ -240,6 +242,7 @@ export function CheckoutPage() {
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [toast, setToast] = useState(null);
+  const [recommendations, setRecommendations] = useState(null);
   const [pricingConfig, setPricingConfig] = useState(null);
   const [amountPulse, setAmountPulse] = useState(false);
   const [codAvailability, setCodAvailability] = useState(null);
@@ -261,10 +264,38 @@ export function CheckoutPage() {
   const unlockedSteps = useMemo(() => ["address", "summary", "payment"], []);
   const orderItems = useMemo(() => getSummaryItems(summary), [summary]);
   const totalAmount = useMemo(() => summary?.total || summary?.totalAmount || 0, [summary]);
+  const checkoutProductIds = useMemo(
+    () => (Array.isArray(cart?.items) ? cart.items : []).map((item) => item?.productId?._id || item?.productId).filter(Boolean).map(String),
+    [cart?.items]
+  );
   const getCheckoutItemKey = useCallback(
     (item) => `${extractProductId(item?.productId || item)}:${extractVariantId(item)}`,
     []
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRecommendations() {
+      if (!checkoutProductIds.length) {
+        setRecommendations(null);
+        return;
+      }
+      try {
+        const response = await getCheckoutRecommendations(checkoutProductIds);
+        if (!cancelled) {
+          setRecommendations(response?.data || null);
+        }
+      } catch {
+        if (!cancelled) {
+          setRecommendations(null);
+        }
+      }
+    }
+    loadRecommendations();
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutProductIds]);
 
   const priceBreakdown = useMemo(() => {
     if (!summary) return null;
@@ -892,8 +923,9 @@ export function CheckoutPage() {
           </button>
         </div>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="grid gap-5">
+        <div className="grid gap-6">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="grid gap-5">
             <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -1101,7 +1133,7 @@ export function CheckoutPage() {
                 ))}
               </div>
             </section>
-          </div>
+            </div>
 
           <aside className="xl:sticky xl:top-24 xl:self-start">
             <div className="grid gap-4">
@@ -1174,6 +1206,17 @@ export function CheckoutPage() {
               </div>
             </div>
           </aside>
+          </div>
+          <RecommendationSection
+            title="Checkout add-ons"
+            subtitle="Low-friction extras surfaced for the current basket."
+            items={recommendations?.addOns || []}
+          />
+          <RecommendationSection
+            title="Recently viewed"
+            subtitle="Quick access to products you explored before checkout."
+            items={recommendations?.recentlyViewed || []}
+          />
         </div>
       )}
 

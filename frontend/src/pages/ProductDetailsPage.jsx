@@ -3,9 +3,15 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { BackButton } from "../components/BackButton";
 import { ProductImageGallery } from "../components/ProductImageGallery";
 import { ProductReviewsSection } from "../components/ProductReviewsSection";
+import { RecommendationSection } from "../components/RecommendationSection";
 import * as productService from "../services/productService";
 import { getAttributes } from "../services/attributeService";
 import { getProductModules } from "../services/productModuleService";
+import {
+  getProductRecommendations,
+  trackGuestRecentlyViewed,
+  trackRecentlyViewed,
+} from "../services/recommendationService";
 import { useAuthStore } from "../context/authStore";
 import { formatCurrency } from "../utils/formatCurrency";
 import { getDefaultVariant, getVariantGroups } from "../utils/productVariants";
@@ -130,6 +136,7 @@ export function ProductDetailsPage() {
   const [attributeGroups, setAttributeGroups] = useState({});
   const [productModules, setProductModules] = useState([]);
   const [selectedAttributes, setSelectedAttributes] = useState({});
+  const [recommendations, setRecommendations] = useState(null);
 
   useEffect(() => {
     const trackingContext = loadTrackingContext();
@@ -232,6 +239,39 @@ export function ProductDetailsPage() {
       cancelled = true;
     };
   }, [product?.categoryId, product?.subCategoryId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRecommendations() {
+      if (!productId) {
+        setRecommendations(null);
+        return;
+      }
+      try {
+        const response = await getProductRecommendations(productId);
+        if (!cancelled) {
+          setRecommendations(response?.data || null);
+        }
+      } catch {
+        if (!cancelled) {
+          setRecommendations(null);
+        }
+      }
+    }
+    loadRecommendations();
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+
+  useEffect(() => {
+    if (!product?._id) return;
+    if (isAuthenticated) {
+      trackRecentlyViewed(product._id).catch(() => {});
+      return;
+    }
+    trackGuestRecentlyViewed(product);
+  }, [isAuthenticated, product]);
 
   const variants = useMemo(
     () => (Array.isArray(product?.variants) ? product.variants.filter((item) => item?.isActive !== false) : []),
@@ -480,6 +520,28 @@ export function ProductDetailsPage() {
           </section>
 
           <ProductReviewsSection productId={product._id} />
+          <RecommendationSection
+            title="Related products"
+            subtitle="Similar category, brand, price, and popularity signals."
+            items={recommendations?.related || []}
+          />
+          <RecommendationSection
+            title="Frequently bought together"
+            subtitle="Bundle-style combinations based on order history."
+            items={recommendations?.frequentlyBoughtTogether || []}
+            mode="bundle"
+            bundleTotal={recommendations?.bundleTotal || 0}
+          />
+          <RecommendationSection
+            title="Similar products"
+            subtitle="Close matches based on configurable scoring rules."
+            items={recommendations?.similar || []}
+          />
+          <RecommendationSection
+            title="Recently viewed"
+            subtitle="Jump back into products you've explored recently."
+            items={recommendations?.recentlyViewed || []}
+          />
         </div>
 
         <aside className="xl:sticky xl:top-24 xl:self-start">
