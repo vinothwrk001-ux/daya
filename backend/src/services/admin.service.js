@@ -288,6 +288,41 @@ async function removeVendor(vendorId, actor, meta) {
   return { user: updatedUser };
 }
 
+async function resetPlatformData() {
+  const mongoose = require("mongoose");
+  const db = mongoose.connection.db;
+  const collections = await db.listCollections().toArray();
+  const systemCollections = new Set(["system.indexes", "system.profile"]);
+  const deletionStats = {
+    collectionsCleared: 0,
+    deletedDocuments: 0,
+  };
+
+  await Promise.all(
+    collections.map(async (collectionInfo) => {
+      const name = collectionInfo.name;
+      if (!name || systemCollections.has(name) || name.startsWith("system.")) {
+        return;
+      }
+
+      const collection = db.collection(name);
+      const result = await collection.deleteMany({});
+      deletionStats.collectionsCleared += 1;
+      deletionStats.deletedDocuments += result.deletedCount || 0;
+    })
+  );
+
+  await auditService.log({
+    actor: { role: "system" },
+    action: "admin.platform.data_reset",
+    entityType: "System",
+    entityId: null,
+    metadata: deletionStats,
+  });
+
+  return deletionStats;
+}
+
 function resolveVariant(product, variantId = "") {
   const variants = Array.isArray(product?.variants) ? product.variants : [];
   if (!variants.length) return null;
@@ -994,6 +1029,7 @@ module.exports = {
   saveShippingModes,
   softDeleteOrder,
   updateOrderStatus,
+  resetPlatformData,
   listPayouts,
   listReviews,
   deleteReview,

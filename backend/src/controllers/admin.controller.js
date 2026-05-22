@@ -331,6 +331,16 @@ const deleteReview = asyncHandler(async (req, res) => {
   return ok(res, result, "Review deleted");
 });
 
+const resetPlatformData = asyncHandler(async (req, res) => {
+  const confirmation = req.body?.confirmation;
+  if (confirmation !== "RESET ALL DATA") {
+    throw new AppError("Invalid confirmation text", 400, "VALIDATION_ERROR");
+  }
+
+  const result = await adminService.resetPlatformData();
+  return ok(res, result, "Platform data reset completed");
+});
+
 const dailyRevenue = asyncHandler(async (req, res) => {
   const days = Number(req.query.days || 7);
   if (days < 1 || days > 90) {
@@ -381,5 +391,6 @@ module.exports = {
   saveShippingModes,
   deleteOrder,
   deleteReview,
+  resetPlatformData,
   updateOrderStatus,
 };

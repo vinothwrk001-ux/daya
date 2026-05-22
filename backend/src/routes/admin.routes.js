@@ -67,6 +67,12 @@ router.get("/revenue/vendors", requireLegacyAdminPermission("analytics:read"), r
 router.get("/revenue/export", requireLegacyAdminPermission("analytics:read"), revenueController.exportRevenue);
 router.get("/daily-revenue", requireWorkspacePermission("analytics.read"), adminController.dailyRevenue);
 router.get("/audit-logs", requireLegacyAdminPermission("audit:read"), adminController.listAuditLogs);
+router.post(
+  "/system/reset-data",
+  requireLegacyAdminPermission("settings:update"),
+  express.json(),
+  adminController.resetPlatformData
+);
 
 router.get("/users", requireWorkspacePermission("users.read"), adminController.listUsers);
 router.post("/users", requireWorkspacePermission("users.create"), adminController.createUser);
