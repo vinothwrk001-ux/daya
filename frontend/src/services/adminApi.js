@@ -37,6 +37,15 @@ export async function getDailyRevenue(days = 7) {
   return data;
 }
 
+export async function resetPlatformData(confirmation) {
+  const { data } = await adminHttp.post(
+    "/api/admin/system/reset-data",
+    { confirmation },
+    { timeout: 120000 }
+  );
+  return data;
+}
+
 export async function getRevenueSummary(params = {}) {
   const { data } = await adminHttp.get("/api/admin/revenue", { params });
   return data;

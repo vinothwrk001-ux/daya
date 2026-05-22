@@ -10,7 +10,7 @@ import { useWishlist } from "../hooks/useWishlist";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { extractProductId, getAvailableProductVariant } from "../utils/cartState";
 
-export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[4/5]" }) {
+export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[4/5]", onProductClick }) {
   const navigate = useNavigate();
   const { cart, addItem: addCartItem } = useCart();
   const { openDrawer, showToast } = useCartDrawer();
@@ -121,16 +121,20 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
     : "text-xs text-slate-500 dark:text-slate-400 line-through";
   const stockClass = isEditorial ? "text-emerald-300" : "text-green-600 dark:text-green-400";
   const stockOutClass = isEditorial ? "text-rose-300" : "text-red-600 dark:text-red-400";
+  const navigateToProduct = () => {
+    onProductClick?.(product);
+    navigate(`/product/${product._id}`);
+  };
 
   return (
     <Motion.article
       whileHover={{ y: -8 }}
       transition={{ type: "spring", stiffness: 280, damping: 24 }}
-      onClick={() => navigate(`/product/${product._id}`)}
+      onClick={navigateToProduct}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          navigate(`/product/${product._id}`);
+          navigateToProduct();
         }
       }}
       role="link"

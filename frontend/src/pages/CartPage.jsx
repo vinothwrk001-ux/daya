@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
+import { FbtBundleSection } from "../components/FbtBundleSection";
 import { RecommendationSection } from "../components/RecommendationSection";
-import { getCartRecommendations } from "../services/recommendationService";
+import { getCartRecommendations, getFbtRecommendations } from "../services/recommendationService";
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatWeight, getFormattedWeight, getWeightUnit, getWeightValue } from "../utils/weight";
 import { useCart } from "../hooks/useCart";
+
+const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
 function normalizeError(err) {
   return err?.response?.data?.message || err?.message || "Request failed";
@@ -16,7 +19,8 @@ export function CartPage() {
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [recommendations, setRecommendations] = useState(null);
-  const { cart, isGuest, loading, refreshCart, updateItem, removeItem, validateCart } = useCart();
+  const [fbtBundle, setFbtBundle] = useState(null);
+  const { cart, isGuest, loading, refreshCart, addItem, updateItem, removeItem, validateCart } = useCart();
 
   async function refresh() {
     setError("");
@@ -50,13 +54,18 @@ export function CartPage() {
         return;
       }
       try {
-        const response = await getCartRecommendations(productIds);
+        const response = await getCartRecommendations(productIds, { limit: RECOMMENDATION_CONTAINER_LIMIT });
+        const fbtResponse = productIds[0]
+          ? await getFbtRecommendations(productIds[0], { limit: RECOMMENDATION_CONTAINER_LIMIT - 1 }).catch(() => ({ data: null }))
+          : { data: null };
         if (!cancelled) {
           setRecommendations(response?.data || null);
+          setFbtBundle(fbtResponse?.data || null);
         }
       } catch {
         if (!cancelled) {
           setRecommendations(null);
+          setFbtBundle(null);
         }
       }
     }
@@ -272,6 +281,47 @@ export function CartPage() {
             title="Recommended add-ons"
             subtitle="Cross-sell picks generated from cart contents and co-purchase behavior."
             items={recommendations?.crossSell || []}
+            layout="grid"
+            recommendationType="cross_sell"
+            surface="cart"
+            sourceProductId={productIds[0] || ""}
+          />
+          <FbtBundleSection fbt={fbtBundle} sourceProductId={productIds[0] || ""} surface="cart" onAddProduct={addItem} />
+          <RecommendationSection
+            title="Recommended for you"
+            subtitle="Personalized picks based on your shopping signals."
+            items={recommendations?.personalized || []}
+            layout="carousel"
+            recommendationType="personalized"
+            surface="cart"
+            sourceProductId={productIds[0] || ""}
+          />
+          <RecommendationSection
+            title="Trending now"
+            subtitle="Popular products customers are exploring right now."
+            items={recommendations?.trending || []}
+            layout="grid"
+            recommendationType="trending"
+            surface="cart"
+            sourceProductId={productIds[0] || ""}
+          />
+          <RecommendationSection
+            title="Recently viewed"
+            subtitle="Return to products you checked before opening the cart."
+            items={recommendations?.recentlyViewed || []}
+            layout="carousel"
+            recommendationType="recently_viewed"
+            surface="cart"
+            sourceProductId={productIds[0] || ""}
+          />
+          <RecommendationSection
+            title="Similar picks"
+            subtitle="More products close to your current cart item."
+            items={recommendations?.similar || []}
+            layout="grid"
+            recommendationType="similar"
+            surface="cart"
+            sourceProductId={productIds[0] || ""}
           />
         </div>
       )}

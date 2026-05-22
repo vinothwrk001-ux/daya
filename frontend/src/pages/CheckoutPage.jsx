@@ -8,12 +8,13 @@ import { InlineToast } from "../components/commerce/InlineToast";
 import { OrderSummaryCard } from "../components/commerce/OrderSummaryCard";
 import { PriceBreakdown } from "../components/commerce/PriceBreakdown";
 import { RecommendationSection } from "../components/RecommendationSection";
+import { FbtBundleSection } from "../components/FbtBundleSection";
 import { useAuthStore } from "../context/authStore";
 import { useCart } from "../hooks/useCart";
 import * as checkoutService from "../services/checkoutService";
 import * as paymentService from "../services/paymentService";
 import * as pricingService from "../services/pricingService";
-import { getCheckoutRecommendations } from "../services/recommendationService";
+import { getCheckoutRecommendations, getFbtRecommendations } from "../services/recommendationService";
 import * as userService from "../services/userService";
 import { extractProductId, extractVariantId, getCartItemKey } from "../utils/cartState";
 import { formatCurrency } from "../utils/formatCurrency";
@@ -31,6 +32,7 @@ import { saveRedirectAfterLogin } from "../utils/loginRedirect";
 import pendingCheckoutManager from "../utils/pendingCheckoutManager";
 
 const CHECKOUT_SUCCESS_STORAGE_KEY = "checkoutSuccessPayload";
+const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
 function normalizeError(err) {
   if (err?.code === "ECONNABORTED" || /timeout/i.test(String(err?.message || ""))) {
@@ -222,6 +224,7 @@ export function CheckoutPage() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const {
     cart,
+    addItem,
     updateItem,
     removeItem,
     validateCart,
@@ -243,6 +246,7 @@ export function CheckoutPage() {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [toast, setToast] = useState(null);
   const [recommendations, setRecommendations] = useState(null);
+  const [fbtBundle, setFbtBundle] = useState(null);
   const [pricingConfig, setPricingConfig] = useState(null);
   const [amountPulse, setAmountPulse] = useState(false);
   const [codAvailability, setCodAvailability] = useState(null);
@@ -281,13 +285,18 @@ export function CheckoutPage() {
         return;
       }
       try {
-        const response = await getCheckoutRecommendations(checkoutProductIds);
+        const response = await getCheckoutRecommendations(checkoutProductIds, { limit: RECOMMENDATION_CONTAINER_LIMIT });
+        const fbtResponse = checkoutProductIds[0]
+          ? await getFbtRecommendations(checkoutProductIds[0], { limit: RECOMMENDATION_CONTAINER_LIMIT - 1 }).catch(() => ({ data: null }))
+          : { data: null };
         if (!cancelled) {
           setRecommendations(response?.data || null);
+          setFbtBundle(fbtResponse?.data || null);
         }
       } catch {
         if (!cancelled) {
           setRecommendations(null);
+          setFbtBundle(null);
         }
       }
     }
@@ -1207,15 +1216,51 @@ export function CheckoutPage() {
             </div>
           </aside>
           </div>
+          <FbtBundleSection fbt={fbtBundle} sourceProductId={checkoutProductIds[0] || ""} surface="checkout" onAddProduct={addItem} />
           <RecommendationSection
             title="Checkout add-ons"
             subtitle="Low-friction extras surfaced for the current basket."
             items={recommendations?.addOns || []}
+            layout="grid"
+            recommendationType="cross_sell"
+            surface="checkout"
+            sourceProductId={checkoutProductIds[0] || ""}
           />
           <RecommendationSection
             title="Recently viewed"
             subtitle="Quick access to products you explored before checkout."
             items={recommendations?.recentlyViewed || []}
+            layout="carousel"
+            recommendationType="recently_viewed"
+            surface="checkout"
+            sourceProductId={checkoutProductIds[0] || ""}
+          />
+          <RecommendationSection
+            title="Trending now"
+            subtitle="Popular products customers are exploring right now."
+            items={recommendations?.trending || []}
+            layout="grid"
+            recommendationType="trending"
+            surface="checkout"
+            sourceProductId={checkoutProductIds[0] || ""}
+          />
+          <RecommendationSection
+            title="Recommended for you"
+            subtitle="Personalized products based on your shopping signals."
+            items={recommendations?.personalized || []}
+            layout="carousel"
+            recommendationType="personalized"
+            surface="checkout"
+            sourceProductId={checkoutProductIds[0] || ""}
+          />
+          <RecommendationSection
+            title="Better picks to consider"
+            subtitle="Higher-value alternatives related to your checkout items."
+            items={recommendations?.upsell || []}
+            layout="grid"
+            recommendationType="upsell"
+            surface="checkout"
+            sourceProductId={checkoutProductIds[0] || ""}
           />
         </div>
       )}

@@ -18,6 +18,7 @@ export function ProductCarousel({
   desktopItemsPerView = 6,
   tabletItemsPerView = 3,
   mobileItemsPerView = 1.5,
+  getProductCardProps = () => ({}),
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [itemsPerView, setItemsPerView] = useState(4);
@@ -209,7 +210,7 @@ export function ProductCarousel({
                   width: `${100 / itemsPerView}%`,
                 }}
               >
-                <ProductCard product={product} />
+                <ProductCard product={product} {...getProductCardProps(product)} />
               </div>
             ))}
           </Motion.div>

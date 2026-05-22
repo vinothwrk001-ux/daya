@@ -18,19 +18,26 @@ export async function getProductRecommendations(productId, params = {}) {
   return response.data;
 }
 
-export async function getCartRecommendations(productIds = []) {
+export async function getFbtRecommendations(productId, params = {}) {
+  const response = await api.get(`/api/recommendations/fbt/${productId}`, { params });
+  return response.data;
+}
+
+export async function getCartRecommendations(productIds = [], params = {}) {
   const response = await api.get("/api/recommendations/cart", {
     params: {
       productIds: productIds.join(","),
+      ...params,
     },
   });
   return response.data;
 }
 
-export async function getCheckoutRecommendations(productIds = []) {
+export async function getCheckoutRecommendations(productIds = [], params = {}) {
   const response = await api.get("/api/recommendations/checkout", {
     params: {
       productIds: productIds.join(","),
+      ...params,
     },
   });
   return response.data;
@@ -106,5 +113,60 @@ export async function clearRecommendationCache() {
 
 export async function getRecommendationAnalytics(params = {}) {
   const response = await adminHttp.get("/api/recommendations/admin/analytics", { params });
+  return response.data;
+}
+
+export async function getFbtSettings() {
+  const response = await adminHttp.get("/api/recommendations/admin/fbt/settings");
+  return response.data;
+}
+
+export async function updateFbtSettings(payload) {
+  const response = await adminHttp.put("/api/recommendations/admin/fbt/settings", payload);
+  return response.data;
+}
+
+export async function getFbtManualRules(params = {}) {
+  const response = await adminHttp.get("/api/recommendations/admin/fbt/manual", { params });
+  return response.data;
+}
+
+export async function saveFbtManualRule(payload) {
+  const response = await adminHttp.post("/api/recommendations/admin/fbt/manual", payload);
+  return response.data;
+}
+
+export async function updateFbtManualRule(id, payload) {
+  const response = await adminHttp.patch(`/api/recommendations/admin/fbt/manual/${id}`, payload);
+  return response.data;
+}
+
+export async function deleteFbtManualRule(id) {
+  const response = await adminHttp.delete(`/api/recommendations/admin/fbt/manual/${id}`);
+  return response.data;
+}
+
+export async function runFbtFullRebuild() {
+  const response = await adminHttp.post("/api/recommendations/admin/fbt/rebuild/full");
+  return response.data;
+}
+
+export async function runFbtIncrementalRebuild() {
+  const response = await adminHttp.post("/api/recommendations/admin/fbt/rebuild/incremental");
+  return response.data;
+}
+
+export async function clearFbtCache() {
+  const response = await adminHttp.post("/api/recommendations/admin/fbt/cache/clear");
+  return response.data;
+}
+
+export async function warmFbtCache(limit = 100) {
+  const response = await adminHttp.post("/api/recommendations/admin/fbt/cache/warm", { limit });
+  return response.data;
+}
+
+export async function getFbtAnalytics(params = {}) {
+  const response = await adminHttp.get("/api/recommendations/admin/fbt/analytics", { params });
   return response.data;
 }

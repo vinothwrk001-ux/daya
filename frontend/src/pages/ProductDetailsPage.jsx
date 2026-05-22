@@ -3,12 +3,14 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { BackButton } from "../components/BackButton";
 import { ProductImageGallery } from "../components/ProductImageGallery";
 import { ProductReviewsSection } from "../components/ProductReviewsSection";
+import { FbtBundleSection } from "../components/FbtBundleSection";
 import { RecommendationSection } from "../components/RecommendationSection";
 import * as productService from "../services/productService";
 import { getAttributes } from "../services/attributeService";
 import { getProductModules } from "../services/productModuleService";
 import {
   getProductRecommendations,
+  getFbtRecommendations,
   trackGuestRecentlyViewed,
   trackRecentlyViewed,
 } from "../services/recommendationService";
@@ -23,6 +25,8 @@ import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
 import pendingActionManager from "../utils/pendingActionManager";
 import { getCartErrorMessage } from "../utils/cartErrors";
+
+const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
 function buildVariantMatch(variants = [], selectedAttributes = {}) {
   return (
@@ -137,6 +141,7 @@ export function ProductDetailsPage() {
   const [productModules, setProductModules] = useState([]);
   const [selectedAttributes, setSelectedAttributes] = useState({});
   const [recommendations, setRecommendations] = useState(null);
+  const [fbtBundle, setFbtBundle] = useState(null);
 
   useEffect(() => {
     const trackingContext = loadTrackingContext();
@@ -248,13 +253,23 @@ export function ProductDetailsPage() {
         return;
       }
       try {
-        const response = await getProductRecommendations(productId);
+        const response = await getProductRecommendations(productId, {
+          relatedLimit: RECOMMENDATION_CONTAINER_LIMIT,
+          bundleLimit: RECOMMENDATION_CONTAINER_LIMIT,
+          similarLimit: RECOMMENDATION_CONTAINER_LIMIT,
+          personalizedLimit: RECOMMENDATION_CONTAINER_LIMIT,
+          recentlyViewedLimit: RECOMMENDATION_CONTAINER_LIMIT,
+          upsellLimit: RECOMMENDATION_CONTAINER_LIMIT,
+        });
+        const fbtResponse = await getFbtRecommendations(productId, { limit: RECOMMENDATION_CONTAINER_LIMIT - 1 }).catch(() => ({ data: null }));
         if (!cancelled) {
           setRecommendations(response?.data || null);
+          setFbtBundle(fbtResponse?.data || null);
         }
       } catch {
         if (!cancelled) {
           setRecommendations(null);
+          setFbtBundle(null);
         }
       }
     }
@@ -334,6 +349,11 @@ export function ProductDetailsPage() {
       amountSaved: hasDiscount ? price - salePrice : 0,
     };
   }, [activeVariant, product]);
+
+  const visibleFbtBundle = useMemo(() => {
+    if (fbtBundle?.recommendations?.length) return fbtBundle;
+    return null;
+  }, [fbtBundle]);
 
   const stock = Number(activeVariant?.stock ?? product?.stock ?? 0);
   const productWeightLabel = useMemo(() => getFormattedWeight(product), [product]);
@@ -520,28 +540,6 @@ export function ProductDetailsPage() {
           </section>
 
           <ProductReviewsSection productId={product._id} />
-          <RecommendationSection
-            title="Related products"
-            subtitle="Similar category, brand, price, and popularity signals."
-            items={recommendations?.related || []}
-          />
-          <RecommendationSection
-            title="Frequently bought together"
-            subtitle="Bundle-style combinations based on order history."
-            items={recommendations?.frequentlyBoughtTogether || []}
-            mode="bundle"
-            bundleTotal={recommendations?.bundleTotal || 0}
-          />
-          <RecommendationSection
-            title="Similar products"
-            subtitle="Close matches based on configurable scoring rules."
-            items={recommendations?.similar || []}
-          />
-          <RecommendationSection
-            title="Recently viewed"
-            subtitle="Jump back into products you've explored recently."
-            items={recommendations?.recentlyViewed || []}
-          />
         </div>
 
         <aside className="xl:sticky xl:top-24 xl:self-start">
@@ -654,6 +652,51 @@ export function ProductDetailsPage() {
           </div>
         </aside>
       </div>
+
+      <section className="w-full space-y-6">
+        <FbtBundleSection
+          fbt={visibleFbtBundle}
+          sourceProductId={product._id}
+          surface="product_page"
+          onAddProduct={addCartItem}
+        />
+        <RecommendationSection
+          title="Related products"
+          subtitle="Similar category, brand, price, and popularity signals."
+          items={recommendations?.related || []}
+          layout="carousel"
+          recommendationType="related"
+          surface="product_page"
+          sourceProductId={product._id}
+        />
+        <RecommendationSection
+          title="Similar products"
+          subtitle="Close matches based on configurable scoring rules."
+          items={recommendations?.similar || []}
+          layout="grid"
+          recommendationType="similar"
+          surface="product_page"
+          sourceProductId={product._id}
+        />
+        <RecommendationSection
+          title="Better picks to consider"
+          subtitle="Higher-value alternatives and active catalog suggestions."
+          items={recommendations?.upsell || []}
+          layout="featured"
+          recommendationType="upsell"
+          surface="product_page"
+          sourceProductId={product._id}
+        />
+        <RecommendationSection
+          title="Recommended for you"
+          subtitle="Personalized picks based on your shopping signals."
+          items={recommendations?.personalized || []}
+          layout="carousel"
+          recommendationType="personalized"
+          surface="product_page"
+          sourceProductId={product._id}
+        />
+      </section>
     </div>
   );
 }
