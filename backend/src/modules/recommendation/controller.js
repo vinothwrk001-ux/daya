@@ -1,6 +1,7 @@
 const { ok } = require("../../utils/apiResponse");
 const { asyncHandler } = require("../../utils/asyncHandler");
 const recommendationService = require("./service");
+const { enqueueRecommendationJob } = require("./job");
 
 const getSettings = asyncHandler(async (req, res) => {
   const settings = await recommendationService.getSettings();
@@ -18,13 +19,18 @@ const preview = asyncHandler(async (req, res) => {
 });
 
 const rebuild = asyncHandler(async (req, res) => {
-  const data = await recommendationService.rebuildAll(req.user);
-  return ok(res, data, "Recommendation rebuild completed");
+  const data = await enqueueRecommendationJob("rebuild", req.user);
+  return ok(res, data, "Recommendation Rebuild Started", 202);
 });
 
 const clearCache = asyncHandler(async (req, res) => {
-  const data = await recommendationService.clearCache(req.user);
-  return ok(res, data, "Recommendation cache cleared");
+  const data = await enqueueRecommendationJob("cache_clear", req.user);
+  return ok(res, data, "Cache Cleared Successfully", 202);
+});
+
+const getJob = asyncHandler(async (req, res) => {
+  const data = await recommendationService.getJob(req.params.id);
+  return ok(res, data, "Recommendation job retrieved");
 });
 
 const analytics = asyncHandler(async (req, res) => {
@@ -35,6 +41,32 @@ const analytics = asyncHandler(async (req, res) => {
 const getProductRecommendations = asyncHandler(async (req, res) => {
   const data = await recommendationService.getProductPageRecommendations(req.params.productId, req.user?.sub || null, req.query);
   return ok(res, data, "Product recommendations retrieved");
+});
+
+const frequentlyBought = asyncHandler(async (req, res) => {
+  const productId = req.query.productId || req.params.productId;
+  const data = productId
+    ? await recommendationService.getFrequentlyBoughtTogether(productId, req.query)
+    : { items: [] };
+  return ok(res, data, "Frequently bought together recommendations retrieved");
+});
+
+const featured = asyncHandler(async (req, res) => {
+  const data = await recommendationService.getFeaturedProducts(req.query);
+  return ok(res, data, "Featured recommendations retrieved");
+});
+
+const trending = asyncHandler(async (req, res) => {
+  const data = await recommendationService.getTrendingProducts(req.query);
+  return ok(res, data, "Trending recommendations retrieved");
+});
+
+const related = asyncHandler(async (req, res) => {
+  const productId = req.query.productId || req.params.productId;
+  const data = productId
+    ? await recommendationService.getRelatedProducts(productId, req.query)
+    : { items: [] };
+  return ok(res, data, "Related recommendations retrieved");
 });
 
 const getCartRecommendations = asyncHandler(async (req, res) => {
@@ -104,8 +136,13 @@ module.exports = {
   preview,
   rebuild,
   clearCache,
+  getJob,
   analytics,
   getProductRecommendations,
+  frequentlyBought,
+  featured,
+  trending,
+  related,
   getCartRecommendations,
   getCheckoutRecommendations,
   getHomeRecommendations,

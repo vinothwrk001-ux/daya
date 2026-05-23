@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { AlertCircle, BarChart3, CheckCircle2, Eye, Loader2, RefreshCw, Save, SlidersHorizontal, Trash2, ToggleLeft } from "lucide-react";
 import { listProducts } from "../services/adminApi";
@@ -10,6 +10,7 @@ import {
   getFbtManualRules,
   getFbtSettings,
   getRecommendationAnalytics,
+  getRecommendationJob,
   getRecommendationSettings,
   previewRecommendations,
   rebuildRecommendations,
@@ -430,8 +431,14 @@ export function AdminCommerceIntelligencePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actionRunning, setActionRunning] = useState("");
+  const [rebuildJob, setRebuildJob] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const pollTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -587,11 +594,31 @@ export function AdminCommerceIntelligencePage() {
     setActionRunning(action);
     try {
       if (action === "rebuild") {
-        await rebuildRecommendations();
-        setMessage("Recommendation rebuild queued. You can continue working while it runs.");
+        const response = await rebuildRecommendations();
+        const job = response?.data || null;
+        setRebuildJob(job);
+        setMessage("Recommendation Rebuild Started");
+        if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
+        if (job?._id) {
+          pollTimerRef.current = window.setInterval(async () => {
+            try {
+              const jobResponse = await getRecommendationJob(job._id);
+              const nextJob = jobResponse?.data || null;
+              setRebuildJob(nextJob);
+              if (["completed", "failed"].includes(nextJob?.status)) {
+                window.clearInterval(pollTimerRef.current);
+                pollTimerRef.current = null;
+                setMessage(nextJob.status === "completed" ? "Completed Successfully" : "Rebuild Failed");
+                if (nextJob.status === "failed") setError(nextJob.error_message || "Rebuild Failed");
+              }
+            } catch (pollError) {
+              setError(normalizeError(pollError));
+            }
+          }, 2000);
+        }
       } else {
         await clearRecommendationCache();
-        setMessage("Recommendation cache clear queued. Fresh results will be generated after it finishes.");
+        setMessage("Cache Cleared Successfully");
       }
     } catch (actionError) {
       setError(normalizeError(actionError));
@@ -678,6 +705,21 @@ export function AdminCommerceIntelligencePage() {
             </button>
           </div>
         </div>
+        {rebuildJob ? (
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+            <div className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <span>{rebuildJob.status === "failed" ? "Rebuild Failed" : rebuildJob.status === "completed" ? "Completed Successfully" : "Progress"}</span>
+              <span>{Math.round(Number(rebuildJob.progress || 0))}%</span>
+            </div>
+            <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${rebuildJob.status === "failed" ? "bg-rose-500" : "bg-emerald-500"}`}
+                style={{ width: `${Math.min(100, Math.max(0, Number(rebuildJob.progress || 0)))}%` }}
+              />
+            </div>
+            {rebuildJob.error_message ? <div className="mt-2 text-sm text-rose-700">{rebuildJob.error_message}</div> : null}
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">

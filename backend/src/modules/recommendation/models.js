@@ -309,6 +309,26 @@ const recommendationLogSchema = new mongoose.Schema(
   }
 );
 
+const recommendationJobSchema = new mongoose.Schema(
+  {
+    job_type: { type: String, required: true, enum: ["rebuild", "cache_clear"], index: true },
+    status: { type: String, required: true, enum: ["queued", "running", "completed", "failed"], default: "queued", index: true },
+    progress: { type: Number, default: 0, min: 0, max: 100 },
+    started_at: { type: Date },
+    completed_at: { type: Date },
+    error_message: { type: String, default: "" },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    result: { type: mongoose.Schema.Types.Mixed, default: {} },
+  },
+  {
+    timestamps: true,
+    collection: "recommendation_jobs",
+  }
+);
+
+recommendationJobSchema.index({ createdAt: -1 });
+recommendationJobSchema.index({ status: 1, createdAt: -1 });
+
 module.exports = {
   RecommendationSettings:
     mongoose.models.RecommendationSettings ||
@@ -334,4 +354,7 @@ module.exports = {
   RecommendationLog:
     mongoose.models.RecommendationLog ||
     mongoose.model("RecommendationLog", recommendationLogSchema),
+  RecommendationJob:
+    mongoose.models.RecommendationJob ||
+    mongoose.model("RecommendationJob", recommendationJobSchema),
 };

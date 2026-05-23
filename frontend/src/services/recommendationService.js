@@ -23,6 +23,30 @@ export async function getFbtRecommendations(productId, params = {}) {
   return response.data;
 }
 
+export async function getFrequentlyBoughtRecommendations(productId, params = {}) {
+  const response = await api.get("/api/recommendations/frequently-bought", {
+    params: { productId, ...params },
+  });
+  return response.data;
+}
+
+export async function getFeaturedRecommendations(params = {}) {
+  const response = await api.get("/api/recommendations/featured", { params });
+  return response.data;
+}
+
+export async function getTrendingRecommendations(params = {}) {
+  const response = await api.get("/api/recommendations/trending", { params });
+  return response.data;
+}
+
+export async function getRelatedRecommendations(productId, params = {}) {
+  const response = await api.get("/api/recommendations/related", {
+    params: { productId, ...params },
+  });
+  return response.data;
+}
+
 export async function getCartRecommendations(productIds = [], params = {}) {
   const response = await api.get("/api/recommendations/cart", {
     params: {
@@ -108,6 +132,11 @@ export async function rebuildRecommendations() {
 
 export async function clearRecommendationCache() {
   const response = await adminHttp.post("/api/recommendations/admin/cache/clear");
+  return response.data;
+}
+
+export async function getRecommendationJob(jobId) {
+  const response = await adminHttp.get(`/api/recommendations/admin/jobs/${jobId}`);
   return response.data;
 }
 

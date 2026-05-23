@@ -3,14 +3,15 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { BackButton } from "../components/BackButton";
 import { ProductImageGallery } from "../components/ProductImageGallery";
 import { ProductReviewsSection } from "../components/ProductReviewsSection";
-import { FbtBundleSection } from "../components/FbtBundleSection";
 import { RecommendationSection } from "../components/RecommendationSection";
 import * as productService from "../services/productService";
 import { getAttributes } from "../services/attributeService";
 import { getProductModules } from "../services/productModuleService";
 import {
-  getProductRecommendations,
-  getFbtRecommendations,
+  getFeaturedRecommendations,
+  getFrequentlyBoughtRecommendations,
+  getRelatedRecommendations,
+  getTrendingRecommendations,
   trackGuestRecentlyViewed,
   trackRecentlyViewed,
 } from "../services/recommendationService";
@@ -27,6 +28,24 @@ import pendingActionManager from "../utils/pendingActionManager";
 import { getCartErrorMessage } from "../utils/cartErrors";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
+
+function unwrapRecommendationItems(response) {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.items)) return response.data.items;
+  if (Array.isArray(response?.items)) return response.items;
+  if (Array.isArray(response?.data?.data?.products)) return response.data.data.products;
+  if (Array.isArray(response?.data?.products)) return response.data.products;
+  if (Array.isArray(response?.products)) return response.products;
+  return [];
+}
+
+function withRecommendationTimeout(promise, fallback, ms = 6000) {
+  return Promise.race([
+    promise.catch(() => fallback),
+    new Promise((resolve) => window.setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
 
 function buildVariantMatch(variants = [], selectedAttributes = {}) {
   return (
@@ -142,6 +161,7 @@ export function ProductDetailsPage() {
   const [selectedAttributes, setSelectedAttributes] = useState({});
   const [recommendations, setRecommendations] = useState(null);
   const [fbtBundle, setFbtBundle] = useState(null);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
 
   useEffect(() => {
     const trackingContext = loadTrackingContext();
@@ -250,34 +270,53 @@ export function ProductDetailsPage() {
     async function loadRecommendations() {
       if (!productId) {
         setRecommendations(null);
+        setFbtBundle(null);
+        setRecommendationsLoading(false);
         return;
       }
+      setRecommendationsLoading(true);
       try {
-        const response = await getProductRecommendations(productId, {
-          relatedLimit: RECOMMENDATION_CONTAINER_LIMIT,
-          bundleLimit: RECOMMENDATION_CONTAINER_LIMIT,
-          similarLimit: RECOMMENDATION_CONTAINER_LIMIT,
-          personalizedLimit: RECOMMENDATION_CONTAINER_LIMIT,
-          recentlyViewedLimit: RECOMMENDATION_CONTAINER_LIMIT,
-          upsellLimit: RECOMMENDATION_CONTAINER_LIMIT,
+        const publicFallback = productService.getPublicProducts({
+          page: 1,
+          limit: RECOMMENDATION_CONTAINER_LIMIT + 1,
+          ...(product?.categoryId ? { categoryId: product.categoryId?._id || product.categoryId } : {}),
         });
-        const fbtResponse = await getFbtRecommendations(productId, { limit: RECOMMENDATION_CONTAINER_LIMIT - 1 }).catch(() => ({ data: null }));
+        const [fbtResponse, featuredResponse, trendingResponse, relatedResponse, fallbackResponse] = await Promise.all([
+          withRecommendationTimeout(getFrequentlyBoughtRecommendations(productId, { limit: RECOMMENDATION_CONTAINER_LIMIT }), { data: { items: [] } }),
+          withRecommendationTimeout(getFeaturedRecommendations({ limit: RECOMMENDATION_CONTAINER_LIMIT }), { data: { items: [] } }),
+          withRecommendationTimeout(getTrendingRecommendations({ limit: RECOMMENDATION_CONTAINER_LIMIT }), { data: { items: [] } }),
+          withRecommendationTimeout(getRelatedRecommendations(productId, { limit: RECOMMENDATION_CONTAINER_LIMIT }), { data: { items: [] } }),
+          withRecommendationTimeout(publicFallback, { data: { products: [] } }),
+        ]);
         if (!cancelled) {
-          setRecommendations(response?.data || null);
-          setFbtBundle(fbtResponse?.data || null);
+          const fallbackItems = unwrapRecommendationItems(fallbackResponse)
+            .filter((item) => String(item?._id) !== String(productId))
+            .slice(0, RECOMMENDATION_CONTAINER_LIMIT);
+          const featured = unwrapRecommendationItems(featuredResponse);
+          const trending = unwrapRecommendationItems(trendingResponse);
+          const related = unwrapRecommendationItems(relatedResponse);
+          const fbtItems = unwrapRecommendationItems(fbtResponse);
+          setRecommendations({
+            featured: featured.length ? featured : fallbackItems,
+            trending: trending.length ? trending : fallbackItems,
+            related: related.length ? related : fallbackItems,
+          });
+          setFbtBundle(fbtItems.length ? fbtItems : fallbackItems);
         }
       } catch {
         if (!cancelled) {
           setRecommendations(null);
           setFbtBundle(null);
         }
+      } finally {
+        if (!cancelled) setRecommendationsLoading(false);
       }
     }
     loadRecommendations();
     return () => {
       cancelled = true;
     };
-  }, [productId]);
+  }, [product?.categoryId, productId]);
 
   useEffect(() => {
     if (!product?._id) return;
@@ -351,8 +390,7 @@ export function ProductDetailsPage() {
   }, [activeVariant, product]);
 
   const visibleFbtBundle = useMemo(() => {
-    if (fbtBundle?.recommendations?.length) return fbtBundle;
-    return null;
+    return Array.isArray(fbtBundle) ? fbtBundle : [];
   }, [fbtBundle]);
 
   const stock = Number(activeVariant?.stock ?? product?.stock ?? 0);
@@ -539,7 +577,6 @@ export function ProductDetailsPage() {
             </div>
           </section>
 
-          <ProductReviewsSection productId={product._id} />
         </div>
 
         <aside className="xl:sticky xl:top-24 xl:self-start">
@@ -653,49 +690,68 @@ export function ProductDetailsPage() {
         </aside>
       </div>
 
-      <section className="w-full space-y-6">
-        <FbtBundleSection
-          fbt={visibleFbtBundle}
-          sourceProductId={product._id}
+      <ProductReviewsSection productId={product._id} />
+
+      <section className="relative left-1/2 w-screen max-w-none -translate-x-1/2 space-y-6">
+        <div className="w-full space-y-6">
+        <RecommendationSection
+          title="Frequently Bought Together"
+          items={visibleFbtBundle || []}
+          layout="carousel"
+          recommendationType="bundle"
           surface="product_page"
-          onAddProduct={addCartItem}
+          sourceProductId={product._id}
+          loading={recommendationsLoading}
+          showEmptyState
+          fullWidth
         />
         <RecommendationSection
-          title="Related products"
-          subtitle="Similar category, brand, price, and popularity signals."
+          title="Featured Products"
+          items={recommendations?.featured || recommendations?.upsell || []}
+          layout="featured"
+          recommendationType="featured"
+          surface="product_page"
+          sourceProductId={product._id}
+          featuredHeroPosition="left"
+          loading={recommendationsLoading}
+          showEmptyState
+          fullWidth
+        />
+        <RecommendationSection
+          title="Featured Products"
+          items={recommendations?.featured || recommendations?.personalized || []}
+          layout="featured"
+          recommendationType="featured"
+          surface="product_page"
+          sourceProductId={product._id}
+          featuredHeroPosition="right"
+          loading={recommendationsLoading}
+          showEmptyState
+          fullWidth
+        />
+        <RecommendationSection
+          title="Trending Products"
+          items={recommendations?.trending || []}
+          layout="grid"
+          recommendationType="trending"
+          surface="product_page"
+          sourceProductId={product._id}
+          loading={recommendationsLoading}
+          showEmptyState
+          fullWidth
+        />
+        <RecommendationSection
+          title="Related Products"
           items={recommendations?.related || []}
-          layout="carousel"
+          layout="grid"
           recommendationType="related"
           surface="product_page"
           sourceProductId={product._id}
+          loading={recommendationsLoading}
+          showEmptyState
+          fullWidth
         />
-        <RecommendationSection
-          title="Similar products"
-          subtitle="Close matches based on configurable scoring rules."
-          items={recommendations?.similar || []}
-          layout="grid"
-          recommendationType="similar"
-          surface="product_page"
-          sourceProductId={product._id}
-        />
-        <RecommendationSection
-          title="Better picks to consider"
-          subtitle="Higher-value alternatives and active catalog suggestions."
-          items={recommendations?.upsell || []}
-          layout="featured"
-          recommendationType="upsell"
-          surface="product_page"
-          sourceProductId={product._id}
-        />
-        <RecommendationSection
-          title="Recommended for you"
-          subtitle="Personalized picks based on your shopping signals."
-          items={recommendations?.personalized || []}
-          layout="carousel"
-          recommendationType="personalized"
-          surface="product_page"
-          sourceProductId={product._id}
-        />
+        </div>
       </section>
     </div>
   );

@@ -31,7 +31,11 @@ export function RecommendationSection({
   recommendationType,
   surface = "storefront",
   sourceProductId = "",
-  featuredHeroIntervalMs = 4500,
+  featuredHeroIntervalMs = 2000,
+  featuredHeroPosition = "left",
+  loading = false,
+  showEmptyState = false,
+  fullWidth = false,
 }) {
   const navigate = useNavigate();
   const visibleItems = useMemo(
@@ -41,6 +45,12 @@ export function RecommendationSection({
   const sectionLayout = mode === "bundle" ? "bundle" : String(layout || mode || "carousel").toLowerCase();
   const [featuredHeroIndex, setFeaturedHeroIndex] = useState(0);
   const resolvedRecommendationType = recommendationType || deriveRecommendationType(title, mode);
+  const panelClassName = fullWidth
+    ? "w-full border-y border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8"
+    : "mx-auto w-full max-w-[1440px] rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8";
+  const simplePanelClassName = fullWidth
+    ? "w-full border-y border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"
+    : "mx-auto w-full max-w-[1440px] rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6";
   const viewKey = useMemo(
     () => `${resolvedRecommendationType}:${surface}:${sourceProductId}:${visibleItems.map((item) => item?._id).filter(Boolean).join(",")}`,
     [visibleItems, resolvedRecommendationType, sourceProductId, surface]
@@ -74,7 +84,28 @@ export function RecommendationSection({
     return () => window.clearInterval(timer);
   }, [featuredHeroIntervalMs, sectionLayout, visibleItems.length]);
 
-  if (!visibleItems.length) return null;
+  if (loading) {
+    return (
+      <section className={simplePanelClassName}>
+        <div className="h-7 w-64 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+        {sectionLayout === "featured" ? <div className="mt-6 h-72 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /> : null}
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="aspect-[3/4] animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (!visibleItems.length) {
+    if (!showEmptyState) return null;
+    return (
+      <section className={fullWidth ? "w-full border-y border-dashed border-slate-300 bg-white p-6 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900" : "mx-auto w-full max-w-[1440px] rounded-[2rem] border border-dashed border-slate-300 bg-white p-6 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900"}>
+        No recommendations available
+      </section>
+    );
+  }
 
   function trackClick(product) {
     if (!product?._id) return;
@@ -110,7 +141,7 @@ export function RecommendationSection({
 
   if (sectionLayout === "grid") {
     return (
-      <section className="rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8">
+      <section className={panelClassName}>
         <div className="max-w-3xl">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500">Product discovery</p>
           <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white lg:text-3xl">{title}</h2>
@@ -138,7 +169,7 @@ export function RecommendationSection({
     }
 
     return (
-      <section className="rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8">
+      <section className={panelClassName}>
         <div className="max-w-3xl">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500">Product discovery</p>
           <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white lg:text-3xl">{title}</h2>
@@ -148,7 +179,7 @@ export function RecommendationSection({
           <button
             type="button"
             onClick={openHeroProduct}
-            className="mt-6 grid w-full overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-950 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl dark:border-slate-800 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]"
+            className={`mt-6 grid w-full overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-950 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl dark:border-slate-800 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] ${featuredHeroPosition === "right" ? "lg:[&>*:first-child]:order-2" : ""}`}
           >
             <div className="relative aspect-[16/7] min-h-64 overflow-hidden bg-slate-200 lg:aspect-auto">
               {heroImageUrl ? (
@@ -184,7 +215,7 @@ export function RecommendationSection({
             />
           ))}
         </div>
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-8">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
           {visibleItems.map((item) => (
             <ProductCard key={item._id} product={item} cardStyle="MINIMAL" imageAspectClass="aspect-[1/1]" onProductClick={trackClick} />
           ))}
@@ -194,7 +225,8 @@ export function RecommendationSection({
   }
 
   return (
-    <ProductCarousel
+    <div className={fullWidth ? "w-full" : "mx-auto w-full max-w-[1440px]"}>
+      <ProductCarousel
       title={title}
       subtitle={subtitle}
       items={visibleItems}
@@ -206,6 +238,7 @@ export function RecommendationSection({
         cardStyle: "MINIMAL",
         imageAspectClass: "aspect-[1/1]",
       })}
-    />
+      />
+    </div>
   );
 }

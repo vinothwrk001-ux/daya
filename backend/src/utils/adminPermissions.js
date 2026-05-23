@@ -40,6 +40,10 @@ const ALL_PERMISSIONS = [
   "settings:create",
   "settings:update",
   "settings:delete",
+  "recommendation:view",
+  "recommendation:manage",
+  "recommendation:rebuild",
+  "recommendation:cache:clear",
 ];
 
 const ROLE_PERMISSIONS = {

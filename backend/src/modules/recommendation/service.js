@@ -15,12 +15,13 @@ const {
   RecentlyViewed,
   RecommendationAnalytics,
   RecommendationLog,
+  RecommendationJob,
 } = require("./models");
 const cache = require("./cache");
 
 const DEFAULT_SETTINGS_KEY = "default";
 const PUBLIC_PRODUCT_QUERY = { status: "APPROVED", isActive: true };
-const CACHE_PREFIXES = ["related:product:", "bundle:product:", "crosssell:product:", "upsell:product:", "trending", "personalized:user:"];
+const CACHE_PREFIXES = ["related:product:", "bundle:product:", "crosssell:product:", "upsell:product:", "trending", "featured", "personalized:user:"];
 
 function normalizeObjectId(value) {
   if (!value) return null;
@@ -426,11 +427,8 @@ class RecommendationService {
       .lean();
 
     if (!relationships.length) {
-      await this.rebuildBundleRelationships();
-      relationships = await BundleRelationship.find({ baseProductId: productId })
-        .sort({ relationshipStrength: -1, frequencyScore: -1 })
-        .limit(limit)
-        .lean();
+      const fallback = await this.getRelatedProducts(productId, { limit });
+      return { items: fallback.items || [], bundleTotal: (fallback.items || []).reduce((sum, item) => sum + getProductPrice(item), 0) };
     }
 
     const productIds = relationships.map((item) => item.associatedProductId);
@@ -677,13 +675,16 @@ class RecommendationService {
   }
 
   async getProductPageRecommendations(productId, userId, options = {}) {
-    const [related, bundles, similar, personalized, recentlyViewed, upsell] = await Promise.all([
-      this.getRelatedProducts(productId, { limit: options.relatedLimit }),
-      this.getFrequentlyBoughtTogether(productId, { limit: options.bundleLimit }),
-      this.getSimilarProducts(productId, { limit: options.similarLimit }),
+    const limit = Number(options.limit || 20);
+    const [related, bundles, similar, personalized, recentlyViewed, upsell, trending, featured] = await Promise.all([
+      this.getRelatedProducts(productId, { limit: options.relatedLimit || limit }),
+      this.getFrequentlyBoughtTogether(productId, { limit: options.bundleLimit || limit }),
+      this.getSimilarProducts(productId, { limit: options.similarLimit || limit }),
       userId ? this.getPersonalizedRecommendations(userId, { limit: options.personalizedLimit || 6 }) : { items: [] },
       userId ? this.getRecentlyViewed(userId, { limit: options.recentlyViewedLimit || 8 }) : { items: [] },
       this.getUpsellProducts(productId, { limit: options.upsellLimit || 4 }),
+      this.getTrendingProducts({ limit: options.trendingLimit || limit }),
+      this.getFeaturedProducts({ limit: options.featuredLimit || limit }),
     ]);
 
     return {
@@ -696,7 +697,30 @@ class RecommendationService {
       personalized: personalized.items || [],
       recentlyViewed: recentlyViewed.items || [],
       upsell: upsell.items || [],
+      trending: trending.items || [],
+      featured: featured.items || [],
     };
+  }
+
+  async getFeaturedProducts(options = {}) {
+    const limit = Number(options.limit || 20);
+    const cached = await cache.getJson(`featured:limit:${limit}`);
+    if (cached && !options.skipCache) return cached;
+
+    const products = await Product.find(PUBLIC_PRODUCT_QUERY)
+      .sort({ isFeatured: -1, featuredRank: 1, "analytics.salesCount": -1, createdAt: -1 })
+      .limit(limit)
+      .lean();
+    const items = products.length ? products : (await this.getTrendingProducts({ limit })).items || [];
+    const payload = {
+      items,
+      heroImages: items
+        .flatMap((product) => (Array.isArray(product.images) ? product.images : []))
+        .filter((image) => image?.url)
+        .slice(0, 5),
+    };
+    await cache.setJson(`featured:limit:${limit}`, payload, 24 * 60 * 60);
+    return payload;
   }
 
   async getAnalyticsSummary({ days = 30 } = {}) {
@@ -766,12 +790,15 @@ class RecommendationService {
     return recommendations;
   }
 
-  async rebuildAll(actor) {
+  async rebuildAll(actor, progress = async () => {}) {
     const settings = await this.getSettings();
+    await progress(25);
     const result = await this.rebuildBundleRelationships();
+    await progress(75);
     settings.lastRebuiltAt = new Date();
     await settings.save();
     await this.clearCache(actor, false);
+    await progress(90);
     await auditService.log({
       actor,
       action: "recommendation.rebuild.run",
@@ -779,6 +806,7 @@ class RecommendationService {
       entityId: settings._id,
       metadata: result,
     });
+    await progress(100);
     return result;
   }
 
@@ -797,6 +825,25 @@ class RecommendationService {
       });
     }
     return { cleared: true };
+  }
+
+  async createJob(jobType, actor) {
+    return RecommendationJob.create({
+      job_type: jobType,
+      status: "queued",
+      progress: 0,
+      createdBy: normalizeObjectId(actor?.sub),
+    });
+  }
+
+  async getJob(jobId) {
+    const job = await RecommendationJob.findById(jobId).lean();
+    if (!job) throw new AppError("Recommendation job not found", 404, "RECOMMENDATION_JOB_NOT_FOUND");
+    return job;
+  }
+
+  async updateJob(jobId, patch = {}) {
+    return RecommendationJob.findByIdAndUpdate(jobId, { $set: patch }, { new: true });
   }
 }
 
