@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { LayoutDashboard, Loader, FolderTree, Settings, Users, Wallet } from "lucide-react";
 import { SidebarSection } from "./SidebarSection";
+import { BrandLogo } from "../BrandLogo";
 
 function pathMatches(pathname, targetPath) {
   return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
@@ -39,7 +40,7 @@ export function Sidebar({
       className="group fixed inset-y-0 left-0 z-40 flex flex-col border-r border-slate-200 bg-slate-50/95 backdrop-blur transition-all duration-300 ease-out dark:border-slate-800 dark:bg-slate-950/95 w-20 hover:w-80 lg:w-20 lg:hover:w-80"
     >
       <div className="flex flex-shrink-0 items-center gap-3 border-b border-slate-200 px-3 py-4 dark:border-slate-800">
-        <LayoutDashboard className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+        <BrandLogo showName={false} imgClassName="h-7 w-auto max-w-[44px] object-contain" />
         <div className="hidden truncate text-base font-semibold text-slate-950 dark:text-white sm:text-lg group-hover:block">
           {title}
         </div>

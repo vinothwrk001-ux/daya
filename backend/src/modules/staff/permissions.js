@@ -7,6 +7,7 @@ const STAFF_PERMISSION_CATALOG = Object.freeze({
   reviews: ["read", "delete"],
   analytics: ["read"],
   settings: ["update"],
+  branding: ["view", "create", "update", "delete"],
   roles: ["read", "create", "update", "delete"],
   staff: ["read", "create", "update", "delete"],
 });

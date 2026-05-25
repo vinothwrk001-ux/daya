@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bell,
+  Brush,
   Boxes,
   CreditCard,
   FileSearch,
@@ -105,6 +106,7 @@ export const ADMIN_SECTION_ITEMS = [
     key: "workspace",
     items: [
       { name: "Settings", path: "/admin/settings", permission: "settings.update", icon: Settings, notificationModule: "WORKSPACE", notificationSubModule: "SETTINGS" },
+      { name: "Company Branding", path: "/admin/settings/company-branding", permission: "branding.view", icon: Brush, notificationModule: "WORKSPACE", notificationSubModule: "SETTINGS" },
       { name: "Shipping", path: "/admin/shipping", permission: "settings.update", icon: Truck },
       { name: "Pricing", path: "/admin/pricing", permission: "settings.update", icon: Percent },
       { name: "Pricing Categories", path: "/admin/pricing-categories", permission: "settings.update", icon: Tags },

@@ -5,13 +5,14 @@ export const LEGACY_ROLE_PERMISSIONS = {
   super_admin: ["all"],
   support_admin: [
     "analytics.read",
+    "branding.view",
     "users.read",
     "users.update",
     "orders.read",
     "orders.update",
     "products.read",
   ],
-  finance_admin: ["analytics.read", "orders.read", "users.read", "products.read"],
+  finance_admin: ["analytics.read", "branding.view", "orders.read", "users.read", "products.read"],
 };
 
 export function hasStaffPermission(permissions, permission) {

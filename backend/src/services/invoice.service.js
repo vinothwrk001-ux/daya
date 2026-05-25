@@ -5,6 +5,7 @@ const InvoiceSettings = require("../models/InvoiceSettings");
 const InvoiceMetadata = require("../models/InvoiceMetadata");
 const InvoiceAuditLog = require("../models/InvoiceAuditLog");
 const { uploadMany } = require("../utils/upload");
+const { getPublicBranding } = require("./company-branding.service");
 const {
   buildOrderSummary,
   generateInvoiceNumber,
@@ -173,24 +174,40 @@ class InvoiceService {
   async buildInvoiceView(order, { actorRole = "admin", vendorId = null } = {}) {
     if (!order) throw new AppError("Order not found", 404, "NOT_FOUND");
     const settings = await this.getSettings();
+    const branding = await getPublicBranding();
     const metadata = await this.getOrCreateMetadata(order);
     const base = buildOrderSummary(order);
     const vendor = base.vendors?.[0] || {};
 
     const organization = {
       organizationName: metadata.organizationOverrides?.organizationName || settings.organizationName || base.support?.companyName || "",
-      legalCompanyName: metadata.organizationOverrides?.legalCompanyName || settings.legalCompanyName || settings.organizationName || "",
+      legalCompanyName:
+        metadata.organizationOverrides?.legalCompanyName ||
+        settings.legalCompanyName ||
+        branding.legalCompanyName ||
+        settings.organizationName ||
+        "",
       gstNumber: metadata.organizationOverrides?.gstNumber || settings.gstNumber || base.support?.taxId || "",
       cinNumber: settings.cinNumber || "",
-      supportEmail: metadata.organizationOverrides?.supportEmail || settings.supportEmail || base.support?.email || "",
-      supportPhone: metadata.organizationOverrides?.supportPhone || settings.supportPhone || base.support?.phone || "",
+      supportEmail:
+        metadata.organizationOverrides?.supportEmail ||
+        settings.supportEmail ||
+        branding.supportEmail ||
+        base.support?.email ||
+        "",
+      supportPhone:
+        metadata.organizationOverrides?.supportPhone ||
+        settings.supportPhone ||
+        branding.supportPhone ||
+        base.support?.phone ||
+        "",
       billingAddress: metadata.organizationOverrides?.billingAddress || settings.billingAddress || "",
       registeredAddress: metadata.organizationOverrides?.registeredAddress || settings.registeredAddress || "",
       taxLabel: metadata.gstLabel || settings.taxLabel || base.support?.taxLabel || "GST",
       invoicePrefix: settings.invoicePrefix || "INV",
       footerNotes: metadata.footerText || settings.footerNotes || "",
-      companyWebsite: settings.companyWebsite || base.support?.website || "",
-      logoUrl: settings.logoUrl || "",
+      companyWebsite: settings.companyWebsite || branding.websiteUrl || base.support?.website || "",
+      logoUrl: settings.logoUrl || branding.logos?.invoice || branding.logos?.primary || "",
       signatureUrl: settings.signatureUrl || "",
       bankDetails: settings.bankDetails || {},
     };
@@ -227,7 +244,7 @@ class InvoiceService {
       companyName: organization.organizationName || invoiceView.support?.companyName || "",
       email: organization.supportEmail || invoiceView.support?.email || "",
       phone: organization.supportPhone || invoiceView.support?.phone || "",
-      website: organization.companyWebsite || invoiceView.support?.website || "",
+      website: organization.companyWebsite || branding.websiteUrl || invoiceView.support?.website || "",
       taxLabel: organization.taxLabel || invoiceView.support?.taxLabel || "GST",
       taxId: organization.gstNumber || invoiceView.support?.taxId || "",
     };

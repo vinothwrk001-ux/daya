@@ -8,6 +8,8 @@ import * as staffAuthService from "../services/staffAuthService";
 import { validateAuthForm } from "../utils/authValidation";
 import { consumeRedirectAfterLogin } from "../utils/loginRedirect";
 import { continueAfterPrimaryAuth } from "../utils/postAuthContinuation";
+import { BrandLogo } from "../components/BrandLogo";
+import { useBranding } from "../context/BrandingContext";
 
 function normalizeError(err) {
   return (
@@ -31,6 +33,7 @@ function isAuthPageTarget(target) {
 }
 
 export function LoginPage() {
+  const { branding } = useBranding();
   const nav = useNavigate();
   const location = useLocation();
   const from = useMemo(() => location.state?.from?.pathname, [location.state]);
@@ -107,9 +110,10 @@ export function LoginPage() {
 
   return (
     <div className="mx-auto max-w-md">
+      <BrandLogo showName={false} className="mb-5 text-slate-950" imgClassName="h-12 w-auto object-contain" />
       <h1 className="text-2xl font-semibold tracking-tight">Login</h1>
       <p className="mt-2 text-slate-600">
-        Users can login with <span className="font-medium">phone</span>; vendors, admin, and staff can use email.
+        {branding?.tagline || "Users can login with phone; vendors, admin, and staff can use email."}
       </p>
 
       <form

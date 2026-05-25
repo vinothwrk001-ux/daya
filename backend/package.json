@@ -21,7 +21,8 @@
     "seed:orders:dates": "node src/scripts/seedOrdersByDate.js",
     "migrate:currency:inr": "node src/scripts/migrateCurrencyToINR.js",
     "migrate:pricing:categories": "node src/scripts/migratePricingCategories.js",
-    "migrate:indexes:session-ttl": "node src/scripts/reconcileSessionTtlIndexes.js"
+    "migrate:indexes:session-ttl": "node src/scripts/reconcileSessionTtlIndexes.js",
+    "migrate:company-branding": "node src/scripts/migrateCompanyBranding.js"
   },
   "keywords": [],
   "author": "",
@@ -51,6 +52,7 @@
     "pdfkit": "^0.18.0",
     "razorpay": "^2.9.4",
     "redis": "^4.6.13",
+    "sharp": "^0.34.5",
     "twilio": "^5.13.1",
     "winston": "^3.19.0"
   },

@@ -1,4 +1,6 @@
 const express = require("express");
+const path = require("path");
+const multer = require("multer");
 const { upload } = require("../middleware/upload");
 const {
   adminWorkspaceAuthRequired,
@@ -50,8 +52,30 @@ const commissionController = require("../controllers/commission.controller");
 const homepageContainerController = require("../controllers/homepage-container.controller");
 const homepageLayoutController = require("../controllers/homepage-layout.controller");
 const shippingConfigRoutes = require("./shippingConfig.routes");
+const companyBrandingController = require("../controllers/company-branding.controller");
+const { validateBrandingFiles } = require("../utils/validators/company-branding.validation");
 
 const router = express.Router();
+
+const brandingUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 7 },
+  fileFilter: (_req, file, cb) => {
+    const ext = String(path.extname(file.originalname || "") || "").toLowerCase();
+    const allowedExt = new Set([".png", ".svg", ".webp", ".ico"]);
+    const allowedMime = new Set([
+      "image/png",
+      "image/svg+xml",
+      "image/webp",
+      "image/x-icon",
+      "image/vnd.microsoft.icon",
+    ]);
+    if (!allowedExt.has(ext) || !allowedMime.has(file.mimetype)) {
+      return cb(new Error("UNSUPPORTED_FILE_TYPE"));
+    }
+    return cb(null, true);
+  },
+});
 
 router.use(adminWorkspaceAuthRequired);
 
@@ -334,6 +358,72 @@ router.patch(
   requireWorkspacePermission("settings.update", { legacyPermission: "settings:update" }),
   express.json(),
   pricingController.toggleMultipleRulesActive
+);
+
+router.get(
+  "/company-branding",
+  requireWorkspacePermission("branding.view", { legacyPermission: "branding:view" }),
+  companyBrandingController.getAdminConfig
+);
+router.post(
+  "/company-branding",
+  requireWorkspacePermission("branding.create", { legacyPermission: "branding:create" }),
+  brandingUpload.fields([
+    { name: "primaryLogo", maxCount: 1 },
+    { name: "darkLogo", maxCount: 1 },
+    { name: "mobileLogo", maxCount: 1 },
+    { name: "favicon", maxCount: 1 },
+    { name: "emailLogo", maxCount: 1 },
+    { name: "invoiceLogo", maxCount: 1 },
+    { name: "organizationLogo", maxCount: 1 },
+  ]),
+  (req, _res, next) => {
+    try {
+      validateBrandingFiles(req.files || {});
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+  companyBrandingController.saveAdminConfig
+);
+router.put(
+  "/company-branding/:id",
+  requireWorkspacePermission("branding.update", { legacyPermission: "branding:update" }),
+  brandingUpload.fields([
+    { name: "primaryLogo", maxCount: 1 },
+    { name: "darkLogo", maxCount: 1 },
+    { name: "mobileLogo", maxCount: 1 },
+    { name: "favicon", maxCount: 1 },
+    { name: "emailLogo", maxCount: 1 },
+    { name: "invoiceLogo", maxCount: 1 },
+    { name: "organizationLogo", maxCount: 1 },
+  ]),
+  (req, _res, next) => {
+    try {
+      validateBrandingFiles(req.files || {});
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+  companyBrandingController.saveAdminConfig
+);
+router.delete(
+  "/company-branding/logo/:id",
+  requireWorkspacePermission("branding.delete", { legacyPermission: "branding:delete" }),
+  express.json(),
+  companyBrandingController.removeLogo
+);
+router.get(
+  "/company-branding/:id/versions",
+  requireWorkspacePermission("branding.view", { legacyPermission: "branding:view" }),
+  companyBrandingController.getVersions
+);
+router.post(
+  "/company-branding/:id/rollback/:versionId",
+  requireWorkspacePermission("branding.update", { legacyPermission: "branding:update" }),
+  companyBrandingController.rollback
 );
 
 router.get(

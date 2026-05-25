@@ -5,6 +5,7 @@ import { PasswordField } from "../components/PasswordField";
 import * as authService from "../services/authService";
 import { validateAuthForm } from "../utils/authValidation";
 import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
+import { BrandLogo } from "../components/BrandLogo";
 import { continueAfterPrimaryAuth } from "../utils/postAuthContinuation";
 import pendingActionManager from "../utils/pendingActionManager";
 import pendingCheckoutManager from "../utils/pendingCheckoutManager";
@@ -65,6 +66,7 @@ export function RegisterPage() {
 
   return (
     <div className="mx-auto max-w-md">
+      <BrandLogo showName={false} className="mb-5 text-slate-950" imgClassName="h-12 w-auto object-contain" />
       <h1 className="text-2xl font-semibold tracking-tight">
         Register as {role === "vendor" ? "Vendor" : role === "influencer" ? "Influencer" : "User"}
       </h1>

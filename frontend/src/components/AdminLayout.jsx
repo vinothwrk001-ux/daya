@@ -127,6 +127,10 @@ const pageMeta = {
     title: "Settings",
     subtitle: "Admin workspace preferences and operational notes.",
   },
+  "/admin/settings/company-branding": {
+    title: "Company Branding",
+    subtitle: "Manage cross-channel logos, colors, SEO identity, and tenant-safe branding rollbacks.",
+  },
   "/admin/pricing": {
     title: "Pricing Configuration",
     subtitle: "Manage platform-wide pricing rules, fees, and discounts.",

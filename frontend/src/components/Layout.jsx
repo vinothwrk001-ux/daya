@@ -26,6 +26,8 @@ import * as wishlistService from "../services/wishlistService";
 import useGuestCartStore from "../context/guestCartStore";
 import useGuestWishlistStore from "../context/guestWishlistStore";
 import { normalizeCartPayload } from "../utils/cartState";
+import { useBranding } from "../context/BrandingContext";
+import { BrandLogo } from "./BrandLogo";
 
 export function Layout() {
   const navigate = useNavigate();
@@ -41,6 +43,7 @@ export function Layout() {
   const [wishlistCount, setWishlistCount] = useState(0);
   const { categories } = useCategories();
   const presentedCategories = usePresentedCategories(categories);
+  const { branding } = useBranding();
   const isAdminRoute =
     location.pathname === "/dashboard/admin" ||
     location.pathname.startsWith("/admin");
@@ -169,10 +172,11 @@ export function Layout() {
                     isScrolled ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
                   }`}
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 via-violet-500 to-orange-400 text-xs font-bold text-white">
-                    U
-                  </span>
-                  <span className="hidden sm:inline text-sm">UChooseMe</span>
+                  <BrandLogo
+                    showName={false}
+                    className="text-slate-950 dark:text-white"
+                    imgClassName="h-8 w-auto max-w-[140px] object-contain"
+                  />
                 </Link>
 
                 <div className="order-3 w-full lg:order-none lg:flex-1">
@@ -253,6 +257,7 @@ export function Layout() {
                       <Link
                         className="inline-flex rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_40px_-20px_rgba(129,140,248,0.9)] transition hover:shadow-[0_24px_60px_-20px_rgba(129,140,248,0.95)] active:scale-95"
                         to="/role"
+                        style={{ backgroundImage: `linear-gradient(90deg, ${branding?.brandColors?.primaryColor || "#6366f1"}, ${branding?.brandColors?.accentColor || "#ec4899"})` }}
                       >
                         Start
                       </Link>

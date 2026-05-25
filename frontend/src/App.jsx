@@ -125,6 +125,7 @@ import { StaffSettingsPage } from "./pages/StaffSettingsPage";
 import { StaffRolesPage } from "./pages/StaffRolesPage";
 import { StaffStaffPage } from "./pages/StaffStaffPage";
 import { StaffUnauthorizedPage } from "./pages/StaffUnauthorizedPage";
+import { AdminCompanyBrandingPage } from "./pages/AdminCompanyBrandingPage";
 import { InfluencerLayout } from "./pages/influencer/InfluencerLayout";
 import InfluencerDashboardPage from "./pages/influencer/dashboard.jsx";
 import InfluencerCampaignsPage from "./pages/influencer/campaigns.jsx";
@@ -286,6 +287,7 @@ export default function App() {
               <Route path="revenue" element={<AdminRevenuePage />} />
               <Route path="audit-logs" element={<AuditLogsPage />} />
               <Route path="settings" element={<AdminSettingsPage />} />
+              <Route path="settings/company-branding" element={<AdminCompanyBrandingPage />} />
               <Route path="pricing" element={<AdminPricingPage />} />
               <Route path="commission" element={<AdminCommissionManagementPage />} />
               <Route path="pricing-categories" element={<AdminPricingCategoriesPage />} />

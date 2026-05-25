@@ -1,14 +1,18 @@
 import { useEffect } from "react";
+import { useBranding } from "../context/BrandingContext";
 
 export function LegalPageLayout({ title, description, sections = [] }) {
+  const { branding } = useBranding();
+  const companyName = branding?.companyName || "UChooseMe";
+
   useEffect(() => {
     if (title) {
-      document.title = `${title} | UChooseMe`;
+      document.title = `${title} | ${companyName}`;
     }
     return () => {
-      document.title = "UChooseMe";
+      document.title = companyName;
     };
-  }, [title]);
+  }, [companyName, title]);
 
   return (
     <article className="mx-auto max-w-4xl">

@@ -27,6 +27,7 @@ const PREDEFINED_ROLES = [
       products: { read: true },
       reviews: { read: true, delete: true },
       analytics: { read: true },
+      branding: { view: true },
     }),
   },
   {
@@ -37,6 +38,7 @@ const PREDEFINED_ROLES = [
       payments: { read: true, refund: true },
       payouts: { read: true, process: true },
       analytics: { read: true },
+      branding: { view: true },
     }),
   },
   {
@@ -47,6 +49,7 @@ const PREDEFINED_ROLES = [
       products: { read: true, create: true, update: true, delete: true },
       analytics: { read: true },
       settings: { update: true },
+      branding: { view: true, update: true },
     }),
   },
 ];

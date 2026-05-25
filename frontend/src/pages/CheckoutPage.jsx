@@ -30,6 +30,7 @@ import {
 import { loadTrackingContext } from "../utils/influencerTracking";
 import { saveRedirectAfterLogin } from "../utils/loginRedirect";
 import pendingCheckoutManager from "../utils/pendingCheckoutManager";
+import { useBranding } from "../context/BrandingContext";
 
 const CHECKOUT_SUCCESS_STORAGE_KEY = "checkoutSuccessPayload";
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
@@ -221,6 +222,7 @@ function persistCheckoutSuccessPayload(payload) {
 
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const { branding } = useBranding();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const {
     cart,
@@ -794,14 +796,14 @@ export function CheckoutPage() {
         amount: razorpayData.amount,
         currency: razorpayData.currency,
         order_id: razorpayData.razorpayOrderId || razorpayData.orderId,
-        name: "UChooseMe",
+        name: branding?.companyName || "UChooseMe",
         description: "Secure checkout",
         prefill: {
           name: shippingAddress.fullName,
           contact: shippingAddress.phone,
         },
         theme: {
-          color: "#0f766e",
+          color: branding?.brandColors?.primaryColor || "#0f766e",
         },
         modal: {
           ondismiss: () => {

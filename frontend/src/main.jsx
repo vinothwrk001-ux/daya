@@ -5,11 +5,14 @@ import "./index.css";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import App from "./App.jsx";
+import { BrandingProvider } from "./context/BrandingContext.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <BrandingProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </BrandingProvider>
   </StrictMode>,
 );
