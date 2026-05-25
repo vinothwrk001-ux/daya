@@ -45,7 +45,8 @@ function authOptional(req, res, next) {
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user) return next(new AppError("Unauthorized", 401, "UNAUTHORIZED"));
-    if (!roles.includes(req.user.role)) {
+    const userRoles = Array.from(new Set([req.user.role, ...(req.user.roles || [])].filter(Boolean)));
+    if (!userRoles.some((role) => roles.includes(role))) {
       return next(new AppError("Forbidden", 403, "FORBIDDEN"));
     }
     next();

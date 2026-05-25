@@ -5,6 +5,26 @@ export async function getInfluencerDashboard() {
   return data;
 }
 
+export async function getInfluencerActivationWelcome() {
+  const { data } = await api.get("/api/influencer/activation/welcome");
+  return data;
+}
+
+export async function getInfluencerStorefront(params = {}) {
+  const { data } = await api.get("/api/influencer/storefront", { params });
+  return data;
+}
+
+export async function generateInfluencerAffiliateLink(payload) {
+  const { data } = await api.post("/api/influencer/generate-affiliate-link", payload);
+  return data;
+}
+
+export async function getInfluencerAnalytics() {
+  const { data } = await api.get("/api/influencer/analytics");
+  return data;
+}
+
 export async function getInfluencerEarnings(params = {}) {
   const { data } = await api.get("/api/influencer/earnings", { params });
   return data;
@@ -37,6 +57,21 @@ export async function listAdminInfluencers() {
 
 export async function moderateInfluencer(id, payload) {
   const { data } = await api.patch(`/api/influencer/admin/${id}/status`, payload);
+  return data;
+}
+
+export async function listInfluencerApplications(params = {}) {
+  const { data } = await api.get("/api/influencer/admin/applications", { params });
+  return data;
+}
+
+export async function getInfluencerApplicationReview(applicationId) {
+  const { data } = await api.get(`/api/influencer/admin/application/${applicationId}`);
+  return data;
+}
+
+export async function reviewInfluencerApplication(applicationId, payload) {
+  const { data } = await api.patch(`/api/influencer/admin/application/${applicationId}/review`, payload);
   return data;
 }
 

@@ -7,7 +7,7 @@ import { getCartRecommendations, getFbtRecommendations } from "../services/recom
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatWeight, getFormattedWeight, getWeightUnit, getWeightValue } from "../utils/weight";
 import { useCart } from "../hooks/useCart";
-import { SellerNameLink, VisitStoreButton } from "../components/seller/SellerNavigation";
+import { SellerNameLink } from "../components/seller/SellerNavigation";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -192,8 +192,7 @@ export function CartPage() {
                               </div>
                             )}
                             <div className="flex flex-wrap items-center gap-2 text-xs">
-                              <SellerNameLink seller={seller} />
-                              <VisitStoreButton seller={seller}>Visit Store</VisitStoreButton>
+                              <SellerNameLink seller={seller} showPrefix={false} />
                             </div>
                             {productWeightLabel && (
                               <div className="text-xs text-slate-500 dark:text-slate-400">

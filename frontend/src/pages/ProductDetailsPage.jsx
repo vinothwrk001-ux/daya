@@ -26,7 +26,7 @@ import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
 import pendingActionManager from "../utils/pendingActionManager";
 import { getCartErrorMessage } from "../utils/cartErrors";
-import { FollowStoreButton, SellerCard, SellerNameLink, StoreRatingDisplay, VisitStoreButton } from "../components/seller/SellerNavigation";
+import { SellerCard, SellerNameLink, StoreRatingDisplay } from "../components/seller/SellerNavigation";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -528,10 +528,6 @@ export function ProductDetailsPage() {
           <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 text-sm">
             <SellerNameLink seller={product?.sellerId} />
             <StoreRatingDisplay seller={product?.sellerId} rating={product?.sellerId?.rating || product?.ratings?.averageRating} />
-            <div className="flex gap-2 w-full sm:w-auto">
-              <VisitStoreButton seller={product?.sellerId} variant="primary" children="View Profile" className="flex-1 sm:flex-none" />
-              <FollowStoreButton seller={product?.sellerId} className="flex-1 sm:flex-none" />
-            </div>
           </div>
         </div>
         <BackButton fallbackTo="/shop" />
@@ -701,7 +697,7 @@ export function ProductDetailsPage() {
         </aside>
       </div>
 
-      <ProductReviewsSection productId={product._id} />
+      <ProductReviewsSection productId={product._id} product={product} />
 
       <section className="relative left-1/2 w-screen max-w-none -translate-x-1/2 space-y-6">
         <div className="w-full space-y-6">

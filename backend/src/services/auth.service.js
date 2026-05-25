@@ -18,6 +18,7 @@ function normalizeUser(user) {
     email: user.email,
     phone: user.phone,
     role: user.role,
+    roles: Array.from(new Set([user.role, ...(user.roles || [])].filter(Boolean))),
     status: user.status,
     avatarUrl: user.avatarUrl || null,
     preferences: user.preferences || {
@@ -100,6 +101,7 @@ async function register({ name, email, phone, password, role }, meta = {}) {
     phone: String(phone).trim(),
     password: hashed,
     role,
+    roles: [role],
     status: "active",
   });
 

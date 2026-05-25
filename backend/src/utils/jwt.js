@@ -12,6 +12,7 @@ function signAccessToken(user) {
   const payload = {
     sub: String(user._id),
     role: user.role,
+    roles: Array.from(new Set([user.role, ...(user.roles || [])].filter(Boolean))),
     email: user.email,
   };
 
@@ -24,6 +25,7 @@ function signRefreshToken({ user, sessionId }) {
     sub: String(user._id),
     sid: String(sessionId),
     role: user.role,
+    roles: Array.from(new Set([user.role, ...(user.roles || [])].filter(Boolean))),
   };
 
   const expiresIn = process.env.JWT_REFRESH_EXPIRES_IN || "30d";

@@ -141,6 +141,8 @@ function createApp() {
 
   app.use("/api/auth/login", authLimiter);
   app.use("/api/auth/register", authLimiter);
+  app.use("/api/influencer/register", authLimiter);
+  app.use("/api/influencer/social/verify", authLimiter);
   app.use("/api/auth/refresh", authLimiter);
   app.use("/api/staff/auth/login", authLimiter);
   app.use("/api/staff/auth/refresh", authLimiter);

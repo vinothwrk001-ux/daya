@@ -47,7 +47,7 @@ export function RoleSelectionPage() {
           <RoleCard
             title="Influencer"
             desc="Create shoppable reels, accept campaigns, and earn tracked commissions."
-            to="/register?role=influencer"
+            to="/register/influencer"
             state={location.state}
           />
         ) : (

@@ -1,12 +1,16 @@
 import { useMemo, useState } from "react";
 import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
-import { LayoutGrid, Clapperboard, Upload, Wallet, UserRound, Megaphone, X } from "lucide-react";
+import { LayoutGrid, Clapperboard, Upload, Wallet, UserRound, Megaphone, X, Store, Link2, BarChart3, Boxes } from "lucide-react";
 import { useAuthStore } from "../../context/authStore";
 import { usePlatformFeatures } from "../../context/PlatformFeaturesContext";
 import { Topbar } from "../../components/Topbar";
 
 const NAV = [
   { to: "/influencer/dashboard", label: "Overview", icon: LayoutGrid },
+  { to: "/influencer/welcome", label: "Welcome", icon: Store },
+  { to: "/influencer/collections", label: "Collections", icon: Boxes },
+  { to: "/influencer/affiliate-links", label: "Affiliate links", icon: Link2 },
+  { to: "/influencer/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/influencer/campaigns", label: "Campaigns", icon: Megaphone },
   { to: "/influencer/reels/upload", label: "Upload reel", icon: Upload },
   { to: "/influencer/reels", label: "My reels", icon: Clapperboard },
@@ -18,6 +22,22 @@ const PAGE_META = {
   "/influencer/dashboard": {
     title: "Creator overview",
     subtitle: "Earnings, attributed orders, clicks, and recent wallet activity.",
+  },
+  "/influencer/welcome": {
+    title: "Creator activation",
+    subtitle: "Badge, storefront, affiliate links, wallet, and setup checklist.",
+  },
+  "/influencer/collections": {
+    title: "Collections",
+    subtitle: "Curate products and share creator recommendations.",
+  },
+  "/influencer/affiliate-links": {
+    title: "Affiliate links",
+    subtitle: "Generate product, collection, campaign, and storefront tracking URLs.",
+  },
+  "/influencer/analytics": {
+    title: "Analytics",
+    subtitle: "Storefront, affiliate, conversion, and revenue metrics.",
   },
   "/influencer/campaigns": {
     title: "Campaigns",
@@ -54,7 +74,8 @@ export function InfluencerLayout() {
     return PAGE_META[hit] || PAGE_META["/influencer/dashboard"];
   }, [location.pathname]);
 
-  if (!user || user.role !== "influencer") {
+  const userRoles = Array.from(new Set([user?.role, ...(user?.roles || [])].filter(Boolean)));
+  if (!user || !userRoles.includes("influencer")) {
     return <Navigate to="/dashboard" replace />;
   }
 

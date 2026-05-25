@@ -15,6 +15,13 @@ import { HomePage } from "./pages/HomePage";
 import { RoleSelectionPage } from "./pages/RoleSelectionPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { InfluencerRegistrationStepOnePage } from "./pages/InfluencerRegistrationStepOnePage";
+import { InfluencerSocialVerificationPage } from "./pages/InfluencerSocialVerificationPage";
+import { InfluencerProfileInformationPage } from "./pages/InfluencerProfileInformationPage";
+import { InfluencerBusinessInformationPage } from "./pages/InfluencerBusinessInformationPage";
+import { InfluencerPaymentCommissionPage } from "./pages/InfluencerPaymentCommissionPage";
+import { InfluencerContentReviewPage } from "./pages/InfluencerContentReviewPage";
+import { InfluencerApplicationStatusPage, InfluencerApplicationUnderReviewPage } from "./pages/InfluencerApplicationStatusPage";
 import { DashboardRedirect } from "./pages/DashboardRedirect";
 import { UserDashboardPage } from "./pages/UserDashboardPage";
 import { VendorDashboardPage } from "./pages/VendorDashboardPage";
@@ -139,6 +146,11 @@ import InfluencerReelUploadPage from "./pages/influencer/reelUpload.jsx";
 import InfluencerReelsPage from "./pages/influencer/reels.jsx";
 import InfluencerEarningsPage from "./pages/influencer/earnings.jsx";
 import InfluencerProfilePage from "./pages/influencer/profile.jsx";
+import InfluencerWelcomePage from "./pages/influencer/welcome.jsx";
+import InfluencerAffiliateLinksPage from "./pages/influencer/affiliateLinks.jsx";
+import InfluencerAnalyticsPage from "./pages/influencer/analytics.jsx";
+import InfluencerCollectionsPage from "./pages/influencer/collections.jsx";
+import { InfluencerPublicStorefrontPage } from "./pages/InfluencerPublicStorefrontPage";
 import { AdminInfluencerPage } from "./pages/AdminInfluencerPage";
 import { AdminCommerceIntelligencePage } from "./pages/AdminCommerceIntelligencePage";
 
@@ -156,6 +168,20 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/staff/login" element={<Navigate to="/login" replace />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/register/influencer" element={<InfluencerRegistrationStepOnePage />} />
+        <Route path="/influencer/register" element={<InfluencerRegistrationStepOnePage />} />
+        <Route path="/influencer/register/social-verification" element={<InfluencerSocialVerificationPage />} />
+        <Route path="/influencer/register/social-profiles" element={<Navigate to="/influencer/register/social-verification" replace />} />
+        <Route path="/influencer/register/profile-information" element={<InfluencerProfileInformationPage />} />
+        <Route path="/influencer/register/creator-profile" element={<Navigate to="/influencer/register/profile-information" replace />} />
+        <Route path="/influencer/register/business-information" element={<InfluencerBusinessInformationPage />} />
+        <Route path="/influencer/register/payment-commission" element={<InfluencerPaymentCommissionPage />} />
+        <Route path="/influencer/register/payment-information" element={<Navigate to="/influencer/register/payment-commission" replace />} />
+        <Route path="/influencer/register/content-review" element={<InfluencerContentReviewPage />} />
+        <Route path="/influencer/register/identity-verification" element={<Navigate to="/influencer/register/content-review" replace />} />
+        <Route path="/influencer/application-under-review/:applicationId" element={<InfluencerApplicationUnderReviewPage />} />
+        <Route path="/influencer/application-status/:applicationId" element={<InfluencerApplicationStatusPage />} />
+        <Route path="/influencer/:slug" element={<InfluencerPublicStorefrontPage />} />
         <Route path="/shop" element={<ProductsPage />} />
         <Route path="/stores" element={<StoresPage />} />
         <Route path="/vendor/:vendorSlug" element={<VendorStorefrontPage />} />
@@ -198,6 +224,10 @@ export default function App() {
             <Route path="/influencer" element={<Navigate to="/influencer/dashboard" replace />} />
             <Route element={<InfluencerLayout />}>
               <Route path="/influencer/dashboard" element={<InfluencerDashboardPage />} />
+              <Route path="/influencer/welcome" element={<InfluencerWelcomePage />} />
+              <Route path="/influencer/collections" element={<InfluencerCollectionsPage />} />
+              <Route path="/influencer/affiliate-links" element={<InfluencerAffiliateLinksPage />} />
+              <Route path="/influencer/analytics" element={<InfluencerAnalyticsPage />} />
               <Route path="/influencer/campaigns" element={<InfluencerCampaignsPage />} />
               <Route path="/influencer/reels/upload" element={<InfluencerReelUploadPage />} />
               <Route path="/influencer/reels" element={<InfluencerReelsPage />} />

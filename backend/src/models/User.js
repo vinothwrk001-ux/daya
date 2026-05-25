@@ -25,6 +25,13 @@ const userSchema = new mongoose.Schema(
     },
     password: { type: String, required: true, minlength: 8, select: false },
     role: { type: String, enum: USER_ROLES, default: "user", index: true },
+    roles: {
+      type: [{ type: String, enum: USER_ROLES }],
+      default: function defaultRoles() {
+        return [this.role || "user"];
+      },
+      index: true,
+    },
     status: { type: String, enum: USER_STATUS, default: "active", index: true },
     avatarUrl: { type: String, trim: true },
     preferences: {

@@ -24,6 +24,11 @@ export async function getMe() {
   return data;
 }
 
+export async function refreshSession(refreshToken) {
+  const { data } = await api.post("/api/auth/refresh", { refreshToken });
+  return data;
+}
+
 export async function logout(refreshToken) {
   const { data } = await api.post("/api/auth/logout", { refreshToken });
   return data;

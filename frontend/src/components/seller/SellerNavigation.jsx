@@ -98,6 +98,19 @@ export function StoreRatingDisplay({ seller, rating }) {
   );
 }
 
+function getFollowedStoreSlugs(response) {
+  const payload = response?.data || response;
+  const rows = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.stores)
+      ? payload.stores
+      : [];
+
+  return rows
+    .map((row) => row?.vendor?.storeSlug || row?.storeSlug || row?.slug)
+    .filter(Boolean);
+}
+
 export function FollowStoreButton({ seller, initialFollowing = false, className = "" }) {
   const normalized = normalizeSeller(seller);
   const navigate = useNavigate();
@@ -116,9 +129,7 @@ export function FollowStoreButton({ seller, initialFollowing = false, className 
       try {
         setLoading(true);
         const followedStores = await getMyFollowedStores({ limit: 1000 });
-        const followedSlugs = Array.isArray(followedStores) 
-          ? followedStores.map(s => (s.storeSlug || s.slug))
-          : followedStores?.data?.map?.(s => (s.storeSlug || s.slug)) || [];
+        const followedSlugs = getFollowedStoreSlugs(followedStores);
         
         if (active) {
           const isFollowing = followedSlugs.includes(normalized.storeSlug);
@@ -271,10 +282,6 @@ export function SellerPreviewPopover({ seller }) {
               <span>{display?.productsCount || store?.vendor?.productsCount || 0} products</span>
             </span>
           </span>
-        </span>
-        <span className="mt-3 flex gap-2">
-          <VisitStoreButton seller={display} className="flex-1" />
-          <FollowStoreButton seller={display} initialFollowing={Boolean(store?.isFollowing)} className="flex-1" />
         </span>
       </span>
     </span>

@@ -11,9 +11,11 @@ const influencerWalletSchema = new mongoose.Schema(
       index: true,
     },
     availableBalance: { type: Number, min: 0, default: 0 },
+    pendingBalance: { type: Number, min: 0, default: 0 },
     totalEarnings: { type: Number, min: 0, default: 0 },
     reversedAmount: { type: Number, min: 0, default: 0 },
     withdrawnBalance: { type: Number, min: 0, default: 0 },
+    status: { type: String, enum: ["active", "inactive", "suspended"], default: "active", index: true },
   },
   {
     timestamps: true,
