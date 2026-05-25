@@ -233,15 +233,6 @@ function ProductCard({ product }) {
             </span>
           )}
         </div>
-
-        {/* Stock Status */}
-        <div className="text-xs font-medium">
-          {product.stock > 0 ? (
-            <span className="text-green-600 dark:text-green-400">In Stock</span>
-          ) : (
-            <span className="text-red-600 dark:text-red-400">Out of Stock</span>
-          )}
-        </div>
       </div>
     </Link>
   );

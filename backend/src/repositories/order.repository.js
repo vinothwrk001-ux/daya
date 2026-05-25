@@ -4,7 +4,8 @@ const { normalizeDateRange, applyDateRange } = require("../utils/dateRange");
 const { emitDomainEvent } = require("../modules/events/event-bus");
 const { INFLUENCER_EVENTS } = require("../modules/shared/constants");
 
-const SELLER_POPULATE_FIELDS = "companyName shopName supportPhone pickupAddress pickupLocations";
+const SELLER_POPULATE_FIELDS = "companyName shopName storeSlug logoUrl bannerUrl status isStoreVisible supportPhone pickupAddress pickupLocations";
+const SELLER_PUBLIC_FIELDS = "companyName shopName storeSlug logoUrl bannerUrl status isStoreVisible";
 
 function escapeRegex(value = "") {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -129,7 +130,7 @@ class OrderRepository {
 
   async findByIdForUser(id, userId) {
     return await Order.findOne({ _id: id, userId, isActive: true })
-      .populate("sellerId", SELLER_POPULATE_FIELDS)
+      .populate("sellerId", SELLER_PUBLIC_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
       .populate("items.productId", "name slug images")
       .exec();
@@ -170,7 +171,7 @@ class OrderRepository {
 
     const [orders, total] = await Promise.all([
       Order.find(query)
-        .populate("sellerId", SELLER_POPULATE_FIELDS)
+        .populate("sellerId", SELLER_PUBLIC_FIELDS)
         .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
         .populate("items.productId", "name slug images")
         .sort(sort)

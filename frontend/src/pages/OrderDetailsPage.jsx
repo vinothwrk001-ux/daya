@@ -12,6 +12,7 @@ import {
 } from "../services/userService";
 import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
+import { SellerCard, StoreRatingDisplay, VisitStoreButton } from "../components/seller/SellerNavigation";
 
 function normalizeError(err) {
   return err?.response?.data?.message || err?.message || "Failed to load order details.";
@@ -411,6 +412,18 @@ export function OrderDetailsPage() {
                 <KeyValue label="Order Status" value={order.status} />
                 <KeyValue label="Invoice Number" value={order.invoiceNumber} />
                 <KeyValue label="Estimated Delivery" value={order.estimatedDeliveryLabel || formatDate(order.estimatedDelivery)} />
+              </div>
+            </section>
+
+            <section className="print-card rounded-3xl border border-slate-200 p-5 dark:border-slate-800 print:rounded-none print:border print:border-slate-300">
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Seller</h2>
+              <div className="mt-4">
+                <SellerCard seller={order.sellerId || order.vendors?.[0]} compact />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+                <span>Store Rating:</span>
+                <StoreRatingDisplay seller={order.sellerId || order.vendors?.[0]} />
+                <VisitStoreButton seller={order.sellerId || order.vendors?.[0]}>Visit Seller Store</VisitStoreButton>
               </div>
             </section>
 

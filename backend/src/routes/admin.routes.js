@@ -53,6 +53,7 @@ const homepageContainerController = require("../controllers/homepage-container.c
 const homepageLayoutController = require("../controllers/homepage-layout.controller");
 const shippingConfigRoutes = require("./shippingConfig.routes");
 const companyBrandingController = require("../controllers/company-branding.controller");
+const vendorStorefrontController = require("../controllers/vendor-storefront.controller");
 const { validateBrandingFiles } = require("../utils/validators/company-branding.validation");
 
 const router = express.Router();
@@ -107,6 +108,8 @@ router.delete("/users/:id", requireWorkspacePermission("users.delete"), adminCon
 router.put("/user/:id/status", requireWorkspacePermission("users.update"), adminController.setUserStatus);
 
 router.get("/sellers", requireLegacyAdminPermission("vendors:read"), adminController.listVendors);
+router.get("/sellers/:id/store-analytics", requireLegacyAdminPermission("vendors:read"), vendorStorefrontController.adminStoreAnalytics);
+router.patch("/sellers/:id/store-moderation", requireLegacyAdminPermission("vendors:approve"), express.json(), vendorStorefrontController.adminModerateStore);
 router.patch("/sellers/:id/approve", requireLegacyAdminPermission("vendors:approve"), adminController.approveVendor);
 router.patch("/sellers/:id/reject", requireLegacyAdminPermission("vendors:reject"), express.json(), adminController.rejectVendor);
 router.get("/sellers/:id", requireLegacyAdminPermission("vendors:read"), adminController.getVendorDetails);

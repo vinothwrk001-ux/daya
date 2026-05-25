@@ -1,5 +1,7 @@
 const { ok } = require("../utils/apiResponse");
 const { asyncHandler } = require("../utils/asyncHandler");
+const { AppError } = require("../utils/AppError");
+const { uploadMany } = require("../utils/upload");
 const vendorService = require("../services/vendor.service");
 
 const step1 = asyncHandler(async (req, res) => {
@@ -39,5 +41,18 @@ const me = asyncHandler(async (req, res) => {
   return ok(res, vendor, "OK");
 });
 
-module.exports = { step1, step2, step3, step4, me };
+const uploadStoreMedia = asyncHandler(async (req, res) => {
+  const file = req.file;
+  if (!file) throw new AppError("Image file is required", 400, "FILE_REQUIRED");
+  if (!String(file.mimetype || "").startsWith("image/")) {
+    throw new AppError("Only image files are supported", 400, "FILE_TYPE");
+  }
+
+  const context = String(req.body?.context || "store").trim().toLowerCase();
+  const folder = context === "banner" ? "vendor_store_banners" : "vendor_store_logos";
+  const [uploaded] = await uploadMany([file], { folder });
+  return ok(res, uploaded, "Store media uploaded");
+});
+
+module.exports = { step1, step2, step3, step4, me, uploadStoreMedia };
 

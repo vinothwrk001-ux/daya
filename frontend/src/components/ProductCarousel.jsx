@@ -175,7 +175,7 @@ export function ProductCarousel({
       </div>
 
       {/* Carousel Container */}
-      <div className="relative mt-6">
+      <div className="relative mt-6 py-2">
         {/* Left Navigation Arrow */}
         <CarouselArrow
           direction="left"
@@ -187,7 +187,7 @@ export function ProductCarousel({
         {/* Product Carousel */}
         <div
           ref={containerRef}
-          className="overflow-hidden rounded-xl"
+          className="overflow-x-hidden overflow-y-visible rounded-xl"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >

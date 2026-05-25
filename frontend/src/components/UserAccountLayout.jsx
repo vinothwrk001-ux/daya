@@ -10,6 +10,7 @@ const navItems = [
   { label: "Orders", path: "/orders" },
   { label: "Addresses", path: "/addresses" },
   { label: "Wishlist", path: "/wishlist" },
+  { label: "Followed Stores", path: "/followed-stores" },
   { label: "Reviews", path: "/reviews" },
   { label: "Support", path: "/support" },
   { label: "Settings", path: "/settings" },

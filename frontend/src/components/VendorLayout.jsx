@@ -136,46 +136,49 @@ function VendorLayoutInner() {
     return <Navigate to="/dashboard" replace />;
   }
 
+  function handleMenuToggle() {
+    setSidebarOpen(!sidebarOpen);
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <div className="flex min-h-screen max-w-full overflow-x-hidden">
-        <Sidebar
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          title={sidebarData.title}
-          subtitle={sidebarData.subtitle}
-          primaryItem={sidebarData.primaryItem}
-          sections={sidebarData.sections}
-          loading={sidebarData.loading}
-          error={sidebarData.error}
-        />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar title={meta.title} subtitle={meta.subtitle} onMenuToggle={() => setSidebarOpen(true)} />
-          <main className="min-w-0 max-w-full flex-1 overflow-x-hidden px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs uppercase tracking-[0.22em] text-slate-400">
-                Seller workspace
-              </div>
-              <div className="flex flex-col gap-2 xs:flex-row xs:gap-3 text-xs sm:text-sm">
-                <Link 
-                  to="/vendor/dashboard" 
-                  className="inline-flex justify-center rounded-xl border border-slate-200 px-3 py-2 text-slate-700 hover:bg-white dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
-                >
-                  Overview
-                </Link>
-                {can("products.create") ? (
-                  <Link 
-                    to="/vendor/products/create" 
-                    className="inline-flex justify-center rounded-xl bg-slate-900 px-3 py-2 font-medium text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                  >
-                    Add Product
-                  </Link>
-                ) : null}
-              </div>
+    <div className={`flex min-h-screen max-w-full overflow-x-hidden bg-slate-100 dark:bg-slate-950 ${sidebarOpen ? "lg:ml-20" : "lg:ml-0"}`}>
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onNavigate={() => setSidebarOpen(false)}
+        title={sidebarData.title}
+        subtitle={sidebarData.subtitle}
+        primaryItem={sidebarData.primaryItem}
+        sections={sidebarData.sections}
+        loading={sidebarData.loading}
+        error={sidebarData.error}
+      />
+      <div className="flex min-w-0 max-w-full flex-1 flex-col">
+        <Topbar title={meta.title} subtitle={meta.subtitle} onMenuToggle={handleMenuToggle} sidebarOpen={sidebarOpen} />
+        <main className="min-w-0 max-w-full flex-1 overflow-x-hidden px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs uppercase tracking-[0.22em] text-slate-400">
+              Seller workspace
             </div>
-            <Outlet />
-          </main>
-        </div>
+            <div className="flex flex-col gap-2 xs:flex-row xs:gap-3 text-xs sm:text-sm">
+              <Link 
+                to="/vendor/dashboard" 
+                className="inline-flex justify-center rounded-xl border border-slate-200 px-3 py-2 text-slate-700 hover:bg-white dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+              >
+                Overview
+              </Link>
+              {can("products.create") ? (
+                <Link 
+                  to="/vendor/products/create" 
+                  className="inline-flex justify-center rounded-xl bg-slate-900 px-3 py-2 font-medium text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                >
+                  Add Product
+                </Link>
+              ) : null}
+            </div>
+          </div>
+          <Outlet />
+        </main>
       </div>
     </div>
   );

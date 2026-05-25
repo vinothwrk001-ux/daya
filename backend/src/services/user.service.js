@@ -535,7 +535,11 @@ class UserService {
       .sort({ createdAt: -1 })
       .populate({
         path: "productId",
-        select: "name category price discountPrice images stock status isActive slug variants",
+        select: "name category price discountPrice images stock status isActive slug variants sellerId ratings",
+        populate: {
+          path: "sellerId",
+          select: "companyName shopName storeSlug logoUrl status isStoreVisible",
+        },
       });
 
     return items

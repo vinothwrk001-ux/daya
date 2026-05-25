@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { approveSeller, listSellers, rejectSeller } from "../services/adminApi";
+import { approveSeller, listSellers, moderateVendorStore, rejectSeller } from "../services/adminApi";
 import { ReportingToolbar } from "../components/ReportingToolbar";
 import { StatusBadge } from "../components/StatusBadge";
 import { InlineToast } from "../components/commerce/InlineToast";
@@ -79,6 +79,23 @@ export function AdminSellersPage() {
     try {
       const res = await rejectSeller(id, reason);
       setSellers((current) => current.map((item) => (item._id === id ? res.data : item)));
+    } catch (err) {
+      setError(normalizeError(err));
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function handleStoreModeration(id, action) {
+    setBusyId(id);
+    setError("");
+    try {
+      await moderateVendorStore(id, { action });
+      const res = await listSellers({
+        ...(status ? { status } : {}),
+        ...reporting.appliedParams,
+      });
+      setSellers(res.data);
     } catch (err) {
       setError(normalizeError(err));
     } finally {
@@ -191,6 +208,22 @@ export function AdminSellersPage() {
                   className="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200 sm:w-auto"
                 >
                   Reject
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === seller._id}
+                  onClick={() => handleStoreModeration(seller._id, seller.isStoreFeatured ? "unfeature" : "feature")}
+                  className="w-full rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50 sm:w-auto"
+                >
+                  {seller.isStoreFeatured ? "Unfeature Store" : "Feature Store"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === seller._id}
+                  onClick={() => handleStoreModeration(seller._id, seller.isStoreVisible === false ? "show" : "hide")}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 sm:w-auto"
+                >
+                  {seller.isStoreVisible === false ? "Show Store" : "Hide Store"}
                 </button>
               </div>
             </div>

@@ -10,6 +10,7 @@ import {
   requestUserReturn,
 } from "../services/userService";
 import { formatCurrency } from "../utils/formatCurrency";
+import { SellerCard, VisitStoreButton } from "../components/seller/SellerNavigation";
 
 function normalizeError(err) {
   return err?.response?.data?.message || err?.message || "Failed to load orders.";
@@ -165,6 +166,7 @@ export function OrdersPage() {
                 </div>
 
                 <div className="mt-4 grid gap-3">
+                  <SellerCard seller={order.sellerId} compact />
                   {(order.items || []).map((item) => (
                     <div key={`${order._id}-${item.productId}`} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
                       <div className="min-w-0">
@@ -197,6 +199,7 @@ export function OrdersPage() {
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <VisitStoreButton seller={order.sellerId}>Visit Seller Store</VisitStoreButton>
                     <button
                       type="button"
                       disabled={busyId === order._id}

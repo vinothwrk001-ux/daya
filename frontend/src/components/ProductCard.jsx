@@ -235,17 +235,6 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
             )}
           </div>
         </div>
-
-        {/* Stock Status */}
-        <div className="text-xs font-medium">
-          {hasAvailableVariants ? (
-            <span className={stockClass}>
-              {selectedVariant ? `${selectedVariant.title} — ${availableStock} left` : `In stock (${availableStock} available)`}
-            </span>
-          ) : (
-            <span className={stockOutClass}>Out of stock</span>
-          )}
-        </div>
       </div>
     </Motion.article>
   );

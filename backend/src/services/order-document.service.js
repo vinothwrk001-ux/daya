@@ -226,7 +226,9 @@ function buildOrderSnapshot(order, options = {}) {
       {
         sellerId: String(seller?._id || seller || ""),
         name: seller?.shopName || seller?.companyName || "Platform Store",
-        supportPhone: seller?.supportPhone || SUPPORT_PHONE,
+        storeSlug: seller?.storeSlug || "",
+        logoUrl: seller?.logoUrl || "",
+        verified: seller?.status === "approved",
       },
     ],
     items,
@@ -267,7 +269,7 @@ function buildOrderSnapshot(order, options = {}) {
     },
     support: {
       email: SUPPORT_EMAIL,
-      phone: seller?.supportPhone || SUPPORT_PHONE,
+      phone: SUPPORT_PHONE,
       website: COMPANY_WEBSITE,
       companyName: COMPANY_NAME,
       taxLabel: COMPANY_TAX_LABEL,

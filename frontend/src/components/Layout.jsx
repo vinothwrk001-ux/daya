@@ -29,6 +29,35 @@ import { normalizeCartPayload } from "../utils/cartState";
 import { useBranding } from "../context/BrandingContext";
 import { BrandLogo } from "./BrandLogo";
 
+const VENDOR_WORKSPACE_SEGMENTS = new Set([
+  "analytics",
+  "dashboard",
+  "delivery",
+  "earnings",
+  "finance",
+  "influencer-commerce",
+  "inventory",
+  "notifications",
+  "offers",
+  "onboarding",
+  "orders",
+  "payouts",
+  "pickups",
+  "products",
+  "returns",
+  "reviews",
+  "settings",
+  "status",
+  "support",
+]);
+
+function isVendorWorkspacePath(pathname) {
+  if (pathname === "/vendor") return true;
+  if (!pathname.startsWith("/vendor/")) return false;
+  const segment = pathname.split("/").filter(Boolean)[1];
+  return VENDOR_WORKSPACE_SEGMENTS.has(segment);
+}
+
 export function Layout() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -47,9 +76,10 @@ export function Layout() {
   const isAdminRoute =
     location.pathname === "/dashboard/admin" ||
     location.pathname.startsWith("/admin");
-  const isVendorWorkspace = location.pathname.startsWith("/vendor/");
+  const isVendorWorkspace = isVendorWorkspacePath(location.pathname);
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
   const isInfluencerWorkspace = location.pathname.startsWith("/influencer");
+  const hideShopChrome = isAdminRoute || isVendorWorkspace || isStaffWorkspace || isInfluencerWorkspace;
   const showShopActions = !user || user?.role === "user";
 
   // Detect scroll with requestAnimationFrame for smooth performance
@@ -73,6 +103,7 @@ export function Layout() {
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Shop", href: "/shop" },
+    { label: "Stores", href: "/stores" },
     { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },
   ];
 
@@ -161,7 +192,7 @@ export function Layout() {
   return (
     <CartDrawerProvider>
       <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.16),_transparent_34%),linear-gradient(to_bottom,_#ffffff,_#f8fafc_32%,_#eef2ff_100%)] text-slate-900 transition-colors dark:bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.16),_transparent_30%),linear-gradient(to_bottom,_#020617,_#020617_28%,_#0f172a_100%)] dark:text-white">
-      {!isAdminRoute && !isVendorWorkspace && !isStaffWorkspace && !isInfluencerWorkspace ? (
+      {!hideShopChrome ? (
         <header className="sticky top-0 z-30 border-b border-white/50 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/60">
           <div className="w-full px-3 py-3 sm:px-4 lg:px-8">
             <div className="flex flex-col gap-4">
@@ -309,7 +340,7 @@ export function Layout() {
         </header>
       ) : null}
 
-      {!isAdminRoute && !isVendorWorkspace && !isStaffWorkspace && !isInfluencerWorkspace ? (
+      {!hideShopChrome ? (
         <CategoryNavigation 
           categories={presentedCategories}
           onSelect={(item) => {
@@ -329,7 +360,7 @@ export function Layout() {
 
       <main
         className={
-          isAdminRoute || isVendorWorkspace || isStaffWorkspace || isInfluencerWorkspace
+          hideShopChrome
             ? "flex-1"
             : "w-full flex-1 px-3 py-5 sm:px-4 sm:py-7 lg:px-8 lg:py-10"
         }
@@ -339,7 +370,7 @@ export function Layout() {
         </PlatformFeaturesProvider>
       </main>
 
-      {!isAdminRoute && !isVendorWorkspace && !isStaffWorkspace && !isInfluencerWorkspace ? <Footer /> : null}
+      {!hideShopChrome ? <Footer /> : null}
 
       {/* Cart Drawer System */}
       <CartDrawerOverlay />

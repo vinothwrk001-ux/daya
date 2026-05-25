@@ -13,8 +13,24 @@ const {
 } = require("../config/homepageContainerRegistry");
 
 const DEFAULT_PREVIEW_LIMIT = 12;
+const DEFAULT_VENDOR_LAYOUT_LIMIT = 20;
 const CACHE_TTL_MS = 60 * 1000;
 const responseCache = new Map();
+const VENDOR_DATA_SOURCE_TYPES = new Set([
+  "CURRENT_VENDOR_PRODUCTS",
+  "CURRENT_VENDOR_FEATURED",
+  "CURRENT_VENDOR_NEW_ARRIVALS",
+  "CURRENT_VENDOR_BEST_SELLERS",
+  "CURRENT_VENDOR_DEALS",
+  "CURRENT_VENDOR_TOP_RATED",
+  "CURRENT_VENDOR_RECOMMENDED",
+]);
+
+function normalizeDataSourceType(value) {
+  const next = String(value || "DEFAULT").trim().toUpperCase();
+  if (next === "DEFAULT" || VENDOR_DATA_SOURCE_TYPES.has(next)) return next;
+  return "DEFAULT";
+}
 
 function setCache(key, value) {
   responseCache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -236,6 +252,7 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
     ...(payload.slug !== undefined ? { slug: String(payload.slug || "").trim() } : {}),
     ...(payload.description !== undefined ? { description: String(payload.description || "").trim() } : {}),
     containerType,
+    ...(payload.dataSourceType !== undefined ? { dataSourceType: normalizeDataSourceType(payload.dataSourceType) } : {}),
     ...(payload.priority !== undefined ? { priority: Number(payload.priority || 0) } : {}),
     ...(payload.status !== undefined ? { status: String(payload.status || "").trim().toUpperCase() } : {}),
     ...(payload.analyticsEnabled !== undefined ? { analyticsEnabled: Boolean(payload.analyticsEnabled) } : {}),
@@ -509,16 +526,19 @@ function matchesDevice(container = {}, device = "all") {
 
 function buildProductBaseMatch(container = {}, approvedVendorIds = []) {
   const filters = container.filters || {};
+  const currentVendorId = container.__currentVendorId;
   const match = {
     status: "APPROVED",
     isActive: true,
   };
 
-  if (approvedVendorIds.length) {
+  if (currentVendorId && mongoose.isValidObjectId(currentVendorId)) {
+    match.sellerId = new mongoose.Types.ObjectId(currentVendorId);
+  } else if (approvedVendorIds.length) {
     match.sellerId = { $in: approvedVendorIds };
   }
 
-  if (filters.vendorIds?.length) {
+  if (!currentVendorId && filters.vendorIds?.length) {
     match.sellerId = { $in: filters.vendorIds.map((item) => new mongoose.Types.ObjectId(item)) };
   }
 
@@ -629,6 +649,8 @@ function buildSortStages(sortBy = "TRENDING") {
       return [{ $sort: { "analytics.views": -1, createdAt: -1 } }];
     case "TOP_RATED":
       return [{ $sort: { "ratings.averageRating": -1, "ratings.totalReviews": -1, createdAt: -1 } }];
+    case "FEATURED":
+      return [{ $sort: { featuredRank: 1, "analytics.salesCount": -1, createdAt: -1 } }];
     case "RANDOM":
       return [{ $sample: { size: 100 } }];
     case "CUSTOM_ORDER":
@@ -646,6 +668,25 @@ function resolveFeaturedSortBy(container = {}) {
   if (mode === "NEWEST_PRODUCTS") return "NEWEST";
   if (mode === "HIGHEST_RATED_PRODUCTS") return "TOP_RATED";
   return container?.filters?.sortBy || "TRENDING";
+}
+
+function resolveVendorSortBy(container = {}) {
+  const source = String(container.dataSourceType || "DEFAULT").toUpperCase();
+  const configured = String(container.config?.orderBy || container.config?.sortBy || container.filters?.sortBy || "").toUpperCase();
+  const aliases = {
+    POPULARITY: "MOST_POPULAR",
+    SALES: "BEST_SELLING",
+    RATING: "TOP_RATED",
+    NEWEST: "NEWEST",
+  };
+
+  if (source === "CURRENT_VENDOR_FEATURED") return "FEATURED";
+  if (source === "CURRENT_VENDOR_NEW_ARRIVALS") return "NEWEST";
+  if (source === "CURRENT_VENDOR_BEST_SELLERS") return "BEST_SELLING";
+  if (source === "CURRENT_VENDOR_DEALS") return "HIGHEST_DISCOUNT";
+  if (source === "CURRENT_VENDOR_TOP_RATED") return "TOP_RATED";
+  if (source === "CURRENT_VENDOR_RECOMMENDED") return "TRENDING";
+  return aliases[configured] || configured || (container.containerType === "GRID" ? "NEWEST" : "TRENDING");
 }
 
 async function hydrateProductsByIds(ids = []) {
@@ -770,7 +811,71 @@ function applyTypeSpecificProductConstraints(container = {}) {
   return constraint;
 }
 
+function applyVendorDataSourceConstraints(container = {}) {
+  const source = String(container.dataSourceType || "DEFAULT").toUpperCase();
+  if (source === "CURRENT_VENDOR_FEATURED") {
+    return { $or: [{ isFeatured: true }, { featured: true }] };
+  }
+  if (source === "CURRENT_VENDOR_DEALS") {
+    return { discountPrice: { $gt: 0 } };
+  }
+  if (source === "CURRENT_VENDOR_TOP_RATED") {
+    return {
+      "ratings.averageRating": { $gte: Number(container.config?.minimumRating || 4) },
+      "ratings.totalReviews": { $gte: Number(container.config?.minimumReviews || 0) },
+    };
+  }
+  return {};
+}
+
+function shouldUseVendorProducts(container = {}, options = {}) {
+  return Boolean(options.currentVendorId && mongoose.isValidObjectId(options.currentVendorId));
+}
+
+function inferVendorDataSourceType(container = {}) {
+  const configured = normalizeDataSourceType(container.dataSourceType || "DEFAULT");
+  if (configured !== "DEFAULT") return configured;
+  switch (container.containerType) {
+    case "FEATURED_PRODUCTS":
+      return "CURRENT_VENDOR_FEATURED";
+    case "NEW_ARRIVALS":
+      return "CURRENT_VENDOR_NEW_ARRIVALS";
+    case "TOP_RATED":
+      return "CURRENT_VENDOR_TOP_RATED";
+    case "TRENDING":
+    case "CAROUSEL":
+      return "CURRENT_VENDOR_PRODUCTS";
+    case "DEALS_STRIP":
+    case "FLASH_SALE":
+    case "COMBO_DEALS":
+      return "CURRENT_VENDOR_DEALS";
+    case "RECOMMENDED":
+      return "CURRENT_VENDOR_RECOMMENDED";
+    case "GRID":
+    default:
+      return "CURRENT_VENDOR_PRODUCTS";
+  }
+}
+
+function withVendorProductContext(container = {}, options = {}) {
+  if (!shouldUseVendorProducts(container, options)) return container;
+  const source = inferVendorDataSourceType(container);
+  return {
+    ...container,
+    __currentVendorId: String(options.currentVendorId),
+    dataSourceType: source,
+    filters: {
+      ...(container.filters || {}),
+      productSelectionMode: "AUTO",
+      manualProductIds: [],
+      vendorIds: [],
+      maxProductsToShow: Number(container.filters?.maxProductsToShow || DEFAULT_VENDOR_LAYOUT_LIMIT),
+    },
+  };
+}
+
 async function resolveContainerProducts(container, options = {}) {
+  container = withVendorProductContext(container, options);
   const schema = getContainerTypeSchema(container.containerType);
   if (!schema.supportsProducts) {
     return {
@@ -787,7 +892,8 @@ async function resolveContainerProducts(container, options = {}) {
   const filters = container.filters || {};
   const config = container.config || {};
   const page = Math.max(Number(options.page || 1), 1);
-  const limit = Math.min(Math.max(Number(options.limit || filters.maxProductsToShow || DEFAULT_PREVIEW_LIMIT), 1), 100);
+  const limitFallback = container.__currentVendorId ? DEFAULT_VENDOR_LAYOUT_LIMIT : DEFAULT_PREVIEW_LIMIT;
+  const limit = Math.min(Math.max(Number(options.limit || filters.maxProductsToShow || limitFallback), 1), 100);
   const skip = (page - 1) * limit;
   const approvedVendorIds = options.approvedVendorIds || (await getApprovedVendorIds());
   const featuredIds =
@@ -798,7 +904,7 @@ async function resolveContainerProducts(container, options = {}) {
         ].filter(Boolean)
       : [];
 
-  if (container.containerType === "FEATURED_PRODUCTS" && featuredIds.length && String(config.productSourceMode || "MANUAL").toUpperCase() === "MANUAL") {
+  if (!container.__currentVendorId && container.containerType === "FEATURED_PRODUCTS" && featuredIds.length && String(config.productSourceMode || "MANUAL").toUpperCase() === "MANUAL") {
     const uniqueIds = [...new Set(featuredIds.map(String))].slice(0, limit);
     const products = await hydrateProductsByIds(uniqueIds);
     return {
@@ -812,7 +918,7 @@ async function resolveContainerProducts(container, options = {}) {
     };
   }
 
-  if (container.containerType === "COMBO_DEALS") {
+  if (!container.__currentVendorId && container.containerType === "COMBO_DEALS") {
     const comboIds = extractConfigIds(config.bundleProducts);
     if (comboIds.length) {
       const uniqueIds = [...new Set(comboIds)].slice(0, Math.min(Number(config.comboMaxProducts || limit), limit));
@@ -832,6 +938,7 @@ async function resolveContainerProducts(container, options = {}) {
   const pipeline = [
     { $match: buildProductBaseMatch(container, approvedVendorIds) },
     { $match: applyTypeSpecificProductConstraints(container) },
+    ...(container.__currentVendorId ? [{ $match: applyVendorDataSourceConstraints(container) }] : []),
     { $addFields: buildComputedFields() },
   ];
 
@@ -864,7 +971,12 @@ async function resolveContainerProducts(container, options = {}) {
     pipeline.push({ $match: expressionMatch });
   }
 
-  pipeline.push(...buildSortStages(container.containerType === "FEATURED_PRODUCTS" ? resolveFeaturedSortBy(container) : filters.sortBy));
+  const sortBy = container.__currentVendorId
+    ? resolveVendorSortBy(container)
+    : container.containerType === "FEATURED_PRODUCTS"
+      ? resolveFeaturedSortBy(container)
+      : filters.sortBy;
+  pipeline.push(...buildSortStages(sortBy));
 
   const countPipeline = pipeline.filter((stage) => !stage.$sample && !stage.$sort).concat({ $count: "total" });
 
@@ -897,6 +1009,7 @@ function mapContainerDocument(container, productsPayload = null) {
     slug: container.slug,
     description: container.description || "",
     containerType: normalizedType,
+    dataSourceType: container.dataSourceType || "DEFAULT",
     priority: container.priority ?? 0,
     status: container.status,
     visibility: {
@@ -1273,7 +1386,7 @@ class HomepageContainerService {
 
   async getResolvedContainersByIds(
     ids = [],
-    { device = "all", includeProducts = true, page = 1, limit, respectVisibility = true } = {}
+    { device = "all", includeProducts = true, page = 1, limit, respectVisibility = true, currentVendorId = null } = {}
   ) {
     const objectIds = ids
       .map((item) => String(item || "").trim())
@@ -1302,8 +1415,9 @@ class HomepageContainerService {
       filtered.map(async (container) => {
         const productsPayload = await resolveContainerProducts(container, {
           page,
-          limit: limit || container.filters?.maxProductsToShow || DEFAULT_PREVIEW_LIMIT,
+          limit: limit || container.filters?.maxProductsToShow || (currentVendorId ? DEFAULT_VENDOR_LAYOUT_LIMIT : DEFAULT_PREVIEW_LIMIT),
           approvedVendorIds,
+          currentVendorId,
         });
         return mapContainerDocument(container, productsPayload);
       })

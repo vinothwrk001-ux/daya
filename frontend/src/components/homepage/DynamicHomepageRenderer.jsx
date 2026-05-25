@@ -24,16 +24,19 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
   containers = [],
   loading = false,
   bareContainers = false,
+  bareOuterLayout = false,
   bareCarouselShell = false,
   device = "desktop",
   canvasWidth,
+  renderContext: externalRenderContext = {},
 }) {
   const renderContext = useMemo(
     () => ({
+      ...(externalRenderContext || {}),
       device,
       canvasWidth: resolveCanvasWidth(canvasWidth, device),
     }),
-    [canvasWidth, device]
+    [canvasWidth, device, externalRenderContext]
   );
 
   const resolvedRows = useMemo(() => {
@@ -61,6 +64,7 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
             key={row.id || row.order}
             row={row}
             bareContainers={bareContainers}
+            bareOuterLayout={bareOuterLayout}
             bareCarouselShell={bareCarouselShell}
             renderContext={renderContext}
           />
@@ -74,13 +78,14 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
       key={container.instanceId || container._id}
       container={container}
       bareContainers={bareContainers}
+      bareOuterLayout={bareOuterLayout}
       bareCarouselShell={bareCarouselShell}
       renderContext={renderContext}
     />
   ));
 });
 
-const DynamicHomepageRow = memo(function DynamicHomepageRow({ row, bareContainers = false, bareCarouselShell = false, renderContext }) {
+const DynamicHomepageRow = memo(function DynamicHomepageRow({ row, bareContainers = false, bareOuterLayout = false, bareCarouselShell = false, renderContext }) {
   const columnCount = DEVICE_COLUMNS[renderContext.device] || DEVICE_COLUMNS.desktop;
 
   return (
@@ -102,6 +107,7 @@ const DynamicHomepageRow = memo(function DynamicHomepageRow({ row, bareContainer
                 container={container}
                 inline
                 bareContainers={bareContainers}
+                bareOuterLayout={bareOuterLayout}
                 bareCarouselShell={bareCarouselShell}
                 renderContext={renderContext}
               />
@@ -113,7 +119,7 @@ const DynamicHomepageRow = memo(function DynamicHomepageRow({ row, bareContainer
   );
 });
 
-const DynamicHomepageSection = memo(function DynamicHomepageSection({ container, inline = false, bareContainers = false, bareCarouselShell = false, renderContext }) {
+const DynamicHomepageSection = memo(function DynamicHomepageSection({ container, inline = false, bareContainers = false, bareOuterLayout = false, bareCarouselShell = false, renderContext }) {
   const trackedRef = useRef(false);
 
   useEffect(() => {
@@ -130,12 +136,14 @@ const DynamicHomepageSection = memo(function DynamicHomepageSection({ container,
   const visibilityClasses = resolveContainerVisibilityClasses(container);
   const layout = resolveContainerLayout(container);
   const themeStyles = resolveContainerThemeStyles(layout.theme || container?.presentation?.containerTheme);
-  const widthStyles = resolveContainerDimensionStyle(layout, renderContext, { inline });
+  const contentSized = isContentSizedContainer(container);
+  const widthStyles = resolveContainerDimensionStyle(layout, renderContext, { inline, contentSized });
   const previewBare = container?.previewBare === true || bareContainers;
+  const stripOuterLayout = bareOuterLayout && !previewBare;
 
   const style = {
-    ...widthStyles,
-    ...(previewBare
+    ...(stripOuterLayout ? { width: "100%" } : widthStyles),
+    ...(previewBare || stripOuterLayout
       ? {}
       : {
           ...themeStyles,
@@ -162,18 +170,18 @@ const DynamicHomepageSection = memo(function DynamicHomepageSection({ container,
   const backgroundMediaUrl = resolveContainerBackgroundMedia(layout);
 
   return (
-    <div className={`relative ${previewBare ? "" : "overflow-hidden"} ${visibilityClasses}`.trim()} style={wrapperStyle}>
-      {!previewBare && layout.backgroundType === "image" && backgroundMediaUrl ? (
+    <div className={`relative ${previewBare || contentSized ? "" : "overflow-hidden"} ${visibilityClasses}`.trim()} style={wrapperStyle}>
+      {!previewBare && !stripOuterLayout && layout.backgroundType === "image" && backgroundMediaUrl ? (
         <img src={backgroundMediaUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
       ) : null}
-      {!previewBare && layout.backgroundType === "video" && backgroundMediaUrl ? (
+      {!previewBare && !stripOuterLayout && layout.backgroundType === "video" && backgroundMediaUrl ? (
         <video src={backgroundMediaUrl} autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover" />
       ) : null}
-      {!previewBare && (layout.backgroundType === "image" || layout.backgroundType === "video") && backgroundMediaUrl ? (
+      {!previewBare && !stripOuterLayout && (layout.backgroundType === "image" || layout.backgroundType === "video") && backgroundMediaUrl ? (
         <div className="absolute inset-0 bg-slate-950/20" />
       ) : null}
       <div className="relative z-10" style={style}>
-        {renderContainer(container, { bareContainers: previewBare, bareCarouselShell, renderContext })}
+        {renderContainer(container, { bareContainers: previewBare, bareOuterLayout: stripOuterLayout, bareCarouselShell, renderContext })}
       </div>
     </div>
   );
@@ -229,25 +237,33 @@ function resolveContainerDimensionStyle(layout, renderContext, options = {}) {
   const height = resolveConfiguredHeight(layout);
   const exactSize = resolveResponsiveSize(width, height, renderContext);
   const styles = {};
+  const applyHeight = (value) => {
+    if (!value) return;
+    if (options.contentSized) {
+      styles.minHeight = `${value}px`;
+    } else {
+      styles.height = `${value}px`;
+    }
+  };
 
   if (options.inline) {
     styles.width = "100%";
     if (exactSize.height) {
-      styles.height = `${exactSize.height}px`;
-    } else if (height && width) {
+      applyHeight(exactSize.height);
+    } else if (!options.contentSized && height && width) {
       styles.aspectRatio = `${width} / ${height}`;
     }
   } else if (exactSize.width) {
     styles.width = `${exactSize.width}px`;
     if (exactSize.height) {
-      styles.height = `${exactSize.height}px`;
-    } else if (height && width) {
+      applyHeight(exactSize.height);
+    } else if (!options.contentSized && height && width) {
       styles.aspectRatio = `${width} / ${height}`;
     }
   } else {
     styles.width = "100%";
     if (exactSize.height) {
-      styles.height = `${exactSize.height}px`;
+      applyHeight(exactSize.height);
     }
   }
 
@@ -486,7 +502,7 @@ function renderContainer(container, options = {}) {
       return <FlashSaleContainer container={container} />;
     case "CAROUSEL":
     default:
-      return <CarouselContainer container={container} bareContainers={options.bareContainers === true} bareCarouselShell={options.bareCarouselShell === true} />;
+      return <CarouselContainer container={container} bareContainers={options.bareContainers === true} bareOuterLayout={options.bareOuterLayout === true} bareCarouselShell={options.bareCarouselShell === true} />;
   }
 }
 
@@ -518,10 +534,10 @@ function SectionHeader({ container, eyebrow, actionLabel = "View all" }) {
   );
 }
 
-function CarouselContainer({ container, bareContainers = false, bareCarouselShell = false }) {
+function CarouselContainer({ container, bareContainers = false, bareOuterLayout = false, bareCarouselShell = false }) {
   const config = container.config || {};
   return (
-    <div className={bareContainers || container?.previewBare === true ? "" : "p-5 sm:p-6 lg:p-8"}>
+    <div className={bareContainers || bareOuterLayout || container?.previewBare === true ? "" : "p-5 sm:p-6 lg:p-8"}>
       <ProductCarousel
         items={container.products || []}
         title={container.title}
@@ -850,6 +866,27 @@ function SliderContainer({ container }) {
       </div>
     </div>
   );
+}
+
+function isContentSizedContainer(container) {
+  return [
+    "BRAND_SHOWCASE",
+    "CAROUSEL",
+    "CATEGORY_SHOWCASE",
+    "COMBO_DEALS",
+    "DEALS_STRIP",
+    "FEATURED_PRODUCTS",
+    "FLASH_SALE",
+    "GRID",
+    "MASONRY",
+    "NEW_ARRIVALS",
+    "RECENTLY_VIEWED",
+    "RECOMMENDED",
+    "TOP_RATED",
+    "TRENDING",
+    "VENDOR_SPOTLIGHT",
+    "VIDEO_PRODUCTS",
+  ].includes(container?.containerType);
 }
 
 function DealsStripContainer({ container, renderContext }) {

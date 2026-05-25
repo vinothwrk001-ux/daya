@@ -106,6 +106,7 @@ export function getSummaryItems(summary) {
       ? seller.items.map((item) => ({
           ...item,
           sellerId: seller.sellerId,
+          seller: seller.seller || seller.vendor || null,
           sellerSubtotal: seller.subtotal,
           variantId: item?.variantId || "",
           variantTitle: item?.variantTitle || "",

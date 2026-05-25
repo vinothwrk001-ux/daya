@@ -62,6 +62,7 @@ const initialForm = {
   slug: "",
   description: "",
   containerType: "CAROUSEL",
+  dataSourceType: "DEFAULT",
   priority: 0,
   status: "DRAFT",
   scheduleStart: "",
@@ -247,6 +248,7 @@ function buildPayload(form) {
     slug: form.slug || slugify(form.title),
     description: form.description,
     containerType: form.containerType,
+    dataSourceType: form.dataSourceType,
     priority: Number(form.priority || 0),
     status: form.status,
     scheduleStart: form.scheduleStart || null,
@@ -333,6 +335,7 @@ function containerToForm(container, schema) {
     slug: container.slug || "",
     description: container.description || "",
     containerType: container.containerType || "CAROUSEL",
+    dataSourceType: container.dataSourceType || "DEFAULT",
     priority: container.priority ?? 0,
     status: container.status || "DRAFT",
     scheduleStart: container?.schedule?.start ? new Date(container.schedule.start).toISOString().slice(0, 16) : "",
@@ -752,6 +755,18 @@ export function AdminHomepageContainersPage() {
                             {containerSchemas.map((schema) => (
                               <option key={schema.type} value={schema.type}>{schema.label}</option>
                             ))}
+                          </select>
+                        </Field>
+                        <Field label="Dynamic Product Source">
+                          <select value={form.dataSourceType} onChange={(event) => setForm((current) => ({ ...current, dataSourceType: event.target.value }))} className={inputClassName}>
+                            <option value="DEFAULT">Default homepage rules</option>
+                            <option value="CURRENT_VENDOR_PRODUCTS">Current vendor products</option>
+                            <option value="CURRENT_VENDOR_FEATURED">Current vendor featured</option>
+                            <option value="CURRENT_VENDOR_NEW_ARRIVALS">Current vendor new arrivals</option>
+                            <option value="CURRENT_VENDOR_BEST_SELLERS">Current vendor best sellers</option>
+                            <option value="CURRENT_VENDOR_DEALS">Current vendor deals</option>
+                            <option value="CURRENT_VENDOR_TOP_RATED">Current vendor top rated</option>
+                            <option value="CURRENT_VENDOR_RECOMMENDED">Current vendor recommended</option>
                           </select>
                         </Field>
                         <Field label="Status">

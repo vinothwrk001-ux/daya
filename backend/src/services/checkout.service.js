@@ -23,6 +23,7 @@ const codService = require("./cod.service");
 const guestCartService = require("./guestCart.service");
 const { Order } = require("../models/Order");
 const { Payment } = require("../models/Payment");
+const { Vendor } = require("../models/Vendor");
 const commissionRuleService = require("./commission-rule.service");
 const productAnalyticsService = require("./product-analytics.service");
 
@@ -56,6 +57,31 @@ function groupBySeller(items = []) {
     map.get(key).items.push(it);
   }
   return map;
+}
+
+function sanitizeCheckoutSeller(vendor) {
+  if (!vendor) return null;
+  return {
+    _id: vendor._id,
+    companyName: vendor.companyName || "",
+    shopName: vendor.shopName || vendor.companyName || "Marketplace Store",
+    storeSlug: vendor.storeSlug || "",
+    logoUrl: vendor.logoUrl || "",
+    status: vendor.status,
+    isStoreVisible: vendor.isStoreVisible !== false,
+  };
+}
+
+async function attachSellerProfiles(sellers = []) {
+  const sellerIds = sellers.map((seller) => seller.sellerId).filter(Boolean);
+  const vendors = await Vendor.find({ _id: { $in: sellerIds } })
+    .select("companyName shopName storeSlug logoUrl status isStoreVisible")
+    .lean();
+  const vendorById = new Map(vendors.map((vendor) => [String(vendor._id), sanitizeCheckoutSeller(vendor)]));
+  return sellers.map((seller) => ({
+    ...seller,
+    seller: vendorById.get(String(seller.sellerId)) || null,
+  }));
 }
 
 function generateOrderNumber() {
@@ -368,11 +394,11 @@ class CheckoutService {
 
     const validated = validatedItems.map(({ product, ...itemData }) => itemData);
     const bySeller = groupBySeller(validated);
-    const sellers = Array.from(bySeller.values()).map((sellerData) => {
+    const sellers = await attachSellerProfiles(Array.from(bySeller.values()).map((sellerData) => {
       const items = sellerData.items;
       const subtotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
       return { sellerId: sellerData.sellerId, items, subtotal };
-    });
+    }));
 
     const subtotal = sellers.reduce((sum, seller) => sum + seller.subtotal, 0);
     const totalItemCount = validated.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
@@ -499,11 +525,11 @@ class CheckoutService {
     const validatedWithProducts = validatedItems;
 
     const bySeller = groupBySeller(validated);
-    const sellers = Array.from(bySeller.values()).map((sellerData) => {
+    const sellers = await attachSellerProfiles(Array.from(bySeller.values()).map((sellerData) => {
       const items = sellerData.items;
       const subtotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
       return { sellerId: sellerData.sellerId, items, subtotal };
-    });
+    }));
 
     const subtotal = sellers.reduce((sum, s) => sum + s.subtotal, 0);
     const totalItemCount = validated.reduce((sum, item) => sum + item.quantity, 0);

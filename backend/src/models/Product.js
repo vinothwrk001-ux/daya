@@ -243,6 +243,21 @@ const productSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    featured: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    featuredRank: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
 
     // For approval workflow
     rejectionReason: String,
@@ -368,6 +383,8 @@ productSchema.index({ name: "text", description: "text" });
 productSchema.index({ category: 1, isActive: 1, status: 1 });
 productSchema.index({ categoryId: 1, subCategoryId: 1, createdAt: -1 });
 productSchema.index({ sellerId: 1, isActive: 1 });
+productSchema.index({ sellerId: 1, isFeatured: 1, featuredRank: 1, status: 1, isActive: 1 });
+productSchema.index({ sellerId: 1, featured: 1, status: 1, isActive: 1 });
 productSchema.index({ createdBy: 1, status: 1 });
 productSchema.index({ isActive: 1, status: 1, "ratings.averageRating": -1 });
 productSchema.index({ createdAt: -1 });

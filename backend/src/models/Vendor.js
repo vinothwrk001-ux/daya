@@ -83,6 +83,30 @@ const vendorSchema = new mongoose.Schema(
     supportPhone: { type: String, trim: true, maxlength: 30 },
     logoUrl: { type: String, trim: true, maxlength: 500 },
     bannerUrl: { type: String, trim: true, maxlength: 500 },
+    isStoreVisible: { type: Boolean, default: true, index: true },
+    isStoreFeatured: { type: Boolean, default: false, index: true },
+    storeHiddenReason: { type: String, trim: true, maxlength: 500, default: "" },
+    storeThemeColor: { type: String, trim: true, maxlength: 20, default: "#0f766e" },
+    storeCategories: [{ type: String, trim: true, maxlength: 80 }],
+    storeSeo: {
+      metaTitle: { type: String, trim: true, maxlength: 70, default: "" },
+      metaDescription: { type: String, trim: true, maxlength: 170, default: "" },
+      metaKeywords: [{ type: String, trim: true, maxlength: 60 }],
+      ogImage: { type: String, trim: true, maxlength: 500, default: "" },
+    },
+    storeAbout: {
+      missionTitle: { type: String, trim: true, maxlength: 80, default: "" },
+      missionText: { type: String, trim: true, maxlength: 160, default: "" },
+      visionTitle: { type: String, trim: true, maxlength: 80, default: "" },
+      visionText: { type: String, trim: true, maxlength: 160, default: "" },
+      valueTitle: { type: String, trim: true, maxlength: 80, default: "" },
+      valueText: { type: String, trim: true, maxlength: 160, default: "" },
+    },
+    storeSocialVisibility: {
+      showExternalLinks: { type: Boolean, default: false },
+      showSocialContacts: { type: Boolean, default: false },
+      showDirectContact: { type: Boolean, default: false },
+    },
     payoutSchedule: {
       type: String,
       enum: ["weekly", "biweekly", "monthly"],
@@ -142,6 +166,9 @@ vendorSchema.pre("validate", function ensureVendorCode(next) {
   }
   next();
 });
+
+vendorSchema.index({ storeSlug: 1, status: 1, isStoreVisible: 1 });
+vendorSchema.index({ isStoreFeatured: 1, status: 1, isStoreVisible: 1, createdAt: -1 });
 
 module.exports = {
   Vendor: mongoose.model("Vendor", vendorSchema),

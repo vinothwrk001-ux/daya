@@ -3,7 +3,7 @@ import * as vendorDashboardService from "../services/vendorDashboardService";
 import { getNotificationSummary } from "../services/notificationService";
 
 export const useVendorDashboardStore = create((set) => ({
-  sidebarOpen: false,
+  sidebarOpen: true,
   dashboard: null,
   notificationsUnread: 0,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),

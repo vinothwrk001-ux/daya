@@ -18,6 +18,10 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { DashboardRedirect } from "./pages/DashboardRedirect";
 import { UserDashboardPage } from "./pages/UserDashboardPage";
 import { VendorDashboardPage } from "./pages/VendorDashboardPage";
+import { VendorStorefrontPage } from "./pages/VendorStorefrontPage";
+import { VendorStoreProductsPage } from "./pages/VendorStoreProductsPage";
+import { VendorStoreReviewsPage } from "./pages/VendorStoreReviewsPage";
+import { VendorStoreFollowersPage } from "./pages/VendorStoreFollowersPage";
 import { VendorOnboardingPage } from "./pages/VendorOnboardingPage";
 import { VendorStatusPage } from "./pages/VendorStatusPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
@@ -25,6 +29,7 @@ import { AdminVendorDetailsPage } from "./pages/AdminVendorDetailsPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { AdminSellersPage } from "./pages/AdminSellersPage";
 import { ProductsPage } from "./pages/ProductsPage";
+import { StoresPage } from "./pages/StoresPage";
 import { HomepageContainerProductsPage } from "./pages/HomepageContainerProductsPage";
 import { AdminProductsPage } from "./pages/AdminProductsPage";
 import { AdminInventoryPage } from "./pages/AdminInventoryPage";
@@ -59,6 +64,7 @@ import { ProductDetailsPage } from "./pages/ProductDetailsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { WishlistPage } from "./pages/WishlistPage";
+import { MyFollowedStoresPage } from "./pages/MyFollowedStoresPage";
 import { AddressesPage } from "./pages/AddressesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ReviewsPage } from "./pages/ReviewsPage";
@@ -151,6 +157,11 @@ export default function App() {
         <Route path="/staff/login" element={<Navigate to="/login" replace />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/shop" element={<ProductsPage />} />
+        <Route path="/stores" element={<StoresPage />} />
+        <Route path="/vendor/:vendorSlug" element={<VendorStorefrontPage />} />
+        <Route path="/vendor/:vendorSlug/products" element={<VendorStoreProductsPage />} />
+        <Route path="/vendor/:vendorSlug/reviews" element={<VendorStoreReviewsPage />} />
+        <Route path="/vendor/:vendorSlug/followers" element={<VendorStoreFollowersPage />} />
         <Route path="/collections/:slug" element={<HomepageContainerProductsPage />} />
         <Route path="/product/:productId" element={<ProductDetailsPage />} />
         <Route path="/cart" element={<CartPage />} />
@@ -173,6 +184,7 @@ export default function App() {
               <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
               <Route path="/orders/:orderId/invoice" element={<CustomerInvoicePreviewPage />} />
               <Route path="/addresses" element={<AddressesPage />} />
+              <Route path="/followed-stores" element={<MyFollowedStoresPage />} />
               <Route path="/reviews" element={<ReviewsPage />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />

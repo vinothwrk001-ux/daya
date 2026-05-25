@@ -32,6 +32,7 @@ export function VendorAnalyticsPage() {
   const [draftFilters, setDraftFilters] = useState(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
   const [data, setData] = useState(null);
+  const [storefrontData, setStorefrontData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const reporting = useReporting({
@@ -44,14 +45,17 @@ export function VendorAnalyticsPage() {
     setLoading(true);
     setError("");
 
-    vendorDashboardService
-      .getVendorAnalytics({
+    Promise.all([
+      vendorDashboardService.getVendorAnalytics({
         ...reporting.appliedParams,
         ...appliedFilters,
-      })
-      .then((response) => {
+      }),
+      vendorDashboardService.getVendorStorefrontAnalytics({ days: 30 }),
+    ])
+      .then(([response, storefrontResponse]) => {
         if (!active) return;
         setData(response.data);
+        setStorefrontData(storefrontResponse.data);
       })
       .catch((err) => {
         if (!active) return;
@@ -164,6 +168,16 @@ export function VendorAnalyticsPage() {
         <MetricCard label="Refund Rate" value={`${Number(overview.refundRate || 0).toFixed(2)}%`} hint="Orders that needed refunds" />
         <MetricCard label="Top Product" value={overview.topProduct?.productName || "None"} hint={overview.topProduct ? formatCurrency(overview.topProduct.totalRevenue) : "Waiting for more sales data"} />
       </div>
+
+      <VendorSection title="Storefront analytics" description="Customer store visits, follows, product interactions, conversions, and retention signals.">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <MetricCard label="Store Visits" value={storefrontData?.storeVisits || 0} hint={`${storefrontData?.uniqueVisitors || 0} unique visitors`} />
+          <MetricCard label="Followers" value={storefrontData?.followers || 0} hint="Customers subscribed to vendor alerts" />
+          <MetricCard label="Product Views" value={storefrontData?.productViews || 0} hint={`${storefrontData?.wishlistAdds || 0} wishlist adds`} />
+          <MetricCard label="Conversions" value={storefrontData?.conversions || 0} hint={`${storefrontData?.cartAdds || 0} cart adds`} />
+          <MetricCard label="Store Revenue" value={formatCurrency(storefrontData?.revenue || 0)} hint={`AOV ${formatCurrency(storefrontData?.averageOrderValue || 0)}`} />
+        </div>
+      </VendorSection>
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <VendorSection title="Top product revenue" description="Your strongest product performers in the selected reporting range.">

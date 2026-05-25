@@ -22,6 +22,7 @@ const vendorDashboardController = require("../modules/vendorDashboard/vendor-das
 const vendorPayoutController = require("../controllers/vendorPayout.controller");
 const commissionController = require("../controllers/commission.controller");
 const productController = require("../controllers/product.controller");
+const vendorStorefrontController = require("../controllers/vendor-storefront.controller");
 
 const router = express.Router();
 
@@ -44,6 +45,7 @@ router.post(
 
 router.get("/me", vendorController.me);
 router.get("/dashboard", vendorDashboardController.getDashboard);
+router.post("/settings/media", upload.single("image"), vendorController.uploadStoreMedia);
 
 // 🔥 PRODUCTS MODULE - Protected by vendorModuleAccess
 router.route("/products")
@@ -68,6 +70,7 @@ router.patch("/inventory/:id", requireVendorPermission("inventory.update"), vend
 // 🔥 ANALYTICS MODULE - Protected by vendorModuleAccess
 router.get("/analytics", requireVendorModule("analytics"), vendorDashboardController.getAnalytics);
 router.get("/analytics/products/:id", requireVendorModule("analytics"), vendorDashboardController.getProductAnalyticsDetail);
+router.get("/storefront/analytics", requireVendorModule("analytics"), vendorStorefrontController.vendorAnalytics);
 
 // 🔥 PAYMENTS MODULE - Protected by vendorModuleAccess
 router.get("/payouts", requireVendorModule("payments"), vendorDashboardController.getPayouts);
@@ -86,6 +89,7 @@ router.patch("/delivery/:id", requireVendorPermission("delivery.update"), vendor
 router.get("/settings/shipping", vendorDashboardController.getShippingSettings);
 router.patch("/settings/shipping", vendorDashboardController.updateShippingSettings);
 router.route("/settings").get(vendorDashboardController.getSettings).patch(vendorDashboardController.updateSettings);
+router.patch("/settings/storefront", vendorStorefrontController.updateVendorStoreSettings);
 
 // 🔥 NOTIFICATIONS - All modules can have notifications
 router.get("/notifications", vendorDashboardController.getNotifications);

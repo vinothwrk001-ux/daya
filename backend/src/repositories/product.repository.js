@@ -1,6 +1,8 @@
 const { Product } = require("../models/Product");
 const { normalizeDateRange, applyDateRange } = require("../utils/dateRange");
 
+const SELLER_PUBLIC_FIELDS = "companyName shopName storeSlug logoUrl bannerUrl status isStoreVisible storeThemeColor";
+
 function escapeRegex(value = "") {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -257,14 +259,14 @@ class ProductRepository {
   // Find product by ID with vendor details
   async findById(productId) {
     return await Product.findById(productId)
-      .populate("sellerId", "companyName location")
+      .populate("sellerId", SELLER_PUBLIC_FIELDS)
       .populate("createdBy", "name email role")
       .populate("approvedBy", "name email");
   }
 
   // Find product by slug
   async findBySlug(slug) {
-    return await Product.findOne({ slug }).populate("sellerId", "companyName").populate("createdBy", "name email");
+    return await Product.findOne({ slug }).populate("sellerId", SELLER_PUBLIC_FIELDS).populate("createdBy", "name email");
   }
 
   // Find by SKU
@@ -316,7 +318,7 @@ class ProductRepository {
 
     const [products, total, facets] = await Promise.all([
       Product.find(query)
-        .populate("sellerId", "companyName location")
+        .populate("sellerId", SELLER_PUBLIC_FIELDS)
         .populate("createdBy", "name email")
         .sort(sortObj)
         .skip(skip)
@@ -460,7 +462,7 @@ class ProductRepository {
   // Update product
   async updateById(productId, updateData) {
     return await Product.findByIdAndUpdate(productId, { $set: updateData }, { new: true, runValidators: true })
-      .populate("sellerId", "companyName")
+      .populate("sellerId", SELLER_PUBLIC_FIELDS)
       .populate("createdBy", "name email");
   }
 
@@ -481,7 +483,7 @@ class ProductRepository {
     const skip = (page - 1) * limit;
     const [products, total] = await Promise.all([
       Product.find(query)
-        .populate("sellerId", "companyName")
+        .populate("sellerId", SELLER_PUBLIC_FIELDS)
         .populate("createdBy", "name email")
         .sort({ createdAt: -1 })
         .skip(skip)

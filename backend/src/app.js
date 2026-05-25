@@ -14,6 +14,8 @@ const { errorHandler } = require("./middleware/errorHandler");
 
 const authRoutes = require("./routes/auth.routes");
 const vendorRoutes = require("./routes/vendor.routes");
+const vendorStorefrontRoutes = require("./routes/vendor-storefront.routes");
+const vendorPublicRoutes = require("./routes/vendor-public.routes");
 const adminRoutes = require("./routes/admin.routes");
 const productRoutes = require("./routes/product.routes");
 const cartRoutes = require("./routes/cart.routes");
@@ -148,6 +150,9 @@ function createApp() {
 
   app.use("/api/auth", authRoutes);
   app.use("/api/vendor", vendorRoutes);
+  app.use("/api/vendor-store", vendorStorefrontRoutes);
+  app.use("/api/vendor-stores", vendorStorefrontRoutes);
+  app.use("/api/vendors", vendorPublicRoutes);
   app.use("/api/admin", adminRoutes);
   app.use("/api/products", productRoutes);
   app.use("/api/cart", cartRoutes);

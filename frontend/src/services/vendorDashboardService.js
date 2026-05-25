@@ -85,6 +85,11 @@ export async function getVendorAnalytics(params = {}) {
   return data;
 }
 
+export async function getVendorStorefrontAnalytics(params = {}) {
+  const { data } = await api.get("/api/vendor/storefront/analytics", { params });
+  return data;
+}
+
 export async function getVendorProductAnalyticsDetail(id, params = {}) {
   const { data } = await api.get(`/api/vendor/analytics/products/${id}`, { params });
   return data;
@@ -147,6 +152,16 @@ export async function getVendorSettings() {
 
 export async function updateVendorSettings(payload) {
   const { data } = await api.patch("/api/vendor/settings", payload);
+  return data;
+}
+
+export async function uploadVendorStoreMedia(file, context = "logo") {
+  const form = new FormData();
+  form.append("image", file);
+  form.append("context", context);
+  const { data } = await api.post("/api/vendor/settings/media", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return data;
 }
 

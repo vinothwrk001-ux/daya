@@ -12,6 +12,7 @@ import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
 import { getCartErrorMessage } from "../utils/cartErrors";
 
+
 const RESERVED_QUERY_KEYS = new Set([
   "category",
   "categoryId",
@@ -936,6 +937,7 @@ const ProductCard = memo(function ProductCard({ product }) {
           <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
             {product.category}
           </p>
+          <SellerNameLink seller={product?.sellerId} className="mt-1 text-[11px]" />
         </div>
 
         {product.ratings?.averageRating > 0 && (

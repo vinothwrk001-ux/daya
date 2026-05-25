@@ -1,6 +1,7 @@
 const { ok, fail } = require("../utils/apiResponse");
 const { asyncHandler } = require("../utils/asyncHandler");
 const productService = require("../services/product.service");
+const vendorStorefrontService = require("../services/vendor-storefront.service");
 const productRepo = require("../repositories/product.repository");
 
 function pickDynamicQueryFilters(query = {}) {
@@ -47,6 +48,9 @@ const createProduct = asyncHandler(async (req, res) => {
   }
 
   const product = await productService.createProduct(req.body, req.user.sub, isAdminContext ? "admin" : "seller", sellerId);
+  if (product.status === "APPROVED") {
+    await vendorStorefrontService.notifyFollowersForProduct(product, "NEW_PRODUCT");
+  }
 
   const statusCode = isAdminContext ? 201 : 202; // 202 Accepted for pending approval
   const message = isAdminContext ? "Product created and approved" : "Product created and pending approval";
@@ -239,6 +243,7 @@ const getPendingProducts = asyncHandler(async (req, res) => {
  */
 const approveProduct = asyncHandler(async (req, res) => {
   const product = await productService.approveProduct(req.params.id, req.user.sub);
+  await vendorStorefrontService.notifyFollowersForProduct(product, "NEW_PRODUCT");
   return ok(res, product, "Product approved");
 });
 

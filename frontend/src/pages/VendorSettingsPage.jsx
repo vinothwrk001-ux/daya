@@ -4,6 +4,8 @@ import { VendorSection } from "../components/VendorPanel";
 import { LocationPickerMap } from "../components/LocationPickerMap";
 import * as vendorDashboardService from "../services/vendorDashboardService";
 import { getCurrentLocationAddress, reverseGeocodeCoordinates } from "../services/locationService";
+import { useCategories } from "../hooks/useCategories";
+import { resolveApiAssetUrl } from "../utils/resolveUrl";
 
 function createEmptyPickupLocation(isDefault = false) {
   return {
@@ -71,6 +73,22 @@ const defaultForm = {
   supportPhone: "",
   logoUrl: "",
   bannerUrl: "",
+  storeThemeColor: "#0f766e",
+  storeCategoriesText: "",
+  storeSeo: {
+    metaTitle: "",
+    metaDescription: "",
+    metaKeywords: [],
+    ogImage: "",
+  },
+  storeAbout: {
+    missionTitle: "",
+    missionText: "",
+    visionTitle: "",
+    visionText: "",
+    valueTitle: "",
+    valueText: "",
+  },
   payoutSchedule: "weekly",
   defaultCourier: "",
   lowStockThreshold: 10,
@@ -109,12 +127,20 @@ const defaultForm = {
 export function VendorSettingsPage() {
   const nav = useNavigate();
   const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const { categories = [] } = useCategories();
   const [form, setForm] = useState(defaultForm);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [uploadingMedia, setUploadingMedia] = useState("");
   const [mapEditorIndex, setMapEditorIndex] = useState(0);
   const [mapLoadingIndex, setMapLoadingIndex] = useState(-1);
   const [deviceLocationIndex, setDeviceLocationIndex] = useState(-1);
+  const categoryOptions = [
+    ...new Set([
+      ...categories.map((category) => category.name || category.title || category.label).filter(Boolean),
+      ...(form.storeCategories || []),
+    ]),
+  ];
 
   useEffect(() => {
     vendorDashboardService
@@ -132,9 +158,15 @@ export function VendorSettingsPage() {
           ...vendor,
           pickupAddress: defaultPickupAddress,
           pickupLocations,
+          storeCategories: vendor.storeCategories || [],
+          storeCategoriesText: (vendor.storeCategories || []).join(", "),
           notificationPreferences: {
             ...defaultForm.notificationPreferences,
             ...(vendor.notificationPreferences || {}),
+          },
+          storeAbout: {
+            ...defaultForm.storeAbout,
+            ...(vendor.storeAbout || {}),
           },
         });
         setMapEditorIndex(defaultIndex);
@@ -144,6 +176,36 @@ export function VendorSettingsPage() {
 
   function setField(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function renderField(label, children, { hint = "", className = "" } = {}) {
+    return (
+      <label className={`grid gap-1.5 ${className}`}>
+        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{label}</span>
+        {children}
+        {hint ? <span className="text-xs text-slate-500">{hint}</span> : null}
+      </label>
+    );
+  }
+
+  function selectedCategoriesFromEvent(event) {
+    return Array.from(event.target.selectedOptions).map((option) => option.value);
+  }
+
+  async function handleStoreMediaUpload(field, context, file) {
+    if (!file) return;
+    setUploadingMedia(field);
+    setError("");
+    try {
+      const response = await vendorDashboardService.uploadVendorStoreMedia(file, context);
+      const uploaded = response?.data || response;
+      setField(field, uploaded?.url || "");
+      setMessage(`${context === "banner" ? "Banner" : "Logo"} uploaded. Save settings to publish it.`);
+    } catch (err) {
+      setError(err?.response?.data?.message || `Failed to upload ${context === "banner" ? "banner" : "logo"}.`);
+    } finally {
+      setUploadingMedia("");
+    }
   }
 
   function setPickupLocations(value) {
@@ -238,6 +300,7 @@ export function VendorSettingsPage() {
       const defaultPickupAddress = safeLocations.find((location) => location.isDefault) || safeLocations[0];
       const response = await vendorDashboardService.updateVendorSettings({
         ...form,
+        storeCategories: form.storeCategories || [],
         pickupLocations: safeLocations,
         pickupAddress: defaultPickupAddress,
       });
@@ -253,9 +316,15 @@ export function VendorSettingsPage() {
         ...vendor,
         pickupAddress: nextPickupAddress,
         pickupLocations,
+        storeCategories: vendor.storeCategories || [],
+        storeCategoriesText: (vendor.storeCategories || []).join(", "),
         notificationPreferences: {
           ...defaultForm.notificationPreferences,
           ...(vendor.notificationPreferences || {}),
+        },
+        storeAbout: {
+          ...defaultForm.storeAbout,
+          ...(vendor.storeAbout || {}),
         },
       });
       setMapEditorIndex(defaultIndex);
@@ -287,19 +356,73 @@ export function VendorSettingsPage() {
           <div className="mt-1 text-base font-semibold text-slate-950 dark:text-white">{form.vendorCode || "Will be assigned automatically"}</div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <input value={form.companyName || ""} onChange={(e) => setField("companyName", e.target.value)} placeholder="Company name" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
-          <div>
-            <input value={form.shopName || ""} onChange={(e) => setField("shopName", e.target.value)} placeholder={form.companyName ? `Leave blank to use "${form.companyName}"` : "Shop display name (optional)"} className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950 w-full" />
-            <div className="mt-1 text-xs text-slate-500">Defaults to company name if empty</div>
+          {renderField("Company Name", <input value={form.companyName || ""} onChange={(e) => setField("companyName", e.target.value)} placeholder="Company name" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+          {renderField(
+            "Shop Display Name",
+            <input value={form.shopName || ""} onChange={(e) => setField("shopName", e.target.value)} placeholder={form.companyName ? `Leave blank to use "${form.companyName}"` : "Shop display name"} className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />,
+            { hint: "Defaults to company name if empty." }
+          )}
+          {renderField("Store Slug", <input value={form.storeSlug || ""} onChange={(e) => setField("storeSlug", e.target.value)} placeholder="Store slug" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+          {renderField("Support Email", <input value={form.supportEmail || ""} onChange={(e) => setField("supportEmail", e.target.value)} placeholder="Support email" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+          {renderField("Support Phone", <input value={form.supportPhone || ""} onChange={(e) => setField("supportPhone", e.target.value)} placeholder="Support phone" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+          {renderField("Default Courier", <input value={form.defaultCourier || ""} onChange={(e) => setField("defaultCourier", e.target.value)} placeholder="Default courier" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+
+          {renderField(
+            "Logo Image",
+            <div className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-xs text-slate-400 dark:bg-slate-900">
+                  {form.logoUrl ? <img src={resolveApiAssetUrl(form.logoUrl)} alt="Store logo preview" className="h-full w-full object-contain" /> : "Logo"}
+                </div>
+                <input type="file" accept="image/*" onChange={(e) => handleStoreMediaUpload("logoUrl", "logo", e.target.files?.[0])} className="min-w-0 flex-1 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white dark:file:bg-white dark:file:text-slate-950" />
+              </div>
+              <input value={form.logoUrl || ""} onChange={(e) => setField("logoUrl", e.target.value)} placeholder="Or paste logo URL" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
+              {uploadingMedia === "logoUrl" ? <span className="text-xs text-slate-500">Uploading logo...</span> : null}
+            </div>
+          )}
+
+          {renderField(
+            "Banner Image",
+            <div className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+              <div className="aspect-[5/1] overflow-hidden rounded-lg bg-slate-100 text-xs text-slate-400 dark:bg-slate-900">
+                {form.bannerUrl ? <img src={resolveApiAssetUrl(form.bannerUrl)} alt="Store banner preview" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center">Banner preview</div>}
+              </div>
+              <input type="file" accept="image/*" onChange={(e) => handleStoreMediaUpload("bannerUrl", "banner", e.target.files?.[0])} className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white dark:file:bg-white dark:file:text-slate-950" />
+              <input value={form.bannerUrl || ""} onChange={(e) => setField("bannerUrl", e.target.value)} placeholder="Or paste banner URL" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
+              {uploadingMedia === "bannerUrl" ? <span className="text-xs text-slate-500">Uploading banner...</span> : null}
+            </div>
+          )}
+
+          {renderField("Store Theme Color", <input value={form.storeThemeColor || "#0f766e"} onChange={(e) => setField("storeThemeColor", e.target.value)} placeholder="#0f766e" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+          {renderField(
+            "Store Categories",
+            <select multiple value={form.storeCategories || []} onChange={(e) => setField("storeCategories", selectedCategoriesFromEvent(e))} className="min-h-32 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950">
+              {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>,
+            { hint: "Hold Ctrl or Cmd to select multiple categories." }
+          )}
+          {renderField("About the Store", <textarea value={form.storeDescription || ""} onChange={(e) => setField("storeDescription", e.target.value)} placeholder="Write the About the Store description shown on your storefront" className="min-h-28 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />, { className: "md:col-span-2", hint: "This text appears in the About the Store section on your public storefront." })}
+          <div className="md:col-span-2 grid gap-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+            <div>
+              <h3 className="text-sm font-bold text-slate-950 dark:text-white">About Highlight Cards</h3>
+              <p className="mt-1 text-xs text-slate-500">These three cards appear under About the Store.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {renderField("Mission Title", <input value={form.storeAbout?.missionTitle || ""} onChange={(e) => setField("storeAbout", { ...(form.storeAbout || {}), missionTitle: e.target.value })} placeholder="Our Mission" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+              {renderField("Vision Title", <input value={form.storeAbout?.visionTitle || ""} onChange={(e) => setField("storeAbout", { ...(form.storeAbout || {}), visionTitle: e.target.value })} placeholder="Our Vision" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+              {renderField("Value Title", <input value={form.storeAbout?.valueTitle || ""} onChange={(e) => setField("storeAbout", { ...(form.storeAbout || {}), valueTitle: e.target.value })} placeholder="Our Value" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+              {renderField("Mission Text", <input value={form.storeAbout?.missionText || ""} onChange={(e) => setField("storeAbout", { ...(form.storeAbout || {}), missionText: e.target.value })} placeholder="Quality Products" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+              {renderField("Vision Text", <input value={form.storeAbout?.visionText || ""} onChange={(e) => setField("storeAbout", { ...(form.storeAbout || {}), visionText: e.target.value })} placeholder="Customer Delight" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+              {renderField("Value Text", <input value={form.storeAbout?.valueText || ""} onChange={(e) => setField("storeAbout", { ...(form.storeAbout || {}), valueText: e.target.value })} placeholder="Trust & Transparency" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+            </div>
           </div>
-          <input value={form.storeSlug || ""} onChange={(e) => setField("storeSlug", e.target.value)} placeholder="Store slug" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
-          <input value={form.supportEmail || ""} onChange={(e) => setField("supportEmail", e.target.value)} placeholder="Support email" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
-          <input value={form.supportPhone || ""} onChange={(e) => setField("supportPhone", e.target.value)} placeholder="Support phone" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
-          <input value={form.defaultCourier || ""} onChange={(e) => setField("defaultCourier", e.target.value)} placeholder="Default courier" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
-          <input value={form.logoUrl || ""} onChange={(e) => setField("logoUrl", e.target.value)} placeholder="Logo URL" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
-          <input value={form.bannerUrl || ""} onChange={(e) => setField("bannerUrl", e.target.value)} placeholder="Banner URL" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
-          <textarea value={form.storeDescription || ""} onChange={(e) => setField("storeDescription", e.target.value)} placeholder="Store description" className="md:col-span-2 min-h-28 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
-          <textarea value={form.address || ""} onChange={(e) => setField("address", e.target.value)} placeholder="Business address" className="md:col-span-2 min-h-24 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />
+          {renderField("SEO Meta Title", <input value={form.storeSeo?.metaTitle || ""} onChange={(e) => setField("storeSeo", { ...(form.storeSeo || {}), metaTitle: e.target.value })} placeholder="SEO meta title" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+          {renderField("Open Graph Image URL", <input value={form.storeSeo?.ogImage || ""} onChange={(e) => setField("storeSeo", { ...(form.storeSeo || {}), ogImage: e.target.value })} placeholder="Open Graph image URL" className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />)}
+          {renderField("SEO Meta Description", <textarea value={form.storeSeo?.metaDescription || ""} onChange={(e) => setField("storeSeo", { ...(form.storeSeo || {}), metaDescription: e.target.value })} placeholder="SEO meta description" className="min-h-20 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />, { className: "md:col-span-2" })}
+          {renderField("Business Address", <textarea value={form.address || ""} onChange={(e) => setField("address", e.target.value)} placeholder="Business address" className="min-h-24 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950" />, { className: "md:col-span-2" })}
+        </div>
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+          Direct contact, external website, WhatsApp, email, phone, and social contacts are not shown on public store pages. Customers purchase only through marketplace cart and checkout.
         </div>
       </VendorSection>
 

@@ -109,6 +109,11 @@ export async function rejectSeller(id, reason) {
   return data;
 }
 
+export async function moderateVendorStore(id, payload) {
+  const { data } = await adminHttp.patch(`/api/admin/sellers/${id}/store-moderation`, payload);
+  return data;
+}
+
 export async function removeSeller(id) {
   const { data } = await adminHttp.delete(`/api/admin/vendor/${id}`);
   return data;

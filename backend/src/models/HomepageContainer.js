@@ -9,6 +9,17 @@ const {
   getContainerTypeSchema,
 } = require("../config/homepageContainerRegistry");
 
+const DATA_SOURCE_TYPES = [
+  "DEFAULT",
+  "CURRENT_VENDOR_PRODUCTS",
+  "CURRENT_VENDOR_FEATURED",
+  "CURRENT_VENDOR_NEW_ARRIVALS",
+  "CURRENT_VENDOR_BEST_SELLERS",
+  "CURRENT_VENDOR_DEALS",
+  "CURRENT_VENDOR_TOP_RATED",
+  "CURRENT_VENDOR_RECOMMENDED",
+];
+
 const visibilitySchema = new mongoose.Schema(
   {
     desktop: { type: Boolean, default: true },
@@ -150,6 +161,12 @@ const homepageContainerSchema = new mongoose.Schema(
       default: "CAROUSEL",
       index: true,
     },
+    dataSourceType: {
+      type: String,
+      enum: DATA_SOURCE_TYPES,
+      default: "DEFAULT",
+      index: true,
+    },
     status: {
       type: String,
       enum: CONTAINER_STATUS,
@@ -222,6 +239,9 @@ homepageContainerSchema.pre("validate", function normalizeContainer() {
 
   this.containerType = normalizeContainerType(this.containerType);
   this.status = String(this.status || "DRAFT").trim().toUpperCase();
+  this.dataSourceType = DATA_SOURCE_TYPES.includes(String(this.dataSourceType || "").trim().toUpperCase())
+    ? String(this.dataSourceType).trim().toUpperCase()
+    : "DEFAULT";
 
   const schema = getContainerTypeSchema(this.containerType);
 
@@ -268,6 +288,7 @@ homepageContainerSchema.index({ status: 1, priority: 1, createdAt: -1 });
 homepageContainerSchema.index({ "schedule.enabled": 1, "schedule.start": 1, "schedule.end": 1, status: 1 });
 homepageContainerSchema.index({ "visibility.desktop": 1, "visibility.mobile": 1, status: 1, priority: 1 });
 homepageContainerSchema.index({ containerType: 1, status: 1, priority: 1 });
+homepageContainerSchema.index({ dataSourceType: 1, status: 1, priority: 1 });
 
 module.exports = {
   HomepageContainer:
@@ -277,4 +298,5 @@ module.exports = {
   CONTAINER_STATUS,
   PRODUCT_SELECTION_MODES,
   SORT_OPTIONS,
+  DATA_SOURCE_TYPES,
 };

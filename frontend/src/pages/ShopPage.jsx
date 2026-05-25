@@ -448,15 +448,6 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
             </div>
           ) : null}
         </div>
-
-        {/* Stock Status */}
-        <div className="text-[11px] sm:text-xs">
-          {product.stock > 0 ? (
-            <span className="text-green-600 dark:text-green-400 font-medium">In Stock</span>
-          ) : (
-            <span className="text-red-600 dark:text-red-400 font-medium">Out of Stock</span>
-          )}
-        </div>
       </div>
     </Link>
   );

@@ -36,3 +36,8 @@ export async function getVendorMe() {
   return data;
 }
 
+export async function getAllVendors(params = {}) {
+  const { data } = await api.get("/api/public/vendors", { params });
+  return data;
+}
+

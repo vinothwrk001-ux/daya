@@ -7,6 +7,7 @@ import { getCartRecommendations, getFbtRecommendations } from "../services/recom
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatWeight, getFormattedWeight, getWeightUnit, getWeightValue } from "../utils/weight";
 import { useCart } from "../hooks/useCart";
+import { SellerNameLink, VisitStoreButton } from "../components/seller/SellerNavigation";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -146,7 +147,7 @@ export function CartPage() {
               const img = item.image || (Array.isArray(p?.images) && p.images.length ? p.images[0]?.url : "");
               const qty = Number(item.quantity || 1);
               const price = Number(item.price || 0);
-              const sellerName = item?.sellerId?.companyName || "";
+              const seller = item?.sellerId || p?.sellerId;
               const variantLabel = item?.variantTitle || "";
               const variantId = item?.variantId || "";
               const itemWeight = getWeightValue(p || item);
@@ -190,11 +191,10 @@ export function CartPage() {
                                 <span className="font-medium">{variantLabel}</span>
                               </div>
                             )}
-                            {sellerName && (
-                              <div className="text-xs text-slate-500 dark:text-slate-400">
-                                <span className="font-medium">Seller:</span> {sellerName}
-                              </div>
-                            )}
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                              <SellerNameLink seller={seller} />
+                              <VisitStoreButton seller={seller}>Visit Store</VisitStoreButton>
+                            </div>
                             {productWeightLabel && (
                               <div className="text-xs text-slate-500 dark:text-slate-400">
                                 <span className="font-medium">Weight:</span> {productWeightLabel}
