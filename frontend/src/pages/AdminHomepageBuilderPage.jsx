@@ -235,9 +235,28 @@ function normalizeLayout(layout = {}, index = 0) {
   };
 }
 
+function dedupeContainerAssignments(layouts = []) {
+  const assigned = new Set();
+  return layouts.map((layout) => {
+    const containerId = layout.assignedContainerId ? String(layout.assignedContainerId) : "";
+    if (!containerId || layout.visible === false) return layout;
+    if (assigned.has(containerId)) {
+      return {
+        ...layout,
+        assignedContainerId: null,
+        containerSettings: {},
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    assigned.add(containerId);
+    return layout;
+  });
+}
+
 function normalizeDraft(input, fallbackName = "Homepage Layout") {
   const base = createEmptyDraft(input?.name || fallbackName);
   const layouts = Array.isArray(input?.layouts) ? input.layouts : [];
+  const normalizedLayouts = layouts.map(normalizeLayout).sort((a, b) => a.sortOrder - b.sortOrder);
   return {
     ...base,
     ...(input || {}),
@@ -259,7 +278,7 @@ function normalizeDraft(input, fallbackName = "Homepage Layout") {
         mobile: { ...base.builder.canvas.mobile, ...(input?.builder?.canvas?.mobile || {}) },
       },
     },
-    layouts: layouts.map(normalizeLayout).sort((a, b) => a.sortOrder - b.sortOrder),
+    layouts: dedupeContainerAssignments(normalizedLayouts),
   };
 }
 
@@ -628,15 +647,31 @@ export function AdminHomepageBuilderPage() {
   const assignContainer = useCallback(
     (slotId, containerId) => {
       if (!canEdit) return;
-      updateSlot(slotId, (slot) => ({
-        ...slot,
-        assignedContainerId: containerId,
-        containerSettings: slot.assignedContainerId === containerId ? slot.containerSettings : {},
-        updatedAt: new Date().toISOString(),
+      commitDraft((current) => ({
+        ...current,
+        layouts: current.layouts.map((slot) => {
+          if (slot.id === slotId) {
+            return {
+              ...slot,
+              assignedContainerId: containerId,
+              containerSettings: slot.assignedContainerId === containerId ? slot.containerSettings : {},
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          if (String(slot.assignedContainerId || "") === String(containerId || "")) {
+            return {
+              ...slot,
+              assignedContainerId: null,
+              containerSettings: {},
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return slot;
+        }),
       }));
       setSelectedSlotId(slotId);
     },
-    [canEdit, updateSlot]
+    [canEdit, commitDraft]
   );
 
   const handleDragStart = useCallback((event) => {
@@ -676,6 +711,8 @@ export function AdminHomepageBuilderPage() {
         clone.name = `${source.name} Copy`;
         clone.slug = slugify(clone.name);
         clone.sortOrder = current.layouts.length;
+        clone.assignedContainerId = null;
+        clone.containerSettings = {};
         clone.createdAt = new Date().toISOString();
         clone.updatedAt = new Date().toISOString();
         setSelectedSlotId(clone.id);
@@ -859,6 +896,7 @@ export function AdminHomepageBuilderPage() {
               >
                 <option value="GLOBAL_HOME">Global Homepage</option>
                 <option value="VENDOR_STORE">Vendor Storefront Layout</option>
+                <option value="INFLUENCER_STORE">Influencer Storefront Layout</option>
                 <option value="BRAND_STORE">Brand Page Layout</option>
                 <option value="CUSTOM_PAGE">Custom Page Layout</option>
               </select>

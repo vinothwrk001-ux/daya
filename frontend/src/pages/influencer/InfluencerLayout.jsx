@@ -1,21 +1,183 @@
 import { useMemo, useState } from "react";
-import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
-import { LayoutGrid, Clapperboard, Upload, Wallet, UserRound, Megaphone, X, Store, Link2, BarChart3, Boxes } from "lucide-react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import {
+  BarChart3,
+  Banknote,
+  Bell,
+  Boxes,
+  CheckCircle2,
+  Clapperboard,
+  ClipboardList,
+  CreditCard,
+  FileText,
+  History,
+  IdCard,
+  Landmark,
+  LayoutDashboard,
+  Link2,
+  Lock,
+  Megaphone,
+  PackagePlus,
+  Palette,
+  Settings,
+  Shield,
+  Smartphone,
+  Star,
+  Store,
+  Upload,
+  UserRound,
+  Wallet,
+} from "lucide-react";
+import { Sidebar } from "../../components/sidebar/Sidebar";
+import { Topbar } from "../../components/Topbar";
 import { useAuthStore } from "../../context/authStore";
 import { usePlatformFeatures } from "../../context/PlatformFeaturesContext";
-import { Topbar } from "../../components/Topbar";
 
-const NAV = [
-  { to: "/influencer/dashboard", label: "Overview", icon: LayoutGrid },
-  { to: "/influencer/welcome", label: "Welcome", icon: Store },
-  { to: "/influencer/collections", label: "Collections", icon: Boxes },
-  { to: "/influencer/affiliate-links", label: "Affiliate links", icon: Link2 },
-  { to: "/influencer/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/influencer/campaigns", label: "Campaigns", icon: Megaphone },
-  { to: "/influencer/reels/upload", label: "Upload reel", icon: Upload },
-  { to: "/influencer/reels", label: "My reels", icon: Clapperboard },
-  { to: "/influencer/earnings", label: "Earnings", icon: Wallet },
-  { to: "/influencer/profile", label: "Profile", icon: UserRound },
+const INFLUENCER_PRIMARY_ITEM = {
+  name: "Dashboard",
+  path: "/influencer/dashboard",
+  icon: LayoutDashboard,
+};
+
+const INFLUENCER_SECTIONS = [
+  {
+    section: "Overview",
+    key: "overview",
+    items: [
+      { name: "Welcome", path: "/influencer/welcome", icon: Store },
+      { name: "Analytics", path: "/influencer/analytics", icon: BarChart3 },
+      { name: "Profile", path: "/influencer/profile", icon: UserRound },
+    ],
+  },
+  {
+    section: "Collection",
+    key: "collection",
+    items: [
+      { name: "Create Collection", path: "/influencer/collections", matchSearch: "?tab=create", icon: Boxes },
+      { name: "Featured Collections", path: "/influencer/collections", matchSearch: "?tab=featured", icon: Star },
+      { name: "Seasonal Collections", path: "/influencer/collections", matchSearch: "?tab=seasonal", icon: Boxes },
+      { name: "Product Assignment", path: "/influencer/collections", matchSearch: "?tab=assignment", icon: PackagePlus },
+      { name: "Collection Analytics", path: "/influencer/collections", matchSearch: "?tab=analytics", icon: BarChart3 },
+      { name: "Collection Visibility", path: "/influencer/collections", matchSearch: "?tab=visibility", icon: Boxes },
+    ],
+  },
+  {
+    section: "Storefront Builder",
+    key: "storefront",
+    items: [
+      { name: "Store Information", path: "/influencer/storefront-builder", icon: Settings },
+      { name: "Store Banner", path: "/influencer/storefront-builder", matchSearch: "?tab=banner", icon: Store },
+      { name: "Profile Branding", path: "/influencer/storefront-builder", matchSearch: "?tab=branding", icon: Palette },
+      { name: "Homepage Builder", path: "/influencer/storefront-builder", matchSearch: "?tab=homepage", icon: LayoutDashboard },
+      { name: "Featured Collections", path: "/influencer/storefront-builder", matchSearch: "?tab=collections", icon: Boxes },
+      { name: "Featured Products", path: "/influencer/storefront-builder", matchSearch: "?tab=products", icon: PackagePlus },
+      { name: "Hero Banner", path: "/influencer/storefront-builder", matchSearch: "?tab=hero", icon: Megaphone },
+      { name: "Categories", path: "/influencer/storefront-builder", matchSearch: "?tab=categories", icon: Star },
+      { name: "Social Links", path: "/influencer/storefront-builder", matchSearch: "?tab=social", icon: Link2 },
+      { name: "SEO Settings", path: "/influencer/storefront-builder", matchSearch: "?tab=seo", icon: BarChart3 },
+      { name: "Preview Storefront", path: "/influencer/storefront-builder", matchSearch: "?tab=preview", icon: Store },
+    ],
+  },
+  {
+    section: "Affiliate Product",
+    key: "growth",
+    items: [
+      { name: "Browse Products", path: "/influencer/affiliate-products", icon: PackagePlus },
+      { name: "Recommended Products", path: "/influencer/affiliate-products", matchSearch: "?tab=recommended", icon: Star },
+      { name: "Trending Products", path: "/influencer/affiliate-products", matchSearch: "?tab=trending", icon: Megaphone },
+      { name: "Highest Commission", path: "/influencer/affiliate-products", matchSearch: "?tab=highest_commission", icon: Wallet },
+      { name: "New Arrivals", path: "/influencer/affiliate-products", matchSearch: "?tab=new", icon: Store },
+      { name: "Saved Products", path: "/influencer/affiliate-products", matchSearch: "?tab=saved", icon: Star },
+      { name: "Generate Affiliate Link", path: "/influencer/affiliate-products", matchSearch: "?tab=links", icon: Link2 },
+      { name: "Product Analytics", path: "/influencer/affiliate-products", matchSearch: "?tab=analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    section: "Videos & Content",
+    key: "content",
+    items: [
+      { name: "Upload Videos", path: "/influencer/content", icon: Upload },
+      { name: "Product Videos", path: "/influencer/content", matchSearch: "?tab=products", icon: Clapperboard },
+      { name: "Shorts/Reels", path: "/influencer/content", matchSearch: "?tab=reels", icon: Clapperboard },
+      { name: "Live Commerce", path: "/influencer/content", matchSearch: "?tab=live", icon: Megaphone },
+      { name: "Media Library", path: "/influencer/content", matchSearch: "?tab=media", icon: Store },
+      { name: "Scheduled Content", path: "/influencer/content", matchSearch: "?tab=scheduled", icon: Upload },
+      { name: "Content Analytics", path: "/influencer/content", matchSearch: "?tab=analytics", icon: BarChart3 },
+      { name: "Performance Reports", path: "/influencer/content", matchSearch: "?tab=reports", icon: BarChart3 },
+    ],
+  },
+  {
+    section: "Campaign Marketplace",
+    key: "campaigns",
+    items: [
+      { name: "Available Campaigns", path: "/influencer/campaigns", icon: Megaphone },
+      { name: "Recommended Campaigns", path: "/influencer/campaigns", matchSearch: "?tab=recommended", icon: Star },
+      { name: "Applied Campaigns", path: "/influencer/campaigns", matchSearch: "?tab=applied", icon: ClipboardList },
+      { name: "Active Campaigns", path: "/influencer/campaigns", matchSearch: "?tab=active", icon: CheckCircle2 },
+      { name: "Completed Campaigns", path: "/influencer/campaigns", matchSearch: "?tab=completed", icon: CheckCircle2 },
+      { name: "Campaign Analytics", path: "/influencer/campaigns", matchSearch: "?tab=analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    section: "Earnings & Wallet",
+    key: "finance",
+    items: [
+      { name: "Total Earnings", path: "/influencer/earnings", icon: Banknote },
+      { name: "Pending Earnings", path: "/influencer/earnings", matchSearch: "?tab=pending", icon: ClipboardList },
+      { name: "Approved Earnings", path: "/influencer/earnings", matchSearch: "?tab=approved", icon: CheckCircle2 },
+      { name: "Withdrawable Balance", path: "/influencer/earnings", matchSearch: "?tab=balance", icon: Wallet },
+      { name: "Earnings History", path: "/influencer/earnings", matchSearch: "?tab=history", icon: ClipboardList },
+      { name: "Commission Breakdown", path: "/influencer/earnings", matchSearch: "?tab=commission", icon: BarChart3 },
+      { name: "Bonus Earnings", path: "/influencer/earnings", matchSearch: "?tab=bonus", icon: Banknote },
+      { name: "Tax Summary", path: "/influencer/earnings", matchSearch: "?tab=tax", icon: FileText },
+    ],
+  },
+  {
+    section: "Withdrawal Requests",
+    key: "withdrawals",
+    items: [
+      { name: "Request Withdrawal", path: "/influencer/earnings", matchSearch: "?tab=request", icon: Wallet },
+      { name: "Pending Requests", path: "/influencer/earnings", matchSearch: "?tab=withdrawal_pending", icon: ClipboardList },
+      { name: "Approved Requests", path: "/influencer/earnings", matchSearch: "?tab=withdrawal_approved", icon: CheckCircle2 },
+      { name: "Rejected Requests", path: "/influencer/earnings", matchSearch: "?tab=withdrawal_rejected", icon: ClipboardList },
+      { name: "Payment History", path: "/influencer/earnings", matchSearch: "?tab=payments", icon: CreditCard },
+      { name: "Bank Accounts", path: "/influencer/earnings", matchSearch: "?tab=banks", icon: Landmark },
+    ],
+  },
+  {
+    section: "Documents & Verification",
+    key: "verification",
+    items: [
+      { name: "Identity Documents", path: "/influencer/verification", icon: IdCard },
+      { name: "Tax Information", path: "/influencer/verification", matchSearch: "?tab=tax", icon: FileText },
+      { name: "Bank Information", path: "/influencer/verification", matchSearch: "?tab=bank", icon: Landmark },
+      { name: "Verification Status", path: "/influencer/verification", matchSearch: "?tab=status", icon: CheckCircle2 },
+      { name: "Approval History", path: "/influencer/verification", matchSearch: "?tab=history", icon: History },
+      { name: "Uploaded Documents", path: "/influencer/verification", matchSearch: "?tab=documents", icon: ClipboardList },
+    ],
+  },
+  {
+    section: "Profile Settings",
+    key: "profileSettings",
+    items: [
+      { name: "Personal Information", path: "/influencer/profile", icon: UserRound },
+      { name: "Social Accounts", path: "/influencer/profile", matchSearch: "?tab=social", icon: Smartphone },
+      { name: "Store Branding", path: "/influencer/profile", matchSearch: "?tab=branding", icon: Palette },
+      { name: "Payment Settings", path: "/influencer/profile", matchSearch: "?tab=payment", icon: Wallet },
+      { name: "Notification Settings", path: "/influencer/profile", matchSearch: "?tab=notifications", icon: Bell },
+      { name: "Security Settings", path: "/influencer/profile", matchSearch: "?tab=security", icon: Lock },
+      { name: "Privacy Settings", path: "/influencer/profile", matchSearch: "?tab=privacy", icon: Shield },
+      { name: "Connected Accounts", path: "/influencer/profile", matchSearch: "?tab=connected", icon: Link2 },
+    ],
+  },
+  {
+    section: "Workspace",
+    key: "workspace",
+    items: [
+      { name: "Storefront", path: "/influencer/welcome", icon: Store },
+      { name: "Settings", path: "/influencer/profile", icon: Settings },
+    ],
+  },
 ];
 
 const PAGE_META = {
@@ -31,41 +193,68 @@ const PAGE_META = {
     title: "Collections",
     subtitle: "Curate products and share creator recommendations.",
   },
+  "/influencer/storefront-builder": {
+    title: "Storefront Builder",
+    subtitle: "Customize branding, homepage sections, merchandising, SEO, and storefront previews.",
+  },
   "/influencer/affiliate-links": {
     title: "Affiliate links",
     subtitle: "Generate product, collection, campaign, and storefront tracking URLs.",
+  },
+  "/influencer/affiliate-products": {
+    title: "Affiliate Products",
+    subtitle: "Discover products, generate tracking links, save opportunities, and analyze affiliate performance.",
   },
   "/influencer/analytics": {
     title: "Analytics",
     subtitle: "Storefront, affiliate, conversion, and revenue metrics.",
   },
   "/influencer/campaigns": {
-    title: "Campaigns",
-    subtitle: "Review proposals, accept active partnerships, and decline what does not fit.",
+    title: "Campaign Marketplace",
+    subtitle: "Discover, apply, manage deliverables, and analyze brand campaign performance.",
   },
   "/influencer/reels/upload": {
     title: "Upload a reel",
     subtitle: "Attach content to an active campaign and tag eligible products.",
+  },
+  "/influencer/content": {
+    title: "Videos & Content",
+    subtitle: "Upload, schedule, monetize, and analyze product videos, reels, live commerce, and media assets.",
   },
   "/influencer/reels": {
     title: "Reel performance",
     subtitle: "Moderation status, engagement metrics, and storefront attribution.",
   },
   "/influencer/earnings": {
-    title: "Earnings & ledger",
-    subtitle: "Available balance, hold pipeline, and full transaction history.",
+    title: "Earnings & Wallet",
+    subtitle: "Balances, commissions, withdrawals, payout accounts, payment history, and tax summaries.",
+  },
+  "/influencer/verification": {
+    title: "Documents & Verification",
+    subtitle: "Identity documents, tax information, bank verification, approval history, and compliance status.",
   },
   "/influencer/profile": {
-    title: "Public profile",
-    subtitle: "Categories, reach, bio, and social proof for vendor discovery.",
+    title: "Profile Settings",
+    subtitle: "Personal information, social accounts, branding, payments, notifications, security, and privacy.",
   },
 };
+
+function withQueryPath(item) {
+  return item.matchSearch ? { ...item, to: `${item.path}${item.matchSearch}`, matchPath: item.path } : item;
+}
+
+function sectionWithQueryPaths(section) {
+  return {
+    ...section,
+    items: section.items.map(withQueryPath),
+  };
+}
 
 export function InfluencerLayout() {
   const user = useAuthStore((s) => s.user);
   const { influencerCommerceEnabled, loading: commerceLoading } = usePlatformFeatures();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const meta = useMemo(() => {
     const hit = Object.keys(PAGE_META).find(
@@ -73,6 +262,8 @@ export function InfluencerLayout() {
     );
     return PAGE_META[hit] || PAGE_META["/influencer/dashboard"];
   }, [location.pathname]);
+
+  const sidebarSections = useMemo(() => INFLUENCER_SECTIONS.map(sectionWithQueryPaths), []);
 
   const userRoles = Array.from(new Set([user?.role, ...(user?.roles || [])].filter(Boolean)));
   if (!user || !userRoles.includes("influencer")) {
@@ -84,72 +275,26 @@ export function InfluencerLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <div className="flex min-h-screen max-w-full overflow-x-hidden">
-        <aside
-          className={`fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform dark:border-slate-800 dark:bg-slate-900 lg:static lg:translate-x-0 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800 lg:h-16">
-            <Link to="/influencer/dashboard" className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
-              Creator hub
-            </Link>
-            <button
-              type="button"
-              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden dark:text-slate-300 dark:hover:bg-slate-800"
-              onClick={() => setSidebarOpen(false)}
-              aria-label="Close menu"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
-            {NAV.map((item) => {
-              const Icon = item.icon;
-              const active = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                    active
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                  }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0 opacity-90" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="shrink-0 border-t border-slate-200 p-3 dark:border-slate-800">
-            <Link
-              to="/"
-              className="block rounded-xl px-3 py-2 text-center text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
-            >
-              ← Back to storefront
-            </Link>
-          </div>
-        </aside>
-
-        {sidebarOpen ? (
-          <button
-            type="button"
-            className="fixed inset-0 z-20 bg-slate-950/40 lg:hidden"
-            aria-label="Dismiss menu"
-            onClick={() => setSidebarOpen(false)}
-          />
-        ) : null}
-
-        <div className="flex min-w-0 flex-1 flex-col lg:pl-0">
-          <Topbar title={meta.title} subtitle={meta.subtitle} onMenuToggle={() => setSidebarOpen(true)} />
-          <main className="min-w-0 flex-1 overflow-x-hidden px-3 py-5 sm:px-6 sm:py-7 lg:px-8">
-            <Outlet />
-          </main>
-        </div>
+    <div className={`flex min-h-screen max-w-full overflow-x-hidden bg-slate-100 dark:bg-slate-950 ${sidebarOpen ? "lg:ml-20" : "lg:ml-0"}`}>
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onNavigate={() => setSidebarOpen(false)}
+        title="Influencer Hub"
+        subtitle="Creator commerce workspace"
+        primaryItem={INFLUENCER_PRIMARY_ITEM}
+        sections={sidebarSections}
+      />
+      <div className="flex min-w-0 max-w-full flex-1 flex-col">
+        <Topbar
+          title={meta.title}
+          subtitle={meta.subtitle}
+          onMenuToggle={() => setSidebarOpen((open) => !open)}
+          sidebarOpen={sidebarOpen}
+        />
+        <main className="min-w-0 max-w-full flex-1 overflow-x-hidden px-4 py-4 sm:px-6 lg:px-8">
+          <Outlet />
+        </main>
       </div>
     </div>
   );

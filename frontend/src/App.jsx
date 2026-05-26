@@ -144,12 +144,16 @@ import InfluencerDashboardPage from "./pages/influencer/dashboard.jsx";
 import InfluencerCampaignsPage from "./pages/influencer/campaigns.jsx";
 import InfluencerReelUploadPage from "./pages/influencer/reelUpload.jsx";
 import InfluencerReelsPage from "./pages/influencer/reels.jsx";
+import InfluencerContentCenterPage from "./pages/influencer/contentCenter.jsx";
 import InfluencerEarningsPage from "./pages/influencer/earnings.jsx";
+import InfluencerVerificationPage from "./pages/influencer/verification.jsx";
 import InfluencerProfilePage from "./pages/influencer/profile.jsx";
 import InfluencerWelcomePage from "./pages/influencer/welcome.jsx";
 import InfluencerAffiliateLinksPage from "./pages/influencer/affiliateLinks.jsx";
+import InfluencerAffiliateProductsPage from "./pages/influencer/affiliateProducts.jsx";
 import InfluencerAnalyticsPage from "./pages/influencer/analytics.jsx";
 import InfluencerCollectionsPage from "./pages/influencer/collections.jsx";
+import InfluencerStorefrontBuilderPage from "./pages/influencer/storefrontBuilder.jsx";
 import { InfluencerPublicStorefrontPage } from "./pages/InfluencerPublicStorefrontPage";
 import { AdminInfluencerPage } from "./pages/AdminInfluencerPage";
 import { AdminCommerceIntelligencePage } from "./pages/AdminCommerceIntelligencePage";
@@ -225,13 +229,17 @@ export default function App() {
             <Route element={<InfluencerLayout />}>
               <Route path="/influencer/dashboard" element={<InfluencerDashboardPage />} />
               <Route path="/influencer/welcome" element={<InfluencerWelcomePage />} />
+              <Route path="/influencer/storefront-builder" element={<InfluencerStorefrontBuilderPage />} />
               <Route path="/influencer/collections" element={<InfluencerCollectionsPage />} />
+              <Route path="/influencer/affiliate-products" element={<InfluencerAffiliateProductsPage />} />
               <Route path="/influencer/affiliate-links" element={<InfluencerAffiliateLinksPage />} />
               <Route path="/influencer/analytics" element={<InfluencerAnalyticsPage />} />
               <Route path="/influencer/campaigns" element={<InfluencerCampaignsPage />} />
+              <Route path="/influencer/content" element={<InfluencerContentCenterPage />} />
               <Route path="/influencer/reels/upload" element={<InfluencerReelUploadPage />} />
               <Route path="/influencer/reels" element={<InfluencerReelsPage />} />
               <Route path="/influencer/earnings" element={<InfluencerEarningsPage />} />
+              <Route path="/influencer/verification" element={<InfluencerVerificationPage />} />
               <Route path="/influencer/profile" element={<InfluencerProfilePage />} />
             </Route>
           </Route>

@@ -94,6 +94,11 @@ export async function listSellers(params = {}) {
   return data;
 }
 
+export async function listInfluencers(params = {}) {
+  const { data } = await adminHttp.get("/api/influencer/admin/list", { params });
+  return data;
+}
+
 export async function getSellerDetails(id) {
   const { data } = await adminHttp.get(`/api/admin/sellers/${id}`);
   return data;

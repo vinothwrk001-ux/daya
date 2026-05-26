@@ -1,4 +1,4 @@
-const CONTAINER_TYPES = [
+const CORE_CONTAINER_TYPES = [
   "CAROUSEL",
   "GRID",
   "FEATURED_PRODUCTS",
@@ -20,6 +20,27 @@ const CONTAINER_TYPES = [
 ];
 
 const PRODUCT_SELECTION_MODES = ["AUTO", "MANUAL"];
+const STOREFRONT_SELECTION_MODES = ["AUTO", "MANUAL"];
+const VENDOR_STOREFRONT_TYPES = [
+  "VENDOR_STOREFRONT_GRID",
+  "VENDOR_STOREFRONT_CAROUSEL",
+  "VENDOR_FEATURED_STORES",
+  "VENDOR_TRENDING_STORES",
+  "VENDOR_VERIFIED_STORES",
+  "VENDOR_NEW_STORES",
+  "VENDOR_RECOMMENDED_STORES",
+];
+const INFLUENCER_STOREFRONT_TYPES = [
+  "INFLUENCER_STOREFRONT_GRID",
+  "INFLUENCER_STOREFRONT_CAROUSEL",
+  "INFLUENCER_FEATURED_CREATORS",
+  "INFLUENCER_TRENDING_CREATORS",
+  "INFLUENCER_VERIFIED_CREATORS",
+  "INFLUENCER_NEW_CREATORS",
+  "INFLUENCER_RECOMMENDED_CREATORS",
+];
+const STOREFRONT_CONTAINER_TYPES = [...VENDOR_STOREFRONT_TYPES, ...INFLUENCER_STOREFRONT_TYPES];
+const CONTAINER_TYPES = [...CORE_CONTAINER_TYPES, ...STOREFRONT_CONTAINER_TYPES];
 const CONTAINER_STATUS = ["DRAFT", "ACTIVE", "DISABLED"];
 const SORT_OPTIONS = [
   "BEST_SELLING",
@@ -328,6 +349,74 @@ const FIELD_LIBRARY = {
     options: ["LIGHT", "DARK", "BRAND"],
     defaultValue: "BRAND",
   },
+  storefrontDisplayType: {
+    type: "select",
+    options: ["GRID", "CAROUSEL", "SLIDER", "MASONRY"],
+    defaultValue: "GRID",
+  },
+  storefrontSelectionMode: {
+    type: "select",
+    options: STOREFRONT_SELECTION_MODES,
+    defaultValue: "AUTO",
+  },
+  manualVendorIds: {
+    type: "async-multiselect",
+    source: "vendors",
+    searchable: true,
+    defaultValue: [],
+  },
+  manualInfluencerIds: {
+    type: "async-multiselect",
+    source: "influencers",
+    searchable: true,
+    defaultValue: [],
+  },
+  vendorAutoRule: {
+    type: "select",
+    options: ["MOST_FOLLOWED", "TOP_RATED", "BEST_SELLING", "HIGHEST_REVENUE", "NEWEST", "VERIFIED", "RECENTLY_ACTIVE", "RANDOM"],
+    defaultValue: "MOST_FOLLOWED",
+  },
+  influencerAutoRule: {
+    type: "select",
+    options: ["MOST_FOLLOWED", "MOST_VIEWED", "MOST_REVENUE_GENERATED", "TOP_CONVERTING", "TRENDING", "VERIFIED", "NEWEST", "RECOMMENDED", "RANDOM"],
+    defaultValue: "MOST_FOLLOWED",
+  },
+  maxStorefrontCards: { type: "number", min: 1, max: 48, defaultValue: 8 },
+  desktopCardCount: { type: "number", min: 1, max: 8, defaultValue: 4 },
+  tabletCardCount: { type: "number", min: 1, max: 4, defaultValue: 2 },
+  mobileCardCount: { type: "number", min: 1, max: 2, defaultValue: 1 },
+  storefrontCardStyle: {
+    type: "select",
+    options: ["CLASSIC", "MODERN", "MINIMAL", "PREMIUM", "CREATOR"],
+    defaultValue: "MODERN",
+  },
+  storefrontCardLayout: {
+    type: "select",
+    options: ["VERTICAL", "HORIZONTAL", "OVERLAY", "CREATOR", "STORE_SHOWCASE"],
+    defaultValue: "VERTICAL",
+  },
+  storefrontSortOrder: {
+    type: "select",
+    options: ["AUTO", "MANUAL_ORDER", "NEWEST", "MOST_FOLLOWED", "TOP_RATED", "RANDOM"],
+    defaultValue: "AUTO",
+  },
+  cardCtaText: { type: "text", defaultValue: "View Store" },
+  showStoreLogo: { type: "boolean", defaultValue: true },
+  showStoreBanner: { type: "boolean", defaultValue: true },
+  showStoreName: { type: "boolean", defaultValue: true },
+  showStoreDescription: { type: "boolean", defaultValue: true },
+  showStoreCategory: { type: "boolean", defaultValue: true },
+  showProductsCount: { type: "boolean", defaultValue: true },
+  showFollowersCount: { type: "boolean", defaultValue: true },
+  showStoreRating: { type: "boolean", defaultValue: true },
+  showReviewsCount: { type: "boolean", defaultValue: true },
+  showYearsActive: { type: "boolean", defaultValue: false },
+  showVerifiedBadge: { type: "boolean", defaultValue: true },
+  showFeaturedBadge: { type: "boolean", defaultValue: true },
+  showTopCreatorBadge: { type: "boolean", defaultValue: true },
+  showStorefrontCta: { type: "boolean", defaultValue: true },
+  animatedEntry: { type: "boolean", defaultValue: true },
+  hoverEffect: { type: "boolean", defaultValue: true },
   bundleProducts: { ...PRODUCT_FIELD, defaultValue: [] },
   comboDiscount: { type: "number", min: 0, max: 100, defaultValue: 10 },
   comboTitle: { type: "text", defaultValue: "" },
@@ -366,6 +455,75 @@ const PRODUCT_TYPE_DEFAULTS = {
   supportsProductFilters: true,
   defaultSortBy: "TRENDING",
 };
+
+function labelFromContainerType(type, prefix) {
+  return String(type || "")
+    .replace(new RegExp(`^${prefix}_`), `${prefix[0]}${prefix.slice(1).toLowerCase()} `)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function storefrontFields({
+  entity,
+  manualField,
+  autoRuleField,
+  ctaText,
+  cardStyleOptions,
+  cardLayoutOptions,
+  displayNameLabel,
+  logoLabel,
+  bannerLabel,
+  descriptionLabel,
+  ratingLabel,
+  extraBadgeField,
+  extraBadgeLabel,
+} = {}) {
+  return (type) => [
+    field("storefrontDisplayType", { label: "Display Type", defaultValue: type.includes("CAROUSEL") ? "CAROUSEL" : "GRID" }),
+    field("storefrontSelectionMode", { label: "Selection Mode" }),
+    field(manualField, { label: `Manual ${entity}s` }),
+    field(autoRuleField, { label: `Automatic ${entity} Rule` }),
+    field("maxStorefrontCards", { label: "Maximum Cards" }),
+    field("desktopCardCount", { label: "Desktop Count" }),
+    field("tabletCardCount", { label: "Tablet Count" }),
+    field("mobileCardCount", { label: "Mobile Count" }),
+    field("storefrontCardStyle", { label: "Card Style", options: cardStyleOptions }),
+    field("storefrontCardLayout", { label: "Card Layout", options: cardLayoutOptions }),
+    field("storefrontSortOrder", { label: "Sort Order" }),
+    field("cardCtaText", { label: "Button Text", defaultValue: ctaText }),
+    field("showStoreLogo", { label: logoLabel }),
+    field("showStoreBanner", { label: bannerLabel }),
+    field("showStoreName", { label: displayNameLabel }),
+    field("showStoreDescription", { label: descriptionLabel }),
+    field("showStoreCategory", { label: "Store Category" }),
+    field("showProductsCount", { label: "Products Count" }),
+    field("showFollowersCount", { label: "Followers Count" }),
+    field("showStoreRating", { label: ratingLabel }),
+    field("showReviewsCount", { label: "Reviews Count" }),
+    field("showYearsActive", { label: "Years Active" }),
+    field("showVerifiedBadge", { label: "Verified Badge" }),
+    field(extraBadgeField, { label: extraBadgeLabel }),
+    field("showStorefrontCta", { label: "CTA Button" }),
+    field("hoverEffect", { label: "Hover Effects" }),
+    field("animatedEntry", { label: "Animated Entry" }),
+  ];
+}
+
+function storefrontRegistryEntries(types, options) {
+  const buildFields = storefrontFields(options);
+  return Object.fromEntries(
+    types.map((type) => [
+      type,
+      {
+        label: labelFromContainerType(type, options.prefix),
+        supportsProducts: false,
+        supportsManualSelection: true,
+        supportsProductFilters: false,
+        fields: buildFields(type),
+      },
+    ])
+  );
+}
 
 const REGISTRY = {
   CAROUSEL: {
@@ -646,6 +804,38 @@ const REGISTRY = {
     label: "Vendor Spotlight",
     fields: [field("vendorBanner"), field("vendorTheme")],
   },
+  ...storefrontRegistryEntries(VENDOR_STOREFRONT_TYPES, {
+    prefix: "VENDOR",
+    entity: "Vendor",
+    manualField: "manualVendorIds",
+    autoRuleField: "vendorAutoRule",
+    ctaText: "View Store",
+    cardStyleOptions: ["CLASSIC", "MODERN", "MINIMAL", "PREMIUM"],
+    cardLayoutOptions: ["VERTICAL", "HORIZONTAL", "OVERLAY", "STORE_SHOWCASE"],
+    displayNameLabel: "Store Name",
+    logoLabel: "Store Logo",
+    bannerLabel: "Store Banner",
+    descriptionLabel: "Store Description",
+    ratingLabel: "Rating",
+    extraBadgeField: "showFeaturedBadge",
+    extraBadgeLabel: "Featured Badge",
+  }),
+  ...storefrontRegistryEntries(INFLUENCER_STOREFRONT_TYPES, {
+    prefix: "INFLUENCER",
+    entity: "Influencer",
+    manualField: "manualInfluencerIds",
+    autoRuleField: "influencerAutoRule",
+    ctaText: "View Storefront",
+    cardStyleOptions: ["CLASSIC", "MODERN", "CREATOR", "PREMIUM"],
+    cardLayoutOptions: ["VERTICAL", "HORIZONTAL", "OVERLAY", "CREATOR"],
+    displayNameLabel: "Display Name",
+    logoLabel: "Profile Photo",
+    bannerLabel: "Cover Banner",
+    descriptionLabel: "Bio",
+    ratingLabel: "Engagement Score",
+    extraBadgeField: "showTopCreatorBadge",
+    extraBadgeLabel: "Top Creator Badge",
+  }),
   COMBO_DEALS: {
     ...PRODUCT_TYPE_DEFAULTS,
     label: "Combo Deals",
@@ -750,6 +940,10 @@ module.exports = {
   CONTAINER_TYPES,
   CONTAINER_STATUS,
   PRODUCT_SELECTION_MODES,
+  STOREFRONT_SELECTION_MODES,
+  VENDOR_STOREFRONT_TYPES,
+  INFLUENCER_STOREFRONT_TYPES,
+  STOREFRONT_CONTAINER_TYPES,
   SORT_OPTIONS,
   COMMON_FIELDS,
   PRODUCT_FILTER_FIELDS,

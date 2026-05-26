@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const { generateSlug } = require("../utils/slug");
 
-const PAGE_CONTEXTS = ["GLOBAL_HOME", "VENDOR_STORE", "BRAND_STORE", "CUSTOM_PAGE"];
+const PAGE_CONTEXTS = ["GLOBAL_HOME", "VENDOR_STORE", "INFLUENCER_STORE", "BRAND_STORE", "CUSTOM_PAGE"];
 const VENDOR_LAYOUT_TYPES = ["SHARED_ALL_VENDORS"];
 
 const seoSchema = new mongoose.Schema(

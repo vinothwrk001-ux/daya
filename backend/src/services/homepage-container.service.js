@@ -4,12 +4,15 @@ const { Product } = require("../models/Product");
 const { Vendor } = require("../models/Vendor");
 const { Category } = require("../models/Category");
 const { Subcategory } = require("../models/Subcategory");
+const { InfluencerProfile, InfluencerStorefront, InfluencerCollection } = require("../modules/influencer/model");
 const { AppError } = require("../utils/AppError");
 const { uploadMany } = require("../utils/upload");
 const {
   normalizeContainerType,
   getContainerTypeSchema,
   listContainerTypeSchemas,
+  VENDOR_STOREFRONT_TYPES,
+  INFLUENCER_STOREFRONT_TYPES,
 } = require("../config/homepageContainerRegistry");
 
 const DEFAULT_PREVIEW_LIMIT = 12;
@@ -25,6 +28,8 @@ const VENDOR_DATA_SOURCE_TYPES = new Set([
   "CURRENT_VENDOR_TOP_RATED",
   "CURRENT_VENDOR_RECOMMENDED",
 ]);
+const VENDOR_STOREFRONT_TYPE_SET = new Set(VENDOR_STOREFRONT_TYPES);
+const INFLUENCER_STOREFRONT_TYPE_SET = new Set(INFLUENCER_STOREFRONT_TYPES);
 
 function normalizeDataSourceType(value) {
   const next = String(value || "DEFAULT").trim().toUpperCase();
@@ -91,11 +96,6 @@ function normalizeDate(value, fallback = null) {
   if (!value) return fallback;
   const next = new Date(value);
   return Number.isNaN(next.getTime()) ? fallback : next;
-}
-
-function coerceBoolean(value, fallback = false) {
-  if (value === undefined) return fallback;
-  return Boolean(value);
 }
 
 function normalizeInteger(value, fallback = 0, { min = Number.NEGATIVE_INFINITY, max = Number.POSITIVE_INFINITY } = {}) {
@@ -382,7 +382,13 @@ async function validateReferences(payload = {}, existingId = null) {
       : [];
   const comboProductIds = payload.containerType === "COMBO_DEALS" ? extractConfigIds(config.bundleProducts) : [];
   const showcaseCategoryIds = payload.containerType === "CATEGORY_SHOWCASE" ? extractConfigIds(config.categories) : [];
-  const [vendors, categories, subcategories, manualProducts, featuredProducts, comboProducts, showcaseCategories, slugConflict] = await Promise.all([
+  const manualVendorIds = isVendorStorefrontContainer(payload.containerType) && String(config.storefrontSelectionMode || "AUTO").toUpperCase() === "MANUAL"
+    ? extractConfigIds(config.manualVendorIds).filter((id) => mongoose.isValidObjectId(id))
+    : [];
+  const manualInfluencerIds = isInfluencerStorefrontContainer(payload.containerType) && String(config.storefrontSelectionMode || "AUTO").toUpperCase() === "MANUAL"
+    ? extractConfigIds(config.manualInfluencerIds).filter((id) => mongoose.isValidObjectId(id))
+    : [];
+  const [vendors, categories, subcategories, manualProducts, featuredProducts, comboProducts, showcaseCategories, manualStoreVendors, manualStoreInfluencers, slugConflict] = await Promise.all([
     filters.vendorIds?.length
       ? Vendor.find({ _id: { $in: filters.vendorIds }, status: "approved" }).select("_id").lean()
       : Promise.resolve([]),
@@ -421,6 +427,12 @@ async function validateReferences(payload = {}, existingId = null) {
       : Promise.resolve([]),
     showcaseCategoryIds.length
       ? Category.find({ _id: { $in: showcaseCategoryIds }, isActive: true }).select("_id").lean()
+      : Promise.resolve([]),
+    manualVendorIds.length
+      ? Vendor.find({ _id: { $in: manualVendorIds }, status: "approved", isStoreVisible: { $ne: false } }).select("_id").lean()
+      : Promise.resolve([]),
+    manualInfluencerIds.length
+      ? InfluencerProfile.find({ _id: { $in: manualInfluencerIds }, state: { $in: ["verified", "active"] } }).select("_id").lean()
       : Promise.resolve([]),
     payload.slug
       ? HomepageContainer.findOne({
@@ -469,6 +481,14 @@ async function validateReferences(payload = {}, existingId = null) {
 
   if (showcaseCategoryIds.length && showcaseCategories.length !== new Set(showcaseCategoryIds).size) {
     throw new AppError("One or more showcase categories are invalid", 400, "INVALID_SHOWCASE_CATEGORIES");
+  }
+
+  if (manualVendorIds.length && manualStoreVendors.length !== new Set(manualVendorIds).size) {
+    throw new AppError("One or more selected storefront vendors are invalid or unavailable", 400, "INVALID_STOREFRONT_VENDORS");
+  }
+
+  if (manualInfluencerIds.length && manualStoreInfluencers.length !== new Set(manualInfluencerIds).size) {
+    throw new AppError("One or more selected storefront influencers are invalid or unavailable", 400, "INVALID_STOREFRONT_INFLUENCERS");
   }
 
   validateTypeSpecificRules(payload);
@@ -710,6 +730,33 @@ function extractConfigIds(items = []) {
     .map(String);
 }
 
+function isVendorStorefrontContainer(type) {
+  return VENDOR_STOREFRONT_TYPE_SET.has(normalizeContainerType(type));
+}
+
+function isInfluencerStorefrontContainer(type) {
+  return INFLUENCER_STOREFRONT_TYPE_SET.has(normalizeContainerType(type));
+}
+
+function isStorefrontDiscoveryContainer(type) {
+  return isVendorStorefrontContainer(type) || isInfluencerStorefrontContainer(type);
+}
+
+function normalizeStorefrontSelectionMode(config = {}) {
+  return String(config.storefrontSelectionMode || "AUTO").trim().toUpperCase() === "MANUAL" ? "MANUAL" : "AUTO";
+}
+
+function clampStorefrontLimit(config = {}) {
+  return Math.min(Math.max(Number(config.maxStorefrontCards || config.maxCards || 8), 1), 48);
+}
+
+function yearsActiveFrom(date) {
+  if (!date) return 0;
+  const created = new Date(date);
+  if (Number.isNaN(created.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - created.getTime()) / (365 * 24 * 60 * 60 * 1000)));
+}
+
 function normalizeCategoryCards(cards = []) {
   const parsedCards = typeof cards === "string" ? parseJsonArray(cards) : cards;
   return (Array.isArray(parsedCards) ? parsedCards : [])
@@ -781,6 +828,156 @@ async function withCategoryShowcaseData(container = {}) {
       categoryItems,
     },
   };
+}
+
+async function buildVendorStorefrontCards(container = {}) {
+  const config = container.config || {};
+  const limit = clampStorefrontLimit(config);
+  const selectionMode = normalizeStorefrontSelectionMode(config);
+  const manualIds = extractConfigIds(config.manualVendorIds).filter((id) => mongoose.isValidObjectId(id));
+  const query = { status: "approved", isStoreVisible: { $ne: false }, storeSlug: { $nin: ["", null] } };
+  let sort = { isStoreFeatured: -1, lastActiveAt: -1, createdAt: -1 };
+
+  if (selectionMode === "MANUAL" && manualIds.length) {
+    query._id = { $in: manualIds.map((id) => new mongoose.Types.ObjectId(id)) };
+  } else {
+    const rule = String(config.vendorAutoRule || "").toUpperCase();
+    if (container.containerType === "VENDOR_FEATURED_STORES" || rule === "VERIFIED") query.isStoreFeatured = true;
+    if (container.containerType === "VENDOR_NEW_STORES" || rule === "NEWEST") sort = { createdAt: -1 };
+    if (rule === "RECENTLY_ACTIVE") sort = { lastActiveAt: -1, createdAt: -1 };
+    if (rule === "RANDOM") sort = null;
+  }
+
+  const vendors = sort
+    ? await Vendor.find(query).sort(sort).limit(limit).lean()
+    : await Vendor.aggregate([{ $match: query }, { $sample: { size: limit } }]);
+  const orderedVendors =
+    selectionMode === "MANUAL" && manualIds.length
+      ? vendors.sort((left, right) => manualIds.indexOf(String(left._id)) - manualIds.indexOf(String(right._id)))
+      : vendors;
+  const vendorIds = orderedVendors.map((vendor) => vendor._id);
+  const productCounts = vendorIds.length
+    ? await Product.aggregate([
+        { $match: { sellerId: { $in: vendorIds }, status: "APPROVED", isActive: true } },
+        { $group: { _id: "$sellerId", count: { $sum: 1 }, sales: { $sum: { $ifNull: ["$analytics.salesCount", 0] } }, revenue: { $sum: { $ifNull: ["$analytics.revenue", 0] } } } },
+      ])
+    : [];
+  const countMap = new Map(productCounts.map((item) => [String(item._id), item]));
+
+  return orderedVendors.map((vendor) => {
+    const counts = countMap.get(String(vendor._id)) || {};
+    return {
+      _id: vendor._id,
+      entityType: "vendor",
+      slug: vendor.storeSlug,
+      href: `/vendor/${vendor.storeSlug}`,
+      name: vendor.shopName || vendor.companyName || "Vendor Store",
+      description: vendor.storeDescription || "",
+      category: (vendor.storeCategories || []).join(", "),
+      logo: vendor.logoUrl || "",
+      banner: vendor.bannerUrl || "",
+      productsCount: Number(counts.count || 0),
+      followersCount: Number(vendor.followersCount || vendor.followers || 0),
+      rating: Number(vendor.rating || vendor.averageRating || 0),
+      reviewsCount: Number(vendor.reviewsCount || vendor.reviewCount || 0),
+      yearsActive: yearsActiveFrom(vendor.createdAt),
+      verified: vendor.status === "approved",
+      featured: vendor.isStoreFeatured === true,
+      metrics: {
+        sales: Number(counts.sales || 0),
+        revenue: Number(counts.revenue || 0),
+      },
+    };
+  });
+}
+
+async function buildInfluencerStorefrontCards(container = {}) {
+  const config = container.config || {};
+  const limit = clampStorefrontLimit(config);
+  const selectionMode = normalizeStorefrontSelectionMode(config);
+  const manualIds = extractConfigIds(config.manualInfluencerIds).filter((id) => mongoose.isValidObjectId(id));
+  const profileQuery = { state: { $in: ["verified", "active"] } };
+  let sort = { verified: -1, followers: -1, createdAt: -1 };
+
+  if (selectionMode === "MANUAL" && manualIds.length) {
+    profileQuery._id = { $in: manualIds.map((id) => new mongoose.Types.ObjectId(id)) };
+  } else {
+    const rule = String(config.influencerAutoRule || "").toUpperCase();
+    if (container.containerType === "INFLUENCER_VERIFIED_CREATORS" || rule === "VERIFIED") profileQuery.verified = true;
+    if (container.containerType === "INFLUENCER_NEW_CREATORS" || rule === "NEWEST") sort = { createdAt: -1 };
+    if (container.containerType === "INFLUENCER_TRENDING_CREATORS" || rule === "TRENDING" || rule === "MOST_VIEWED") sort = { "stats.views": -1, followers: -1, createdAt: -1 };
+    if (rule === "MOST_REVENUE_GENERATED") sort = { "stats.revenue": -1, followers: -1, createdAt: -1 };
+    if (rule === "TOP_CONVERTING") sort = { "stats.sales": -1, "stats.clicks": -1, createdAt: -1 };
+    if (rule === "RANDOM") sort = null;
+  }
+
+  const profiles = sort
+    ? await InfluencerProfile.find(profileQuery).sort(sort).limit(limit).lean()
+    : await InfluencerProfile.aggregate([{ $match: profileQuery }, { $sample: { size: limit } }]);
+  const orderedProfiles =
+    selectionMode === "MANUAL" && manualIds.length
+      ? profiles.sort((left, right) => manualIds.indexOf(String(left._id)) - manualIds.indexOf(String(right._id)))
+      : profiles;
+  const profileIds = orderedProfiles.map((profile) => profile._id);
+  const [storefronts, collectionCounts] = await Promise.all([
+    profileIds.length ? InfluencerStorefront.find({ influencerId: { $in: profileIds }, status: { $in: ["active", "published"] } }).lean() : [],
+    profileIds.length
+      ? InfluencerCollection.aggregate([
+          { $match: { influencerId: { $in: profileIds }, status: "active" } },
+          { $group: { _id: "$influencerId", count: { $sum: 1 }, productIds: { $push: "$productIds" } } },
+        ])
+      : [],
+  ]);
+  const storefrontMap = new Map(storefronts.map((item) => [String(item.influencerId), item]));
+  const collectionMap = new Map(collectionCounts.map((item) => [String(item._id), item]));
+
+  return orderedProfiles
+    .map((profile) => {
+      const storefront = storefrontMap.get(String(profile._id));
+      const slug = storefront?.slug || profile.storeSlug;
+      if (!slug) return null;
+      const collectionStats = collectionMap.get(String(profile._id)) || {};
+      const productsCount = (collectionStats.productIds || []).flat().filter(Boolean).length || Number(storefront?.featuredProductIds?.length || 0);
+      const clicks = Number(profile.stats?.clicks || 0);
+      const sales = Number(profile.stats?.sales || 0);
+      return {
+        _id: profile._id,
+        entityType: "influencer",
+        slug,
+        href: `/influencer/${slug}`,
+        name: storefront?.name || profile.displayName || profile.storeName || "Creator Storefront",
+        username: profile.socialHandles?.instagram || profile.influencerCode || slug,
+        description: storefront?.description || profile.shortBio || profile.bio || "",
+        category: profile.primaryCategory || (profile.categories || []).join(", "),
+        logo: storefront?.profileImage || storefront?.logo || profile.profilePicture || "",
+        banner: storefront?.banner || profile.coverBanner || "",
+        followersCount: Number(profile.followers || 0),
+        collectionsCount: Number(collectionStats.count || 0),
+        productsCount,
+        rating: clicks > 0 ? Number(((sales / clicks) * 100).toFixed(2)) : Number(profile.rating || 0),
+        reviewsCount: Number(profile.rating ? Math.round(profile.rating * 10) : 0),
+        verified: profile.verified === true,
+        featured: container.containerType === "INFLUENCER_FEATURED_CREATORS",
+        topCreator: Number(profile.followers || 0) >= 10000 || Number(profile.stats?.revenue || 0) > 0,
+        metrics: {
+          views: Number(profile.stats?.views || 0),
+          clicks,
+          sales,
+          revenue: Number(profile.stats?.revenue || 0),
+        },
+      };
+    })
+    .filter(Boolean);
+}
+
+async function resolveStorefrontCards(container = {}) {
+  if (isVendorStorefrontContainer(container.containerType)) {
+    return buildVendorStorefrontCards(container);
+  }
+  if (isInfluencerStorefrontContainer(container.containerType)) {
+    return buildInfluencerStorefrontCards(container);
+  }
+  return [];
 }
 
 async function getApprovedVendorIds() {
@@ -876,6 +1073,25 @@ function withVendorProductContext(container = {}, options = {}) {
 
 async function resolveContainerProducts(container, options = {}) {
   container = withVendorProductContext(container, options);
+  if (isStorefrontDiscoveryContainer(container.containerType)) {
+    const storefrontCards = await resolveStorefrontCards(container);
+    return {
+      products: [],
+      storefrontCards,
+      storefrontPagination: {
+        total: storefrontCards.length,
+        page: 1,
+        limit: storefrontCards.length,
+        pages: 1,
+      },
+      pagination: {
+        total: 0,
+        page: 1,
+        limit: 0,
+        pages: 0,
+      },
+    };
+  }
   const schema = getContainerTypeSchema(container.containerType);
   if (!schema.supportsProducts) {
     return {
@@ -1059,6 +1275,15 @@ function mapContainerDocument(container, productsPayload = null) {
   if (productsPayload) {
     mapped.products = productsPayload.products;
     mapped.productPagination = productsPayload.pagination;
+    if (Array.isArray(productsPayload.storefrontCards)) {
+      mapped.storefrontCards = productsPayload.storefrontCards;
+      mapped.storefrontPagination = productsPayload.storefrontPagination || {
+        total: productsPayload.storefrontCards.length,
+        page: 1,
+        limit: productsPayload.storefrontCards.length,
+        pages: 1,
+      };
+    }
   }
 
   return mapped;
@@ -1265,7 +1490,7 @@ class HomepageContainerService {
         createdAt: new Date(),
         updatedAt: new Date(),
         metrics: {},
-      }),
+      }, productsPayload),
       ...productsPayload,
     };
   }
@@ -1341,6 +1566,8 @@ class HomepageContainerService {
         update["metrics.impressions"] = 1;
         break;
       case "click":
+      case "card_click":
+      case "store_visit":
         update["metrics.clicks"] = 1;
         break;
       case "product_click":

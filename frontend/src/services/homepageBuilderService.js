@@ -11,11 +11,6 @@ export async function listHomepageBuilderContainers() {
   return data;
 }
 
-export async function getHomepageBuilderContainerSchema(type) {
-  const { data } = await adminHttp.get(`/api/admin/homepage-builder/containers/schema/${type}`);
-  return data;
-}
-
 export async function listHomepageBuilderLayouts() {
   const { data } = await adminHttp.get("/api/admin/homepage-builder/layouts");
   return data;
@@ -58,16 +53,5 @@ export async function listHomepageBuilderVersions(id) {
 
 export async function rollbackHomepageBuilderVersion(id, versionId) {
   const { data } = await adminHttp.post(`/api/admin/homepage-builder/layouts/${id}/rollback/${versionId}`);
-  return data;
-}
-
-export async function uploadHomepageBuilderMedia(files = []) {
-  const formData = new FormData();
-  for (const file of files) {
-    formData.append("images", file);
-  }
-  const { data } = await adminHttp.post("/api/admin/homepage-builder/media", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
   return data;
 }

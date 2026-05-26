@@ -10,5 +10,10 @@ const reject = asyncHandler(async (req, res) =>
 const vendor = asyncHandler(async (req, res) => ok(res, await campaignService.listForVendor(req.user.sub), "Vendor campaigns loaded"));
 const influencer = asyncHandler(async (req, res) => ok(res, await campaignService.listForInfluencer(req.user.sub), "Influencer campaigns loaded"));
 const admin = asyncHandler(async (req, res) => ok(res, await campaignService.listAll(), "Campaigns loaded"));
+const marketplace = asyncHandler(async (req, res) => ok(res, await campaignService.listMarketplace(req.user.sub, req.query), "Campaign marketplace loaded"));
+const apply = asyncHandler(async (req, res) => ok(res, await campaignService.apply(req.user.sub, req.params.campaignId, req.body), "Campaign application submitted"));
+const save = asyncHandler(async (req, res) => ok(res, await campaignService.saveMarketplaceCampaign(req.user.sub, req.params.campaignId, req.body.saved !== false), "Campaign saved"));
+const deliverable = asyncHandler(async (req, res) => ok(res, await campaignService.submitDeliverable(req.user.sub, req.params.campaignId, req.body), "Campaign deliverable submitted"));
+const analytics = asyncHandler(async (req, res) => ok(res, await campaignService.marketplaceAnalytics(req.user.sub, req.query), "Campaign analytics loaded"));
 
-module.exports = { create, accept, reject, vendor, influencer, admin };
+module.exports = { create, accept, reject, vendor, influencer, admin, marketplace, apply, save, deliverable, analytics };

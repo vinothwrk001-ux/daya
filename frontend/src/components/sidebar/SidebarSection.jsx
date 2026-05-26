@@ -48,7 +48,7 @@ export function SidebarSection({
       >
         <div className="space-y-1 px-1 pb-1 pt-2">
           {items.map((item) => (
-            <SidebarItem key={item.path} item={item} onNavigate={onNavigate} collapsed={!isOpen && collapsed} />
+            <SidebarItem key={item.to || item.path} item={item} onNavigate={onNavigate} collapsed={!isOpen && collapsed} />
           ))}
         </div>
       </div>

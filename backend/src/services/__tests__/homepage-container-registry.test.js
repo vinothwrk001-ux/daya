@@ -17,10 +17,12 @@ async function runTest(name, fn) {
 
 async function main() {
   await runTest("supports all requested homepage container types", () => {
-    assert.equal(CONTAINER_TYPES.length, 18);
+    assert.equal(CONTAINER_TYPES.length, 32);
     assert.ok(CONTAINER_TYPES.includes("CAROUSEL"));
     assert.ok(CONTAINER_TYPES.includes("FEATURED_PRODUCTS"));
     assert.ok(CONTAINER_TYPES.includes("VIDEO_PRODUCTS"));
+    assert.ok(CONTAINER_TYPES.includes("VENDOR_STOREFRONT_GRID"));
+    assert.ok(CONTAINER_TYPES.includes("INFLUENCER_FEATURED_CREATORS"));
     assert.equal(CONTAINER_TYPES.includes("FEATURED"), false);
     assert.equal(CONTAINER_TYPES.includes("LIST"), false);
     assert.equal(CONTAINER_TYPES.includes("TABS"), false);
@@ -55,6 +57,17 @@ async function main() {
     assert.equal(schema.supportsProducts, true);
     assert.ok(schema.typeFields.some((field) => field.name === "startTime"));
     assert.ok(schema.typeFields.some((field) => field.name === "endTime"));
+  });
+
+  await runTest("storefront discovery schemas do not expose product filters", () => {
+    const vendorSchema = getContainerTypeSchema("VENDOR_STOREFRONT_GRID");
+    const influencerSchema = getContainerTypeSchema("INFLUENCER_STOREFRONT_CAROUSEL");
+    assert.equal(vendorSchema.supportsProducts, false);
+    assert.equal(influencerSchema.supportsProducts, false);
+    assert.equal(vendorSchema.productFilterFields.length, 0);
+    assert.equal(influencerSchema.productFilterFields.length, 0);
+    assert.ok(vendorSchema.typeFields.some((field) => field.name === "manualVendorIds"));
+    assert.ok(influencerSchema.typeFields.some((field) => field.name === "manualInfluencerIds"));
   });
 
   console.log("All homepage container registry checks passed.");

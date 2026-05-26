@@ -1,18 +1,13 @@
 import { api } from "./api";
 import { adminHttp } from "./adminHttp";
 
-export async function getHomepageContainers(params = {}) {
-  const { data } = await api.get("/api/homepage-containers", { params });
-  return data;
-}
-
 export async function getHomepageContainerSchemas() {
-  const { data } = await api.get("/api/homepage-containers/schemas");
+  const { data } = await adminHttp.get("/api/admin/homepage-containers/schemas");
   return data;
 }
 
 export async function getHomepageContainerSchema(type) {
-  const { data } = await api.get(`/api/container-schema/${type}`);
+  const { data } = await adminHttp.get(`/api/admin/homepage-containers/schema/${type}`);
   return data;
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Loader, FolderTree, Settings, Users, Wallet } from "lucide-react";
+import { LayoutDashboard, Loader, FolderTree, Settings, Users, Wallet, Boxes, Megaphone, Clapperboard, Store } from "lucide-react";
 import { SidebarSection } from "./SidebarSection";
 import { BrandLogo } from "../BrandLogo";
 
@@ -26,7 +26,15 @@ export function Sidebar({
     management: Users,
     catalog: FolderTree,
     finance: Wallet,
+    withdrawals: Wallet,
     workspace: Settings,
+    collection: Boxes,
+    storefront: Store,
+    growth: Megaphone,
+    content: Clapperboard,
+    campaigns: Megaphone,
+    verification: Settings,
+    profileSettings: Users,
   };
 
   const [openSection, setOpenSection] = useState(null);

@@ -1,17 +1,23 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 
 export function SidebarItem({ item, onNavigate, collapsed = false }) {
   const Icon = item.icon;
+  const location = useLocation();
+  const target = item.to || item.path;
+  const activePath = item.matchPath || item.path;
+  const isQueryActive = item.matchSearch
+    ? location.pathname === activePath && location.search === item.matchSearch
+    : null;
 
   return (
     <NavLink
-      to={item.path}
+      to={target}
       title={item.name}
       onClick={onNavigate}
       className={({ isActive }) =>
         [
           "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
-          isActive
+          (isQueryActive ?? isActive)
             ? "bg-indigo-500 text-white shadow-sm"
             : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
         ].join(" ")

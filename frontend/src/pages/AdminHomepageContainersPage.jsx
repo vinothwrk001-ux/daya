@@ -29,7 +29,7 @@ import {
   uploadHomepageContainerMedia,
   updateAdminHomepageContainer,
 } from "../services/homepageContainerService";
-import { listCategories, listProducts, listSellers, listSubcategories } from "../services/adminApi";
+import { listCategories, listInfluencers, listProducts, listSellers, listSubcategories } from "../services/adminApi";
 import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 
@@ -108,7 +108,18 @@ const inputClassName =
   "min-h-[52px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-200/70 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-slate-500 dark:focus:ring-slate-800/70";
 
 function normalizeError(error) {
-  return error?.response?.data?.message || error?.message || "Request failed";
+  const data = error?.response?.data;
+  const fields = data?.details?.fields;
+  if (fields && typeof fields === "object") {
+    const detail = Object.entries(fields)
+      .map(([field, message]) => `${field}: ${message}`)
+      .join(", ");
+    return detail ? `${data?.message || "Validation failed"} - ${detail}` : data?.message || "Validation failed";
+  }
+  if (Array.isArray(data?.details?.issues) && data.details.issues.length) {
+    return `${data?.message || "Validation failed"} - ${data.details.issues.join(", ")}`;
+  }
+  return data?.message || error?.message || "Request failed";
 }
 
 function slugify(value = "") {
@@ -294,6 +305,16 @@ function buildPayload(form) {
 function sanitizeConfigValues(config = {}) {
   const next = {};
   for (const [key, value] of Object.entries(config || {})) {
+    if ((key === "manualVendorIds" || key === "manualInfluencerIds") && !Array.isArray(value)) {
+      next[key] = [];
+      continue;
+    }
+    if (key === "manualVendorIds" || key === "manualInfluencerIds") {
+      next[key] = value
+        .map((item) => item?.value || item?._id || item?.id || item)
+        .filter(Boolean);
+      continue;
+    }
     if (value === "") {
       next[key] = value;
       continue;
@@ -369,6 +390,7 @@ export function AdminHomepageContainersPage() {
   const [containerSchemas, setContainerSchemas] = useState([]);
   const [activeSchema, setActiveSchema] = useState(null);
   const [vendors, setVendors] = useState([]);
+  const [influencers, setInfluencers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [products, setProducts] = useState([]);
@@ -459,9 +481,10 @@ export function AdminHomepageContainersPage() {
 
   const loadOptions = useCallback(async () => {
     try {
-      const [schemaRes, vendorsRes, categoriesRes, subcategoriesRes, productsRes] = await Promise.all([
+      const [schemaRes, vendorsRes, influencersRes, categoriesRes, subcategoriesRes, productsRes] = await Promise.all([
         getHomepageContainerSchemas(),
         listSellers({ status: "approved" }),
+        listInfluencers(),
         listCategories(),
         listSubcategories(),
         listProducts({ limit: 200, status: "APPROVED" }),
@@ -469,6 +492,7 @@ export function AdminHomepageContainersPage() {
 
       setContainerSchemas(schemaRes?.data || []);
       setVendors(Array.isArray(vendorsRes?.data) ? vendorsRes.data : []);
+      setInfluencers(Array.isArray(influencersRes?.data) ? influencersRes.data : []);
       setCategories(Array.isArray(categoriesRes?.data) ? categoriesRes.data : []);
       const subcatsData = subcategoriesRes?.data;
       setSubcategories(Array.isArray(subcatsData) ? subcatsData : subcatsData?.subcategories || []);
@@ -647,6 +671,14 @@ export function AdminHomepageContainersPage() {
             label: item.shopName || item.companyName || "Vendor",
             meta: item.companyName || "",
           })),
+      influencers: async (query = "") =>
+        influencers
+          .filter((item) => `${item.displayName || ""} ${item.storeName || ""} ${item.userId?.name || ""} ${item.influencerCode || ""}`.toLowerCase().includes(query.toLowerCase()))
+          .map((item) => ({
+            value: String(item._id),
+            label: item.displayName || item.storeName || item.userId?.name || "Influencer",
+            meta: item.influencerCode || item.userId?.email || "",
+          })),
       categories: async (query = "") =>
         categories
           .filter((item) => item.name?.toLowerCase().includes(query.toLowerCase()))
@@ -662,7 +694,7 @@ export function AdminHomepageContainersPage() {
       brands: async (query = "") => brandCatalog.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
       tags: async (query = "") => tagCatalog.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
     }),
-    [brandCatalog, categories, filteredSubcategories, productCatalog, tagCatalog, vendors]
+    [brandCatalog, categories, filteredSubcategories, influencers, productCatalog, tagCatalog, vendors]
   );
 
   const currentStepMeta = editorSteps[currentStep];
@@ -1380,7 +1412,7 @@ function LivePreviewSidebar({ form, preview, previewLoading, previewDevice, onPr
             <SummaryItem label="Desktop View" value={form.desktopVisible ? "Visible" : "Hidden"} />
             <SummaryItem label="Tablet View" value={form.tabletVisible ? "Visible" : "Hidden"} />
             <SummaryItem label="Mobile View" value={form.mobileVisible ? "Visible" : "Hidden"} />
-            <SummaryItem label="Catalog Items" value={`${preview?.products?.length || 0} products`} />
+            <SummaryItem label="Catalog Items" value={preview?.storefrontCards?.length ? `${preview.storefrontCards.length} storefront cards` : `${preview?.products?.length || 0} products`} />
           </div>
         </div>
 
