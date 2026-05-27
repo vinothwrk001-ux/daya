@@ -37,6 +37,9 @@ import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { AdminSellersPage } from "./pages/AdminSellersPage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { StoresPage } from "./pages/StoresPage";
+import { ReelsPage } from "./pages/ReelsPage";
+import { InfluencersHubPage } from "./pages/InfluencersHubPage";
+import { AffiliateRedirectPage } from "./pages/AffiliateRedirectPage";
 import { HomepageContainerProductsPage } from "./pages/HomepageContainerProductsPage";
 import { AdminProductsPage } from "./pages/AdminProductsPage";
 import { AdminInventoryPage } from "./pages/AdminInventoryPage";
@@ -156,6 +159,7 @@ import InfluencerCollectionsPage from "./pages/influencer/collections.jsx";
 import InfluencerStorefrontBuilderPage from "./pages/influencer/storefrontBuilder.jsx";
 import { InfluencerPublicStorefrontPage } from "./pages/InfluencerPublicStorefrontPage";
 import { AdminInfluencerPage } from "./pages/AdminInfluencerPage";
+import { AdminInfluencerCommercePage } from "./pages/AdminInfluencerCommercePage";
 import { AdminCommerceIntelligencePage } from "./pages/AdminCommerceIntelligencePage";
 
 function LegacySellerProductEditRedirect() {
@@ -188,6 +192,11 @@ export default function App() {
         <Route path="/influencer/:slug" element={<InfluencerPublicStorefrontPage />} />
         <Route path="/shop" element={<ProductsPage />} />
         <Route path="/stores" element={<StoresPage />} />
+        <Route path="/influencers" element={<InfluencersHubPage />} />
+        <Route path="/influencers/:section" element={<InfluencersHubPage />} />
+        <Route path="/reels" element={<ReelsPage />} />
+        <Route path="/reels/:reelId" element={<ReelsPage />} />
+        <Route path="/ref/:trackingCode/product/:productId" element={<AffiliateRedirectPage />} />
         <Route path="/vendor/:vendorSlug" element={<VendorStorefrontPage />} />
         <Route path="/vendor/:vendorSlug/products" element={<VendorStoreProductsPage />} />
         <Route path="/vendor/:vendorSlug/reviews" element={<VendorStoreReviewsPage />} />
@@ -279,6 +288,17 @@ export default function App() {
               <Route path="returns" element={<VendorModuleRoute moduleKey="returns"><VendorReturnsPage /></VendorModuleRoute>} />
               <Route path="offers" element={<VendorOffersPage />} />
               <Route path="influencer-commerce" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/discover" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/relationships" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/campaigns" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/products" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/affiliate" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/content" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/performance" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/analytics" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/leaderboard" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/reports" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/*" element={<VendorInfluencerPage />} />
               <Route path="support" element={<VendorSupportPage />} />
               <Route path="settings" element={<VendorSettingsPage />} />
             </Route>
@@ -344,6 +364,7 @@ export default function App() {
               <Route path="roles" element={<AdminRolesPage />} />
               <Route path="staff" element={<AdminStaffPage />} />
               <Route path="influencers" element={<AdminInfluencerPage />} />
+              <Route path="influencer-commerce/*" element={<AdminInfluencerCommercePage />} />
             </Route>
           </Route>
         </Route>

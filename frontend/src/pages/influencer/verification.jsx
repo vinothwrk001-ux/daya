@@ -163,7 +163,7 @@ function BankForm({ onSubmit, busy }) {
 }
 
 export default function InfluencerVerificationPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const tab = searchParams.get("tab") || "identity";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -224,15 +224,6 @@ export default function InfluencerVerificationPage() {
         <Metric label="Tax" value={<StatusBadge value={data?.verificationStatus?.tax} />} />
         <Metric label="Bank" value={<StatusBadge value={data?.verificationStatus?.bank} />} />
       </section>
-
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {TABS.map(([id, label, Icon]) => (
-          <button key={id} onClick={() => setSearchParams(id === "identity" ? {} : { tab: id })} className={`inline-flex whitespace-nowrap items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold ${tab === id ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"}`}>
-            <Icon className="h-4 w-4" />
-            {label}
-          </button>
-        ))}
-      </div>
 
       {loading ? <div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /> : null}
 

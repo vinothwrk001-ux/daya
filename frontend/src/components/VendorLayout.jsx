@@ -88,6 +88,46 @@ const pageMeta = {
     title: "Influencer Commerce",
     subtitle: "Launch campaigns, recruit creators, and monitor reel-driven sales attribution.",
   },
+  "/vendor/influencer-commerce/discover": {
+    title: "Discover Influencers",
+    subtitle: "Find creators by category, audience, engagement, conversion, and revenue fit.",
+  },
+  "/vendor/influencer-commerce/relationships": {
+    title: "My Influencers",
+    subtitle: "Manage creator relationships, statuses, campaign activity, and revenue history.",
+  },
+  "/vendor/influencer-commerce/campaigns": {
+    title: "Campaign Management",
+    subtitle: "Create campaigns, review applications, and manage creator collaboration.",
+  },
+  "/vendor/influencer-commerce/products": {
+    title: "Product Promotion",
+    subtitle: "Track promoted products, affiliate revenue, clicks, orders, and commissions.",
+  },
+  "/vendor/influencer-commerce/affiliate": {
+    title: "Affiliate Products",
+    subtitle: "Monitor influencer product promotion and affiliate attribution.",
+  },
+  "/vendor/influencer-commerce/content": {
+    title: "Content Approvals",
+    subtitle: "Review submitted reels, videos, live recordings, and campaign deliverables.",
+  },
+  "/vendor/influencer-commerce/performance": {
+    title: "Influencer Performance",
+    subtitle: "Compare creator revenue, clicks, conversions, ROI, engagement, and AOV.",
+  },
+  "/vendor/influencer-commerce/analytics": {
+    title: "Campaign Analytics",
+    subtitle: "Analyze revenue, spend, commissions, funnels, and campaign comparisons.",
+  },
+  "/vendor/influencer-commerce/leaderboard": {
+    title: "Creator Leaderboard",
+    subtitle: "Rank creators by revenue, conversions, engagement, and campaign score.",
+  },
+  "/vendor/influencer-commerce/reports": {
+    title: "Reports",
+    subtitle: "Export and schedule campaign, influencer, revenue, commission, and content reports.",
+  },
   "/vendor/support": {
     title: "Support",
     subtitle: "Open tickets with your operations team and keep a message history.",

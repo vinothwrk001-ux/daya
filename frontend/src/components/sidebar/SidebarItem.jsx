@@ -12,6 +12,7 @@ export function SidebarItem({ item, onNavigate, collapsed = false }) {
   return (
     <NavLink
       to={target}
+      end={item.exact}
       title={item.name}
       onClick={onNavigate}
       className={({ isActive }) =>

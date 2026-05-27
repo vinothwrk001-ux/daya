@@ -3,7 +3,7 @@ const express = require("express");
 const Joi = require("joi");
 const { authRequired, authOptional, requireRole } = require("../../middleware/auth");
 const { validate } = require("../../middleware/validate");
-const { optionalReelVideoUpload } = require("../../middleware/reelUpload");
+const { optionalReelMediaUpload, optionalReelVideoUpload } = require("../../middleware/reelUpload");
 const controller = require("./controller");
 
 const router = express.Router();
@@ -27,6 +27,14 @@ function prepareReelUploadBody(req, _res, next) {
   }
   next();
 }
+
+router.post(
+  "/media",
+  authRequired,
+  requireRole("influencer"),
+  optionalReelMediaUpload,
+  controller.uploadMedia
+);
 
 router.post(
   "/upload",
@@ -62,6 +70,7 @@ const contentQuery = Joi.object({
   search: Joi.string().allow("").optional(),
   state: Joi.string().valid("uploaded", "pending_review", "approved", "published", "rejected").optional(),
   contentType: Joi.string().allow("").optional(),
+  contentTypes: Joi.string().allow("").optional(),
   visibility: Joi.string().allow("").optional(),
   category: Joi.string().allow("").optional(),
   campaignId: Joi.string().allow("").optional(),
@@ -109,6 +118,7 @@ router.get("/content/media-library", authRequired, requireRole("influencer"), va
 router.get("/content/live", authRequired, requireRole("influencer"), validate(contentQuery, "query"), controller.liveSessions);
 router.post("/content/live", authRequired, requireRole("influencer"), validate(contentUpdateSchema), controller.createLiveSession);
 router.patch("/content/:id", authRequired, requireRole("influencer"), validate(contentUpdateSchema), controller.contentUpdate);
+router.delete("/content/:id", authRequired, requireRole("influencer"), controller.contentDelete);
 router.get("/mine", authRequired, requireRole("influencer"), controller.influencerList);
 router.get(
   "/influencer",

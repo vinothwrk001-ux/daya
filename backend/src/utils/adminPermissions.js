@@ -48,6 +48,10 @@ const ALL_PERMISSIONS = [
   "recommendation:manage",
   "recommendation:rebuild",
   "recommendation:cache:clear",
+  "influencerCommerce:read",
+  "influencerCommerce:manage",
+  "influencerCommerce:export",
+  "influencerCommerce:settings",
 ];
 
 const ROLE_PERMISSIONS = {

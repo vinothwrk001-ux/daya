@@ -116,6 +116,9 @@ export default function InfluencerAffiliateProductsPage() {
   }, [query, tab]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    setTab(searchParams.get("tab") || "browse");
+  }, [searchParams]);
 
   async function toggleSave(product) {
     await saveAffiliateProduct(product.id, !product.saved);
@@ -140,17 +143,6 @@ export default function InfluencerAffiliateProductsPage() {
 
   return (
     <div className="mx-auto flex max-w-[1500px] flex-col gap-5">
-      <Card title="Affiliate Products" icon={Package}>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {TABS.map(([id, label, Icon]) => (
-            <button key={id} onClick={() => selectTab(id)} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${tab === id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
-              <Icon className="h-4 w-4" />
-              {label}
-            </button>
-          ))}
-        </div>
-      </Card>
-
       {message ? <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">{message}</div> : null}
 
       {tab !== "links" && tab !== "analytics" ? (

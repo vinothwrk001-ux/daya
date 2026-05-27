@@ -151,6 +151,94 @@ const pageMeta = {
     title: "Staff Accounts",
     subtitle: "Provision staff access, assign roles, and control account status.",
   },
+  "/admin/influencer-commerce": {
+    title: "Influencer Commerce",
+    subtitle: "Control campaigns, creators, vendors, payouts, analytics, fraud, and reporting.",
+  },
+  "/admin/influencer-commerce/influencers": {
+    title: "Influencer Commerce",
+    subtitle: "Manage creator profiles, verification, KYC, earnings, and audit history.",
+  },
+  "/admin/influencer-commerce/vendors": {
+    title: "Influencer Commerce",
+    subtitle: "Monitor vendor participation, campaign performance, escrow usage, and risks.",
+  },
+  "/admin/influencer-commerce/campaigns": {
+    title: "Influencer Commerce",
+    subtitle: "Review, feature, pause, and audit influencer commerce campaigns.",
+  },
+  "/admin/influencer-commerce/applications": {
+    title: "Influencer Commerce",
+    subtitle: "Oversee creator applications and campaign approval workflows.",
+  },
+  "/admin/influencer-commerce/matching": {
+    title: "Influencer Commerce",
+    subtitle: "Review recommendation-powered creator, vendor, product, and campaign matches.",
+  },
+  "/admin/influencer-commerce/affiliate-products": {
+    title: "Influencer Commerce",
+    subtitle: "Track promoted products, attribution, commissions, and conversion quality.",
+  },
+  "/admin/influencer-commerce/tracking": {
+    title: "Influencer Commerce",
+    subtitle: "Inspect affiliate click sessions, attribution, token expiry, and risk signals.",
+  },
+  "/admin/influencer-commerce/content": {
+    title: "Influencer Commerce",
+    subtitle: "Moderate creator content using the existing content and reel workflow.",
+  },
+  "/admin/influencer-commerce/promotions": {
+    title: "Influencer Commerce",
+    subtitle: "Monitor product promotions across campaigns, vendors, and creators.",
+  },
+  "/admin/influencer-commerce/commissions": {
+    title: "Influencer Commerce",
+    subtitle: "Manage affiliate, campaign, bonus, reversed, and paid commissions.",
+  },
+  "/admin/influencer-commerce/settlements": {
+    title: "Influencer Commerce",
+    subtitle: "Control escrow holds, settlement release, reversal, and ledger visibility.",
+  },
+  "/admin/influencer-commerce/payouts": {
+    title: "Influencer Commerce",
+    subtitle: "Review creator wallets, payout readiness, and account verification.",
+  },
+  "/admin/influencer-commerce/withdrawals": {
+    title: "Influencer Commerce",
+    subtitle: "Approve, reject, process, and audit influencer withdrawal requests.",
+  },
+  "/admin/influencer-commerce/creator-performance": {
+    title: "Influencer Commerce",
+    subtitle: "Rank creators by revenue, conversions, engagement, ROI, and growth.",
+  },
+  "/admin/influencer-commerce/vendor-performance": {
+    title: "Influencer Commerce",
+    subtitle: "Rank vendors by campaign revenue, ROI, creator retention, and spend.",
+  },
+  "/admin/influencer-commerce/campaign-analytics": {
+    title: "Influencer Commerce",
+    subtitle: "Analyze campaign revenue, spend, funnels, products, and creator performance.",
+  },
+  "/admin/influencer-commerce/revenue-analytics": {
+    title: "Influencer Commerce",
+    subtitle: "Track gross revenue, influencer revenue, vendor net, escrow, and commissions.",
+  },
+  "/admin/influencer-commerce/fraud": {
+    title: "Influencer Commerce",
+    subtitle: "Investigate suspicious attribution, withdrawal, KYC, and commission patterns.",
+  },
+  "/admin/influencer-commerce/communication": {
+    title: "Influencer Commerce",
+    subtitle: "Monitor vendor, influencer, campaign, and escalation conversations.",
+  },
+  "/admin/influencer-commerce/reports": {
+    title: "Influencer Commerce",
+    subtitle: "Export and schedule campaign, creator, vendor, revenue, commission, and fraud reports.",
+  },
+  "/admin/influencer-commerce/settings": {
+    title: "Influencer Commerce",
+    subtitle: "Configure platform-wide commerce rules using existing settings infrastructure.",
+  },
   "/staff/dashboard": {
     title: "Staff Dashboard",
     subtitle: "Your assigned workspace modules and operational overview.",

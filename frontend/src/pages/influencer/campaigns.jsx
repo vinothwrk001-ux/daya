@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import {
   applyCampaignMarketplace,
+  generateAffiliateProductLinks,
   getCampaignMarketplaceAnalytics,
   listCampaignMarketplace,
   saveCampaignMarketplace,
@@ -45,11 +46,22 @@ function statusLabel(value = "") {
   return String(value || "open").replace(/_/g, " ");
 }
 
-function CampaignCard({ campaign, onApply, onSave, onSubmitDeliverable, busyId }) {
+function campaignProductIds(campaign) {
+  return (campaign.products || campaign.productIds || [])
+    .map((product) => product.id || product._id || product)
+    .filter(Boolean)
+    .map(String);
+}
+
+function CampaignCard({ campaign, onApply, onSave, onSubmitDeliverable, onGenerateLink, busyId }) {
   const busy = busyId === campaign.id;
-  const isApplied = ["submitted", "pending_review", "shortlisted", "approved", "active", "completed"].includes(campaign.applicationStatus || campaign.status);
-  const isActive = campaign.state === "active" || campaign.applicationStatus === "approved";
+  const applicationStatus = campaign.applicationStatus || "";
+  const isApplied = ["submitted", "pending_review", "shortlisted", "approved", "active", "completed"].includes(applicationStatus);
+  const isActive = ["approved", "active", "completed"].includes(applicationStatus);
+  const isWaiting = ["submitted", "pending_review", "shortlisted"].includes(applicationStatus);
   const deadline = campaign.applicationDeadline || campaign.deadline;
+  const productIds = campaignProductIds(campaign);
+  const contentHref = `/influencer/content?campaignId=${campaign.id}${productIds.length ? `&productIds=${encodeURIComponent(productIds.join(","))}` : ""}`;
 
   return (
     <article className="flex min-h-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -135,14 +147,40 @@ function CampaignCard({ campaign, onApply, onSave, onSubmitDeliverable, busyId }
             <Bookmark className="h-4 w-4" />
             {campaign.saved ? "Saved" : "Save"}
           </button>
-          <Link
-            to="/influencer/affiliate-products?tab=links"
+          {isActive ? (
+            <Link
+              to={contentHref}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <FileUp className="h-4 w-4" />
+              Create Content
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            disabled={!isActive || busy || !productIds.length}
+            onClick={() => onGenerateLink(campaign)}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             <ExternalLink className="h-4 w-4" />
             Links
-          </Link>
+          </button>
         </div>
+        {isWaiting ? (
+          <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+            Waiting for vendor approval.
+          </p>
+        ) : null}
+        {applicationStatus === "approved" ? (
+          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+            Approved by vendor.
+          </p>
+        ) : null}
+        {applicationStatus === "rejected" ? (
+          <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">
+            Rejected by vendor.
+          </p>
+        ) : null}
       </div>
     </article>
   );
@@ -212,13 +250,14 @@ function AnalyticsPanel({ analytics, loading }) {
 }
 
 export default function InfluencerCampaignsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "available";
   const [campaigns, setCampaigns] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [filters, setFilters] = useState({ search: "", campaignType: "", sort: "newest" });
 
   const tab = useMemo(() => TABS.find((item) => item.id === activeTab) ? activeTab : "available", [activeTab]);
@@ -249,11 +288,13 @@ export default function InfluencerCampaignsPage() {
   async function handleApply(campaign) {
     setBusyId(campaign.id);
     setError("");
+    setMessage("");
     try {
       await applyCampaignMarketplace(campaign.id, {
         profileSummary: "Interested in this campaign and ready to submit required deliverables.",
         expectedEarnings: campaign.budget || 0,
       });
+      setMessage("Application submitted. Waiting for vendor approval.");
       await loadCampaigns();
     } catch (err) {
       setError(err?.response?.data?.message || "Application failed.");
@@ -264,8 +305,10 @@ export default function InfluencerCampaignsPage() {
 
   async function handleSave(campaign) {
     setBusyId(campaign.id);
+    setMessage("");
     try {
       await saveCampaignMarketplace(campaign.id, !campaign.saved);
+      setMessage(campaign.saved ? "Campaign removed from saved list." : "Campaign saved.");
       await loadCampaigns();
     } catch (err) {
       setError(err?.response?.data?.message || "Save failed.");
@@ -276,12 +319,14 @@ export default function InfluencerCampaignsPage() {
 
   async function handleSubmitDeliverable(campaign) {
     setBusyId(campaign.id);
+    setMessage("");
     try {
       await submitCampaignDeliverable(campaign.id, {
         title: `${campaign.title} deliverable`,
         type: "video",
         notes: "Deliverable submitted from Campaign Marketplace.",
       });
+      setMessage("Deliverable submitted.");
       await loadCampaigns();
     } catch (err) {
       setError(err?.response?.data?.message || "Deliverable submission failed.");
@@ -290,8 +335,32 @@ export default function InfluencerCampaignsPage() {
     }
   }
 
-  function updateTab(nextTab) {
-    setSearchParams(nextTab === "available" ? {} : { tab: nextTab });
+  async function handleGenerateLink(campaign) {
+    const productIds = campaignProductIds(campaign);
+    if (!productIds.length) return;
+    setBusyId(campaign.id);
+    setError("");
+    setMessage("");
+    try {
+      const response = await generateAffiliateProductLinks({
+        productIds,
+        campaignId: campaign.id,
+        utmSource: "influencer",
+        utmMedium: "campaign",
+        utmCampaign: campaign.title || campaign.id,
+      });
+      const firstLink = response?.data?.links?.[0]?.affiliateUrl;
+      if (firstLink && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(firstLink);
+        setMessage("Affiliate link generated and copied.");
+      } else {
+        setMessage("Affiliate link generated.");
+      }
+    } catch (err) {
+      setError(err?.response?.data?.message || "Affiliate link generation failed.");
+    } finally {
+      setBusyId("");
+    }
   }
 
   return (
@@ -320,23 +389,6 @@ export default function InfluencerCampaignsPage() {
           </div>
         </div>
       </section>
-
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => updateTab(item.id)}
-            className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition ${
-              tab === item.id
-                ? "bg-indigo-600 text-white shadow-sm"
-                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
 
       {tab !== "analytics" ? (
         <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-[1fr_220px_180px]">
@@ -375,6 +427,11 @@ export default function InfluencerCampaignsPage() {
           {error}
         </div>
       ) : null}
+      {message ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+          {message}
+        </div>
+      ) : null}
 
       {tab === "analytics" ? (
         <AnalyticsPanel analytics={analytics} loading={loading} />
@@ -393,6 +450,7 @@ export default function InfluencerCampaignsPage() {
               onApply={handleApply}
               onSave={handleSave}
               onSubmitDeliverable={handleSubmitDeliverable}
+              onGenerateLink={handleGenerateLink}
               busyId={busyId}
             />
           ))}

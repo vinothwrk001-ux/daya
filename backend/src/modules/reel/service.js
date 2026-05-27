@@ -1,11 +1,15 @@
 const { AppError } = require("../../utils/AppError");
+const fs = require("fs/promises");
+const path = require("path");
 const { resolveApiAssetUrl } = { resolveApiAssetUrl: (value) => value };
 const influencerService = require("../influencer/service");
+const { InfluencerAffiliateSetting } = require("../influencer/model");
 const { Campaign } = require("../campaign/model");
 const { emitDomainEvent } = require("../events/event-bus");
 const { INFLUENCER_EVENTS } = require("../shared/constants");
 const { Reel } = require("./model");
 const { CommissionRecord } = require("../commission/models");
+const { REEL_UPLOAD_DIR } = require("../../middleware/reelUpload");
 
 function cleanString(value = "") {
   return String(value || "").trim();
@@ -21,7 +25,14 @@ function normalizeTags(value = []) {
 function buildContentFilter(influencerId, query = {}) {
   const filter = { influencerId };
   if (query.state) filter.state = query.state;
-  if (query.contentType) filter.contentType = query.contentType;
+  if (query.contentTypes) {
+    filter.contentType = {
+      $in: String(query.contentTypes)
+        .split(",")
+        .map((item) => cleanString(item))
+        .filter(Boolean),
+    };
+  } else if (query.contentType) filter.contentType = query.contentType;
   if (query.visibility) filter.visibility = query.visibility;
   if (query.category) filter.category = cleanString(query.category);
   if (query.campaignId) filter.campaignId = query.campaignId;
@@ -49,6 +60,34 @@ function contentSummary(row = {}) {
   };
 }
 
+function idOf(value) {
+  return String(value?._id || value || "");
+}
+
+function campaignAllowsInfluencerContent(campaign, influencerId) {
+  const profileId = idOf(influencerId);
+  if (idOf(campaign.influencerId) === profileId) return true;
+
+  return (campaign.applications || []).some((application) => (
+    idOf(application.influencerId) === profileId &&
+    ["approved"].includes(String(application.status || "").toLowerCase())
+  ));
+}
+
+async function deleteLocalReelAsset(url = "") {
+  const value = cleanString(url);
+  if (!value.startsWith("/uploads/reels/")) return;
+  const filename = path.basename(value);
+  const filePath = path.resolve(REEL_UPLOAD_DIR, filename);
+  const uploadRoot = path.resolve(REEL_UPLOAD_DIR);
+  if (!filePath.startsWith(uploadRoot)) return;
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+}
+
 class ReelService {
   async upload(userId, payload = {}) {
     const profile = await influencerService.getProfile(userId);
@@ -56,7 +95,7 @@ class ReelService {
     if (payload.campaignId) {
       campaign = await Campaign.findById(payload.campaignId);
       if (!campaign) throw new AppError("Campaign not found", 404, "NOT_FOUND");
-      if (String(campaign.influencerId) !== String(profile._id)) {
+      if (!campaignAllowsInfluencerContent(campaign, profile._id)) {
         throw new AppError("Campaign does not belong to this influencer", 403, "FORBIDDEN");
       }
       if (campaign.state !== "active") {
@@ -136,6 +175,32 @@ class ReelService {
     const reel = await Reel.findOneAndUpdate({ _id: reelId, influencerId: profile._id }, { $set: update }, { new: true, runValidators: true }).lean();
     if (!reel) throw new AppError("Content not found", 404, "NOT_FOUND");
     return contentSummary(reel);
+  }
+
+  async deleteContent(userId, reelId) {
+    const profile = await influencerService.getProfile(userId);
+    const reel = await Reel.findOneAndDelete({ _id: reelId, influencerId: profile._id }).lean();
+    if (!reel) throw new AppError("Content not found", 404, "NOT_FOUND");
+
+    await Promise.all([
+      deleteLocalReelAsset(reel.videoUrl),
+      deleteLocalReelAsset(reel.thumbnailUrl),
+    ]);
+
+    if (reel.campaignId) {
+      await Campaign.updateOne(
+        { _id: reel.campaignId, "deliverables.contentId": reel._id },
+        {
+          $set: {
+            "deliverables.$.status": "draft",
+            "deliverables.$.contentId": null,
+            "deliverables.$.notes": "Content deleted by influencer",
+          },
+        }
+      );
+    }
+
+    return { id: reel._id, deleted: true };
   }
 
   async getContentAnalytics(userId, query = {}) {
@@ -263,19 +328,34 @@ class ReelService {
     return updated;
   }
 
-  async getFeed({ category, limit = 20 } = {}) {
+  async getFeed({ category, tab = "for_you", search = "", page = 1, limit = 12 } = {}) {
     const query = { state: "published" };
+    if (tab === "live") query.contentType = "live";
+    if (tab === "product") query.contentType = { $in: ["product_video", "affiliate", "review", "tutorial", "unboxing"] };
+    if (tab === "campaign") query.campaignId = { $ne: null };
+    if (search) {
+      const re = new RegExp(cleanString(search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      query.$or = [{ title: re }, { caption: re }, { description: re }, { tags: re }, { category: re }];
+    }
+    const pageNumber = Math.max(1, Number(page) || 1);
+    const pageLimit = Math.min(Number(limit || 12), 50);
     const reels = await Reel.find(query)
+      .populate({ path: "productIds", select: "name price discountPrice images thumbnail category rating averageRating sellerId" })
       .populate({
         path: "campaignId",
-        populate: { path: "productIds", select: "name price discountPrice images category sellerId" },
+        populate: [
+          { path: "productIds", select: "name price discountPrice images thumbnail category rating averageRating sellerId" },
+          { path: "vendorId", select: "shopName companyName logoUrl" },
+        ],
       })
       .populate({
         path: "influencerId",
+        select: "username profileImage avatarUrl categories followers verified stats",
         populate: { path: "userId", select: "name" },
       })
-      .sort({ publishedAt: -1 })
-      .limit(Math.min(Number(limit || 20), 50))
+      .sort(tab === "trending" ? { "metrics.views": -1, "metrics.clicks": -1, publishedAt: -1 } : { publishedAt: -1 })
+      .skip((pageNumber - 1) * pageLimit)
+      .limit(pageLimit)
       .lean();
 
     const filtered = category
@@ -284,10 +364,36 @@ class ReelService {
         )
       : reels;
 
-    return filtered.map((reel) => ({
-      ...reel,
-      videoUrl: resolveApiAssetUrl(reel.videoUrl),
-    }));
+    const influencerIds = Array.from(new Set(filtered.map((reel) => idOf(reel.influencerId)).filter(Boolean)));
+    const affiliateRows = influencerIds.length
+      ? await InfluencerAffiliateSetting.find({ influencerId: { $in: influencerIds }, status: "active" }).select("influencerId trackingCode").lean()
+      : [];
+    const affiliateCodeByInfluencer = new Map(affiliateRows.map((row) => [idOf(row.influencerId), row.trackingCode]));
+
+    return {
+      items: filtered.map((reel) => {
+        const tagged = [...(reel.productIds || []), ...(reel.campaignId?.productIds || [])];
+        const seen = new Set();
+        const products = tagged.filter((product) => {
+          const id = idOf(product);
+          if (!id || seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+        return {
+          ...reel,
+          products,
+          affiliateTrackingCode: affiliateCodeByInfluencer.get(idOf(reel.influencerId)) || "",
+          campaignBadge: reel.campaignId ? reel.campaignId.title || "Campaign" : "",
+          brandName: reel.campaignId?.vendorId?.shopName || reel.campaignId?.vendorId?.companyName || "",
+          sponsored: Boolean(reel.campaignId),
+          videoUrl: resolveApiAssetUrl(reel.videoUrl),
+        };
+      }),
+      page: pageNumber,
+      limit: pageLimit,
+      hasMore: reels.length === pageLimit,
+    };
   }
 
   async getById(reelId) {
@@ -298,10 +404,16 @@ class ReelService {
       })
       .populate({
         path: "influencerId",
+        select: "username profileImage avatarUrl categories followers verified stats",
         populate: { path: "userId", select: "name" },
       });
     if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
-    return reel;
+    const affiliate = await InfluencerAffiliateSetting.findOne({ influencerId: reel.influencerId?._id || reel.influencerId, status: "active" }).select("trackingCode").lean();
+    const row = reel.toObject ? reel.toObject() : reel;
+    return {
+      ...row,
+      affiliateTrackingCode: affiliate?.trackingCode || "",
+    };
   }
 
   async listForInfluencer(userId) {

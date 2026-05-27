@@ -126,8 +126,18 @@ function createApp() {
   app.use(express.urlencoded({ extended: true, limit: "25mb" }));
   app.use(cookieParser());
 
-  // Local upload fallback (Cloudinary preferred)
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  // Local upload fallback (Cloudinary preferred). The frontend dev server runs on
+  // a different origin, so uploaded media must be embeddable by video/img tags.
+  app.use(
+    "/uploads",
+    express.static(path.join(process.cwd(), "uploads"), {
+      setHeaders(res) {
+        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Accept-Ranges", "bytes");
+      },
+    })
+  );
 
   app.use(
     morgan("combined", {

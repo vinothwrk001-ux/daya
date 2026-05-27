@@ -265,6 +265,9 @@ export default function InfluencerStorefrontBuilderPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    setTab(searchParams.get("tab") || "info");
+  }, [searchParams]);
 
   const update = useCallback((path, value) => {
     setForm((current) => {
@@ -297,6 +300,7 @@ export default function InfluencerStorefrontBuilderPage() {
     const response = await previewInfluencerStorefrontBuilder(buildPayload(form));
     setPreviewData(response?.data || null);
     setTab("preview");
+    setSearchParams({ tab: "preview" });
   }
 
   function toggleId(path, id) {
@@ -318,11 +322,6 @@ export default function InfluencerStorefrontBuilderPage() {
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
   }, [form]);
 
-  function selectTab(nextTab) {
-    setTab(nextTab);
-    setSearchParams(nextTab === "info" ? {} : { tab: nextTab });
-  }
-
   if (loading || !form) {
     return <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 dark:text-white">Loading storefront builder...</div>;
   }
@@ -330,25 +329,10 @@ export default function InfluencerStorefrontBuilderPage() {
   return (
     <div className="mx-auto grid max-w-[1600px] gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
       <div className="space-y-5">
-        <Card
-          title="Storefront Builder"
-          icon={StoreIcon}
-          action={
-            <div className="flex flex-wrap gap-2">
-              <button disabled={saving} onClick={() => save("draft")} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold dark:border-slate-700 dark:text-white"><Save className="h-4 w-4" />Save Draft</button>
-              <button disabled={saving} onClick={() => save("active")} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white"><Upload className="h-4 w-4" />Publish</button>
-            </div>
-          }
-        >
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {TABS.map(([id, label, Icon]) => (
-              <button key={id} onClick={() => selectTab(id)} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${tab === id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
-                <Icon className="h-4 w-4" />
-                {label}
-              </button>
-            ))}
-          </div>
-        </Card>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button disabled={saving} onClick={() => save("draft")} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold dark:border-slate-700 dark:bg-slate-900 dark:text-white"><Save className="h-4 w-4" />Save Draft</button>
+          <button disabled={saving} onClick={() => save("active")} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white"><Upload className="h-4 w-4" />Publish</button>
+        </div>
 
         {notice ? <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">{notice}</div> : null}
 

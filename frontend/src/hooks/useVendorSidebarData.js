@@ -81,7 +81,7 @@ export function useVendorSidebarData({ unreadCount = 0, summary = { modules: {},
       ...section,
       badgeCount: Number(summary.modules?.[section.notificationModule] || 0),
       items: section.items
-        .filter((item) => !(hideInfluencerCommerce && item.path === "/vendor/influencer-commerce"))
+        .filter((item) => !(hideInfluencerCommerce && item.path?.startsWith("/vendor/influencer-commerce")))
         .map((item) => ({
           ...item,
           notificationModule: item.notificationModule,

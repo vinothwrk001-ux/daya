@@ -45,6 +45,7 @@ class NotificationService {
   resolveRoleFromAuthUser(user = {}) {
     const normalizedRole = normalizeRole(user.role);
     if (normalizedRole === "vendor") return "VENDOR";
+    if (normalizedRole === "influencer") return "INFLUENCER";
     if (normalizedRole === "staff") return "STAFF";
     if (ADMIN_ROLES.includes(normalizedRole)) return "ADMIN";
     return null;

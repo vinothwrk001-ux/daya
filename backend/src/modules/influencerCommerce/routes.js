@@ -1,0 +1,103 @@
+const express = require("express");
+const Joi = require("joi");
+const { validate } = require("../../middleware/validate");
+const controller = require("./controller");
+
+const router = express.Router();
+
+const listQuery = Joi.object({
+  page: Joi.number().integer().min(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).optional(),
+  search: Joi.string().trim().allow("").optional(),
+  category: Joi.string().trim().allow("").optional(),
+  country: Joi.string().trim().allow("").optional(),
+  language: Joi.string().trim().allow("").optional(),
+  minFollowers: Joi.number().min(0).optional(),
+  maxFollowers: Joi.number().min(0).optional(),
+  sort: Joi.string().trim().allow("").optional(),
+  status: Joi.string().trim().allow("").optional(),
+  state: Joi.string().trim().allow("").optional(),
+  campaignType: Joi.string().trim().allow("").optional(),
+  campaignId: Joi.string().trim().allow("").optional(),
+  influencerId: Joi.string().trim().allow("").optional(),
+  productId: Joi.string().trim().allow("").optional(),
+  startDate: Joi.date().iso().optional(),
+  endDate: Joi.date().iso().optional(),
+  queue: Joi.string().trim().allow("").optional(),
+});
+
+const campaignPayload = Joi.object({
+  influencerId: Joi.string().allow("").optional(),
+  productIds: Joi.array().items(Joi.string().required()).min(1).required(),
+  title: Joi.string().trim().max(180).allow("").default(""),
+  description: Joi.string().trim().max(2000).allow("").default(""),
+  banner: Joi.string().trim().allow("").default(""),
+  campaignType: Joi.string()
+    .valid("affiliate", "sponsored", "product_review", "ugc", "video", "live_commerce", "brand_ambassador", "custom")
+    .default("affiliate"),
+  category: Joi.string().trim().allow("").default(""),
+  country: Joi.string().trim().allow("").default(""),
+  language: Joi.string().trim().allow("").default("en"),
+  commissionPercent: Joi.number().min(0).max(50).required(),
+  fixedFee: Joi.number().min(0).default(0),
+  deadline: Joi.date().iso().allow(null),
+  marketplace: Joi.object({
+    public: Joi.boolean().default(false),
+    applicationDeadline: Joi.date().iso().allow(null),
+    availableSlots: Joi.number().min(0).default(1),
+    requiredDeliverables: Joi.array().items(Joi.string().trim()).default([]),
+    requirements: Joi.object().unknown(true).default({}),
+    assets: Joi.array().items(Joi.object().unknown(true)).default([]),
+  }).default({}),
+});
+
+router.get("/dashboard", validate(listQuery, "query"), controller.dashboard);
+router.get("/discover", validate(listQuery, "query"), controller.discover);
+router.get("/relationships", validate(listQuery, "query"), controller.relationships);
+router.patch("/relationships/:influencerId/save", validate(Joi.object({ saved: Joi.boolean().default(true) })), controller.saveInfluencer);
+router.patch(
+  "/relationships/:influencerId",
+  validate(
+    Joi.object({
+      status: Joi.string().valid("saved", "invited", "applied", "approved", "active", "paused", "blacklisted").required(),
+      notes: Joi.string().trim().max(1200).allow("").optional(),
+      blacklistReason: Joi.string().trim().max(500).allow("").optional(),
+    })
+  ),
+  controller.updateRelationship
+);
+
+router.get("/campaigns", validate(listQuery, "query"), controller.campaigns);
+router.post("/campaigns", validate(campaignPayload), controller.createCampaign);
+router.patch(
+  "/campaigns/:campaignId/status",
+  validate(Joi.object({ action: Joi.string().valid("pause", "close", "activate").optional(), state: Joi.string().allow("").optional(), note: Joi.string().allow("").max(500).default("") })),
+  controller.updateCampaignStatus
+);
+router.delete("/campaigns/:campaignId", controller.deleteCampaign);
+router.patch(
+  "/campaigns/:campaignId/applications/:influencerId",
+  validate(Joi.object({ decision: Joi.string().valid("approve", "reject").required(), note: Joi.string().allow("").max(1000).default("") })),
+  controller.reviewApplication
+);
+
+router.get("/products", validate(listQuery, "query"), controller.products);
+router.get("/affiliate-products", validate(listQuery, "query"), controller.affiliateProducts);
+router.get("/content-approvals", validate(listQuery, "query"), controller.contentApprovals);
+router.patch(
+  "/content-approvals/:reelId",
+  validate(
+    Joi.object({
+      decision: Joi.string().valid("approve", "reject", "changes").required(),
+      note: Joi.string().allow("").max(1000).default(""),
+      requestedChanges: Joi.string().allow("").max(1000).default(""),
+    })
+  ),
+  controller.reviewContent
+);
+router.get("/performance", validate(listQuery, "query"), controller.performance);
+router.get("/analytics", validate(listQuery, "query"), controller.analytics);
+router.get("/leaderboard", validate(listQuery, "query"), controller.leaderboard);
+router.get("/reports", validate(listQuery, "query"), controller.reports);
+
+module.exports = router;

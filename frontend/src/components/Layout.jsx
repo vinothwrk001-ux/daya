@@ -78,7 +78,7 @@ export function Layout() {
     location.pathname.startsWith("/admin");
   const isVendorWorkspace = isVendorWorkspacePath(location.pathname);
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
-  const isInfluencerWorkspace = location.pathname.startsWith("/influencer");
+  const isInfluencerWorkspace = location.pathname === "/influencer" || location.pathname.startsWith("/influencer/");
   const hideShopChrome = isAdminRoute || isVendorWorkspace || isStaffWorkspace || isInfluencerWorkspace;
   const showShopActions = !user || user?.role === "user";
 
@@ -104,6 +104,7 @@ export function Layout() {
     { label: "Home", href: "/" },
     { label: "Shop", href: "/shop" },
     { label: "Stores", href: "/stores" },
+    { label: "Creaters Hub", href: "/influencers" },
     { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },
   ];
 
@@ -335,6 +336,27 @@ export function Layout() {
                   </div>
                 )}
               </div>
+
+              <nav className="flex gap-2 overflow-x-auto rounded-full border border-white/60 bg-white/70 p-1 backdrop-blur dark:border-white/10 dark:bg-slate-900/65 lg:hidden">
+                {navItems.map((item) => {
+                  const isActive =
+                    location.pathname === item.href ||
+                    (item.href !== "/" && location.pathname.startsWith(item.href));
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
+                        isActive
+                          ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
+                          : "text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
             </div>
           </div>
         </header>

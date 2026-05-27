@@ -195,7 +195,7 @@ function BankAccountForm({ onSubmit, busy }) {
 }
 
 export default function InfluencerEarningsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const tab = searchParams.get("tab") || "total";
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -314,25 +314,6 @@ export default function InfluencerEarningsPage() {
         <MoneyCard label="Withdrawn" value={summary?.kpis?.totalWithdrawn} icon={CreditCard} />
         <MoneyCard label="Bonus" value={summary?.kpis?.bonusEarnings} icon={Banknote} />
       </section>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Earnings & Wallet</p>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {EARNING_TABS.map(([id, label]) => (
-              <button key={id} onClick={() => setSearchParams(id === "total" ? {} : { tab: id })} className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold ${tab === id ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"}`}>{label}</button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Withdrawal Requests</p>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {WITHDRAWAL_TABS.map(([id, label]) => (
-              <button key={id} onClick={() => setSearchParams({ tab: id })} className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold ${tab === id ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"}`}>{label}</button>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {loading ? <div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /> : null}
 

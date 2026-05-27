@@ -3,6 +3,7 @@ const { authRequired, requireRole } = require("../middleware/auth");
 const { validate } = require("../middleware/validate");
 const { upload } = require("../middleware/upload");
 const { requireVendorModule, requireVendorPermission } = require("../middleware/vendorModuleAccess");
+const { influencerCommerceGate } = require("../middleware/influencerCommerceGate");
 const vendorController = require("../controllers/vendor.controller");
 const {
   step1Schema,
@@ -23,6 +24,7 @@ const vendorPayoutController = require("../controllers/vendorPayout.controller")
 const commissionController = require("../controllers/commission.controller");
 const productController = require("../controllers/product.controller");
 const vendorStorefrontController = require("../controllers/vendor-storefront.controller");
+const influencerCommerceRoutes = require("../modules/influencerCommerce/routes");
 
 const router = express.Router();
 
@@ -46,6 +48,7 @@ router.post(
 router.get("/me", vendorController.me);
 router.get("/dashboard", vendorDashboardController.getDashboard);
 router.post("/settings/media", upload.single("image"), vendorController.uploadStoreMedia);
+router.use("/influencer-commerce", influencerCommerceGate, influencerCommerceRoutes);
 
 // 🔥 PRODUCTS MODULE - Protected by vendorModuleAccess
 router.route("/products")

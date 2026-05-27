@@ -55,6 +55,7 @@ const shippingConfigRoutes = require("./shippingConfig.routes");
 const companyBrandingController = require("../controllers/company-branding.controller");
 const vendorStorefrontController = require("../controllers/vendor-storefront.controller");
 const { validateBrandingFiles } = require("../utils/validators/company-branding.validation");
+const adminInfluencerCommerceRoutes = require("../modules/adminInfluencerCommerce/routes");
 
 const router = express.Router();
 
@@ -79,6 +80,11 @@ const brandingUpload = multer({
 });
 
 router.use(adminWorkspaceAuthRequired);
+router.use(
+  "/influencer-commerce",
+  requireWorkspacePermission("influencerCommerce.read", { legacyPermission: "dashboard:read" }),
+  adminInfluencerCommerceRoutes
+);
 
 router.get(
   "/dashboard",

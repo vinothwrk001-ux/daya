@@ -167,9 +167,13 @@ export function ProductDetailsPage() {
   useEffect(() => {
     const trackingContext = loadTrackingContext();
     const reelId = searchParams.get("reel");
-    if (trackingContext?.productId === productId || reelId) {
+    const trackingToken = searchParams.get("trackingToken");
+    const anonymousId = searchParams.get("anonymousId");
+    if (trackingToken || trackingContext?.productId === productId || reelId) {
       saveTrackingContext({
         ...trackingContext,
+        trackingToken: trackingToken || trackingContext?.trackingToken,
+        anonymousId: anonymousId || trackingContext?.anonymousId,
         productId,
         reelId: reelId || trackingContext?.reelId,
       });

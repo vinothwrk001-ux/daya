@@ -7,6 +7,7 @@ const REEL_MAX_BYTES = Number(process.env.REEL_MAX_UPLOAD_BYTES || 100 * 1024 * 
 const REEL_UPLOAD_DIR = path.join(process.cwd(), "uploads", "reels");
 
 const ALLOWED_VIDEO = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+const ALLOWED_IMAGE = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -30,6 +31,16 @@ const reelVideoUpload = multer({
   },
 });
 
+const reelMediaUpload = multer({
+  storage,
+  limits: { fileSize: REEL_MAX_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (file.fieldname === "video" && ALLOWED_VIDEO.has(file.mimetype)) return cb(null, true);
+    if (file.fieldname === "thumbnail" && ALLOWED_IMAGE.has(file.mimetype)) return cb(null, true);
+    return cb(new Error(file.fieldname === "thumbnail" ? "UNSUPPORTED_IMAGE_TYPE" : "UNSUPPORTED_VIDEO_TYPE"));
+  },
+});
+
 function optionalReelVideoUpload(req, res, next) {
   const ct = String(req.headers["content-type"] || "");
   if (!ct.toLowerCase().includes("multipart/form-data")) {
@@ -47,4 +58,27 @@ function optionalReelVideoUpload(req, res, next) {
   });
 }
 
-module.exports = { optionalReelVideoUpload, REEL_UPLOAD_DIR };
+function optionalReelMediaUpload(req, res, next) {
+  const ct = String(req.headers["content-type"] || "");
+  if (!ct.toLowerCase().includes("multipart/form-data")) {
+    return next();
+  }
+  return reelMediaUpload.fields([
+    { name: "video", maxCount: 1 },
+    { name: "thumbnail", maxCount: 1 },
+  ])(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ success: false, message: "Uploaded file is too large" });
+    }
+    if (String(err.message) === "UNSUPPORTED_IMAGE_TYPE") {
+      return res.status(400).json({ success: false, message: "Unsupported thumbnail format. Use JPEG, PNG, WebP, or GIF." });
+    }
+    if (String(err.message) === "UNSUPPORTED_VIDEO_TYPE") {
+      return res.status(400).json({ success: false, message: "Unsupported video format. Use MP4, WebM, or MOV." });
+    }
+    return next(err);
+  });
+}
+
+module.exports = { optionalReelVideoUpload, optionalReelMediaUpload, REEL_UPLOAD_DIR };

@@ -220,6 +220,9 @@ export default function InfluencerCollectionsPage() {
   useEffect(() => { loadCollections(); }, [loadCollections]);
   useEffect(() => { loadProducts(); }, [loadProducts]);
   useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
+  useEffect(() => {
+    setTab(searchParams.get("tab") || "create");
+  }, [searchParams]);
 
   useEffect(() => {
     if (!selected) return;
@@ -289,22 +292,6 @@ export default function InfluencerCollectionsPage() {
 
   return (
     <div className="mx-auto flex max-w-[1500px] flex-col gap-5">
-      <Panel title="Product Collections" icon={Boxes}>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {TABS.map(([id, label, Icon]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => selectTab(id)}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${tab === id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </button>
-          ))}
-        </div>
-      </Panel>
-
       {message ? <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">{message}</div> : null}
 
       <div className="grid gap-5 xl:grid-cols-[390px_1fr]">
