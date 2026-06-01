@@ -112,6 +112,24 @@ router.post(
 );
 
 router.get("/feed", authOptional, controller.feed);
+router.get("/:id/engagement", authOptional, controller.engagement);
+router.post("/:id/like", authRequired, controller.like);
+router.post(
+  "/:id/save",
+  authRequired,
+  validate(Joi.object({ collectionName: Joi.string().allow("").max(120).optional() })),
+  controller.save
+);
+router.get("/:id/comments", authOptional, validate(Joi.object({ page: Joi.number().integer().min(1).optional(), limit: Joi.number().integer().min(1).max(50).optional() }), "query"), controller.comments);
+router.post("/:id/comments", authRequired, validate(Joi.object({ text: Joi.string().trim().min(1).max(2000).required() })), controller.comment);
+router.post("/:id/comments/:commentId/replies", authRequired, validate(Joi.object({ text: Joi.string().trim().min(1).max(2000).required(), parentReplyId: Joi.string().allow("").optional() })), controller.reply);
+router.post("/:id/comments/:commentId/like", authRequired, controller.commentLike);
+router.post("/:id/comments/:commentId/report", authRequired, validate(Joi.object({ reason: Joi.string().allow("").max(500).optional() })), controller.commentReport);
+router.post("/:id/share", authOptional, validate(Joi.object({ anonymousId: Joi.string().allow("").max(120).optional(), source: Joi.string().allow("").max(80).optional(), destination: Joi.string().allow("").max(80).optional(), metadata: Joi.object().unknown(true).optional() })), controller.share);
+router.post("/:id/view", authOptional, validate(Joi.object({ anonymousId: Joi.string().allow("").max(120).optional(), source: Joi.string().allow("").max(80).optional(), watchTimeSeconds: Joi.number().min(0).optional(), progressPercent: Joi.number().min(0).max(100).optional(), completed: Joi.boolean().optional(), metadata: Joi.object().unknown(true).optional() })), controller.view);
+router.post("/:id/store-visit", authOptional, validate(Joi.object({ anonymousId: Joi.string().allow("").max(120).optional(), source: Joi.string().allow("").max(80).optional(), metadata: Joi.object().unknown(true).optional() })), controller.storeVisit);
+router.post("/:id/product-click", authOptional, validate(Joi.object({ productId: Joi.string().required(), anonymousId: Joi.string().allow("").max(120).optional(), source: Joi.string().allow("").max(80).optional(), attributionWindowDays: Joi.number().valid(7, 30, 60, 90).optional(), metadata: Joi.object().unknown(true).optional() })), controller.productClick);
+router.post("/:id/follow", authRequired, validate(Joi.object({ following: Joi.boolean().optional(), source: Joi.string().allow("").max(80).optional() })), controller.follow);
 router.get("/content", authRequired, requireRole("influencer"), validate(contentQuery, "query"), controller.contentList);
 router.get("/content/analytics", authRequired, requireRole("influencer"), validate(contentQuery, "query"), controller.contentAnalytics);
 router.get("/content/media-library", authRequired, requireRole("influencer"), validate(contentQuery, "query"), controller.mediaLibrary);
@@ -135,6 +153,7 @@ router.get(
   controller.influencerPaginated
 );
 router.get("/admin/list", authRequired, requireRole("admin", "super_admin", "support_admin", "finance_admin"), controller.adminList);
+router.get("/:id/adjacent", authOptional, controller.adjacent);
 router.get("/:id", authOptional, controller.getById);
 
 module.exports = router;

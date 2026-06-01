@@ -15,6 +15,32 @@ export async function getInfluencerStorefront(params = {}) {
   return data;
 }
 
+export async function getPublicInfluencerStorefront(username, tab = "storefront", params = {}) {
+  const cleanTab = tab && tab !== "storefront" ? `/${tab}` : "";
+  const { data } = await api.get(`/api/influencer/public/${encodeURIComponent(username)}${cleanTab}`, { params });
+  return data;
+}
+
+export async function followPublicInfluencer(username) {
+  const { data } = await api.post(`/api/influencer/public/${encodeURIComponent(username)}/follow`, { source: "storefront" });
+  return data;
+}
+
+export async function unfollowPublicInfluencer(username) {
+  const { data } = await api.delete(`/api/influencer/public/${encodeURIComponent(username)}/follow`);
+  return data;
+}
+
+export async function subscribePublicInfluencerNewsletter(username, email) {
+  const { data } = await api.post(`/api/influencer/public/${encodeURIComponent(username)}/newsletter`, { email, source: "storefront" });
+  return data;
+}
+
+export async function trackPublicInfluencerEvent(username, payload = {}) {
+  const { data } = await api.post(`/api/influencer/public/${encodeURIComponent(username)}/events`, payload);
+  return data;
+}
+
 export async function getInfluencerStorefrontBuilder() {
   const { data } = await api.get("/api/influencer/storefront-builder");
   return data;
@@ -409,6 +435,76 @@ export async function getReel(id) {
   return data;
 }
 
+export async function getAdjacentReels(id) {
+  const { data } = await api.get(`/api/reel/${id}/adjacent`);
+  return data;
+}
+
+export async function getReelEngagement(id) {
+  const { data } = await api.get(`/api/reel/${id}/engagement`);
+  return data;
+}
+
+export async function toggleReelLike(id) {
+  const { data } = await api.post(`/api/reel/${id}/like`);
+  return data;
+}
+
+export async function toggleReelSave(id, payload = {}) {
+  const { data } = await api.post(`/api/reel/${id}/save`, payload);
+  return data;
+}
+
+export async function listReelComments(id, params = {}) {
+  const { data } = await api.get(`/api/reel/${id}/comments`, { params });
+  return data;
+}
+
+export async function createReelComment(id, payload = {}) {
+  const { data } = await api.post(`/api/reel/${id}/comments`, payload);
+  return data;
+}
+
+export async function createReelCommentReply(id, commentId, payload = {}) {
+  const { data } = await api.post(`/api/reel/${id}/comments/${commentId}/replies`, payload);
+  return data;
+}
+
+export async function toggleReelCommentLike(id, commentId) {
+  const { data } = await api.post(`/api/reel/${id}/comments/${commentId}/like`);
+  return data;
+}
+
+export async function reportReelComment(id, commentId, payload = {}) {
+  const { data } = await api.post(`/api/reel/${id}/comments/${commentId}/report`, payload);
+  return data;
+}
+
+export async function shareReel(id, payload = {}) {
+  const { data } = await api.post(`/api/reel/${id}/share`, payload);
+  return data;
+}
+
+export async function recordReelView(id, payload = {}) {
+  const { data } = await api.post(`/api/reel/${id}/view`, payload);
+  return data;
+}
+
+export async function recordReelStoreVisit(id, payload = {}) {
+  const { data } = await api.post(`/api/reel/${id}/store-visit`, payload);
+  return data;
+}
+
+export async function recordReelProductClick(id, payload = {}) {
+  const { data } = await api.post(`/api/reel/${id}/product-click`, payload);
+  return data;
+}
+
+export async function followReelCreator(id, payload = {}) {
+  const { data } = await api.post(`/api/reel/${id}/follow`, payload);
+  return data;
+}
+
 export async function getInfluencerReels() {
   const { data } = await api.get("/api/reel/mine");
   return data;
@@ -456,6 +552,11 @@ export async function createInfluencerLiveSession(payload) {
 
 export async function clickTracking(payload) {
   const { data } = await api.post("/api/tracking/click", payload);
+  return data;
+}
+
+export async function trackAffiliateEvent(payload) {
+  const { data } = await api.post("/api/tracking/event", payload);
   return data;
 }
 

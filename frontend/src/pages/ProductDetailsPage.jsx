@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { ProductImageGallery } from "../components/ProductImageGallery";
@@ -27,6 +27,7 @@ import { useWishlist } from "../hooks/useWishlist";
 import pendingActionManager from "../utils/pendingActionManager";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { SellerCard, SellerNameLink, StoreRatingDisplay } from "../components/seller/SellerNavigation";
+import { trackAffiliateEvent } from "../services/influencerCommerceService";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -163,6 +164,18 @@ export function ProductDetailsPage() {
   const [recommendations, setRecommendations] = useState(null);
   const [fbtBundle, setFbtBundle] = useState(null);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const trackedProductViewRef = useRef("");
+
+  function trackCurrentAffiliateEvent(eventType, metadata = {}) {
+    const trackingContext = loadTrackingContext();
+    if (!trackingContext?.trackingToken || String(trackingContext.productId || "") !== String(productId || "")) return Promise.resolve(null);
+    return trackAffiliateEvent({
+      trackingToken: trackingContext.trackingToken,
+      anonymousId: trackingContext.anonymousId || "",
+      eventType,
+      metadata: { productId, ...metadata },
+    }).catch(() => null);
+  }
 
   useEffect(() => {
     const trackingContext = loadTrackingContext();
@@ -198,6 +211,16 @@ export function ProductDetailsPage() {
           setProduct(nextProduct);
           const defaultVariant = getDefaultVariant(nextProduct);
           setSelectedAttributes(defaultVariant?.attributes || {});
+          const trackingContext = loadTrackingContext();
+          if (trackingContext?.trackingToken && String(trackingContext.productId || "") === String(productId) && trackedProductViewRef.current !== `${productId}:${trackingContext.trackingToken}`) {
+            trackedProductViewRef.current = `${productId}:${trackingContext.trackingToken}`;
+            trackAffiliateEvent({
+              trackingToken: trackingContext.trackingToken,
+              anonymousId: trackingContext.anonymousId || "",
+              eventType: "product_view",
+              metadata: { productId },
+            }).catch(() => null);
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -439,6 +462,7 @@ export function ProductDetailsPage() {
       if (!isAuthenticated && redirectTo === "/checkout") {
         const added = await addCartItem(product._id, quantity, variantId);
         if (added) {
+          await trackCurrentAffiliateEvent("add_to_cart", { variantId, quantity, buyNow: true });
           pendingActionManager.initiateGuestBuyNow(product._id, quantity, variantId);
           saveRedirectAfterLogin(`${window.location.origin}/checkout`);
           navigate("/login", { state: { from: { pathname: "/checkout" } } });
@@ -450,6 +474,7 @@ export function ProductDetailsPage() {
       if (!added) {
         return;
       }
+      await trackCurrentAffiliateEvent("add_to_cart", { variantId, quantity });
 
       if (!redirectTo) {
         openDrawer(product, activeVariant, quantity);
@@ -477,6 +502,7 @@ export function ProductDetailsPage() {
           selectedAttributes
         );
         setWishlistSaved(true);
+        await trackCurrentAffiliateEvent("wishlist", { variantId: activeVariant?.variantId || "" });
       }
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to update wishlist");

@@ -725,8 +725,11 @@ class CheckoutService {
       if (trackingContext) {
         const matchedItem = items.find((item) => String(item.productId) === String(trackingContext.session.productId));
         if (matchedItem) {
-          const campaign = await require("../modules/campaign/model").Campaign.findById(trackingContext.session.campaignId).lean();
-          const frozenCommissionPercent = Number(campaign?.termsFrozen?.commissionPercent ?? campaign?.commissionPercent ?? 0);
+          const [campaign, affiliateSetting] = await Promise.all([
+            trackingContext.session.campaignId ? require("../modules/campaign/model").Campaign.findById(trackingContext.session.campaignId).lean() : null,
+            require("../modules/influencer/model").InfluencerAffiliateSetting.findOne({ influencerId: trackingContext.session.influencerId, status: "active" }).lean(),
+          ]);
+          const frozenCommissionPercent = Number(campaign?.termsFrozen?.commissionPercent ?? campaign?.commissionPercent ?? affiliateSetting?.commissionRate ?? 0);
           const finalCommission = calculateAttributionCommission({
             subtotal,
             commissionPercent: frozenCommissionPercent,
@@ -738,6 +741,10 @@ class CheckoutService {
             influencerId: trackingContext.session.influencerId,
             campaignId: trackingContext.session.campaignId,
             reelId: trackingContext.session.reelId,
+            postId: trackingContext.session.postId,
+            storefrontId: trackingContext.session.storefrontId,
+            collectionId: trackingContext.session.collectionId,
+            surface: trackingContext.session.surface,
             trackingSessionId: trackingContext.session._id,
             productId: trackingContext.session.productId,
             commission: finalCommission,
@@ -1226,8 +1233,11 @@ class CheckoutService {
       if (trackingContext) {
         const matchedItem = items.find((item) => String(item.productId) === String(trackingContext.session.productId));
         if (matchedItem) {
-          const campaign = await require("../modules/campaign/model").Campaign.findById(trackingContext.session.campaignId).lean();
-          const frozenCommissionPercent = Number(campaign?.termsFrozen?.commissionPercent ?? campaign?.commissionPercent ?? 0);
+          const [campaign, affiliateSetting] = await Promise.all([
+            trackingContext.session.campaignId ? require("../modules/campaign/model").Campaign.findById(trackingContext.session.campaignId).lean() : null,
+            require("../modules/influencer/model").InfluencerAffiliateSetting.findOne({ influencerId: trackingContext.session.influencerId, status: "active" }).lean(),
+          ]);
+          const frozenCommissionPercent = Number(campaign?.termsFrozen?.commissionPercent ?? campaign?.commissionPercent ?? affiliateSetting?.commissionRate ?? 0);
           const finalCommission = calculateAttributionCommission({
             subtotal,
             commissionPercent: frozenCommissionPercent,
@@ -1239,6 +1249,10 @@ class CheckoutService {
             influencerId: trackingContext.session.influencerId,
             campaignId: trackingContext.session.campaignId,
             reelId: trackingContext.session.reelId,
+            postId: trackingContext.session.postId,
+            storefrontId: trackingContext.session.storefrontId,
+            collectionId: trackingContext.session.collectionId,
+            surface: trackingContext.session.surface,
             trackingSessionId: trackingContext.session._id,
             productId: trackingContext.session.productId,
             commission: finalCommission,
@@ -1502,6 +1516,19 @@ class CheckoutService {
           if (order.attribution?.influencerId) {
             await runNonBlocking(`create commission hold for ${order.orderNumber}`, () =>
               commissionService.createHoldRecord(order)
+            );
+            await runNonBlocking(`track affiliate order completion for ${order.orderNumber}`, () =>
+              trackingService.event({
+                user: { sub: userId },
+                trackingToken,
+                eventType: "order_completed",
+                metadata: {
+                  orderId: order._id,
+                  orderNumber: order.orderNumber,
+                  revenue: order.subtotal,
+                  commission: order.attribution?.commission?.influencerShare || 0,
+                },
+              })
             );
           }
         }

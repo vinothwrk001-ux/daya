@@ -8,8 +8,25 @@ const click = asyncHandler(async (req, res) => {
     reelId: req.body.reelId,
     productId: req.body.productId,
     anonymousId: req.body.anonymousId,
+    storefrontId: req.body.storefrontId,
+    collectionId: req.body.collectionId,
+    postId: req.body.postId,
+    influencerId: req.body.influencerId,
+    trackingCode: req.body.trackingCode,
+    surface: req.body.surface,
   });
   return ok(res, result, "Tracking session created");
 });
 
-module.exports = { click };
+const event = asyncHandler(async (req, res) => {
+  const result = await trackingService.event({
+    user: req.user,
+    trackingToken: req.body.trackingToken,
+    anonymousId: req.body.anonymousId,
+    eventType: req.body.eventType,
+    metadata: req.body.metadata || {},
+  });
+  return ok(res, result, "Tracking event recorded");
+});
+
+module.exports = { click, event };

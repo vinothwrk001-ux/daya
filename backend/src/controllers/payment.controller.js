@@ -35,6 +35,34 @@ const verifyRazorpayPayment = asyncHandler(async (req, res) => {
   });
 });
 
+const recordCheckoutFailure = asyncHandler(async (req, res) => {
+  const result = await paymentService.recordCheckoutFailure({
+    userId: req.user.sub,
+    ...req.body,
+    ipAddress: req.ip,
+    userAgent: req.get("user-agent"),
+  });
+  return ok(res, result, "Checkout failure recorded");
+});
+
+const recordCheckoutOpened = asyncHandler(async (req, res) => {
+  const result = await paymentService.recordCheckoutOpened({
+    userId: req.user.sub,
+    ...req.body,
+    ipAddress: req.ip,
+    userAgent: req.get("user-agent"),
+  });
+  return ok(res, result, "Checkout open recorded");
+});
+
+const inspectCheckoutOrder = asyncHandler(async (req, res) => {
+  const result = await paymentService.inspectCheckoutOrder({
+    userId: req.user.sub,
+    razorpayOrderId: req.params.razorpayOrderId,
+  });
+  return ok(res, result, "Checkout order inspection loaded");
+});
+
 const refundPayment = asyncHandler(async (req, res) => {
   const result = await paymentService.processRefund({
     orderId: req.body.orderId,
@@ -88,6 +116,9 @@ const getRefundStatus = asyncHandler(async (req, res) => {
 module.exports = {
   createRazorpayOrder,
   verifyRazorpayPayment,
+  recordCheckoutFailure,
+  recordCheckoutOpened,
+  inspectCheckoutOrder,
   refundPayment,
   listPayments,
   getRazorpaySettings,

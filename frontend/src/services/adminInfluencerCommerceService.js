@@ -151,3 +151,60 @@ export async function updateAdminInfluencerSettings(payload = {}) {
   const { data } = await api.patch(`${base}/settings`, payload);
   return data;
 }
+
+const commissionEngineBase = "/api/commission/admin/engine";
+
+export async function getCommissionEngineDashboard(params = {}) {
+  const { data } = await api.get(`${commissionEngineBase}/dashboard`, { params });
+  return data;
+}
+
+export async function listCommissionEngineRules(params = {}) {
+  const { data } = await api.get(`${commissionEngineBase}/rules`, { params });
+  return data;
+}
+
+export async function createCommissionEngineRule(payload = {}) {
+  const { data } = await api.post(`${commissionEngineBase}/rules`, payload);
+  return data;
+}
+
+export async function updateCommissionEngineRule(ruleId, payload = {}) {
+  const { data } = await api.patch(`${commissionEngineBase}/rules/${ruleId}`, payload);
+  return data;
+}
+
+export async function approveCommissionEngineRule(ruleId) {
+  const { data } = await api.post(`${commissionEngineBase}/rules/${ruleId}/approve`);
+  return data;
+}
+
+export async function deactivateCommissionEngineRule(ruleId, payload = {}) {
+  const { data } = await api.post(`${commissionEngineBase}/rules/${ruleId}/deactivate`, payload);
+  return data;
+}
+
+export async function simulateCommissionEngine(payload = {}) {
+  const { data } = await api.post(`${commissionEngineBase}/simulate`, payload);
+  return data;
+}
+
+export async function createCommissionEngineSettlement(payload = {}) {
+  const { data } = await api.post(`${commissionEngineBase}/settlements`, payload);
+  return data;
+}
+
+export async function approveCommissionEngineSettlement(settlementId) {
+  const { data } = await api.post(`${commissionEngineBase}/settlements/${settlementId}/approve`);
+  return data;
+}
+
+export async function prepareCommissionEnginePayoutBatch(settlementId) {
+  const { data } = await api.post(`${commissionEngineBase}/settlements/${settlementId}/payout-batch`);
+  return data;
+}
+
+export async function listCommissionEngineAuditLogs(params = {}) {
+  const { data } = await api.get(`${commissionEngineBase}/audit-logs`, { params });
+  return data;
+}

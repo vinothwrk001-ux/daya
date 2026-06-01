@@ -191,6 +191,10 @@ const pageMeta = {
     title: "Influencer Commerce",
     subtitle: "Monitor product promotions across campaigns, vendors, and creators.",
   },
+  "/admin/influencer-commerce/commission-engine": {
+    title: "Influencer Commerce",
+    subtitle: "Configure rule-driven creator commissions, settlements, payout preparation, simulation, and audit.",
+  },
   "/admin/influencer-commerce/commissions": {
     title: "Influencer Commerce",
     subtitle: "Manage affiliate, campaign, bonus, reversed, and paid commissions.",

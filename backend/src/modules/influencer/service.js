@@ -1,14 +1,19 @@
 const userRepo = require("../../repositories/user.repository");
 const userService = require("../../services/user.service");
+const notificationService = require("../../services/notification.service");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 const { AppError } = require("../../utils/AppError");
 const { uploadMany } = require("../../utils/upload");
 const { emitDomainEvent } = require("../events/event-bus");
 const { INFLUENCER_EVENTS } = require("../shared/constants");
 const { InfluencerWallet, CommissionRecord, InfluencerPayoutAccount } = require("../commission/models");
 const { Product } = require("../../models/Product");
+const { User } = require("../../models/User");
+const { Reel } = require("../reel/model");
+const { Campaign } = require("../campaign/model");
 const commissionRuleService = require("../../services/commission-rule.service");
 const homepageLayoutService = require("../../services/homepage-layout.service");
 const {
@@ -21,10 +26,16 @@ const {
   InfluencerBadge,
   InfluencerStorefront,
   InfluencerAffiliateSetting,
+  InfluencerProductAssignment,
+  AffiliateLink,
   InfluencerCollection,
   InfluencerActivationAudit,
   InfluencerSocialAccount,
   InfluencerSocialVerification,
+  InfluencerFollower,
+  InfluencerPost,
+  InfluencerNewsletterSubscription,
+  InfluencerStorefrontEvent,
 } = require("./model");
 
 const DEFAULT_SOCIAL_REQUIREMENTS = {
@@ -283,6 +294,74 @@ function collectionAnalyticsSnapshot(collection = {}) {
   };
 }
 
+function compactProfileStats({ profile = {}, reels = [], followerCount = 0, followingCount = 0, orderCount = 0 }) {
+  const reelLikes = reels.reduce((sum, reel) => sum + Number(reel.metrics?.likes || 0), 0);
+  return {
+    followers: Number(followerCount || profile.followers || 0),
+    following: Number(followingCount || 0),
+    totalLikes: Number(reelLikes || 0),
+    ordersGenerated: Number(orderCount || profile.stats?.sales || 0),
+    profileViews: Number(profile.stats?.views || 0),
+    productClicks: Number(profile.stats?.clicks || 0),
+    revenue: Number(profile.stats?.revenue || 0),
+  };
+}
+
+function publicProductSelect() {
+  return "name slug images thumbnail category price discountPrice ratings analytics status isActive stock sellerId variants";
+}
+
+function collectPublicSocialLinks(storefront = {}, profile = {}, accounts = []) {
+  const fromStorefront = storefront.socialLinks || {};
+  const fromProfile = profile.socialHandles || {};
+  const links = {};
+  Object.entries(fromStorefront).forEach(([key, value]) => {
+    const url = typeof value === "string" ? value : value?.url || value?.profileUrl || "";
+    if (url) links[key.toLowerCase()] = { platform: key.toLowerCase(), url };
+  });
+  Object.entries(fromProfile).forEach(([key, value]) => {
+    if (value && !links[key.toLowerCase()]) links[key.toLowerCase()] = { platform: key.toLowerCase(), url: value };
+  });
+  accounts.forEach((account) => {
+    if (account.profileUrl) links[account.platform] = {
+      platform: account.platform,
+      url: account.profileUrl,
+      username: account.username,
+      followers: account.followersCount,
+    };
+  });
+  return Object.values(links);
+}
+
+function buildStructuredData({ profile = {}, user = {}, storefront = {}, collections = [], featuredProducts = [] }) {
+  const displayName = profile.displayName || user.name || storefront.name || "Creator";
+  return {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    name: displayName,
+    url: `/influencer/${storefront.slug || profile.storeSlug || ""}`,
+    mainEntity: {
+      "@type": "Person",
+      name: displayName,
+      image: storefront.profileImage || profile.profilePicture || user.avatarUrl || "",
+      description: storefront.description || profile.longBio || profile.bio || profile.shortBio || "",
+      sameAs: collectPublicSocialLinks(storefront, profile).map((link) => link.url),
+    },
+    hasPart: [
+      ...collections.slice(0, 6).map((collection) => ({
+        "@type": "CollectionPage",
+        name: collection.title,
+        url: `/influencer/${storefront.slug || profile.storeSlug || ""}/collections#${collection.slug}`,
+      })),
+      ...featuredProducts.slice(0, 6).map((product) => ({
+        "@type": "Product",
+        name: product.name,
+        image: product.thumbnail || product.images?.[0]?.url || "",
+      })),
+    ],
+  };
+}
+
 function defaultHomepageSections(storefront = {}) {
   return [
     { id: "hero", type: "hero", title: "Hero Banner", visible: true, layout: "banner", priority: 1, config: storefront.hero || {} },
@@ -407,6 +486,103 @@ async function enrichAffiliateProduct(product = {}, profile = null) {
     recommendationScore: product.recommendationScore || 0,
     trendScore: Number((views * 0.2 + sales * 3 + revenue * 0.01).toFixed(2)),
   };
+}
+
+const PROMOTION_ASSIGNMENT_STATUSES = ["assigned", "accepted", "approved", "active"];
+const PROMOTION_CAMPAIGN_STATES = ["active", "accepted", "completed"];
+
+function applicationApprovedFor(campaign = {}, influencerId) {
+  return (campaign.applications || []).some((application) => (
+    String(application.influencerId?._id || application.influencerId) === String(influencerId) &&
+    ["approved"].includes(String(application.status || "").toLowerCase())
+  ));
+}
+
+async function upsertCampaignProductAssignments({ influencerId, vendorId, campaignId, productIds = [], status = "approved", source = "vendor_campaign", actorId = null }) {
+  const now = new Date();
+  await Promise.all((productIds || []).filter(Boolean).map((productId) => InfluencerProductAssignment.findOneAndUpdate(
+    { influencerId, productId, campaignId: campaignId || null },
+    {
+      $set: {
+        influencerId,
+        vendorId,
+        productId,
+        campaignId: campaignId || undefined,
+        status,
+        source,
+        ...(status === "accepted" ? { acceptedAt: now } : {}),
+        ...(status === "approved" || status === "active" ? { approvedAt: now } : {}),
+        "metadata.lastActorId": actorId || undefined,
+      },
+      $setOnInsert: { assignedAt: now },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  )));
+}
+
+async function getEligiblePromotionProductContext(influencerId) {
+  const [assignments, campaigns] = await Promise.all([
+    InfluencerProductAssignment.find({ influencerId, status: { $in: PROMOTION_ASSIGNMENT_STATUSES } })
+      .populate("campaignId", "title state commissionPercent")
+      .populate("vendorId", "shopName companyName")
+      .lean(),
+    Campaign.find({
+      productIds: { $exists: true, $ne: [] },
+      $or: [
+        { influencerId, state: { $in: PROMOTION_CAMPAIGN_STATES } },
+        { applications: { $elemMatch: { influencerId, status: "approved" } } },
+      ],
+    }).select("_id title state vendorId productIds commissionPercent applications influencerId")
+      .populate("vendorId", "shopName companyName")
+      .lean(),
+  ]);
+  const byProduct = new Map();
+  const productIds = new Set();
+  for (const assignment of assignments) {
+    const key = String(assignment.productId);
+    productIds.add(key);
+    byProduct.set(key, {
+      assignmentId: assignment._id,
+      promotionStatus: assignment.status,
+      source: assignment.source,
+      campaignId: assignment.campaignId?._id || assignment.campaignId || "",
+      campaignName: assignment.campaignId?.title || "",
+      campaignStatus: assignment.campaignId?.state || "",
+      vendorId: assignment.vendorId?._id || assignment.vendorId || "",
+      vendorName: assignment.vendorId?.shopName || assignment.vendorId?.companyName || "",
+    });
+  }
+  for (const campaign of campaigns) {
+    const ownsCampaign = String(campaign.influencerId || "") === String(influencerId);
+    if (!ownsCampaign && !applicationApprovedFor(campaign, influencerId)) continue;
+    for (const productId of campaign.productIds || []) {
+      const key = String(productId);
+      productIds.add(key);
+      if (!byProduct.has(key)) {
+        byProduct.set(key, {
+          promotionStatus: ownsCampaign ? "accepted" : "approved",
+          source: ownsCampaign ? "influencer_acceptance" : "campaign_application",
+          campaignId: campaign._id,
+          campaignName: campaign.title,
+          campaignStatus: campaign.state,
+          campaignCommissionPercent: campaign.commissionPercent,
+          vendorId: campaign.vendorId?._id || campaign.vendorId || "",
+          vendorName: campaign.vendorId?.shopName || campaign.vendorId?.companyName || "",
+        });
+      }
+    }
+  }
+  return { productIds: [...productIds], byProduct };
+}
+
+async function assertPromotionProductAllowed(influencerId, productId, campaignId = "") {
+  const context = await getEligiblePromotionProductContext(influencerId);
+  const meta = context.byProduct.get(String(productId));
+  if (!meta) throw new AppError("Product is not assigned or approved for this influencer", 403, "PRODUCT_NOT_APPROVED_FOR_INFLUENCER");
+  if (campaignId && meta.campaignId && String(meta.campaignId) !== String(campaignId)) {
+    throw new AppError("Product is not approved for the selected campaign", 403, "PRODUCT_NOT_APPROVED_FOR_CAMPAIGN");
+  }
+  return meta;
 }
 
 function encryptionKey() {
@@ -1792,13 +1968,14 @@ class InfluencerService {
       });
       storefront = storefront.toObject();
     }
+    const eligible = await getEligiblePromotionProductContext(profile._id);
     const [collections, products] = await Promise.all([
       InfluencerCollection.find({ influencerId: profile._id, status: { $in: ["active", "scheduled", "draft"] } })
         .select("title slug media analytics productIds featured status type")
         .sort({ featured: -1, updatedAt: -1 })
         .limit(50)
         .lean(),
-      Product.find({ status: "APPROVED", isActive: true })
+      Product.find({ _id: { $in: eligible.productIds }, status: "APPROVED", isActive: true })
         .select("name images thumbnail category price discountPrice ratings analytics status")
         .sort({ "analytics.salesCount": -1, createdAt: -1 })
         .limit(80)
@@ -1829,6 +2006,10 @@ class InfluencerService {
     if (!profile.permissions?.storefront) throw new AppError("Storefront builder is not enabled", 403, "FORBIDDEN");
     const existing = await InfluencerStorefront.findOne({ influencerId: profile._id }).lean();
     const next = sanitizeStorefrontPayload(payload, existing || {});
+    if (Array.isArray(next.featuredProductIds)) {
+      const eligible = await getEligiblePromotionProductContext(profile._id);
+      next.featuredProductIds = next.featuredProductIds.filter((productId) => eligible.byProduct.has(String(productId)));
+    }
     if (next.slug) {
       const collision = await InfluencerStorefront.findOne({ slug: next.slug, influencerId: { $ne: profile._id } }).select("_id").lean();
       if (collision) throw new AppError("Store slug already exists", 409, "STORE_SLUG_EXISTS");
@@ -1901,7 +2082,15 @@ class InfluencerService {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(query.limit) || 12));
     const skip = (page - 1) * limit;
-    const filter = { status: "APPROVED", isActive: true };
+    const eligible = await getEligiblePromotionProductContext(profile._id);
+    let eligibleProductIds = eligible.productIds;
+    if (query.mode === "active_campaigns") {
+      eligibleProductIds = eligibleProductIds.filter((productId) => ["active", "accepted"].includes(String(eligible.byProduct.get(String(productId))?.campaignStatus || eligible.byProduct.get(String(productId))?.promotionStatus || "").toLowerCase()));
+    }
+    if (query.mode === "approved") {
+      eligibleProductIds = eligibleProductIds.filter((productId) => ["approved", "active", "accepted"].includes(String(eligible.byProduct.get(String(productId))?.promotionStatus || "").toLowerCase()));
+    }
+    const filter = { _id: { $in: eligibleProductIds }, status: "APPROVED", isActive: true };
     if (query.category) filter.category = cleanString(query.category);
     if (query.vendor) filter.sellerId = query.vendor;
     if (query.availability === "in_stock") filter.stock = { $gt: 0 };
@@ -1938,7 +2127,20 @@ class InfluencerService {
       Product.countDocuments(filter),
       this.getSavedProductsCollection(profile),
     ]);
-    let rows = await Promise.all(items.map((product) => enrichAffiliateProduct(product, { affiliate })));
+    let rows = await Promise.all(items.map(async (product) => {
+      const row = await enrichAffiliateProduct(product, { affiliate });
+      const promotion = eligible.byProduct.get(String(product._id)) || {};
+      return {
+        ...row,
+        vendorId: promotion.vendorId || product.sellerId?._id || product.sellerId,
+        vendor: promotion.vendorName || row.vendor,
+        campaignId: promotion.campaignId || "",
+        campaignName: promotion.campaignName || "",
+        campaignStatus: promotion.campaignStatus || "",
+        promotionStatus: promotion.promotionStatus || "approved",
+        assignmentSource: promotion.source || "",
+      };
+    }));
     if (query.mode === "highest_commission" || query.sort === "highest_commission") rows = rows.sort((a, b) => b.commissionAmount - a.commissionAmount);
     const saved = new Set((savedCollection.productIds || []).map(String));
     return {
@@ -1952,24 +2154,33 @@ class InfluencerService {
 
   async listRecommendedAffiliateProducts(userId, query = {}) {
     const profile = await this.getProfile(userId);
+    if (!profile.permissions?.affiliateLinks) throw new AppError("Affiliate products are not enabled", 403, "FORBIDDEN");
     const recommendationService = require("../recommendation/service");
+    const eligible = await getEligiblePromotionProductContext(profile._id);
     const recommended = await recommendationService.getHomeRecommendations(profile.userId?._id || profile.userId || userId, { limit: query.limit || 12 });
     const productIds = [
       ...(recommended.personalized?.items || []),
       ...(recommended.trending?.items || []),
       ...(recommended.featured?.items || []),
     ].map((product) => product._id).filter(Boolean);
-    const products = await Product.find({ _id: { $in: productIds }, status: "APPROVED", isActive: true })
+    const allowedIds = productIds.filter((id) => eligible.byProduct.has(String(id)));
+    const fallbackIds = allowedIds.length ? allowedIds : eligible.productIds.slice(0, Number(query.limit) || 12);
+    const products = await Product.find({ _id: { $in: fallbackIds }, status: "APPROVED", isActive: true })
       .populate("sellerId", "shopName companyName")
       .lean();
-    const rows = await Promise.all(products.map((product) => enrichAffiliateProduct(product)));
+    const rows = await Promise.all(products.map(async (product) => {
+      const row = await enrichAffiliateProduct(product);
+      const promotion = eligible.byProduct.get(String(product._id)) || {};
+      return { ...row, campaignId: promotion.campaignId || "", campaignName: promotion.campaignName || "", campaignStatus: promotion.campaignStatus || "", promotionStatus: promotion.promotionStatus || "approved" };
+    }));
     return { items: rows.map((row, index) => ({ ...row, recommendationScore: Number((100 - index * 3).toFixed(2)), expectedConversion: row.conversionRate, commissionPotential: row.commissionAmount })), page: 1, limit: rows.length, total: rows.length, totalPages: 1 };
   }
 
   async listSavedAffiliateProducts(userId, query = {}) {
     const profile = await this.getProfile(userId);
     const collection = await this.getSavedProductsCollection(profile);
-    const products = await Product.find({ _id: { $in: collection.productIds || [] }, status: "APPROVED", isActive: true })
+    const eligible = await getEligiblePromotionProductContext(profile._id);
+    const products = await Product.find({ _id: { $in: (collection.productIds || []).filter((id) => eligible.byProduct.has(String(id))) }, status: "APPROVED", isActive: true })
       .populate("sellerId", "shopName companyName")
       .lean();
     const rows = await Promise.all(products.map((product) => enrichAffiliateProduct(product)));
@@ -1978,6 +2189,7 @@ class InfluencerService {
 
   async saveAffiliateProduct(userId, productId, saved = true) {
     const profile = await this.getProfile(userId);
+    await assertPromotionProductAllowed(profile._id, productId);
     const collection = await this.getSavedProductsCollection(profile);
     const ids = new Set((collection.productIds || []).map(String));
     if (saved) ids.add(String(productId));
@@ -1990,15 +2202,19 @@ class InfluencerService {
   }
 
   async generateAffiliateProductLinks(userId, payload = {}) {
+    const profile = await this.getProfile(userId);
     const productIds = Array.isArray(payload.productIds) ? payload.productIds.filter(Boolean).slice(0, 50) : payload.productId ? [payload.productId] : [];
     const links = [];
     for (const productId of productIds) {
-      const product = await Product.findById(productId).select("_id slug productNumber").lean();
+      const promotion = await assertPromotionProductAllowed(profile._id, productId, payload.campaignId || "");
+      const product = await Product.findById(productId).select("_id slug productNumber sellerId").lean();
       if (!product) continue;
-      const targetPath = payload.targetPath || `/product/${product.slug || product.productNumber || product._id}`;
+      const targetPath = `/product/${product._id}`;
       const generated = await this.generateAffiliateLink(userId, {
         targetType: "product",
         targetPath,
+        productId,
+        campaignId: promotion.campaignId || payload.campaignId || "",
       });
       const params = new URLSearchParams();
       if (payload.utmSource) params.set("utm_source", payload.utmSource);
@@ -2007,7 +2223,25 @@ class InfluencerService {
       if (payload.utmContent) params.set("utm_content", payload.utmContent);
       if (payload.utmTerm) params.set("utm_term", payload.utmTerm);
       const suffix = params.toString() ? `${generated.trackingUrl.includes("?") ? "&" : "?"}${params.toString()}` : "";
-      links.push({ productId, originalUrl: targetPath, affiliateUrl: `${generated.trackingUrl}${suffix}`, shortLink: `${generated.trackingUrl}${suffix}`, qrValue: `${generated.trackingUrl}${suffix}` });
+      const affiliateUrl = `${generated.trackingUrl}${suffix}`;
+      await AffiliateLink.findOneAndUpdate(
+        { influencerId: profile._id, productId, campaignId: promotion.campaignId || undefined },
+        {
+          $set: {
+            influencerId: profile._id,
+            productId,
+            campaignId: promotion.campaignId || undefined,
+            vendorId: product.sellerId || promotion.vendorId,
+            affiliateCode: generated.trackingCode,
+            targetPath,
+            affiliateUrl,
+            status: "active",
+            generatedAt: new Date(),
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+      links.push({ productId, campaignId: promotion.campaignId || "", originalUrl: targetPath, affiliateUrl, shortLink: affiliateUrl, qrValue: affiliateUrl });
     }
     return { links };
   }
@@ -2025,11 +2259,23 @@ class InfluencerService {
       .sort({ createdAt: -1 })
       .limit(500)
       .lean();
+    const clickRows = await InfluencerStorefrontEvent.aggregate([
+      { $match: { influencerId: profile._id, productId: { $exists: true, $ne: null }, eventType: { $in: ["product_click", "product_view", "add_to_cart"] } } },
+      { $group: { _id: { productId: "$productId", eventType: "$eventType" }, count: { $sum: 1 } } },
+    ]);
     const productMap = new Map();
+    for (const event of clickRows) {
+      const id = String(event._id.productId);
+      const current = productMap.get(id) || { productId: id, orders: 0, revenue: 0, commission: 0, clicks: 0, views: 0, addToCart: 0 };
+      if (event._id.eventType === "product_click") current.clicks += event.count;
+      if (event._id.eventType === "product_view") current.views += event.count;
+      if (event._id.eventType === "add_to_cart") current.addToCart += event.count;
+      productMap.set(id, current);
+    }
     for (const record of rows) {
       for (const item of record.orderId?.items || []) {
         const id = String(item.productId);
-        const current = productMap.get(id) || { productId: id, orders: 0, revenue: 0, commission: 0, clicks: 0 };
+        const current = productMap.get(id) || { productId: id, orders: 0, revenue: 0, commission: 0, clicks: 0, views: 0, addToCart: 0 };
         current.orders += 1;
         current.revenue += Number(item.price || 0) * Number(item.quantity || 1);
         current.commission += Number(record.influencerShare || 0);
@@ -2041,7 +2287,7 @@ class InfluencerService {
     const productById = new Map(products.map((product) => [String(product._id), product]));
     const productPerformance = [...productMap.values()].map((row) => {
       const product = productById.get(row.productId) || {};
-      const clicks = Number(product.analytics?.views || 0);
+      const clicks = Number(row.clicks || 0);
       return {
         ...row,
         name: product.name || "Product",
@@ -2071,7 +2317,8 @@ class InfluencerService {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(query.limit) || 12));
     const skip = (page - 1) * limit;
-    const filter = { status: "APPROVED", isActive: true };
+    const eligible = await getEligiblePromotionProductContext(profile._id);
+    const filter = { _id: { $in: eligible.productIds }, status: "APPROVED", isActive: true };
     if (query.category) filter.category = cleanString(query.category);
     if (query.vendor) filter.sellerId = query.vendor;
     if (query.search) {
@@ -2176,7 +2423,8 @@ class InfluencerService {
       ...(collectionId ? { _id: { $ne: collectionId } } : {}),
     }).lean();
     if (existing) throw new AppError("Collection slug already exists", 409, "DUPLICATE_SLUG");
-    const productIds = Array.isArray(payload.productIds) ? payload.productIds.filter(Boolean).slice(0, 100) : [];
+    const eligible = await getEligiblePromotionProductContext(profile._id);
+    const productIds = Array.isArray(payload.productIds) ? payload.productIds.filter((productId) => eligible.byProduct.has(String(productId))).slice(0, 100) : [];
     if (payload.status === "active" && productIds.length < 1) {
       throw new AppError("Published collections require at least one product", 400, "MINIMUM_PRODUCTS_REQUIRED");
     }
@@ -2258,12 +2506,13 @@ class InfluencerService {
     const collection = await InfluencerCollection.findOne({ _id: collectionId, influencerId: profile._id });
     if (!collection) throw new AppError("Collection not found", 404, "NOT_FOUND");
     const current = new Set((collection.productIds || []).map(String));
+    const eligible = await getEligiblePromotionProductContext(profile._id);
     const incoming = (Array.isArray(payload.productIds) ? payload.productIds : []).filter(Boolean).map(String);
     if (payload.mode === "remove") incoming.forEach((id) => current.delete(id));
     else if (payload.mode === "replace") {
       current.clear();
-      incoming.forEach((id) => current.add(id));
-    } else incoming.forEach((id) => current.add(id));
+      incoming.filter((id) => eligible.byProduct.has(String(id))).forEach((id) => current.add(id));
+    } else incoming.filter((id) => eligible.byProduct.has(String(id))).forEach((id) => current.add(id));
     const productIds = Array.from(current).slice(0, 100);
     collection.productIds = productIds;
     collection.productOrder = productIds.map((productId, index) => ({ productId, position: index, pinned: false }));
@@ -2311,41 +2560,281 @@ class InfluencerService {
     };
   }
 
-  async getStorefront({ slug = "", userId = "" } = {}) {
+  async getStorefront({ slug = "", username = "", userId = "", tab = "storefront", filter = "", search = "", page = 1, limit = 24 } = {}) {
     let storefront;
-    if (slug) {
-      storefront = await InfluencerStorefront.findOne({ slug: slugify(slug), status: "active" })
-        .populate("featuredProductIds", "name images thumbnail category price discountPrice ratings analytics status")
-        .populate("featuredCollectionIds", "title slug media analytics productIds featured status")
+    const publicSlug = slugify(slug || username);
+    if (publicSlug) {
+      storefront = await InfluencerStorefront.findOne({ slug: publicSlug, status: "active" })
+        .populate("featuredProductIds", publicProductSelect())
+        .populate("featuredCollectionIds", "title slug description media analytics productIds featured status type")
         .lean();
+      if (!storefront) {
+        const profileBySlug = await InfluencerProfile.findOne({
+          $or: [{ storeSlug: publicSlug }, { influencerCode: cleanString(slug || username) }],
+          state: "active",
+          "privacy.profileVisibility": "public",
+        }).select("_id").lean();
+        if (profileBySlug) {
+          storefront = await InfluencerStorefront.findOne({ influencerId: profileBySlug._id, status: "active" })
+            .populate("featuredProductIds", publicProductSelect())
+            .populate("featuredCollectionIds", "title slug description media analytics productIds featured status type")
+            .lean();
+        }
+      }
     }
     if (!storefront && userId) {
       const profile = await this.getProfile(userId);
       storefront = await InfluencerStorefront.findOne({ influencerId: profile._id })
-        .populate("featuredProductIds", "name images thumbnail category price discountPrice ratings analytics status")
-        .populate("featuredCollectionIds", "title slug media analytics productIds featured status")
+        .populate("featuredProductIds", publicProductSelect())
+        .populate("featuredCollectionIds", "title slug description media analytics productIds featured status type")
         .lean();
     }
     if (!storefront) throw new AppError("Influencer storefront not found", 404, "NOT_FOUND");
-    const [profile, badge, collections, homepageLayout] = await Promise.all([
+    const pageNumber = Math.max(1, Number(page) || 1);
+    const pageLimit = Math.min(60, Math.max(1, Number(limit) || 24));
+    const collectionFilter = {
+      influencerId: storefront.influencerId,
+      status: "active",
+      "visibility.audience": { $in: ["public", "scheduled"] },
+      $and: [
+        { $or: [{ "visibility.startDate": { $exists: false } }, { "visibility.startDate": null }, { "visibility.startDate": { $lte: new Date() } }] },
+        { $or: [{ "visibility.endDate": { $exists: false } }, { "visibility.endDate": null }, { "visibility.endDate": { $gte: new Date() } }] },
+      ],
+    };
+    const textSearch = cleanString(search);
+    if (filter) collectionFilter.type = filter;
+    if (textSearch) {
+      const re = new RegExp(textSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      collectionFilter.$or = [{ title: re }, { description: re }, { tags: re }];
+    }
+    const reelFilter = {
+      influencerId: storefront.influencerId,
+      visibility: "published",
+      state: { $in: ["approved", "published"] },
+      campaignId: { $exists: true, $ne: null },
+    };
+    if (textSearch) {
+      const re = new RegExp(textSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      reelFilter.$or = [{ title: re }, { caption: re }, { description: re }, { tags: re }];
+    }
+    const postFilter = { influencerId: storefront.influencerId, visibility: "published", "productIds.0": { $exists: true } };
+    if (textSearch) {
+      const re = new RegExp(textSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      postFilter.$or = [{ caption: re }, { tags: re }];
+    }
+    const sortByFilter = filter === "popular"
+      ? { "metrics.views": -1, publishedAt: -1 }
+      : filter === "trending"
+        ? { "metrics.likes": -1, "metrics.views": -1, publishedAt: -1 }
+        : { publishedAt: -1, createdAt: -1 };
+    const eligible = await getEligiblePromotionProductContext(storefront.influencerId);
+    const eligibleProductIds = eligible.productIds;
+    collectionFilter.productIds = { $in: eligibleProductIds };
+    reelFilter.productIds = { $in: eligibleProductIds };
+    postFilter.productIds = { $in: eligibleProductIds };
+    const [profile, user, badge, collections, allCollectionCount, reels, reelCount, posts, postCount, homepageLayout, affiliate, socialAccounts, followerCount, isFollowing, followingCount, commissionTotals] = await Promise.all([
       InfluencerProfile.findById(storefront.influencerId).lean(),
+      InfluencerProfile.findById(storefront.influencerId).select("userId").populate("userId", "name email avatarUrl").lean().then((row) => row?.userId || null),
       InfluencerBadge.findOne({ influencerId: storefront.influencerId, status: "active" }).lean(),
-      InfluencerCollection.find({
-        influencerId: storefront.influencerId,
-        status: "active",
-        "visibility.audience": { $in: ["public", "scheduled"] },
-        $and: [
-          { $or: [{ "visibility.startDate": { $exists: false } }, { "visibility.startDate": null }, { "visibility.startDate": { $lte: new Date() } }] },
-          { $or: [{ "visibility.endDate": { $exists: false } }, { "visibility.endDate": null }, { "visibility.endDate": { $gte: new Date() } }] },
-        ],
-      })
-        .populate("productIds", "name images thumbnail category price discountPrice ratings analytics")
+      InfluencerCollection.find(collectionFilter)
+        .populate("productIds", publicProductSelect())
         .sort({ featured: -1, "display.priority": -1, updatedAt: -1 })
-        .limit(12)
+        .skip(tab === "collections" ? (pageNumber - 1) * pageLimit : 0)
+        .limit(tab === "collections" ? pageLimit : 12)
         .lean(),
+      InfluencerCollection.countDocuments(collectionFilter),
+      Reel.find(reelFilter)
+        .populate({ path: "productIds", select: publicProductSelect() })
+        .sort(tab === "reels" ? sortByFilter : { publishedAt: -1, createdAt: -1 })
+        .skip(tab === "reels" ? (pageNumber - 1) * pageLimit : 0)
+        .limit(tab === "reels" ? pageLimit : 10)
+        .lean(),
+      Reel.countDocuments(reelFilter),
+      InfluencerPost.find(postFilter)
+        .populate("productIds", publicProductSelect())
+        .populate("collectionIds", "title slug media")
+        .sort(tab === "posts" ? sortByFilter : { publishedAt: -1, createdAt: -1 })
+        .skip(tab === "posts" ? (pageNumber - 1) * pageLimit : 0)
+        .limit(tab === "posts" ? pageLimit : 12)
+        .lean(),
+      InfluencerPost.countDocuments(postFilter),
       homepageLayoutService.getSharedInfluencerLayout({ device: "desktop" }).catch(() => null),
+      InfluencerAffiliateSetting.findOne({ influencerId: storefront.influencerId, status: "active" }).lean(),
+      InfluencerSocialAccount.find({ influencerId: storefront.influencerId, verificationStatus: { $in: ["verified", "pending", "under_review"] } }).lean(),
+      InfluencerFollower.countDocuments({ influencerId: storefront.influencerId }),
+      userId ? InfluencerFollower.exists({ influencerId: storefront.influencerId, customerId: userId }) : null,
+      InfluencerFollower.countDocuments({ customerId: storefront.influencerId }).catch(() => 0),
+      CommissionRecord.aggregate([
+        { $match: { influencerId: storefront.influencerId } },
+        { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: "$gross" }, commission: { $sum: "$influencerShare" } } },
+      ]).catch(() => []),
     ]);
-    return { storefront, profile, badge, collections, homepageLayout, containers: homepageLayout?.containers || [], route: `/influencer/${storefront.slug}` };
+    const featuredProducts = (storefront.featuredProductIds || []).filter((product) => product?.status === "APPROVED" && product?.isActive !== false && eligible.byProduct.has(String(product._id || product)));
+    const profileStats = compactProfileStats({
+      profile,
+      reels,
+      followerCount,
+      followingCount,
+      orderCount: commissionTotals?.[0]?.orders || profile?.stats?.sales || 0,
+    });
+    const publicUsername = storefront.slug || profile?.storeSlug || publicSlug;
+    const seo = {
+      title: storefront.seo?.metaTitle || profile?.seo?.metaTitle || `${profile?.displayName || user?.name || storefront.name} - Creator Storefront`,
+      description: storefront.seo?.metaDescription || profile?.seo?.metaDescription || storefront.description || profile?.shortBio || "",
+      canonicalUrl: storefront.seo?.canonicalUrl || `/influencer/${publicUsername}`,
+      openGraphTitle: storefront.seo?.openGraphTitle || storefront.seo?.metaTitle || storefront.name,
+      openGraphDescription: storefront.seo?.openGraphDescription || storefront.seo?.metaDescription || storefront.description || "",
+      openGraphImage: storefront.seo?.openGraphImage || storefront.banner || profile?.coverBanner || "",
+      twitterCard: "summary_large_image",
+      structuredData: buildStructuredData({ profile, user, storefront, collections, featuredProducts }),
+    };
+
+    await Promise.all([
+      InfluencerProfile.updateOne({ _id: storefront.influencerId }, { $inc: { "stats.views": 1 } }).catch(() => null),
+      InfluencerStorefront.updateOne({ _id: storefront._id }, { $inc: { "analytics.views": 1 } }).catch(() => null),
+      InfluencerStorefrontEvent.create({
+        influencerId: storefront.influencerId,
+        storefrontId: storefront._id,
+        userId: userId || null,
+        eventType: tab === "storefront" ? "storefront_view" : "profile_view",
+        surface: `influencer-${tab || "storefront"}`,
+      }).catch(() => null),
+    ]);
+
+    return {
+      storefront,
+      profile: {
+        ...profile,
+        username: publicUsername,
+        email: storefront.contact?.email || user?.email || "",
+        avatarUrl: profile?.profilePicture || storefront.profileImage || user?.avatarUrl || "",
+        name: profile?.displayName || user?.name || storefront.name,
+      },
+      user,
+      badge,
+      collections,
+      reels,
+      posts,
+      featuredProducts,
+      affiliate,
+      socialLinks: collectPublicSocialLinks(storefront, profile, socialAccounts),
+      stats: profileStats,
+      viewer: {
+        isFollowing: Boolean(isFollowing),
+        isOwner: Boolean(userId && profile?.userId && String(profile.userId) === String(userId)),
+      },
+      tabs: {
+        active: tab || "storefront",
+        counts: { collections: allCollectionCount, reels: reelCount, posts: postCount },
+      },
+      pagination: {
+        page: pageNumber,
+        limit: pageLimit,
+        total: tab === "collections" ? allCollectionCount : tab === "reels" ? reelCount : tab === "posts" ? postCount : 0,
+      },
+      homepageLayout,
+      containers: homepageLayout?.containers || [],
+      route: `/influencer/${publicUsername}`,
+      seo,
+      recommendations: {
+        products: featuredProducts.slice(0, 8),
+        collections: collections.slice(0, 6),
+        reels: reels.slice(0, 8),
+        posts: posts.slice(0, 8),
+      },
+    };
+  }
+
+  async followPublicStorefront(username, userId, source = "storefront") {
+    if (!userId) throw new AppError("Login required to follow creators", 401, "UNAUTHORIZED");
+    const data = await this.getStorefront({ slug: username, userId });
+    const influencerId = data.storefront.influencerId;
+    if (String(data.profile?.userId || "") === String(userId)) throw new AppError("You cannot follow your own creator profile", 400, "INVALID_OPERATION");
+    const existing = await InfluencerFollower.findOne({ influencerId, customerId: userId });
+    if (existing) return { following: true, followers: data.stats.followers };
+    await InfluencerFollower.create({ influencerId, customerId: userId, source });
+    await Promise.all([
+      InfluencerProfile.updateOne({ _id: influencerId }, { $inc: { followers: 1 } }),
+      InfluencerStorefrontEvent.create({
+        influencerId,
+        storefrontId: data.storefront._id,
+        userId,
+        eventType: "follow",
+        surface: source || "storefront",
+      }).catch(() => null),
+      notificationService.createNotification({
+        userId: data.profile.userId,
+        role: "INFLUENCER",
+        module: "GROWTH",
+        subModule: "INFLUENCER_COMMERCE",
+        type: "INFLUENCER_COMMERCE",
+        title: "New follower",
+        message: "A customer followed your creator profile.",
+        referenceId: userId,
+        meta: { followerId: userId, influencerId, storefrontId: data.storefront._id },
+      }).catch(() => null),
+    ]);
+    const followers = await InfluencerFollower.countDocuments({ influencerId });
+    return { following: true, followers };
+  }
+
+  async unfollowPublicStorefront(username, userId) {
+    if (!userId) throw new AppError("Login required to unfollow creators", 401, "UNAUTHORIZED");
+    const data = await this.getStorefront({ slug: username, userId });
+    const deleted = await InfluencerFollower.findOneAndDelete({ influencerId: data.storefront.influencerId, customerId: userId });
+    if (deleted) {
+      await Promise.all([
+        InfluencerProfile.updateOne({ _id: data.storefront.influencerId, followers: { $gt: 0 } }, { $inc: { followers: -1 } }),
+        InfluencerStorefrontEvent.create({
+          influencerId: data.storefront.influencerId,
+          storefrontId: data.storefront._id,
+          userId,
+          eventType: "unfollow",
+          surface: "storefront",
+        }).catch(() => null),
+      ]);
+    }
+    const followers = await InfluencerFollower.countDocuments({ influencerId: data.storefront.influencerId });
+    return { following: false, followers };
+  }
+
+  async subscribePublicNewsletter(username, payload = {}) {
+    const data = await this.getStorefront({ slug: username });
+    const email = normalizeEmail(payload.email);
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new AppError("A valid email is required", 400, "VALIDATION_ERROR");
+    await InfluencerNewsletterSubscription.findOneAndUpdate(
+      { influencerId: data.storefront.influencerId, email },
+      { $set: { status: "active", source: payload.source || "storefront", subscribedAt: new Date() } },
+      { upsert: true, new: true }
+    );
+    await InfluencerStorefrontEvent.create({
+      influencerId: data.storefront.influencerId,
+      storefrontId: data.storefront._id,
+      eventType: "newsletter_subscribe",
+      surface: "influencer-storefront",
+      metadata: { email },
+    }).catch(() => null);
+    return { subscribed: true, email };
+  }
+
+  async trackPublicEvent(username, userId, payload = {}) {
+    const data = await this.getStorefront({ slug: username, userId });
+    const allowed = new Set(["profile_view", "storefront_view", "product_view", "product_click", "add_to_cart", "collection_view", "reel_view", "post_view", "post_engagement", "social_click", "newsletter_subscribe", "follow", "unfollow", "carousel_view", "carousel_navigation", "share", "search"]);
+    const eventType = allowed.has(payload.eventType) ? payload.eventType : "profile_view";
+    await InfluencerStorefrontEvent.create({
+      influencerId: data.storefront.influencerId,
+      storefrontId: data.storefront._id,
+      userId: userId || null,
+      anonymousId: cleanString(payload.anonymousId || ""),
+      eventType,
+      surface: payload.surface || "influencer-storefront",
+      productId: payload.productId || undefined,
+      collectionId: payload.collectionId || undefined,
+      reelId: payload.reelId || undefined,
+      postId: payload.postId || undefined,
+      metadata: payload.metadata || {},
+    });
+    return { tracked: true };
   }
 
   async generateAffiliateLink(userId, payload = {}) {
@@ -2356,6 +2845,25 @@ class InfluencerService {
     const targetType = cleanString(payload.targetType || "product");
     const targetPath = cleanString(payload.targetPath || payload.url || "");
     if (!targetPath) throw new AppError("Target path is required", 400, "VALIDATION_ERROR");
+    let targetProductId = payload.productId || "";
+    if (targetType === "product" && !targetProductId) {
+      const productKey = targetPath.match(/\/product\/([^/?#]+)/)?.[1] || "";
+      if (productKey) {
+        const product = await Product.findOne({
+          $or: [
+            ...(mongoose.isValidObjectId(productKey) ? [{ _id: productKey }] : []),
+            { slug: productKey },
+            { productNumber: productKey },
+          ],
+        }).select("_id").lean();
+        targetProductId = product?._id || "";
+      }
+    }
+    if (targetType === "product" && targetProductId) {
+      await assertPromotionProductAllowed(profile._id, targetProductId, payload.campaignId || "");
+    } else if (targetType === "product") {
+      throw new AppError("Product affiliate links require an assigned or approved product", 403, "PRODUCT_NOT_APPROVED_FOR_INFLUENCER");
+    }
     const normalizedPath = targetPath.startsWith("/") ? targetPath : `/${targetPath}`;
     const trackingUrl = `/ref/${affiliate.trackingCode}${normalizedPath}`;
     await InfluencerProfile.updateOne({ _id: profile._id }, { $set: { "activation.checklist.firstAffiliateLinkGenerated": true } });
@@ -2856,16 +3364,38 @@ class InfluencerService {
     ).populate("userId", "name email phone role");
   }
 
-  async list(query = {}) {
+  async list(query = {}, userId = "") {
     const filters = {};
     if (query.state) filters.state = query.state;
     if (query.category) filters.categories = query.category;
     if (query.verified !== undefined) filters.verified = query.verified === "true";
+    if (query.followingOnly === "true" || query.followedOnly === "true") {
+      if (!userId) return [];
+      const followedRows = await InfluencerFollower.find({ customerId: userId }).select("influencerId").lean();
+      filters._id = { $in: followedRows.map((row) => row.influencerId) };
+    }
 
-    return await InfluencerProfile.find(filters)
+    const rows = await InfluencerProfile.find(filters)
       .populate("userId", "name email phone")
       .sort({ verified: -1, followers: -1, createdAt: -1 })
       .lean();
+    if (!rows.length) return rows;
+
+    const influencerIds = rows.map((row) => row._id);
+    const [followerCounts, followedRows] = await Promise.all([
+      InfluencerFollower.aggregate([
+        { $match: { influencerId: { $in: influencerIds } } },
+        { $group: { _id: "$influencerId", count: { $sum: 1 } } },
+      ]),
+      userId ? InfluencerFollower.find({ influencerId: { $in: influencerIds }, customerId: userId }).select("influencerId").lean() : [],
+    ]);
+    const countMap = new Map(followerCounts.map((row) => [String(row._id), row.count]));
+    const followedSet = new Set(followedRows.map((row) => String(row.influencerId)));
+    return rows.map((row) => ({
+      ...row,
+      followers: countMap.get(String(row._id)) ?? row.followers ?? 0,
+      isFollowing: followedSet.has(String(row._id)),
+    }));
   }
 
   async moderate(profileId, payload = {}) {

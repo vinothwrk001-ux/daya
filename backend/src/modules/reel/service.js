@@ -1,14 +1,36 @@
 const { AppError } = require("../../utils/AppError");
 const fs = require("fs/promises");
 const path = require("path");
+const mongoose = require("mongoose");
 const { resolveApiAssetUrl } = { resolveApiAssetUrl: (value) => value };
 const influencerService = require("../influencer/service");
-const { InfluencerAffiliateSetting } = require("../influencer/model");
+const trackingService = require("../tracking/service");
+const { InfluencerAffiliateSetting, InfluencerFollower, InfluencerProfile, InfluencerStorefrontEvent } = require("../influencer/model");
 const { Campaign } = require("../campaign/model");
 const { emitDomainEvent } = require("../events/event-bus");
 const { INFLUENCER_EVENTS } = require("../shared/constants");
 const { Reel } = require("./model");
 const { CommissionRecord } = require("../commission/models");
+const {
+  ReelLike,
+  ReelComment,
+  ReelCommentReply,
+  ReelShare,
+  ReelSave,
+  ReelView,
+  ReelWatchHistory,
+  ReelProductClick,
+  ReelStoreVisit,
+  CreatorFollow,
+  CreatorFollower,
+  AffiliateClick,
+  AffiliateAttribution,
+  CommerceEvent,
+  EngagementAnalytics,
+  CreatorAnalytics,
+  CampaignAnalytics,
+  ProductEngagementAnalytics,
+} = require("./engagement.model");
 const { REEL_UPLOAD_DIR } = require("../../middleware/reelUpload");
 
 function cleanString(value = "") {
@@ -88,7 +110,133 @@ async function deleteLocalReelAsset(url = "") {
   }
 }
 
+function toObjectId(value) {
+  if (!value || !mongoose.Types.ObjectId.isValid(value)) return null;
+  return new mongoose.Types.ObjectId(String(value));
+}
+
+function dayKey(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+function publicReelFilter(reelId) {
+  return {
+    _id: reelId,
+    visibility: "published",
+    state: { $in: ["approved", "published"] },
+  };
+}
+
+function extractMentions(text = "") {
+  return Array.from(new Set(String(text).match(/@[\w.-]{2,50}/g) || [])).slice(0, 20);
+}
+
+function attributionWindowDays(value) {
+  const next = Number(value || process.env.AFFILIATE_ATTRIBUTION_WINDOW_DAYS || 30);
+  return [7, 30, 60, 90].includes(next) ? next : 30;
+}
+
+async function incrementAnalytics({ reel, metric, amount = 1, productId = null, value = 0, metadata = {} }) {
+  const key = `metrics.${metric}`;
+  const update = { $inc: { [key]: Number(amount || 0) } };
+  if (value) update.$inc["metrics.revenue"] = Number(value || 0);
+  const base = {
+    reelId: reel._id,
+    influencerId: reel.influencerId,
+    campaignId: reel.campaignId || undefined,
+    productId: productId || undefined,
+    date: dayKey(),
+  };
+  const writes = [
+    EngagementAnalytics.updateOne(base, update, { upsert: true }),
+    CreatorAnalytics.updateOne({ influencerId: reel.influencerId, date: base.date }, update, { upsert: true }),
+  ];
+  if (reel.campaignId) writes.push(CampaignAnalytics.updateOne({ campaignId: reel.campaignId, date: base.date }, update, { upsert: true }));
+  if (productId) writes.push(ProductEngagementAnalytics.updateOne({ productId, date: base.date }, update, { upsert: true }));
+  if (metadata.eventType) {
+    writes.push(CommerceEvent.create({
+      eventType: metadata.eventType,
+      reelId: reel._id,
+      productId: productId || undefined,
+      campaignId: reel.campaignId || undefined,
+      influencerId: reel.influencerId,
+      userId: metadata.userId || null,
+      anonymousId: metadata.anonymousId || "",
+      source: metadata.source || "reel",
+      value,
+      metadata,
+    }).catch(() => null));
+  }
+  await Promise.all(writes);
+}
+
+async function getPublishedReel(reelId) {
+  const reel = await Reel.findOne(publicReelFilter(reelId)).lean();
+  if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
+  return reel;
+}
+
 class ReelService {
+  async buildEngagementState(reelIds = [], userId = "") {
+    const objectIds = reelIds.map(toObjectId).filter(Boolean);
+    if (!objectIds.length) return new Map();
+    const match = { reelId: { $in: objectIds } };
+    const [likes, comments, shares, saves, views, productClicks, storeVisits, userLikes, userSaves] = await Promise.all([
+      ReelLike.aggregate([{ $match: match }, { $group: { _id: "$reelId", count: { $sum: 1 } } }]),
+      ReelComment.aggregate([{ $match: { ...match, status: { $ne: "deleted" } } }, { $group: { _id: "$reelId", count: { $sum: 1 } } }]),
+      ReelShare.aggregate([{ $match: match }, { $group: { _id: "$reelId", count: { $sum: 1 } } }]),
+      ReelSave.aggregate([{ $match: match }, { $group: { _id: "$reelId", count: { $sum: 1 } } }]),
+      ReelView.aggregate([{ $match: match }, { $group: { _id: "$reelId", count: { $sum: 1 }, watchTimeSeconds: { $sum: "$watchTimeSeconds" } } }]),
+      ReelProductClick.aggregate([{ $match: match }, { $group: { _id: "$reelId", count: { $sum: 1 } } }]),
+      ReelStoreVisit.aggregate([{ $match: match }, { $group: { _id: "$reelId", count: { $sum: 1 } } }]),
+      userId ? ReelLike.find({ reelId: { $in: objectIds }, userId }).select("reelId").lean() : [],
+      userId ? ReelSave.find({ reelId: { $in: objectIds }, userId }).select("reelId").lean() : [],
+    ]);
+    const state = new Map(objectIds.map((id) => [String(id), {
+      counts: { likes: 0, comments: 0, shares: 0, saves: 0, views: 0, productClicks: 0, storeVisits: 0, watchTimeSeconds: 0 },
+      viewer: { liked: false, saved: false },
+    }]));
+    const apply = (rows, key, extraKey = "") => rows.forEach((row) => {
+      const item = state.get(String(row._id));
+      if (!item) return;
+      item.counts[key] = Number(row.count || 0);
+      if (extraKey) item.counts[extraKey] = Number(row[extraKey] || 0);
+    });
+    apply(likes, "likes");
+    apply(comments, "comments");
+    apply(shares, "shares");
+    apply(saves, "saves");
+    apply(views, "views", "watchTimeSeconds");
+    apply(productClicks, "productClicks");
+    apply(storeVisits, "storeVisits");
+    userLikes.forEach((row) => {
+      const item = state.get(String(row.reelId));
+      if (item) item.viewer.liked = true;
+    });
+    userSaves.forEach((row) => {
+      const item = state.get(String(row.reelId));
+      if (item) item.viewer.saved = true;
+    });
+    return state;
+  }
+
+  mergeEngagement(row = {}, state = {}) {
+    const counts = state.counts || {};
+    const metrics = {
+      ...(row.metrics || {}),
+      likes: counts.likes ?? Number(row.metrics?.likes || 0),
+      comments: counts.comments ?? Number(row.metrics?.comments || 0),
+      shares: counts.shares ?? Number(row.metrics?.shares || 0),
+      bookmarks: counts.saves ?? Number(row.metrics?.bookmarks || 0),
+      saves: counts.saves ?? Number(row.metrics?.saves || row.metrics?.bookmarks || 0),
+      views: counts.views || Number(row.metrics?.views || 0),
+      clicks: counts.productClicks || Number(row.metrics?.clicks || 0),
+      storeVisits: counts.storeVisits || 0,
+      watchTimeSeconds: counts.watchTimeSeconds || Number(row.metrics?.watchTimeSeconds || 0),
+    };
+    return { ...row, metrics, engagement: { counts: metrics, viewer: state.viewer || { liked: false, saved: false } } };
+  }
+
   async upload(userId, payload = {}) {
     const profile = await influencerService.getProfile(userId);
     let campaign = null;
@@ -101,6 +249,13 @@ class ReelService {
       if (campaign.state !== "active") {
         throw new AppError("Reels can only be submitted for active campaigns", 400, "CAMPAIGN_NOT_ACTIVE");
       }
+      const allowedProducts = new Set((campaign.productIds || []).map(String));
+      const requestedProducts = (payload.productIds || []).map(String);
+      if (requestedProducts.some((productId) => !allowedProducts.has(productId))) {
+        throw new AppError("Reels can only tag products from the assigned campaign", 403, "PRODUCT_NOT_APPROVED_FOR_CAMPAIGN");
+      }
+    } else if ((payload.productIds || []).length) {
+      throw new AppError("Select an active campaign before tagging products", 400, "CAMPAIGN_REQUIRED_FOR_PRODUCT_TAGS");
     }
 
     return await Reel.create({
@@ -147,6 +302,23 @@ class ReelService {
 
   async updateContent(userId, reelId, payload = {}) {
     const profile = await influencerService.getProfile(userId);
+    if (payload.productIds !== undefined || payload.campaignId !== undefined) {
+      const campaignId = payload.campaignId || (await Reel.findOne({ _id: reelId, influencerId: profile._id }).select("campaignId").lean())?.campaignId;
+      if (!campaignId && (payload.productIds || []).length) {
+        throw new AppError("Select an active campaign before tagging products", 400, "CAMPAIGN_REQUIRED_FOR_PRODUCT_TAGS");
+      }
+      if (campaignId) {
+        const campaign = await Campaign.findById(campaignId).lean();
+        if (!campaign || !campaignAllowsInfluencerContent(campaign, profile._id) || campaign.state !== "active") {
+          throw new AppError("Campaign does not allow product tagging", 403, "FORBIDDEN");
+        }
+        const allowedProducts = new Set((campaign.productIds || []).map(String));
+        const requestedProducts = (payload.productIds || []).map(String);
+        if (requestedProducts.some((productId) => !allowedProducts.has(productId))) {
+          throw new AppError("Reels can only tag products from the assigned campaign", 403, "PRODUCT_NOT_APPROVED_FOR_CAMPAIGN");
+        }
+      }
+    }
     const update = {
       ...(payload.title !== undefined ? { title: payload.title } : {}),
       ...(payload.description !== undefined ? { description: payload.description } : {}),
@@ -328,8 +500,8 @@ class ReelService {
     return updated;
   }
 
-  async getFeed({ category, tab = "for_you", search = "", page = 1, limit = 12 } = {}) {
-    const query = { state: "published" };
+  async getFeed({ category, tab = "for_you", search = "", page = 1, limit = 12 } = {}, userId = "") {
+    const query = { visibility: "published", state: { $in: ["approved", "published"] } };
     if (tab === "live") query.contentType = "live";
     if (tab === "product") query.contentType = { $in: ["product_video", "affiliate", "review", "tutorial", "unboxing"] };
     if (tab === "campaign") query.campaignId = { $ne: null };
@@ -350,7 +522,7 @@ class ReelService {
       })
       .populate({
         path: "influencerId",
-        select: "username profileImage avatarUrl categories followers verified stats",
+        select: "displayName storeSlug storeName profilePicture profileImage avatarUrl categories followers verified stats",
         populate: { path: "userId", select: "name" },
       })
       .sort(tab === "trending" ? { "metrics.views": -1, "metrics.clicks": -1, publishedAt: -1 } : { publishedAt: -1 })
@@ -369,6 +541,11 @@ class ReelService {
       ? await InfluencerAffiliateSetting.find({ influencerId: { $in: influencerIds }, status: "active" }).select("influencerId trackingCode").lean()
       : [];
     const affiliateCodeByInfluencer = new Map(affiliateRows.map((row) => [idOf(row.influencerId), row.trackingCode]));
+    const followedRows = userId && influencerIds.length
+      ? await InfluencerFollower.find({ influencerId: { $in: influencerIds }, customerId: userId }).select("influencerId").lean()
+      : [];
+    const followedInfluencers = new Set(followedRows.map((row) => idOf(row.influencerId)));
+    const engagementByReel = await this.buildEngagementState(filtered.map((reel) => reel._id), userId);
 
     return {
       items: filtered.map((reel) => {
@@ -380,15 +557,19 @@ class ReelService {
           seen.add(id);
           return true;
         });
-        return {
+        return this.mergeEngagement({
           ...reel,
+          influencerId: reel.influencerId ? {
+            ...reel.influencerId,
+            isFollowing: followedInfluencers.has(idOf(reel.influencerId)),
+          } : reel.influencerId,
           products,
           affiliateTrackingCode: affiliateCodeByInfluencer.get(idOf(reel.influencerId)) || "",
           campaignBadge: reel.campaignId ? reel.campaignId.title || "Campaign" : "",
           brandName: reel.campaignId?.vendorId?.shopName || reel.campaignId?.vendorId?.companyName || "",
           sponsored: Boolean(reel.campaignId),
           videoUrl: resolveApiAssetUrl(reel.videoUrl),
-        };
+        }, engagementByReel.get(idOf(reel)));
       }),
       page: pageNumber,
       limit: pageLimit,
@@ -396,7 +577,7 @@ class ReelService {
     };
   }
 
-  async getById(reelId) {
+  async getById(reelId, userId = "") {
     const reel = await Reel.findById(reelId)
       .populate({
         path: "campaignId",
@@ -404,15 +585,309 @@ class ReelService {
       })
       .populate({
         path: "influencerId",
-        select: "username profileImage avatarUrl categories followers verified stats",
+        select: "displayName storeSlug storeName profilePicture profileImage avatarUrl categories followers verified stats",
         populate: { path: "userId", select: "name" },
       });
     if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
-    const affiliate = await InfluencerAffiliateSetting.findOne({ influencerId: reel.influencerId?._id || reel.influencerId, status: "active" }).select("trackingCode").lean();
+    if (reel.visibility !== "published" || !["approved", "published"].includes(reel.state)) {
+      throw new AppError("Reel not found", 404, "NOT_FOUND");
+    }
+    const influencerId = reel.influencerId?._id || reel.influencerId;
+    const [affiliate, followRow] = await Promise.all([
+      InfluencerAffiliateSetting.findOne({ influencerId, status: "active" }).select("trackingCode").lean(),
+      userId ? InfluencerFollower.exists({ influencerId, customerId: userId }) : null,
+    ]);
     const row = reel.toObject ? reel.toObject() : reel;
-    return {
+    const engagementByReel = await this.buildEngagementState([row._id], userId);
+    return this.mergeEngagement({
       ...row,
+      influencerId: row.influencerId ? {
+        ...row.influencerId,
+        isFollowing: Boolean(followRow),
+      } : row.influencerId,
       affiliateTrackingCode: affiliate?.trackingCode || "",
+    }, engagementByReel.get(idOf(row)));
+  }
+
+  async getEngagement(reelId, userId = "") {
+    await getPublishedReel(reelId);
+    const state = await this.buildEngagementState([reelId], userId);
+    return state.get(String(reelId)) || { counts: {}, viewer: { liked: false, saved: false } };
+  }
+
+  async toggleLike(userId, reelId) {
+    const reel = await getPublishedReel(reelId);
+    const existing = await ReelLike.findOne({ reelId, userId }).lean();
+    const delta = existing ? -1 : 1;
+    if (existing) await ReelLike.deleteOne({ _id: existing._id });
+    else await ReelLike.create({ reelId, userId, influencerId: reel.influencerId });
+    await Promise.all([
+      Reel.updateOne({ _id: reelId }, { $inc: { "metrics.likes": delta } }),
+      incrementAnalytics({ reel, metric: "likes", amount: delta, metadata: { eventType: "reel_like", userId } }),
+      emitDomainEvent("reel.liked", { reelId, influencerId: reel.influencerId, userId, active: !existing }).catch(() => null),
+    ]);
+    return { liked: !existing, ...(await this.getEngagement(reelId, userId)) };
+  }
+
+  async toggleSave(userId, reelId, payload = {}) {
+    const reel = await getPublishedReel(reelId);
+    const existing = await ReelSave.findOne({ reelId, userId }).lean();
+    const delta = existing ? -1 : 1;
+    if (existing) await ReelSave.deleteOne({ _id: existing._id });
+    else await ReelSave.create({ reelId, userId, influencerId: reel.influencerId, collectionName: cleanString(payload.collectionName) || "Saved reels" });
+    await Promise.all([
+      Reel.updateOne({ _id: reelId }, { $inc: { "metrics.bookmarks": delta } }),
+      incrementAnalytics({ reel, metric: "saves", amount: delta, metadata: { eventType: "reel_save", userId } }),
+    ]);
+    return { saved: !existing, ...(await this.getEngagement(reelId, userId)) };
+  }
+
+  async listComments(reelId, query = {}, userId = "") {
+    await getPublishedReel(reelId);
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(query.limit) || 20));
+    const [items, total] = await Promise.all([
+      ReelComment.find({ reelId, status: { $ne: "deleted" } })
+        .populate("userId", "name avatar email")
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      ReelComment.countDocuments({ reelId, status: { $ne: "deleted" } }),
+    ]);
+    const commentIds = items.map((item) => item._id);
+    const replies = commentIds.length ? await ReelCommentReply.find({ commentId: { $in: commentIds }, status: { $ne: "deleted" } })
+      .populate("userId", "name avatar email")
+      .sort({ createdAt: 1 })
+      .limit(commentIds.length * 3)
+      .lean() : [];
+    const repliesByComment = replies.reduce((acc, reply) => {
+      const key = idOf(reply.commentId);
+      acc.set(key, [...(acc.get(key) || []), { ...reply, liked: (reply.likedBy || []).some((id) => idOf(id) === String(userId)) }]);
+      return acc;
+    }, new Map());
+    return {
+      items: items.map((comment) => ({
+        ...comment,
+        liked: (comment.likedBy || []).some((id) => idOf(id) === String(userId)),
+        replies: repliesByComment.get(idOf(comment)) || [],
+      })),
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total,
+    };
+  }
+
+  async createComment(userId, reelId, payload = {}) {
+    const reel = await getPublishedReel(reelId);
+    const text = cleanString(payload.text);
+    if (!text) throw new AppError("Comment text is required", 400, "VALIDATION_ERROR");
+    const comment = await ReelComment.create({ reelId, userId, influencerId: reel.influencerId, text, mentions: extractMentions(text) });
+    await Promise.all([
+      Reel.updateOne({ _id: reelId }, { $inc: { "metrics.comments": 1 } }),
+      incrementAnalytics({ reel, metric: "comments", metadata: { eventType: "reel_comment", userId, mentions: comment.mentions } }),
+      emitDomainEvent("reel.commented", { reelId, influencerId: reel.influencerId, userId, commentId: comment._id }).catch(() => null),
+    ]);
+    return { comment: await ReelComment.findById(comment._id).populate("userId", "name avatar email").lean(), engagement: await this.getEngagement(reelId, userId) };
+  }
+
+  async createReply(userId, reelId, commentId, payload = {}) {
+    const reel = await getPublishedReel(reelId);
+    const parent = await ReelComment.findOne({ _id: commentId, reelId, status: { $ne: "deleted" } }).lean();
+    if (!parent) throw new AppError("Comment not found", 404, "NOT_FOUND");
+    const text = cleanString(payload.text);
+    if (!text) throw new AppError("Reply text is required", 400, "VALIDATION_ERROR");
+    const reply = await ReelCommentReply.create({ reelId, commentId, parentReplyId: payload.parentReplyId || undefined, userId, influencerId: reel.influencerId, text, mentions: extractMentions(text) });
+    await Promise.all([
+      ReelComment.updateOne({ _id: commentId }, { $inc: { repliesCount: 1 } }),
+      incrementAnalytics({ reel, metric: "replies", metadata: { eventType: "reel_comment_reply", userId, mentions: reply.mentions } }),
+      emitDomainEvent("reel.comment.replied", { reelId, influencerId: reel.influencerId, userId, commentId, replyId: reply._id }).catch(() => null),
+    ]);
+    return { reply: await ReelCommentReply.findById(reply._id).populate("userId", "name avatar email").lean() };
+  }
+
+  async toggleCommentLike(userId, reelId, commentId) {
+    await getPublishedReel(reelId);
+    const comment = await ReelComment.findOne({ _id: commentId, reelId, status: { $ne: "deleted" } });
+    if (!comment) throw new AppError("Comment not found", 404, "NOT_FOUND");
+    const liked = (comment.likedBy || []).some((id) => idOf(id) === String(userId));
+    if (liked) comment.likedBy.pull(userId);
+    else comment.likedBy.addToSet(userId);
+    comment.likesCount = Math.max(0, Number(comment.likesCount || 0) + (liked ? -1 : 1));
+    await comment.save();
+    return { liked: !liked, likesCount: comment.likesCount };
+  }
+
+  async reportComment(userId, reelId, commentId, payload = {}) {
+    await getPublishedReel(reelId);
+    const comment = await ReelComment.findOne({ _id: commentId, reelId, status: { $ne: "deleted" } });
+    if (!comment) throw new AppError("Comment not found", 404, "NOT_FOUND");
+    if (!(comment.reportedBy || []).some((id) => idOf(id) === String(userId))) {
+      comment.reportedBy.addToSet(userId);
+      comment.reportsCount = Number(comment.reportsCount || 0) + 1;
+    }
+    if (comment.reportsCount >= 3) comment.status = "reported";
+    await comment.save();
+    await emitDomainEvent("reel.comment.reported", { reelId, commentId, userId, reason: payload.reason || "" }).catch(() => null);
+    return { reported: true, reportsCount: comment.reportsCount };
+  }
+
+  async shareReel(user, reelId, payload = {}) {
+    const reel = await getPublishedReel(reelId);
+    const destination = cleanString(payload.destination || "copy_link").toLowerCase();
+    const userId = user?.sub || null;
+    const anonymousId = cleanString(payload.anonymousId);
+    await Promise.all([
+      ReelShare.create({ reelId, userId, anonymousId, influencerId: reel.influencerId, source: cleanString(payload.source) || "reel", destination, metadata: payload.metadata || {} }),
+      Reel.updateOne({ _id: reelId }, { $inc: { "metrics.shares": 1 } }),
+      incrementAnalytics({ reel, metric: "shares", metadata: { eventType: "reel_share", userId, anonymousId, destination, source: payload.source || "reel" } }),
+    ]);
+    return { shared: true, destination, ...(await this.getEngagement(reelId, userId || "")) };
+  }
+
+  async recordView(user, reelId, payload = {}) {
+    const reel = await getPublishedReel(reelId);
+    const userId = user?.sub || null;
+    const anonymousId = cleanString(payload.anonymousId);
+    const watchTimeSeconds = Math.max(0, Number(payload.watchTimeSeconds || 0));
+    await Promise.all([
+      ReelView.create({ reelId, userId, anonymousId, influencerId: reel.influencerId, source: payload.source || "feed", watchTimeSeconds, completed: Boolean(payload.completed), metadata: payload.metadata || {} }),
+      ReelWatchHistory.updateOne(
+        userId ? { reelId, userId } : { reelId, anonymousId },
+        { $set: { influencerId: reel.influencerId, lastWatchedAt: new Date(), progressPercent: Math.max(0, Math.min(100, Number(payload.progressPercent || 0))), metadata: payload.metadata || {} }, $inc: { watchTimeSeconds } },
+        { upsert: true }
+      ),
+      Reel.updateOne({ _id: reelId }, { $inc: { "metrics.views": 1, "metrics.watchTimeSeconds": watchTimeSeconds } }),
+      InfluencerProfile.updateOne({ _id: reel.influencerId }, { $inc: { "stats.views": 1 } }),
+      incrementAnalytics({ reel, metric: "views", metadata: { eventType: "reel_view", userId, anonymousId, source: payload.source || "feed" } }),
+      watchTimeSeconds ? incrementAnalytics({ reel, metric: "watchTimeSeconds", amount: watchTimeSeconds, metadata: {} }) : Promise.resolve(),
+    ]);
+    return { tracked: true };
+  }
+
+  async recordStoreVisit(user, reelId, payload = {}) {
+    const reel = await getPublishedReel(reelId);
+    const userId = user?.sub || null;
+    const anonymousId = cleanString(payload.anonymousId);
+    await Promise.all([
+      ReelStoreVisit.create({ reelId, influencerId: reel.influencerId, userId, anonymousId, source: payload.source || "reel_creator_panel", metadata: payload.metadata || {} }),
+      InfluencerStorefrontEvent.create({ influencerId: reel.influencerId, userId, anonymousId, eventType: "storefront_view", surface: "reel", reelId, metadata: payload.metadata || {} }).catch(() => null),
+      incrementAnalytics({ reel, metric: "storeVisits", metadata: { eventType: "reel_store_visit", userId, anonymousId, source: payload.source || "reel_creator_panel" } }),
+    ]);
+    return { tracked: true };
+  }
+
+  async recordProductClick(user, reelId, payload = {}) {
+    const reel = await getPublishedReel(reelId);
+    const productId = payload.productId;
+    if (!productId) throw new AppError("productId is required", 400, "VALIDATION_ERROR");
+    const windowDays = attributionWindowDays(payload.attributionWindowDays);
+    const tracking = await trackingService.click({
+      user,
+      reelId,
+      productId,
+      anonymousId: payload.anonymousId || "",
+      surface: payload.source || "reel",
+    });
+    const expiresAt = new Date(Date.now() + windowDays * 24 * 60 * 60 * 1000);
+    const click = await AffiliateClick.create({
+      reelId,
+      productId,
+      campaignId: reel.campaignId || undefined,
+      influencerId: reel.influencerId,
+      userId: user?.sub || null,
+      anonymousId: tracking.anonymousId || payload.anonymousId || "",
+      trackingTokenId: tracking.session?.trackingTokenId || "",
+      sourceType: "reel",
+      source: payload.source || "product_click",
+      attributionWindowDays: windowDays,
+      metadata: payload.metadata || {},
+    });
+    await Promise.all([
+      ReelProductClick.create({
+        reelId,
+        productId,
+        campaignId: reel.campaignId || undefined,
+        influencerId: reel.influencerId,
+        userId: user?.sub || null,
+        anonymousId: tracking.anonymousId || payload.anonymousId || "",
+        source: payload.source || "reel_product_card",
+        trackingTokenId: tracking.session?.trackingTokenId || "",
+        attributionWindowDays: windowDays,
+        metadata: payload.metadata || {},
+      }),
+      AffiliateAttribution.create({
+        affiliateClickId: click._id,
+        influencerId: reel.influencerId,
+        productId,
+        campaignId: reel.campaignId || undefined,
+        userId: user?.sub || null,
+        anonymousId: tracking.anonymousId || payload.anonymousId || "",
+        expiresAt,
+        metadata: { reelId, source: payload.source || "reel_product_card" },
+      }),
+      incrementAnalytics({ reel, metric: "productClicks", productId, metadata: { eventType: "reel_product_click", userId: user?.sub || null, anonymousId: tracking.anonymousId || payload.anonymousId || "", source: payload.source || "reel_product_card" } }),
+    ]);
+    return { ...tracking, attributionWindowDays: windowDays, affiliateClickId: click._id };
+  }
+
+  async followCreator(userId, reelId, payload = {}) {
+    const reel = await getPublishedReel(reelId);
+    const influencerId = reel.influencerId;
+    const existing = await CreatorFollower.findOne({ influencerId, customerId: userId }).lean();
+    const shouldFollow = payload.following !== undefined ? Boolean(payload.following) : !existing;
+    if (shouldFollow && !existing) {
+      await Promise.all([
+        CreatorFollower.create({ influencerId, customerId: userId, source: payload.source || "reel" }),
+        CreatorFollow.updateOne({ influencerId, customerId: userId }, { $set: { source: payload.source || "reel", status: "active", followedAt: new Date() }, $unset: { unfollowedAt: "" } }, { upsert: true }),
+        InfluencerFollower.updateOne({ influencerId, customerId: userId }, { $set: { source: payload.source || "reel", notificationEnabled: true, followedAt: new Date() } }, { upsert: true }),
+        InfluencerProfile.updateOne({ _id: influencerId }, { $inc: { followers: 1 } }),
+        incrementAnalytics({ reel, metric: "follows", metadata: { eventType: "creator_follow", userId, source: payload.source || "reel" } }),
+        emitDomainEvent("creator.followed", { influencerId, userId, reelId }).catch(() => null),
+      ]);
+    }
+    if (!shouldFollow && existing) {
+      await Promise.all([
+        CreatorFollower.deleteOne({ influencerId, customerId: userId }),
+        CreatorFollow.updateOne({ influencerId, customerId: userId }, { $set: { status: "unfollowed", unfollowedAt: new Date() } }),
+        InfluencerFollower.deleteOne({ influencerId, customerId: userId }),
+        InfluencerProfile.updateOne({ _id: influencerId }, { $inc: { followers: -1 } }),
+        emitDomainEvent("creator.unfollowed", { influencerId, userId, reelId }).catch(() => null),
+      ]);
+    }
+    const profile = await InfluencerProfile.findById(influencerId).select("followers").lean();
+    return { following: shouldFollow, followers: Math.max(0, Number(profile?.followers || 0)) };
+  }
+
+  async getAdjacent(reelId) {
+    const current = await Reel.findOne({
+      _id: reelId,
+      visibility: "published",
+      state: { $in: ["approved", "published"] },
+    }).select("_id publishedAt createdAt").lean();
+    if (!current) throw new AppError("Reel not found", 404, "NOT_FOUND");
+
+    const orderField = current.publishedAt ? "publishedAt" : "createdAt";
+    const anchor = current[orderField] || current.createdAt;
+    const publicFilter = {
+      visibility: "published",
+      state: { $in: ["approved", "published"] },
+    };
+    const previous = await Reel.findOne({
+      ...publicFilter,
+      _id: { $ne: current._id },
+      [orderField]: { $gt: anchor },
+    }).select("_id").sort({ [orderField]: 1 }).lean();
+    const next = await Reel.findOne({
+      ...publicFilter,
+      _id: { $ne: current._id },
+      [orderField]: { $lt: anchor },
+    }).select("_id").sort({ [orderField]: -1 }).lean();
+
+    return {
+      previous: previous ? { _id: previous._id } : null,
+      next: next ? { _id: next._id } : null,
     };
   }
 

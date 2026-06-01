@@ -3,12 +3,14 @@ import { Navigate, useLocation } from "react-router-dom";
 import {
   AlertTriangle,
   BarChart3,
+  Calculator,
   CheckCircle2,
   Download,
   FileCheck2,
   Link as LinkIcon,
   MessageSquare,
   Package,
+  Percent,
   RefreshCw,
   Search,
   Settings,
@@ -28,6 +30,7 @@ import {
   getAdminInfluencerVendorMatching,
   getAdminRevenueAnalytics,
   getAdminVendorPerformance,
+  getCommissionEngineDashboard,
   listAdminAffiliateProducts,
   listAdminAffiliateTracking,
   listAdminCampaignApplications,
@@ -40,15 +43,25 @@ import {
   listAdminInfluencerPayouts,
   listAdminInfluencerSettlements,
   listAdminInfluencerWithdrawals,
+  listCommissionEngineAuditLogs,
+  listCommissionEngineRules,
   listAdminProductPromotions,
+  approveCommissionEngineRule,
+  approveCommissionEngineSettlement,
+  createCommissionEngineRule,
+  createCommissionEngineSettlement,
   moderateAdminInfluencerContent,
+  deactivateCommissionEngineRule,
+  prepareCommissionEnginePayoutBatch,
   reviewAdminCampaignApplication,
   saveAdminInfluencerReportSchedule,
+  simulateCommissionEngine,
   updateAdminFraudAlert,
   updateAdminInfluencerCommerceCampaign,
   updateAdminInfluencerCommission,
   updateAdminInfluencerSettings,
   updateAdminInfluencerWithdrawal,
+  updateCommissionEngineRule,
 } from "../services/adminInfluencerCommerceService";
 import { formatCurrency } from "../utils/formatCurrency";
 
@@ -63,6 +76,7 @@ const MODULES = {
   tracking: { label: "Affiliate Tracking", icon: LinkIcon, path: "/admin/influencer-commerce/tracking" },
   content: { label: "Content Moderation", icon: FileCheck2, path: "/admin/influencer-commerce/content" },
   promotions: { label: "Product Promotions", icon: Package, path: "/admin/influencer-commerce/promotions" },
+  "commission-engine": { label: "Commission Engine", icon: Percent, path: "/admin/influencer-commerce/commission-engine" },
   commissions: { label: "Commission Management", icon: WalletCards, path: "/admin/influencer-commerce/commissions" },
   settlements: { label: "Escrow & Settlements", icon: WalletCards, path: "/admin/influencer-commerce/settlements" },
   payouts: { label: "Payout Management", icon: WalletCards, path: "/admin/influencer-commerce/payouts" },
@@ -90,6 +104,77 @@ const defaultFilters = {
   endDate: "",
   page: 1,
   limit: 20,
+};
+
+const defaultRuleForm = {
+  ruleName: "",
+  ruleCode: "",
+  ruleType: "global",
+  priority: 0,
+  commissionMethod: "percentage",
+  commissionValue: 0,
+  fixedAmount: 0,
+  revenueSharePercent: 0,
+  effectiveDate: new Date().toISOString().slice(0, 10),
+  expiryDate: "",
+  status: "pending_approval",
+  description: "",
+  categoryId: "",
+  productId: "",
+  campaignId: "",
+  influencerId: "",
+  affiliateId: "",
+  trafficSource: "affiliate_link",
+  customFormula: "",
+};
+
+const defaultBonusForm = {
+  metric: "orders",
+  operator: "gte",
+  threshold: 100,
+  type: "percent",
+  value: 2,
+};
+
+const defaultSimulatorForm = {
+  influencerId: "",
+  campaignId: "",
+  productId: "",
+  categoryId: "",
+  vendorId: "",
+  trafficSource: "reels",
+  revenue: 1000,
+  expectedOrders: 100,
+  conversionRate: 5,
+  campaignCompletion: 90,
+  reelEngagement: 0,
+  reelEngagementTarget: 0,
+  cycle: "weekly",
+};
+
+const defaultSettlementForm = {
+  cycle: "weekly",
+  periodStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  periodEnd: new Date().toISOString().slice(0, 10),
+  settlementId: "",
+};
+
+const ruleTargetFields = {
+  category: [["categoryId", "Category ID"]],
+  product: [["productId", "Product ID"]],
+  campaign: [["campaignId", "Campaign ID"]],
+  influencer: [["influencerId", "Influencer ID"]],
+  affiliate: [["affiliateId", "Affiliate ID"]],
+};
+
+const methodValueFields = {
+  percentage: ["commissionValue"],
+  fixed: ["fixedAmount"],
+  hybrid: ["commissionValue", "fixedAmount"],
+  tiered: ["commissionValue"],
+  performance_bonus: ["commissionValue"],
+  revenue_share: ["revenueSharePercent"],
+  custom_formula: ["customFormula"],
 };
 
 function unwrap(response) {
@@ -164,7 +249,16 @@ function StatusBadge({ value }) {
   );
 }
 
-function ActionButton({ children, icon: Icon, tone = "indigo", disabled, onClick }) {
+function FieldShell({ label, children, className = "" }) {
+  return (
+    <label className={`grid gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 ${className}`}>
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ActionButton({ children, icon: Icon, tone = "indigo", disabled, onClick, type = "button" }) {
   const tones = {
     indigo: "bg-indigo-600 text-white hover:bg-indigo-500",
     slate: "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200",
@@ -174,7 +268,7 @@ function ActionButton({ children, icon: Icon, tone = "indigo", disabled, onClick
   };
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
       disabled={disabled}
       className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${tones[tone]}`}
@@ -302,6 +396,21 @@ export function AdminInfluencerCommercePage() {
     tracking: listAdminAffiliateTracking,
     content: listAdminContentModeration,
     promotions: listAdminProductPromotions,
+    "commission-engine": async (query) => {
+      const [dashboard, rules, auditLogs] = await Promise.all([
+        getCommissionEngineDashboard(query),
+        listCommissionEngineRules({ limit: 100 }),
+        listCommissionEngineAuditLogs({ limit: 10 }),
+      ]);
+      return {
+        data: {
+          dashboard: unwrap(dashboard),
+          rules: unwrap(rules)?.rules || [],
+          rulePagination: unwrap(rules)?.pagination,
+          auditLogs: unwrap(auditLogs)?.logs || [],
+        },
+      };
+    },
     commissions: listAdminInfluencerCommissions,
     settlements: listAdminInfluencerSettlements,
     payouts: listAdminInfluencerPayouts,
@@ -388,6 +497,7 @@ function renderModule(moduleId, data, items, pagination, setFilters, runAction, 
   if (moduleId === "affiliate-products" || moduleId === "promotions") return <AffiliateProductsView items={items} pagination={pagination} setFilters={setFilters} title={moduleId === "promotions" ? "Product Promotions" : "Affiliate Products"} />;
   if (moduleId === "tracking") return <TrackingView items={items} pagination={pagination} setFilters={setFilters} />;
   if (moduleId === "content") return <ContentView items={items} pagination={pagination} setFilters={setFilters} runAction={runAction} busyId={busyId} />;
+  if (moduleId === "commission-engine") return <CommissionEngineView data={data} refreshKey={busyId} runAction={runAction} />;
   if (moduleId === "commissions") return <CommissionsView items={items} pagination={pagination} setFilters={setFilters} runAction={runAction} busyId={busyId} />;
   if (moduleId === "settlements") return <SettlementsView items={items} pagination={pagination} setFilters={setFilters} />;
   if (moduleId === "payouts") return <PayoutsView items={items} pagination={pagination} setFilters={setFilters} />;
@@ -644,6 +754,374 @@ function ContentView({ items, pagination, setFilters, runAction, busyId }) {
       }} />
       <Pagination pagination={pagination} setFilters={setFilters} />
     </Section>
+  );
+}
+
+function CommissionEngineView({ data, runAction }) {
+  const dashboard = data.dashboard || {};
+  const rules = data.rules || [];
+  const auditLogs = data.auditLogs || [];
+  const [ruleForm, setRuleForm] = useState(defaultRuleForm);
+  const [bonusForm, setBonusForm] = useState(defaultBonusForm);
+  const [bonuses, setBonuses] = useState([]);
+  const [editingRuleId, setEditingRuleId] = useState("");
+  const [simulatorForm, setSimulatorForm] = useState(defaultSimulatorForm);
+  const [simulation, setSimulation] = useState(null);
+  const [settlementForm, setSettlementForm] = useState(defaultSettlementForm);
+  const visibleTargetFields = ruleTargetFields[ruleForm.ruleType] || [];
+  const visibleMethodFields = new Set(methodValueFields[ruleForm.commissionMethod] || ["commissionValue"]);
+  const showTrafficSource = ruleForm.ruleType === "traffic_source";
+  const showBonusBuilder = ruleForm.ruleType === "performance" || ruleForm.commissionMethod === "performance_bonus";
+  const showCustomFormula = ruleForm.ruleType === "custom_formula" || visibleMethodFields.has("customFormula");
+
+  function setRuleField(key, value) {
+    setRuleForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function setSimulatorField(key, value) {
+    setSimulatorForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function setSettlementField(key, value) {
+    setSettlementForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function resetRuleForm() {
+    setRuleForm(defaultRuleForm);
+    setBonuses([]);
+    setEditingRuleId("");
+  }
+
+  function startEditRule(rule) {
+    setEditingRuleId(idOf(rule));
+    setRuleForm({
+      ...defaultRuleForm,
+      ruleName: rule.ruleName || "",
+      ruleCode: rule.ruleCode || "",
+      ruleType: rule.ruleType || "global",
+      priority: Number(rule.priority || 0),
+      commissionMethod: rule.commissionMethod || "percentage",
+      commissionValue: Number(rule.commissionValue || 0),
+      fixedAmount: Number(rule.fixedAmount || 0),
+      revenueSharePercent: Number(rule.revenueSharePercent || 0),
+      effectiveDate: rule.effectiveDate ? String(rule.effectiveDate).slice(0, 10) : defaultRuleForm.effectiveDate,
+      expiryDate: rule.expiryDate ? String(rule.expiryDate).slice(0, 10) : "",
+      status: rule.status || "pending_approval",
+      description: rule.description || "",
+      categoryId: rule.categoryId || "",
+      productId: rule.productId || "",
+      campaignId: rule.campaignId || "",
+      influencerId: rule.influencerId || "",
+      affiliateId: rule.affiliateId || "",
+      trafficSource: rule.trafficSource || "affiliate_link",
+      customFormula: rule.customFormula || "",
+    });
+    setBonuses(Array.isArray(rule.bonuses) ? rule.bonuses : []);
+  }
+
+  function buildRulePayload() {
+    const payload = {
+      ruleName: ruleForm.ruleName,
+      ruleCode: ruleForm.ruleCode,
+      ruleType: ruleForm.ruleType,
+      priority: Number(ruleForm.priority || 0),
+      commissionMethod: ruleForm.commissionMethod,
+      effectiveDate: ruleForm.effectiveDate,
+      expiryDate: ruleForm.expiryDate || null,
+      status: ruleForm.status,
+      description: ruleForm.description,
+    };
+    if (visibleMethodFields.has("commissionValue")) payload.commissionValue = Number(ruleForm.commissionValue || 0);
+    if (visibleMethodFields.has("fixedAmount")) payload.fixedAmount = Number(ruleForm.fixedAmount || 0);
+    if (visibleMethodFields.has("revenueSharePercent")) payload.revenueSharePercent = Number(ruleForm.revenueSharePercent || 0);
+    if (showCustomFormula) payload.customFormula = ruleForm.customFormula;
+    if (showBonusBuilder) payload.bonuses = bonuses;
+    visibleTargetFields.forEach(([key]) => {
+      if (ruleForm[key]) payload[key] = ruleForm[key];
+    });
+    if (showTrafficSource) payload.trafficSource = ruleForm.trafficSource;
+    return payload;
+  }
+
+  function saveRule(event) {
+    event.preventDefault();
+    const payload = buildRulePayload();
+    runAction(
+      editingRuleId || "new-rule",
+      () => (editingRuleId ? updateCommissionEngineRule(editingRuleId, payload) : createCommissionEngineRule(payload)),
+      editingRuleId ? "Commission rule updated." : "Commission rule created."
+    );
+    resetRuleForm();
+  }
+
+  function addBonus() {
+    setBonuses((current) => [
+      ...current,
+      {
+        metric: bonusForm.metric,
+        operator: bonusForm.operator,
+        threshold: Number(bonusForm.threshold || 0),
+        type: bonusForm.type,
+        value: Number(bonusForm.value || 0),
+      },
+    ]);
+  }
+
+  async function runSimulation(event) {
+    event.preventDefault();
+    const response = await simulateCommissionEngine({
+      ...simulatorForm,
+      revenue: Number(simulatorForm.revenue || 0),
+      expectedOrders: Number(simulatorForm.expectedOrders || 0),
+      conversionRate: Number(simulatorForm.conversionRate || 0),
+      campaignCompletion: Number(simulatorForm.campaignCompletion || 0),
+      reelEngagement: Number(simulatorForm.reelEngagement || 0),
+      reelEngagementTarget: Number(simulatorForm.reelEngagementTarget || 0),
+    });
+    setSimulation(unwrap(response));
+  }
+
+  function createSettlement(event) {
+    event.preventDefault();
+    runAction(
+      "create-settlement",
+      () => createCommissionEngineSettlement({
+        cycle: settlementForm.cycle,
+        periodStart: settlementForm.periodStart,
+        periodEnd: settlementForm.periodEnd,
+      }),
+      "Settlement batch created."
+    );
+  }
+
+  const metrics = [
+    ["Total Commission", dashboard.totalCommission],
+    ["Pending", dashboard.pendingCommission],
+    ["Approved", dashboard.approvedCommission],
+    ["Settled", dashboard.settledCommission],
+    ["Paid", dashboard.paidCommission],
+    ["Reversed", dashboard.reversedCommission],
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        {metrics.map(([label, value]) => (
+          <Metric key={label} label={label} value={formatCurrency(value || 0)} />
+        ))}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+        <Section title="Rules Engine" icon={Percent}>
+          <form onSubmit={saveRule} className="grid gap-3 md:grid-cols-3">
+            <FieldShell label="Rule Name">
+              <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Rule name" value={ruleForm.ruleName} onChange={(event) => setRuleField("ruleName", event.target.value)} required />
+            </FieldShell>
+            <FieldShell label="Rule Code">
+              <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm uppercase tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="RULE_CODE" value={ruleForm.ruleCode} onChange={(event) => setRuleField("ruleCode", event.target.value)} />
+            </FieldShell>
+            <FieldShell label="Priority">
+              <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="number" min="0" placeholder="Priority" value={ruleForm.priority} onChange={(event) => setRuleField("priority", event.target.value)} />
+            </FieldShell>
+            <FieldShell label="Rule Type">
+              <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={ruleForm.ruleType} onChange={(event) => setRuleField("ruleType", event.target.value)}>
+                {["global", "category", "product", "campaign", "influencer", "traffic_source", "performance", "affiliate", "custom_formula"].map((type) => <option key={type} value={type}>{statusText(type)}</option>)}
+              </select>
+            </FieldShell>
+            <FieldShell label="Commission Method">
+              <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={ruleForm.commissionMethod} onChange={(event) => setRuleField("commissionMethod", event.target.value)}>
+                {["percentage", "fixed", "hybrid", "tiered", "performance_bonus", "revenue_share", "custom_formula"].map((method) => <option key={method} value={method}>{statusText(method)}</option>)}
+              </select>
+            </FieldShell>
+            <FieldShell label="Status">
+              <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={ruleForm.status} onChange={(event) => setRuleField("status", event.target.value)}>
+                {["draft", "pending_approval", "active", "inactive"].map((status) => <option key={status} value={status}>{statusText(status)}</option>)}
+              </select>
+            </FieldShell>
+            {visibleMethodFields.has("commissionValue") ? (
+              <FieldShell label={ruleForm.commissionMethod === "performance_bonus" ? "Base Commission Percent" : "Commission Percent"}>
+                <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="number" min="0" max="100" step="0.01" placeholder="Commission %" value={ruleForm.commissionValue} onChange={(event) => setRuleField("commissionValue", event.target.value)} />
+              </FieldShell>
+            ) : null}
+            {visibleMethodFields.has("fixedAmount") ? (
+              <FieldShell label="Fixed Amount">
+                <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="number" min="0" step="0.01" placeholder="Fixed amount" value={ruleForm.fixedAmount} onChange={(event) => setRuleField("fixedAmount", event.target.value)} />
+              </FieldShell>
+            ) : null}
+            {visibleMethodFields.has("revenueSharePercent") ? (
+              <FieldShell label="Revenue Share Percent">
+                <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="number" min="0" max="100" step="0.01" placeholder="Revenue share %" value={ruleForm.revenueSharePercent} onChange={(event) => setRuleField("revenueSharePercent", event.target.value)} />
+              </FieldShell>
+            ) : null}
+            <FieldShell label="Effective Date">
+              <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="date" value={ruleForm.effectiveDate} onChange={(event) => setRuleField("effectiveDate", event.target.value)} required />
+            </FieldShell>
+            <FieldShell label="Expiry Date">
+              <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="date" value={ruleForm.expiryDate} onChange={(event) => setRuleField("expiryDate", event.target.value)} />
+            </FieldShell>
+            {showTrafficSource ? (
+              <FieldShell label="Traffic Source">
+                <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={ruleForm.trafficSource} onChange={(event) => setRuleField("trafficSource", event.target.value)}>
+                  {["reels", "posts", "stories", "livestream", "storefront", "collection", "affiliate_link", "campaign_landing_page", "creator_feed"].map((source) => <option key={source} value={source}>{statusText(source)}</option>)}
+                </select>
+              </FieldShell>
+            ) : null}
+            {visibleTargetFields.map(([key, placeholder]) => (
+              <FieldShell key={key} label={placeholder}>
+                <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder={placeholder} value={ruleForm[key]} onChange={(event) => setRuleField(key, event.target.value)} />
+              </FieldShell>
+            ))}
+            <FieldShell label="Description" className="md:col-span-2">
+              <textarea className="min-h-20 rounded-xl border border-slate-200 px-3 py-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Description" value={ruleForm.description} onChange={(event) => setRuleField("description", event.target.value)} />
+            </FieldShell>
+            {showCustomFormula ? (
+              <FieldShell label="Custom Formula">
+                <textarea className="min-h-20 rounded-xl border border-slate-200 px-3 py-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="eligibleRevenue * 0.12" value={ruleForm.customFormula} onChange={(event) => setRuleField("customFormula", event.target.value)} />
+              </FieldShell>
+            ) : null}
+            {showBonusBuilder ? (
+            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800 md:col-span-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Performance Bonus</p>
+              <div className="grid gap-2 md:grid-cols-5">
+                <FieldShell label="Metric">
+                  <select className="h-10 rounded-lg border border-slate-200 px-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={bonusForm.metric} onChange={(event) => setBonusForm((current) => ({ ...current, metric: event.target.value }))}>
+                    {["orders", "conversionRate", "campaignCompletion", "reelEngagement"].map((metric) => <option key={metric} value={metric}>{metric}</option>)}
+                  </select>
+                </FieldShell>
+                <FieldShell label="Operator">
+                  <select className="h-10 rounded-lg border border-slate-200 px-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={bonusForm.operator} onChange={(event) => setBonusForm((current) => ({ ...current, operator: event.target.value }))}>
+                    {["gt", "gte", "lt", "lte", "eq"].map((operator) => <option key={operator} value={operator}>{operator}</option>)}
+                  </select>
+                </FieldShell>
+                <FieldShell label="Threshold">
+                  <input className="h-10 rounded-lg border border-slate-200 px-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="number" value={bonusForm.threshold} onChange={(event) => setBonusForm((current) => ({ ...current, threshold: event.target.value }))} />
+                </FieldShell>
+                <FieldShell label="Bonus Value">
+                  <input className="h-10 rounded-lg border border-slate-200 px-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="number" value={bonusForm.value} onChange={(event) => setBonusForm((current) => ({ ...current, value: event.target.value }))} />
+                </FieldShell>
+                <ActionButton tone="slate" onClick={addBonus}>Add Bonus</ActionButton>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {bonuses.map((bonus, index) => (
+                  <button key={`${bonus.metric}-${index}`} type="button" onClick={() => setBonuses((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                    {bonus.metric} {bonus.operator} {bonus.threshold} +{bonus.value}{bonus.type === "fixed" ? "" : "%"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            ) : null}
+            <div className="flex flex-wrap gap-2 md:col-span-3">
+              <ActionButton type="submit" icon={CheckCircle2}>{editingRuleId ? "Update Rule" : "Create Rule"}</ActionButton>
+              <ActionButton tone="slate" onClick={resetRuleForm}>Clear</ActionButton>
+            </div>
+          </form>
+        </Section>
+
+        <Section title="Simulator" icon={Calculator}>
+          <form onSubmit={runSimulation} className="grid gap-3">
+            {[
+              ["influencerId", "Influencer ID"],
+              ["campaignId", "Campaign ID"],
+              ["productId", "Product ID"],
+              ["categoryId", "Category ID"],
+              ["vendorId", "Vendor ID"],
+            ].map(([key, placeholder]) => (
+              <input key={key} className="h-11 rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder={placeholder} value={simulatorForm[key]} onChange={(event) => setSimulatorField(key, event.target.value)} />
+            ))}
+            <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={simulatorForm.trafficSource} onChange={(event) => setSimulatorField("trafficSource", event.target.value)}>
+              {["reels", "posts", "stories", "livestream", "storefront", "collection", "affiliate_link", "campaign_landing_page", "creator_feed"].map((source) => <option key={source} value={source}>{statusText(source)}</option>)}
+            </select>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                ["revenue", "Revenue"],
+                ["expectedOrders", "Orders"],
+                ["conversionRate", "Conversion %"],
+                ["campaignCompletion", "Completion %"],
+              ].map(([key, label]) => (
+                <input key={key} className="h-11 rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="number" min="0" step="0.01" aria-label={label} value={simulatorForm[key]} onChange={(event) => setSimulatorField(key, event.target.value)} />
+              ))}
+            </div>
+            <ActionButton type="submit" icon={Calculator}>Run Simulation</ActionButton>
+          </form>
+          {simulation ? (
+            <div className="mt-4 space-y-2 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-800">
+              <div className="flex justify-between gap-3"><span>Applied Rule</span><strong>{simulation.appliedRule?.ruleName || simulation.reason || "-"}</strong></div>
+              <div className="flex justify-between gap-3"><span>Commission</span><strong>{simulation.commissionPercent || 0}%</strong></div>
+              <div className="flex justify-between gap-3"><span>Bonus</span><strong>{simulation.bonusPercent || 0}%</strong></div>
+              <div className="flex justify-between gap-3"><span>Final Earnings</span><strong>{formatCurrency(simulation.finalEarnings || 0)}</strong></div>
+            </div>
+          ) : null}
+        </Section>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
+        <Section title="Configured Rules" icon={Percent}>
+          <ResponsiveTable headers={["Rule", "Type", "Method", "Value", "Priority", "Version", "Status", "Actions"]} rows={rules} renderRow={(rule) => {
+            const id = idOf(rule);
+            return (
+              <tr key={id}>
+                <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{text(rule.ruleName)}<div className="font-mono text-xs text-slate-500">{text(rule.ruleCode)}</div></td>
+                <td className="px-3 py-3">{statusText(rule.ruleType)}</td>
+                <td className="px-3 py-3">{statusText(rule.commissionMethod)}</td>
+                <td className="px-3 py-3">{rule.commissionMethod === "fixed" ? formatCurrency(rule.fixedAmount || rule.commissionValue || 0) : `${Number(rule.commissionValue || rule.revenueSharePercent || 0)}%`}</td>
+                <td className="px-3 py-3">{numberValue(rule.priority)}</td>
+                <td className="px-3 py-3">v{numberValue(rule.version || 1)}</td>
+                <td className="px-3 py-3"><StatusBadge value={rule.status} /></td>
+                <td className="px-3 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    <ActionButton tone="slate" onClick={() => startEditRule(rule)}>Edit</ActionButton>
+                    <ActionButton tone="green" onClick={() => runAction(`approve-${id}`, () => approveCommissionEngineRule(id), "Rule approved.")}>Approve</ActionButton>
+                    <ActionButton tone="amber" onClick={() => runAction(`deactivate-${id}`, () => deactivateCommissionEngineRule(id, { reason: "Deactivated from admin panel" }), "Rule deactivated.")}>Deactivate</ActionButton>
+                  </div>
+                </td>
+              </tr>
+            );
+          }} />
+        </Section>
+
+        <Section title="Settlement" icon={WalletCards}>
+          <form onSubmit={createSettlement} className="space-y-3">
+            <select className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={settlementForm.cycle} onChange={(event) => setSettlementField("cycle", event.target.value)}>
+              {["daily", "weekly", "bi_weekly", "monthly"].map((cycle) => <option key={cycle} value={cycle}>{statusText(cycle)}</option>)}
+            </select>
+            <input className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="date" value={settlementForm.periodStart} onChange={(event) => setSettlementField("periodStart", event.target.value)} />
+            <input className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="date" value={settlementForm.periodEnd} onChange={(event) => setSettlementField("periodEnd", event.target.value)} />
+            <ActionButton type="submit" icon={CheckCircle2}>Create Settlement</ActionButton>
+          </form>
+          <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <input className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Settlement ID" value={settlementForm.settlementId} onChange={(event) => setSettlementField("settlementId", event.target.value)} />
+            <div className="flex flex-wrap gap-2">
+              <ActionButton tone="green" disabled={!settlementForm.settlementId} onClick={() => runAction("approve-settlement", () => approveCommissionEngineSettlement(settlementForm.settlementId), "Settlement approved.")}>Approve</ActionButton>
+              <ActionButton tone="slate" disabled={!settlementForm.settlementId} onClick={() => runAction("prepare-payout", () => prepareCommissionEnginePayoutBatch(settlementForm.settlementId), "Payout batch prepared.")}>Prepare Payout</ActionButton>
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Section title="Traffic Source Performance" icon={BarChart3}>
+          <ResponsiveTable headers={["Source", "Revenue", "Commission", "Orders"]} rows={dashboard.trafficSourcePerformance || []} renderRow={(row, index) => (
+            <tr key={row._id || index}>
+              <td className="px-3 py-3">{statusText(row._id || "unknown")}</td>
+              <td className="px-3 py-3">{formatCurrency(row.revenue || 0)}</td>
+              <td className="px-3 py-3">{formatCurrency(row.total || 0)}</td>
+              <td className="px-3 py-3">{numberValue(row.orders)}</td>
+            </tr>
+          )} />
+        </Section>
+        <Section title="Audit Trail" icon={ShieldCheck}>
+          <ResponsiveTable headers={["Action", "Entity", "User", "Reason", "Time"]} rows={auditLogs} renderRow={(row) => (
+            <tr key={idOf(row)}>
+              <td className="px-3 py-3">{statusText(row.action)}</td>
+              <td className="px-3 py-3">{text(row.entityType)}</td>
+              <td className="px-3 py-3">{text(row.userRole || row.userId)}</td>
+              <td className="px-3 py-3">{text(row.reason)}</td>
+              <td className="px-3 py-3">{dateValue(row.createdAt)}</td>
+            </tr>
+          )} />
+        </Section>
+      </div>
+    </div>
   );
 }
 

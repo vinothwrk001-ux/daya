@@ -15,12 +15,19 @@ const {
   shutdownPaymentMaintenanceJobs,
 } = require("./jobs/payment-maintenance.job");
 const { initializeRecommendationJobs } = require("./modules/recommendation/job");
+const paymentService = require("./services/payment.service");
 
 async function start() {
   await connectDb();
   await ensurePaymentIndexes();
   await ensurePredefinedStaffRoles();
   await ensureDefaultPricingCategories();
+
+  const razorpayHealth = await paymentService.validateRazorpayConfiguration({
+    verifyCredentials: process.env.NODE_ENV !== "test",
+  });
+  logger.info("Razorpay configuration validated", razorpayHealth);
+
   initializeEventBus();
 
   // Initialize settlement scheduler

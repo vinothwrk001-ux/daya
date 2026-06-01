@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { clickTracking } from "../services/influencerCommerceService";
 import { saveTrackingContext } from "../utils/influencerTracking";
 
 export function AffiliateRedirectPage() {
@@ -8,23 +9,54 @@ export function AffiliateRedirectPage() {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    const trackingToken = searchParams.get("trackingToken") || "";
-    const anonymousId = searchParams.get("anonymousId") || "";
-    const reelId = searchParams.get("reel") || "";
-    if (trackingToken) {
-      saveTrackingContext({
-        trackingToken,
-        anonymousId,
-        reelId,
-        productId,
-        trackingCode,
-      });
+    let alive = true;
+
+    async function prepareAffiliateContext() {
+      const trackingToken = searchParams.get("trackingToken") || "";
+      const anonymousId = searchParams.get("anonymousId") || "";
+      const reelId = searchParams.get("reel") || "";
+      if (trackingToken) {
+        saveTrackingContext({
+          trackingToken,
+          anonymousId,
+          reelId,
+          productId,
+          trackingCode,
+        });
+      } else if (trackingCode && productId) {
+        try {
+          const existingAnonymousId = typeof window !== "undefined" ? window.localStorage.getItem("anonInfluencerId") || "" : "";
+          const response = await clickTracking({
+            trackingCode,
+            productId,
+            anonymousId: existingAnonymousId,
+            surface: "affiliate_link",
+          });
+          const payload = response?.data || response || {};
+          if (payload.anonymousId && typeof window !== "undefined") window.localStorage.setItem("anonInfluencerId", payload.anonymousId);
+          if (payload.trackingToken) {
+            saveTrackingContext({
+              trackingToken: payload.trackingToken,
+              anonymousId: payload.anonymousId,
+              productId,
+              trackingCode,
+            });
+          }
+        } catch {
+          // Product still opens if attribution preparation fails.
+        }
+      }
+
+      const nextParams = new URLSearchParams();
+      if (reelId) nextParams.set("reel", reelId);
+      const suffix = nextParams.toString() ? `?${nextParams.toString()}` : "";
+      if (alive) navigate(`/product/${productId}${suffix}`, { replace: true });
     }
 
-    const nextParams = new URLSearchParams();
-    if (reelId) nextParams.set("reel", reelId);
-    const suffix = nextParams.toString() ? `?${nextParams.toString()}` : "";
-    navigate(`/product/${productId}${suffix}`, { replace: true });
+    prepareAffiliateContext();
+    return () => {
+      alive = false;
+    };
   }, [navigate, productId, searchParams, trackingCode]);
 
   return (

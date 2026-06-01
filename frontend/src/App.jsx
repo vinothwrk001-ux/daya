@@ -189,7 +189,12 @@ export default function App() {
         <Route path="/influencer/register/identity-verification" element={<Navigate to="/influencer/register/content-review" replace />} />
         <Route path="/influencer/application-under-review/:applicationId" element={<InfluencerApplicationUnderReviewPage />} />
         <Route path="/influencer/application-status/:applicationId" element={<InfluencerApplicationStatusPage />} />
-        <Route path="/influencer/:slug" element={<InfluencerPublicStorefrontPage />} />
+        <Route path="/influencer/:username" element={<InfluencerPublicStorefrontPage />} />
+        <Route path="/influencer/:username/storefront" element={<InfluencerPublicStorefrontPage />} />
+        <Route path="/influencer/:username/posts" element={<InfluencerPublicStorefrontPage />} />
+        <Route path="/influencer/:username/reels" element={<InfluencerPublicStorefrontPage />} />
+        <Route path="/influencer/:username/collections" element={<InfluencerPublicStorefrontPage />} />
+        <Route path="/influencer/:username/about" element={<InfluencerPublicStorefrontPage />} />
         <Route path="/shop" element={<ProductsPage />} />
         <Route path="/stores" element={<StoresPage />} />
         <Route path="/influencers" element={<InfluencersHubPage />} />

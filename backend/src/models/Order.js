@@ -207,6 +207,22 @@ const orderSchema = new mongoose.Schema(
         ref: "Reel",
         index: true,
       },
+      postId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "InfluencerPost",
+        index: true,
+      },
+      storefrontId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "InfluencerStorefront",
+        index: true,
+      },
+      collectionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "InfluencerCollection",
+        index: true,
+      },
+      surface: { type: String, trim: true, index: true },
       trackingSessionId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "TrackingSession",

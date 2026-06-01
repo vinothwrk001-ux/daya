@@ -163,6 +163,16 @@ paymentSchema.index(
     },
   }
 );
+paymentSchema.index(
+  { razorpayPaymentId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      method: "ONLINE",
+      razorpayPaymentId: { $type: "string" },
+    },
+  }
+);
 
 paymentSchema.pre("validate", function normalizeGatewayFields() {
   if (this.razorpayOrderId !== undefined && this.razorpayOrderId !== null) {

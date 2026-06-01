@@ -8,9 +8,40 @@ const paymentService = require("./payment.service");
 const payoutService = require("./payout.service");
 const { applyShippingLifecycle } = require("./shipping.service");
 const logisticsService = require("./logistics.service");
+const { logger } = require("../utils/logger");
+const { PaymentSession } = require("../models/PaymentSession");
 
 function buildEventId(provider, eventType, rawBody) {
   return `${provider}:${eventType}:${crypto.createHash("sha1").update(String(rawBody || "")).digest("hex")}`;
+}
+
+function safeEqual(left, right) {
+  const a = Buffer.from(String(left || ""));
+  const b = Buffer.from(String(right || ""));
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+async function recordInvalidWebhook(rawBody, signature, message) {
+  const eventId = buildEventId("RAZORPAY", "signature.invalid", rawBody);
+  try {
+    const existing = await webhookEventRepo.findByEventId(eventId);
+    if (existing) return;
+    await webhookEventRepo.create({
+      provider: "RAZORPAY",
+      eventType: "signature.invalid",
+      eventId,
+      signatureVerified: false,
+      status: "FAILED",
+      payload: {
+        hasSignature: Boolean(signature),
+        rawBodySha256: crypto.createHash("sha256").update(String(rawBody || "")).digest("hex"),
+      },
+      errorMessage: message,
+    });
+  } catch (error) {
+    logger.warn("Unable to record invalid Razorpay webhook", { message: error.message });
+  }
 }
 
 class WebhookService {
@@ -19,15 +50,25 @@ class WebhookService {
     if (!secret) {
       throw new AppError("Razorpay webhook secret is not configured", 500, "WEBHOOK_NOT_CONFIGURED");
     }
+    if (!rawBody || !signature) {
+      await recordInvalidWebhook(rawBody, signature, "Missing Razorpay webhook signature or body");
+      throw new AppError("Missing Razorpay webhook signature", 400, "INVALID_SIGNATURE");
+    }
     const expectedSignature = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
 
-    if (expectedSignature !== signature) {
+    if (!safeEqual(expectedSignature, signature)) {
+      await recordInvalidWebhook(rawBody, signature, "Invalid Razorpay webhook signature");
       throw new AppError("Invalid signature", 400, "INVALID_SIGNATURE");
     }
 
-    const event = JSON.parse(rawBody);
+    let event;
+    try {
+      event = JSON.parse(rawBody);
+    } catch (error) {
+      throw new AppError("Invalid Razorpay webhook payload", 400, "INVALID_WEBHOOK_PAYLOAD");
+    }
     const eventType = event.event;
-    const eventId = buildEventId("RAZORPAY", eventType, rawBody);
+    const eventId = event.id ? `RAZORPAY:${event.id}` : buildEventId("RAZORPAY", eventType, rawBody);
     const existing = await webhookEventRepo.findByEventId(eventId);
     if (existing) {
       return { status: "duplicate_ignored", eventId };
@@ -47,6 +88,29 @@ class WebhookService {
         const paymentEntity = event.payload?.payment?.entity;
         const payment = await paymentRepo.findByRazorpayOrderId(paymentEntity?.order_id);
         if (payment) {
+          const session = payment.paymentSessionId?._id
+            ? payment.paymentSessionId
+            : payment.paymentSessionId
+              ? await PaymentSession.findById(payment.paymentSessionId)
+              : await PaymentSession.findOne({ razorpayOrderId: paymentEntity?.order_id });
+          const expectedAmount = Math.round(Number(session?.amount || payment.amount || 0) * 100);
+          if (String(paymentEntity?.status || "").toLowerCase() !== "captured") {
+            throw new AppError("Webhook payment is not captured", 409, "PAYMENT_NOT_CAPTURED");
+          }
+          if (Number(paymentEntity?.amount) !== expectedAmount) {
+            await paymentRepo.updateById(payment._id, {
+              $inc: { "fraudChecks.duplicateAttemptCount": 1 },
+              $addToSet: { "fraudChecks.flaggedReasons": "WEBHOOK_AMOUNT_MISMATCH" },
+            });
+            throw new AppError("Webhook payment amount mismatch", 409, "PAYMENT_AMOUNT_MISMATCH");
+          }
+          if (String(paymentEntity?.currency || "").toUpperCase() !== String(session?.currency || payment.currency || "INR").toUpperCase()) {
+            await paymentRepo.updateById(payment._id, {
+              $inc: { "fraudChecks.duplicateAttemptCount": 1 },
+              $addToSet: { "fraudChecks.flaggedReasons": "WEBHOOK_CURRENCY_MISMATCH" },
+            });
+            throw new AppError("Webhook payment currency mismatch", 409, "PAYMENT_CURRENCY_MISMATCH");
+          }
           await paymentRepo.updateById(payment._id, {
             $set: {
               status: "AUTHORIZED",
@@ -72,7 +136,7 @@ class WebhookService {
           } else {
             await paymentService.fulfillPaidPayment({
               paymentId: payment._id,
-              paymentSessionId: payment.paymentSessionId?._id || payment.paymentSessionId || null,
+              paymentSessionId: session?._id || payment.paymentSessionId?._id || payment.paymentSessionId || null,
               userId: payment.userId?._id || payment.userId,
               razorpayOrderId: paymentEntity.order_id,
               razorpayPaymentId: paymentEntity.id,
@@ -95,9 +159,8 @@ class WebhookService {
             $addToSet: { webhookEvents: eventId },
           });
           if (payment.paymentSessionId) {
-            const { PaymentSession } = require("../models/PaymentSession");
             await PaymentSession.updateOne(
-              { _id: payment.paymentSessionId },
+              { _id: payment.paymentSessionId?._id || payment.paymentSessionId },
               {
                 $set: {
                   status: "FAILED",

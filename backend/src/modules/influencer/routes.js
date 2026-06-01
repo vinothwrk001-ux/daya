@@ -213,7 +213,7 @@ const affiliateProductQuery = Joi.object({
   minCommission: Joi.number().min(0).optional(),
   maxCommission: Joi.number().min(0).optional(),
   rating: Joi.number().min(0).max(5).optional(),
-  mode: Joi.string().valid("browse", "trending", "highest_commission", "new", "recommended", "saved").optional(),
+  mode: Joi.string().valid("promotion", "active_campaigns", "approved", "browse", "trending", "highest_commission", "new", "recommended", "saved").optional(),
   sort: Joi.string().valid("best_selling", "trending", "highest_rated", "highest_commission", "newest", "most_viewed").optional(),
   from: Joi.date().iso().optional(),
   to: Joi.date().iso().optional(),
@@ -423,6 +423,8 @@ const affiliateLinkSchema = Joi.object({
   targetType: Joi.string().valid("product", "collection", "campaign", "storefront", "custom").default("product"),
   targetPath: Joi.string().trim().max(600).allow("").default(""),
   url: Joi.string().trim().max(600).allow("").default(""),
+  productId: Joi.string().allow("").optional(),
+  campaignId: Joi.string().allow("").optional(),
 });
 
 const applicationListQuerySchema = Joi.object({
@@ -489,6 +491,28 @@ const settingsPasswordSchema = Joi.object({
   currentPassword: Joi.string().min(6).max(128).required(),
   newPassword: Joi.string().min(8).max(128).required(),
 });
+const publicStorefrontQuery = Joi.object({
+  tab: Joi.string().valid("storefront", "posts", "reels", "collections", "about").optional(),
+  filter: Joi.string().allow("").optional(),
+  sort: Joi.string().allow("").optional(),
+  search: Joi.string().allow("").optional(),
+  page: Joi.number().integer().min(1).optional(),
+  limit: Joi.number().integer().min(1).max(60).optional(),
+});
+const publicEventSchema = Joi.object({
+  eventType: Joi.string().allow("").optional(),
+  surface: Joi.string().allow("").optional(),
+  anonymousId: Joi.string().allow("").optional(),
+  productId: Joi.string().allow("").optional(),
+  collectionId: Joi.string().allow("").optional(),
+  reelId: Joi.string().allow("").optional(),
+  postId: Joi.string().allow("").optional(),
+  metadata: Joi.object().unknown(true).default({}),
+});
+const publicNewsletterSchema = Joi.object({
+  email: Joi.string().trim().lowercase().email().required(),
+  source: Joi.string().allow("").optional(),
+});
 
 router.get("/register/check-email", validate(availabilityEmailQuery, "query"), controller.checkEmail);
 router.get("/register/check-username", validate(availabilityUsernameQuery, "query"), controller.checkUsername);
@@ -550,6 +574,12 @@ router.get("/application-status", validate(applicationQuerySchema, "query"), con
 router.get("/application-status/:applicationId", controller.applicationStatus);
 router.get("/application/:applicationId", controller.applicationStatus);
 router.get("/storefront", authOptional, controller.storefront);
+router.get("/public/:username", authOptional, validate(publicStorefrontQuery, "query"), controller.storefront);
+router.get("/public/:username/:tab", authOptional, validate(publicStorefrontQuery, "query"), controller.storefront);
+router.post("/public/:username/follow", authRequired, validate(Joi.object({ source: Joi.string().allow("").default("storefront") })), controller.followPublic);
+router.delete("/public/:username/follow", authRequired, controller.unfollowPublic);
+router.post("/public/:username/newsletter", validate(publicNewsletterSchema), controller.subscribePublicNewsletter);
+router.post("/public/:username/events", authOptional, validate(publicEventSchema), controller.trackPublicEvent);
 router.get("/storefront-builder", authRequired, requireRole("influencer"), controller.getStorefrontBuilder);
 router.put("/storefront-builder", authRequired, requireRole("influencer"), validate(storefrontBuilderSchema), controller.updateStorefrontBuilder);
 router.post("/storefront-builder/preview", authRequired, requireRole("influencer"), validate(storefrontBuilderSchema), controller.previewStorefrontBuilder);
@@ -590,7 +620,7 @@ router.post("/verification/tax", authRequired, requireRole("influencer"), proofU
   { name: "addressProof", maxCount: 1 },
 ]), validate(verificationTaxSchema), controller.saveVerificationTax);
 router.post("/verification/bank", authRequired, requireRole("influencer"), validate(verificationBankSchema), controller.saveVerificationBank);
-router.get("/list", controller.list);
+router.get("/list", authOptional, controller.list);
 router.get("/admin/list", authRequired, requireRole("admin", "super_admin", "support_admin", "finance_admin"), controller.list);
 router.get("/admin/applications", authRequired, requireRole("admin", "super_admin", "support_admin", "finance_admin"), validate(applicationListQuerySchema, "query"), controller.adminApplications);
 router.get("/admin/application/:applicationId", authRequired, requireRole("admin", "super_admin", "support_admin", "finance_admin"), controller.adminApplication);

@@ -595,6 +595,49 @@ const influencerAffiliateSettingSchema = new mongoose.Schema(
   { timestamps: true, collection: "influencer_affiliate_settings" }
 );
 
+const influencerProductAssignmentSchema = new mongoose.Schema(
+  {
+    influencerId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerProfile", required: true, index: true },
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor", required: true, index: true },
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true, index: true },
+    campaignId: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign", index: true },
+    status: {
+      type: String,
+      enum: ["assigned", "accepted", "approved", "active", "paused", "removed", "rejected"],
+      default: "assigned",
+      index: true,
+    },
+    source: {
+      type: String,
+      enum: ["vendor_campaign", "campaign_application", "influencer_acceptance", "admin_manual"],
+      default: "vendor_campaign",
+      index: true,
+    },
+    assignedAt: { type: Date, default: Date.now },
+    acceptedAt: { type: Date },
+    approvedAt: { type: Date },
+    removedAt: { type: Date },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+  },
+  { timestamps: true, collection: "influencer_product_assignments" }
+);
+
+const affiliateLinkSchema = new mongoose.Schema(
+  {
+    influencerId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerProfile", required: true, index: true },
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor", required: true, index: true },
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true, index: true },
+    campaignId: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign", index: true },
+    affiliateCode: { type: String, required: true, trim: true, index: true },
+    targetPath: { type: String, trim: true, default: "" },
+    affiliateUrl: { type: String, trim: true, default: "" },
+    status: { type: String, enum: ["active", "disabled"], default: "active", index: true },
+    generatedAt: { type: Date, default: Date.now },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+  },
+  { timestamps: true, collection: "affiliate_links" }
+);
+
 const influencerCollectionSchema = new mongoose.Schema(
   {
     influencerId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerProfile", required: true, index: true },
@@ -673,6 +716,115 @@ const influencerActivationAuditSchema = new mongoose.Schema(
   { timestamps: true, collection: "influencer_activation_audits" }
 );
 
+const influencerFollowerSchema = new mongoose.Schema(
+  {
+    influencerId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerProfile", required: true, index: true },
+    customerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    notificationEnabled: { type: Boolean, default: true, index: true },
+    source: { type: String, trim: true, maxlength: 80, default: "storefront" },
+    followedAt: { type: Date, default: Date.now, index: true },
+  },
+  { timestamps: true, collection: "influencer_followers" }
+);
+
+const influencerPostSchema = new mongoose.Schema(
+  {
+    influencerId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerProfile", required: true, index: true },
+    productIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
+    collectionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "InfluencerCollection" }],
+    caption: { type: String, trim: true, maxlength: 1200, default: "" },
+    media: {
+      type: [
+        {
+          url: { type: String, trim: true, required: true },
+          type: { type: String, enum: ["image", "video"], default: "image" },
+          altText: { type: String, trim: true, default: "" },
+        },
+      ],
+      default: [],
+    },
+    tags: { type: [String], default: [] },
+    visibility: { type: String, enum: ["draft", "published", "private", "archived"], default: "draft", index: true },
+    publishedAt: { type: Date, index: true },
+    metrics: {
+      views: { type: Number, min: 0, default: 0 },
+      likes: { type: Number, min: 0, default: 0 },
+      comments: { type: Number, min: 0, default: 0 },
+      shares: { type: Number, min: 0, default: 0 },
+      saves: { type: Number, min: 0, default: 0 },
+      clicks: { type: Number, min: 0, default: 0 },
+      orders: { type: Number, min: 0, default: 0 },
+      revenue: { type: Number, min: 0, default: 0 },
+      commission: { type: Number, min: 0, default: 0 },
+    },
+    seo: {
+      metaTitle: { type: String, trim: true, maxlength: 160, default: "" },
+      metaDescription: { type: String, trim: true, maxlength: 300, default: "" },
+      openGraphImage: { type: String, trim: true, default: "" },
+    },
+  },
+  { timestamps: true, collection: "influencer_posts" }
+);
+
+const influencerNewsletterSubscriptionSchema = new mongoose.Schema(
+  {
+    influencerId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerProfile", required: true, index: true },
+    email: { type: String, required: true, trim: true, lowercase: true, index: true },
+    source: { type: String, trim: true, maxlength: 80, default: "storefront" },
+    status: { type: String, enum: ["active", "unsubscribed"], default: "active", index: true },
+    subscribedAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true, collection: "influencer_newsletter_subscriptions" }
+);
+
+const influencerStorefrontEventSchema = new mongoose.Schema(
+  {
+    influencerId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerProfile", required: true, index: true },
+    storefrontId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerStorefront", index: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true, default: null },
+    anonymousId: { type: String, trim: true, index: true, default: "" },
+    eventType: {
+      type: String,
+      enum: [
+        "profile_view",
+        "storefront_view",
+        "product_view",
+        "wishlist",
+        "checkout_started",
+        "order_completed",
+        "order_cancelled",
+        "refund",
+        "commission_approved",
+        "commission_paid",
+        "product_click",
+        "add_to_cart",
+        "purchase",
+        "collection_view",
+        "reel_view",
+        "post_view",
+        "post_engagement",
+        "social_click",
+        "newsletter_subscribe",
+        "follow",
+        "unfollow",
+        "carousel_view",
+        "carousel_navigation",
+        "share",
+        "search",
+      ],
+      required: true,
+      index: true,
+    },
+    surface: { type: String, trim: true, default: "influencer-storefront", index: true },
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", index: true },
+    collectionId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerCollection", index: true },
+    reelId: { type: mongoose.Schema.Types.ObjectId, ref: "Reel", index: true },
+    postId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerPost", index: true },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+  },
+  { timestamps: true, collection: "influencer_storefront_events" }
+);
+
 influencerProfileSchema.index({ state: 1, verified: 1, followers: -1 });
 influencerProfileSchema.index({ categories: 1, rating: -1 });
 influencerProfileSchema.index({ storeSlug: 1 }, { unique: true, sparse: true });
@@ -689,10 +841,19 @@ influencerApplicationReviewSchema.index({ applicationId: 1, createdAt: -1 });
 influencerBadgeSchema.index({ influencerId: 1, status: 1 });
 influencerStorefrontSchema.index({ influencerId: 1, status: 1 });
 influencerStorefrontSchema.index({ status: 1, updatedAt: -1 });
+influencerProductAssignmentSchema.index({ influencerId: 1, productId: 1, campaignId: 1 }, { unique: true });
+influencerProductAssignmentSchema.index({ influencerId: 1, status: 1, updatedAt: -1 });
+affiliateLinkSchema.index({ influencerId: 1, productId: 1, campaignId: 1 });
 influencerCollectionSchema.index({ influencerId: 1, slug: 1 }, { unique: true });
 influencerCollectionSchema.index({ influencerId: 1, status: 1, featured: 1, "display.priority": -1 });
 influencerCollectionSchema.index({ influencerId: 1, type: 1, status: 1 });
 influencerActivationAuditSchema.index({ action: 1, createdAt: -1 });
+influencerFollowerSchema.index({ influencerId: 1, customerId: 1 }, { unique: true });
+influencerFollowerSchema.index({ customerId: 1, followedAt: -1 });
+influencerPostSchema.index({ influencerId: 1, visibility: 1, publishedAt: -1 });
+influencerPostSchema.index({ caption: "text", tags: "text" });
+influencerNewsletterSubscriptionSchema.index({ influencerId: 1, email: 1 }, { unique: true });
+influencerStorefrontEventSchema.index({ influencerId: 1, eventType: 1, createdAt: -1 });
 
 module.exports = {
   InfluencerProfile:
@@ -728,10 +889,28 @@ module.exports = {
   InfluencerAffiliateSetting:
     mongoose.models.InfluencerAffiliateSetting ||
     mongoose.model("InfluencerAffiliateSetting", influencerAffiliateSettingSchema),
+  InfluencerProductAssignment:
+    mongoose.models.InfluencerProductAssignment ||
+    mongoose.model("InfluencerProductAssignment", influencerProductAssignmentSchema),
+  AffiliateLink:
+    mongoose.models.AffiliateLink ||
+    mongoose.model("AffiliateLink", affiliateLinkSchema),
   InfluencerCollection:
     mongoose.models.InfluencerCollection ||
     mongoose.model("InfluencerCollection", influencerCollectionSchema),
   InfluencerActivationAudit:
     mongoose.models.InfluencerActivationAudit ||
     mongoose.model("InfluencerActivationAudit", influencerActivationAuditSchema),
+  InfluencerFollower:
+    mongoose.models.InfluencerFollower ||
+    mongoose.model("InfluencerFollower", influencerFollowerSchema),
+  InfluencerPost:
+    mongoose.models.InfluencerPost ||
+    mongoose.model("InfluencerPost", influencerPostSchema),
+  InfluencerNewsletterSubscription:
+    mongoose.models.InfluencerNewsletterSubscription ||
+    mongoose.model("InfluencerNewsletterSubscription", influencerNewsletterSubscriptionSchema),
+  InfluencerStorefrontEvent:
+    mongoose.models.InfluencerStorefrontEvent ||
+    mongoose.model("InfluencerStorefrontEvent", influencerStorefrontEventSchema),
 };

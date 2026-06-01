@@ -10,6 +10,7 @@ const {
   InfluencerSocialAccount,
   InfluencerBusinessProfile,
   InfluencerPaymentProfile,
+  InfluencerProductAssignment,
 } = require("../influencer/model");
 const {
   CommissionRecord,
@@ -20,6 +21,27 @@ const {
 } = require("../commission/models");
 const { Reel } = require("../reel/model");
 const { TrackingSession } = require("../tracking/model");
+
+async function upsertProductAssignments({ campaign, influencerId, status = "approved", source = "admin_manual", actorId = null }) {
+  const now = new Date();
+  await Promise.all((campaign.productIds || []).map((productId) => InfluencerProductAssignment.findOneAndUpdate(
+    { influencerId, productId, campaignId: campaign._id },
+    {
+      $set: {
+        influencerId,
+        vendorId: campaign.vendorId,
+        productId,
+        campaignId: campaign._id,
+        status,
+        source,
+        approvedAt: status === "approved" ? now : undefined,
+        "metadata.lastActorId": actorId || undefined,
+      },
+      $setOnInsert: { assignedAt: now },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  )));
+}
 const { Vendor } = require("../../models/Vendor");
 const { Product } = require("../../models/Product");
 const { Order } = require("../../models/Order");
@@ -364,6 +386,9 @@ class AdminInfluencerCommerceService {
     application.reviewedAt = new Date();
     campaign.history.push({ state: application.status, actorId: actor.sub || actor._id, note: payload.note || `Admin ${application.status} application`, changedAt: new Date() });
     await campaign.save();
+    if (application.status === "approved") {
+      await upsertProductAssignments({ campaign, influencerId, status: "approved", source: "admin_manual", actorId: actor.sub || actor._id });
+    }
     await auditService.log({ actor, action: `admin.influencer_commerce.application.${application.status}`, entityType: "Campaign", entityId: campaign._id, metadata: { influencerId, note: payload.note || "" } }).catch(() => {});
     await notificationService.notifyVendorUser(campaign.vendorId, {
       module: "GROWTH",

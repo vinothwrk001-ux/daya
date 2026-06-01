@@ -6,7 +6,7 @@ function getTrackingSecret() {
   return process.env.TRACKING_JWT_SECRET || process.env.JWT_ACCESS_SECRET || "tracking-secret";
 }
 
-function signTrackingToken(payload) {
+function signTrackingToken(payload, expiresInHours = 720) {
   const trackingTokenId = crypto.randomBytes(12).toString("hex");
   const token = jwt.sign(
     {
@@ -15,7 +15,7 @@ function signTrackingToken(payload) {
       typ: "tracking",
     },
     getTrackingSecret(),
-    { expiresIn: "24h" }
+    { expiresIn: `${Number(expiresInHours || 720)}h` }
   );
   return {
     token,

@@ -50,12 +50,34 @@ const VENDOR_WORKSPACE_SEGMENTS = new Set([
   "status",
   "support",
 ]);
+const INFLUENCER_WORKSPACE_SEGMENTS = new Set([
+  "affiliate-links",
+  "affiliate-products",
+  "analytics",
+  "campaigns",
+  "collections",
+  "content",
+  "dashboard",
+  "earnings",
+  "profile",
+  "reels",
+  "storefront-builder",
+  "verification",
+  "welcome",
+]);
 
 function isVendorWorkspacePath(pathname) {
   if (pathname === "/vendor") return true;
   if (!pathname.startsWith("/vendor/")) return false;
   const segment = pathname.split("/").filter(Boolean)[1];
   return VENDOR_WORKSPACE_SEGMENTS.has(segment);
+}
+
+function isInfluencerWorkspacePath(pathname) {
+  if (pathname === "/influencer") return true;
+  if (!pathname.startsWith("/influencer/")) return false;
+  const segment = pathname.split("/").filter(Boolean)[1];
+  return INFLUENCER_WORKSPACE_SEGMENTS.has(segment);
 }
 
 export function Layout() {
@@ -78,7 +100,7 @@ export function Layout() {
     location.pathname.startsWith("/admin");
   const isVendorWorkspace = isVendorWorkspacePath(location.pathname);
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
-  const isInfluencerWorkspace = location.pathname === "/influencer" || location.pathname.startsWith("/influencer/");
+  const isInfluencerWorkspace = isInfluencerWorkspacePath(location.pathname);
   const hideShopChrome = isAdminRoute || isVendorWorkspace || isStaffWorkspace || isInfluencerWorkspace;
   const showShopActions = !user || user?.role === "user";
 
@@ -104,7 +126,7 @@ export function Layout() {
     { label: "Home", href: "/" },
     { label: "Shop", href: "/shop" },
     { label: "Stores", href: "/stores" },
-    { label: "Creaters Hub", href: "/influencers" },
+    { label: "Influencers", href: "/influencers" },
     { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },
   ];
 

@@ -17,13 +17,11 @@ const trackingSessionSchema = new mongoose.Schema(
     reelId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Reel",
-      required: true,
       index: true,
     },
     campaignId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Campaign",
-      required: true,
       index: true,
     },
     influencerId: {
@@ -36,6 +34,27 @@ const trackingSessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
       required: true,
+      index: true,
+    },
+    storefrontId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InfluencerStorefront",
+      index: true,
+    },
+    collectionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InfluencerCollection",
+      index: true,
+    },
+    postId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InfluencerPost",
+      index: true,
+    },
+    surface: {
+      type: String,
+      trim: true,
+      default: "reel",
       index: true,
     },
     trackingTokenId: {

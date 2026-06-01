@@ -8,7 +8,7 @@ const notificationService = require("../../services/notification.service");
 const { AppError } = require("../../utils/AppError");
 const { Campaign } = require("../campaign/model");
 const { CommissionRecord } = require("../commission/models");
-const { InfluencerProfile, InfluencerSocialAccount } = require("../influencer/model");
+const { InfluencerProfile, InfluencerSocialAccount, InfluencerProductAssignment } = require("../influencer/model");
 const { Reel } = require("../reel/model");
 const { TrackingSession } = require("../tracking/model");
 const { Product } = require("../../models/Product");
@@ -25,6 +25,27 @@ const SYNC_EVENTS = {
   CONTENT_CHANGES_REQUESTED: "CONTENT_CHANGES_REQUESTED",
   RELATIONSHIP_UPDATED: "RELATIONSHIP_UPDATED",
 };
+
+async function upsertProductAssignments({ campaign, influencerId, status = "approved", source = "campaign_application", actorId = null }) {
+  const now = new Date();
+  await Promise.all((campaign.productIds || []).map((productId) => InfluencerProductAssignment.findOneAndUpdate(
+    { influencerId, productId, campaignId: campaign._id },
+    {
+      $set: {
+        influencerId,
+        vendorId: campaign.vendorId,
+        productId,
+        campaignId: campaign._id,
+        status,
+        source,
+        approvedAt: status === "approved" ? now : undefined,
+        "metadata.lastActorId": actorId || undefined,
+      },
+      $setOnInsert: { assignedAt: now },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  )));
+}
 
 function objectId(value) {
   if (!value || !mongoose.Types.ObjectId.isValid(value)) return null;
@@ -543,6 +564,9 @@ class InfluencerCommerceVendorService {
     campaign.history.push({ state: decision, actorId: userId, note: payload.note || `Application ${decision}`, changedAt: new Date() });
     if (decision === "approved" && campaign.state === "draft") campaign.state = "active";
     await campaign.save();
+    if (decision === "approved") {
+      await upsertProductAssignments({ campaign, influencerId: influencerObjectId, status: "approved", source: "campaign_application", actorId: userId });
+    }
     await this.upsertRelationship(vendor._id, influencerId, {
       status: decision === "approved" ? "approved" : "paused",
       source: "campaign_application",

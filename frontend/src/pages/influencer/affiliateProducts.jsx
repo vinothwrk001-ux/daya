@@ -7,18 +7,14 @@ import {
   Heart,
   Link as LinkIcon,
   Package,
-  Plus,
   Search,
-  Sparkles,
-  Star,
-  TrendingUp,
-  Zap,
+  CheckCircle2,
+  Megaphone,
 } from "lucide-react";
 import {
   generateAffiliateProductLinks,
   getAffiliateProductAnalytics,
   listAffiliateProducts,
-  listRecommendedAffiliateProducts,
   listSavedAffiliateProducts,
   saveAffiliateProduct,
 } from "../../services/influencerCommerceService";
@@ -26,14 +22,13 @@ import { formatCurrency } from "../../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 
 const TABS = [
-  ["browse", "Browse Products", Package],
-  ["recommended", "Recommended Products", Sparkles],
-  ["trending", "Trending Products", TrendingUp],
-  ["highest_commission", "Highest Commission", Zap],
-  ["new", "New Arrivals", Plus],
+  ["promotion", "My Promotion Products", Package],
+  ["active_campaigns", "Active Campaign Products", Megaphone],
+  ["approved", "Approved Products", CheckCircle2],
   ["saved", "Saved Products", Heart],
-  ["links", "Generate Affiliate Link", LinkIcon],
+  ["links", "Generate Affiliate Links", LinkIcon],
   ["analytics", "Product Analytics", BarChart3],
+  ["campaign_performance", "Campaign Performance", Megaphone],
 ];
 
 function Card({ title, icon: Icon = Package, action, children }) {
@@ -65,11 +60,16 @@ function ProductCard({ product, onSave, onLink, onSelect }) {
           </button>
         </div>
         <p className="mt-1 text-xs text-slate-500">{product.vendor || product.brand || "Vendor"} - {product.category}</p>
+        <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+          {product.campaignName ? <span className="rounded-full bg-indigo-50 px-2 py-1 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200">{product.campaignName}</span> : null}
+          <span className="rounded-full bg-emerald-50 px-2 py-1 capitalize text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">{product.promotionStatus || "approved"}</span>
+          {product.campaignStatus ? <span className="rounded-full bg-slate-100 px-2 py-1 capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300">{product.campaignStatus}</span> : null}
+        </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-xl bg-slate-50 p-2 dark:bg-slate-950"><span className="block text-slate-500">Price</span><b className="text-slate-950 dark:text-white">{formatCurrency(product.salePrice)}</b></div>
           <div className="rounded-xl bg-emerald-50 p-2 dark:bg-emerald-950/30"><span className="block text-emerald-700 dark:text-emerald-300">Commission</span><b className="text-emerald-700 dark:text-emerald-300">{formatCurrency(product.commissionAmount)}</b></div>
           <div className="rounded-xl bg-slate-50 p-2 dark:bg-slate-950"><span className="block text-slate-500">Rate</span><b className="text-slate-950 dark:text-white">{product.commissionRate}%</b></div>
-          <div className="rounded-xl bg-slate-50 p-2 dark:bg-slate-950"><span className="block text-slate-500">Rating</span><b className="text-slate-950 dark:text-white">{product.rating || 0}</b></div>
+          <div className="rounded-xl bg-slate-50 p-2 dark:bg-slate-950"><span className="block text-slate-500">Campaign</span><b className="line-clamp-1 text-slate-950 dark:text-white">{product.campaignName || "Approved"}</b></div>
         </div>
         <div className="mt-3 flex gap-2">
           <button onClick={() => onLink(product)} className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white">Generate Link</button>
@@ -82,7 +82,7 @@ function ProductCard({ product, onSave, onLink, onSelect }) {
 
 export default function InfluencerAffiliateProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState(searchParams.get("tab") || "browse");
+  const [tab, setTab] = useState(searchParams.get("tab") || "promotion");
   const [filters, setFilters] = useState({ search: "", category: "", availability: "all", sort: "best_selling", page: 1, limit: 12 });
   const [products, setProducts] = useState([]);
   const [analytics, setAnalytics] = useState(null);
@@ -103,9 +103,6 @@ export default function InfluencerAffiliateProductsPage() {
       } else if (tab === "saved") {
         const response = await listSavedAffiliateProducts(query);
         setProducts(response?.data?.items || []);
-      } else if (tab === "recommended") {
-        const response = await listRecommendedAffiliateProducts(query);
-        setProducts(response?.data?.items || []);
       } else if (tab !== "links") {
         const response = await listAffiliateProducts(query);
         setProducts(response?.data?.items || []);
@@ -117,7 +114,7 @@ export default function InfluencerAffiliateProductsPage() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    setTab(searchParams.get("tab") || "browse");
+    setTab(searchParams.get("tab") || "promotion");
   }, [searchParams]);
 
   async function toggleSave(product) {
@@ -138,7 +135,7 @@ export default function InfluencerAffiliateProductsPage() {
 
   function selectTab(nextTab) {
     setTab(nextTab);
-    setSearchParams(nextTab === "browse" ? {} : { tab: nextTab });
+    setSearchParams(nextTab === "promotion" ? {} : { tab: nextTab });
   }
 
   return (
@@ -156,7 +153,23 @@ export default function InfluencerAffiliateProductsPage() {
         </Card>
       ) : null}
 
-      {tab === "analytics" ? (
+      {tab === "campaign_performance" ? (
+        <Card title="Campaign Performance" icon={Megaphone}>
+          <div className="grid gap-3 md:grid-cols-4">
+            {[...new Map(products.map((product) => [product.campaignId || product.campaignName || product.id, product])).values()].map((product) => (
+              <div key={product.campaignId || product.id} className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
+                <p className="text-sm font-semibold text-slate-950 dark:text-white">{product.campaignName || "Approved promotion"}</p>
+                <p className="mt-1 text-xs capitalize text-slate-500">{product.campaignStatus || product.promotionStatus || "approved"}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <span>Product</span><b className="text-right">{product.name}</b>
+                  <span>Commission</span><b className="text-right">{product.commissionRate}%</b>
+                </div>
+              </div>
+            ))}
+            {!products.length ? <p className="text-sm text-slate-500">Campaign performance appears after approved products are assigned.</p> : null}
+          </div>
+        </Card>
+      ) : tab === "analytics" ? (
         <Card title="Product Analytics" icon={BarChart3}>
           <div className="grid gap-3 md:grid-cols-5">
             {[

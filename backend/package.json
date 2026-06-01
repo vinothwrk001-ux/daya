@@ -14,6 +14,7 @@
     "test:cancellation-refund": "node src/services/__tests__/cancellation-refund-domain.test.js",
     "test:order-docs": "node src/services/__tests__/order-document-domain.test.js",
     "test:vendor-payouts": "node src/services/__tests__/vendor-payout-domain.test.js",
+    "test:payment-security": "node src/services/__tests__/payment-security-domain.test.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
     "seed:shipping": "node src/scripts/seedShippingRule.js",
     "seed:order": "node src/scripts/seedOrder.js",
@@ -22,7 +23,9 @@
     "migrate:currency:inr": "node src/scripts/migrateCurrencyToINR.js",
     "migrate:pricing:categories": "node src/scripts/migratePricingCategories.js",
     "migrate:indexes:session-ttl": "node src/scripts/reconcileSessionTtlIndexes.js",
-    "migrate:company-branding": "node src/scripts/migrateCompanyBranding.js"
+    "migrate:company-branding": "node src/scripts/migrateCompanyBranding.js",
+    "audit:razorpay": "node src/scripts/razorpayConnectivityTest.js",
+    "diagnose:razorpay": "node src/scripts/razorpayDiagnostic.js"
   },
   "keywords": [],
   "author": "",

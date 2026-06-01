@@ -27,6 +27,10 @@ let cronTask = null;
  * @returns {Queue.Queue} Bull queue instance
  */
 function initializeBullQueue() {
+  if (process.env.REDIS_DISABLED === "true") {
+    logger.info("Bull Queue disabled for settlement jobs; using cron fallback");
+    return null;
+  }
   const redisConfig = {
     host: process.env.REDIS_HOST || "localhost",
     port: Number(process.env.REDIS_PORT || 6379),

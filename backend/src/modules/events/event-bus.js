@@ -31,6 +31,10 @@ async function dispatch(eventName, payload) {
 
 function initializeEventBus() {
   if (queue) return queue;
+  if (process.env.REDIS_DISABLED === "true") {
+    logger.info("Influencer event queue disabled; using in-process emitter", { source: "event-bus" });
+    return null;
+  }
 
   try {
     queue = new Queue("influencer-events", getRedisConfig());

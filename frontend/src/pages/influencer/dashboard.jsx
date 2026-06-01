@@ -57,6 +57,11 @@ function compactDate(value) {
   return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function shortText(value = "", max = 22) {
+  const text = String(value || "");
+  return text.length > max ? `${text.slice(0, max - 1)}...` : text;
+}
+
 function Card({ title, action, children, className = "" }) {
   return (
     <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>
@@ -245,6 +250,7 @@ function TopProducts({ rows = [] }) {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{item.name}</p>
               <p className="text-xs text-slate-500">{item.orders} orders - {item.conversionRate}% CVR</p>
+              {item.appliedRuleType ? <p className="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-300">{item.appliedRuleType} rule</p> : null}
             </div>
             <div className="text-right">
               <p className="text-sm font-semibold text-slate-950 dark:text-white">{formatCurrency(item.commission)}</p>
@@ -262,22 +268,35 @@ function RecentOrders({ data, onPage }) {
   return (
     <Card title="Recent Orders" className="lg:col-span-6">
       <div className="overflow-x-auto">
-        <table className="min-w-[720px] w-full text-left text-sm">
+        <table className="min-w-[820px] w-full table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-[150px]" />
+            <col className="w-[210px]" />
+            <col className="w-[110px]" />
+            <col className="w-[120px]" />
+            <col className="w-[120px]" />
+            <col className="w-[150px]" />
+            <col className="w-[100px]" />
+            <col className="w-[90px]" />
+          </colgroup>
           <thead className="text-xs uppercase text-slate-500">
             <tr>
-              {["Order", "Product", "Customer", "Amount", "Commission", "Status", "Created"].map((head) => <th key={head} className="px-3 py-2 font-semibold">{head}</th>)}
+              {["Order", "Product", "Customer", "Amount", "Commission", "Applied Rule", "Status", "Created"].map((head) => <th key={head} className="px-3 py-2 font-semibold">{head}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {rows.map((row) => (
-              <tr key={row.id} className="text-slate-700 dark:text-slate-200">
-                <td className="px-3 py-3 font-semibold">{row.orderNumber}</td>
-                <td className="px-3 py-3">{row.product}</td>
-                <td className="px-3 py-3">{row.customer}</td>
-                <td className="px-3 py-3">{formatCurrency(row.amount)}</td>
-                <td className="px-3 py-3">{formatCurrency(row.commission)}</td>
-                <td className="px-3 py-3"><span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold dark:bg-slate-800">{row.status}</span></td>
-                <td className="px-3 py-3">{compactDate(row.createdAt)}</td>
+              <tr key={row.id} className="h-14 text-slate-700 dark:text-slate-200">
+                <td className="truncate px-3 py-3 font-semibold" title={row.orderNumber}>{shortText(row.orderNumber, 18)}</td>
+                <td className="truncate px-3 py-3" title={row.product}>{shortText(row.product, 28)}</td>
+                <td className="truncate px-3 py-3" title={row.customer}>{shortText(row.customer, 14)}</td>
+                <td className="whitespace-nowrap px-3 py-3">{formatCurrency(row.amount)}</td>
+                <td className="whitespace-nowrap px-3 py-3">{formatCurrency(row.commission)}<div className="text-xs text-slate-500">{Number(row.commissionPercent || 0)}%</div></td>
+                <td className="truncate px-3 py-3" title={row.appliedRule?.ruleName || row.appliedRuleType || ""}>
+                  {row.appliedRuleType ? <span className="inline-flex rounded-full bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">{shortText(row.appliedRuleType, 16)}</span> : "-"}
+                </td>
+                <td className="px-3 py-3"><span className="inline-flex max-w-full rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold dark:bg-slate-800">{shortText(row.status, 10)}</span></td>
+                <td className="whitespace-nowrap px-3 py-3">{compactDate(row.createdAt)}</td>
               </tr>
             ))}
           </tbody>
@@ -308,6 +327,7 @@ function Campaigns({ rows = [] }) {
               <span className="rounded-full bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">{item.status}</span>
             </div>
             <p className="mt-1 text-xs text-slate-500">{item.brand} - {item.commissionPercent}% commission</p>
+            {item.appliedRuleType ? <p className="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-300">Applied: {item.appliedRuleType} rule</p> : null}
             <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{formatCurrency(item.revenueEarned)}</p>
           </div>
         )) : <EmptyState label="No active campaigns" />}
@@ -376,6 +396,44 @@ function EarningsSummary({ data = {} }) {
       <Link to="/influencer/earnings" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 dark:text-indigo-300">
         View transactions <ChevronRight className="h-4 w-4" />
       </Link>
+    </Card>
+  );
+}
+
+function CommissionRuleSummary({ data = {} }) {
+  const rule = data.mostAppliedRule || data.currentApplicableRule;
+  return (
+    <Card title="Applied Commission Rule" className="lg:col-span-4">
+      {rule ? (
+        <div className="space-y-3">
+          <div className="rounded-xl bg-indigo-50 p-4 dark:bg-indigo-950/30">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-300">{rule.ruleTypeLabel || "Rule"}</p>
+            <p className="mt-2 text-lg font-semibold text-slate-950 dark:text-white">{rule.ruleName || "Commission rule"}</p>
+            <p className="mt-1 font-mono text-xs text-slate-500">{rule.ruleCode || rule.appliedRuleId || rule.id}</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950">
+              <p className="text-xs text-slate-500">Method</p>
+              <p className="font-semibold capitalize text-slate-950 dark:text-white">{rule.commissionMethodLabel || "-"}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950">
+              <p className="text-xs text-slate-500">Rate</p>
+              <p className="font-semibold text-slate-950 dark:text-white">{Number(rule.commissionPercent ?? rule.commissionValue ?? rule.revenueSharePercent ?? 0)}%</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950">
+              <p className="text-xs text-slate-500">Version</p>
+              <p className="font-semibold text-slate-950 dark:text-white">v{rule.appliedRuleVersion || rule.version || 1}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950">
+              <p className="text-xs text-slate-500">Source</p>
+              <p className="font-semibold capitalize text-slate-950 dark:text-white">{String(data.ruleSource || "").replace(/_/g, " ") || "-"}</p>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{data.note}</p>
+        </div>
+      ) : (
+        <EmptyState label="No active commission rule applies yet" />
+      )}
     </Card>
   );
 }
@@ -522,6 +580,7 @@ export default function InfluencerDashboardPage() {
 
       <section className="grid gap-5 lg:grid-cols-12">
         <TopVideos rows={data?.topVideos || []} />
+        <CommissionRuleSummary data={data?.commissionRuleSummary || {}} />
         <EarningsSummary data={data?.earningsSummary || {}} />
         <Activity rows={data?.recentActivity || []} />
         <QuickActions rows={data?.quickActions || []} />
@@ -535,6 +594,7 @@ export default function InfluencerDashboardPage() {
                 <div>
                   <p className="font-semibold text-slate-950 dark:text-white">{item.name}</p>
                   <p className="text-sm text-slate-500">{item.brand} - {item.commissionPercent}% commission - invited {compactDate(item.startDate)}</p>
+                  {item.appliedRuleType ? <p className="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-300">Rule type: {item.appliedRuleType}</p> : null}
                 </div>
                 <Link to="/influencer/campaigns" className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white">Review</Link>
               </div>

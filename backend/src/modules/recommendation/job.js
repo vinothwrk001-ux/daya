@@ -67,6 +67,7 @@ async function addQueueJob(data) {
 }
 
 function createQueue() {
+  if (process.env.REDIS_DISABLED === "true") return null;
   try {
     const queue = new Queue("recommendation-engine", {
       redis: {

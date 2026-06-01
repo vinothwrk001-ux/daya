@@ -56,6 +56,7 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Affiliate Tracking", path: "/admin/influencer-commerce/tracking", permission: "influencerCommerce.read", icon: Search, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
       { name: "Content Moderation", path: "/admin/influencer-commerce/content", permission: "influencerCommerce.read", icon: FileCheck2, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
       { name: "Product Promotions", path: "/admin/influencer-commerce/promotions", permission: "influencerCommerce.read", icon: Package, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
+      { name: "Commission Engine", path: "/admin/influencer-commerce/commission-engine", permission: "influencerCommerce.read", icon: Percent, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
       { name: "Commission Management", path: "/admin/influencer-commerce/commissions", permission: "influencerCommerce.read", icon: Percent, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
       { name: "Escrow & Settlements", path: "/admin/influencer-commerce/settlements", permission: "influencerCommerce.read", icon: Wallet, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
       { name: "Payout Management", path: "/admin/influencer-commerce/payouts", permission: "influencerCommerce.read", icon: Wallet, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },

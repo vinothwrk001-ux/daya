@@ -14,6 +14,7 @@ import { useCart } from "../hooks/useCart";
 import * as checkoutService from "../services/checkoutService";
 import * as paymentService from "../services/paymentService";
 import * as pricingService from "../services/pricingService";
+import { trackAffiliateEvent } from "../services/influencerCommerceService";
 import { getCheckoutRecommendations, getFbtRecommendations } from "../services/recommendationService";
 import * as userService from "../services/userService";
 import { extractProductId, extractVariantId, getCartItemKey } from "../utils/cartState";
@@ -30,6 +31,11 @@ import {
 import { loadTrackingContext } from "../utils/influencerTracking";
 import { saveRedirectAfterLogin } from "../utils/loginRedirect";
 import pendingCheckoutManager from "../utils/pendingCheckoutManager";
+import {
+  clearStaleRazorpayCheckoutState,
+  inspectRazorpayCheckout,
+  isRazorpayInspectorEnabled,
+} from "../utils/razorpayCheckoutInspector";
 import { useBranding } from "../context/BrandingContext";
 
 const CHECKOUT_SUCCESS_STORAGE_KEY = "checkoutSuccessPayload";
@@ -224,6 +230,7 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const { branding } = useBranding();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const currentUser = useAuthStore((state) => state.user);
   const {
     cart,
     addItem,
@@ -252,6 +259,7 @@ export function CheckoutPage() {
   const [pricingConfig, setPricingConfig] = useState(null);
   const [amountPulse, setAmountPulse] = useState(false);
   const [codAvailability, setCodAvailability] = useState(null);
+  const checkoutStartedTrackedRef = useRef(false);
   const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const didMountPaymentMethodRef = useRef(false);
   const restoredPendingCheckoutRef = useRef(false);
@@ -307,6 +315,19 @@ export function CheckoutPage() {
       cancelled = true;
     };
   }, [checkoutProductIds]);
+
+  useEffect(() => {
+    if (checkoutStartedTrackedRef.current) return;
+    const trackingContext = loadTrackingContext();
+    if (!trackingContext?.trackingToken) return;
+    checkoutStartedTrackedRef.current = true;
+    trackAffiliateEvent({
+      trackingToken: trackingContext.trackingToken,
+      anonymousId: trackingContext.anonymousId || "",
+      eventType: "checkout_started",
+      metadata: { source: "checkout" },
+    }).catch(() => null);
+  }, []);
 
   const priceBreakdown = useMemo(() => {
     if (!summary) return null;
@@ -749,16 +770,16 @@ export function CheckoutPage() {
       return;
     }
 
-    if (!isAuthenticated) {
-      redirectToLoginForFinalCheckout(shippingAddress);
-      return;
-    }
-
     setPlacing(true);
     setError("");
 
     try {
       const trackingContext = loadTrackingContext();
+      if (!isAuthenticated) {
+        redirectToLoginForFinalCheckout(shippingAddress);
+        return;
+      }
+
       if (paymentMethod === "COD") {
         const response = await checkoutService.createOrder({
           shippingAddress,
@@ -783,24 +804,54 @@ export function CheckoutPage() {
       ]);
       const razorpayData = orderRes || {};
 
-      if (!razorpayData.key || !razorpayData.orderId) {
-        throw new Error("Invalid Razorpay configuration. Please contact support or try again.");
+      const razorpayOrderId = razorpayData.razorpay_order_id || razorpayData.razorpayOrderId || razorpayData.orderId;
+      const razorpayKey = razorpayData.key_id || razorpayData.key;
+      const checkoutAmount = Number(razorpayData.amount || 0);
+      const checkoutCurrency = String(razorpayData.currency || "").toUpperCase();
+      const expiresAt = razorpayData.expiresAt ? new Date(razorpayData.expiresAt).getTime() : 0;
+      if (!razorpayKey || !razorpayOrderId || !String(razorpayOrderId).startsWith("order_")) {
+        throw new Error("Invalid Razorpay order token. Please retry checkout.");
+      }
+      if (!Number.isFinite(checkoutAmount) || checkoutAmount <= 0 || !/^[A-Z]{3}$/.test(checkoutCurrency)) {
+        throw new Error("Invalid Razorpay checkout amount or currency. Please retry checkout.");
+      }
+      if (expiresAt && expiresAt <= Date.now()) {
+        throw new Error("Payment session expired before checkout opened. Please retry checkout.");
+      }
+      if (
+        razorpayData.checkoutIntegrity &&
+        (razorpayData.checkoutIntegrity.amountMatches === false ||
+          razorpayData.checkoutIntegrity.currencyMatches === false ||
+          String(razorpayData.checkoutIntegrity.orderStatus || "").toLowerCase() !== "created")
+      ) {
+        throw new Error("Razorpay order integrity check failed. Please retry checkout.");
       }
 
       if (typeof window === "undefined" || typeof window.Razorpay !== "function") {
         throw new Error("Razorpay checkout is not available.");
       }
 
+      const clearedRazorpayState = clearStaleRazorpayCheckoutState();
+      const normalizedContact = String(shippingAddress.phone || "").replace(/\D/g, "");
+      const checkoutContact =
+        normalizedContact.length === 10 ? `+91${normalizedContact}` : normalizedContact ? `+${normalizedContact}` : "";
+      const checkoutEmail =
+        currentUser?.email ||
+        selectedAddress?.email ||
+        shippingAddress?.email ||
+        "customer@example.com";
+
       const options = {
-        key: razorpayData.key,
-        amount: razorpayData.amount,
-        currency: razorpayData.currency,
-        order_id: razorpayData.razorpayOrderId || razorpayData.orderId,
+        key: razorpayKey,
+        amount: checkoutAmount,
+        currency: checkoutCurrency,
+        order_id: razorpayOrderId,
         name: branding?.companyName || "UChooseMe",
         description: "Secure checkout",
         prefill: {
           name: shippingAddress.fullName,
-          contact: shippingAddress.phone,
+          email: checkoutEmail,
+          contact: checkoutContact,
         },
         theme: {
           color: branding?.brandColors?.primaryColor || "#0f766e",
@@ -812,10 +863,19 @@ export function CheckoutPage() {
           },
         },
         retry: {
-          enabled: true,
-          max_count: 2,
+          enabled: false,
         },
         handler: async (response) => {
+          if (
+            !String(response?.razorpay_order_id || "").startsWith("order_") ||
+            !String(response?.razorpay_payment_id || "").startsWith("pay_") ||
+            !/^[a-f0-9]{64}$/i.test(String(response?.razorpay_signature || ""))
+          ) {
+            setToast({ type: "error", message: "Razorpay returned an invalid payment response. Please retry." });
+            setPlacing(false);
+            return;
+          }
+
           const verificationPayload = {
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
@@ -869,9 +929,66 @@ export function CheckoutPage() {
         },
       };
 
+      await inspectRazorpayCheckout({
+        options,
+        backendOrder: {
+          backendConfiguration: {
+            key: razorpayKey,
+            key_id: razorpayKey,
+            mode: razorpayData.gatewayMode,
+            currency: checkoutCurrency,
+          },
+          order: {
+            razorpay_order_id: razorpayOrderId,
+            order_id: razorpayOrderId,
+            amount: checkoutAmount,
+            currency: checkoutCurrency,
+            status: razorpayData.checkoutIntegrity?.orderStatus || "",
+            expiresAt: razorpayData.expiresAt,
+            paymentSessionId: razorpayData.paymentSessionId,
+          },
+          checkoutJsUrl: "https://checkout.razorpay.com/v1/checkout.js",
+        },
+        fetchBackendOrder: () => paymentService.inspectCheckoutOrder(razorpayOrderId),
+      });
+
+      await paymentService.recordCheckoutOpened({
+        razorpay_order_id: razorpayOrderId,
+        paymentSessionId: razorpayData.paymentSessionId,
+        key_id: razorpayKey,
+        gatewayMode: razorpayData.gatewayMode,
+        amount: checkoutAmount,
+        currency: checkoutCurrency,
+      });
+
       const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", () => {
-        setToast({ type: "error", message: "Payment failed before verification. Please retry." });
+      rzp.on("payment.failed", (response) => {
+        const reason = response?.error?.description || response?.error?.reason || response?.error?.code;
+        const message = reason ? `Payment failed: ${reason}` : "Payment failed before verification. Please retry.";
+        if (isRazorpayInspectorEnabled()) {
+          inspectRazorpayCheckout({
+            options,
+            fetchBackendOrder: () => paymentService.inspectCheckoutOrder(razorpayOrderId),
+            failureResponse: response,
+          }).catch(() => {});
+        }
+        paymentService
+          .recordCheckoutFailure({
+            razorpay_order_id: razorpayOrderId,
+            paymentSessionId: razorpayData.paymentSessionId,
+            key_id: razorpayKey,
+            gatewayMode: razorpayData.gatewayMode,
+            amount: checkoutAmount,
+            currency: checkoutCurrency,
+            error: response?.error || {},
+          })
+          .catch(() => {});
+        try {
+          rzp.close();
+        } catch {
+          // Razorpay may already have closed the modal.
+        }
+        setToast({ type: "error", message });
         setPlacing(false);
       });
       rzp.open();

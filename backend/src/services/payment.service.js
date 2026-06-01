@@ -33,6 +33,50 @@ function safeEqual(left, right) {
   return crypto.timingSafeEqual(a, b);
 }
 
+function withTimeout(promise, timeoutMs, message) {
+  let timeout;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]).finally(() => clearTimeout(timeout));
+}
+
+function maskCredential(value = "") {
+  const normalized = String(value || "").trim();
+  if (normalized.length <= 10) return normalized ? "***" : "";
+  return `${normalized.slice(0, 8)}...${normalized.slice(-4)}`;
+}
+
+function resolveRazorpayMode(keyId = "") {
+  if (String(keyId).startsWith("rzp_test_")) return "test";
+  if (String(keyId).startsWith("rzp_live_")) return "live";
+  return "unknown";
+}
+
+function readRazorpayCredentials() {
+  const keyId = String(process.env.RAZORPAY_KEY_ID || "").trim();
+  const keySecret = String(process.env.RAZORPAY_KEY_SECRET || "").trim();
+  const keyPattern = /^rzp_(test|live)_[A-Za-z0-9]+$/;
+
+  if (!keyId || !keySecret) {
+    throw new AppError("Razorpay key id and secret are required", 500, "RAZORPAY_NOT_CONFIGURED");
+  }
+  if (!keyPattern.test(keyId)) {
+    throw new AppError("Razorpay key id format is invalid", 500, "RAZORPAY_CONFIG_ERROR");
+  }
+  if (keySecret.startsWith("rzp_") || keySecret.length < 20) {
+    throw new AppError("Razorpay key secret format is invalid", 500, "RAZORPAY_CONFIG_ERROR");
+  }
+
+  return {
+    keyId,
+    keySecret,
+    mode: resolveRazorpayMode(keyId),
+  };
+}
+
 function buildReceipt(userId) {
   return `rcpt_${String(userId).slice(-6)}_${Date.now()}`;
 }
@@ -205,12 +249,154 @@ class PaymentService {
   }
 
   getRazorpayClient() {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (!keyId || !keySecret) {
-      throw new AppError("Razorpay is not configured", 500, "RAZORPAY_NOT_CONFIGURED");
-    }
+    const { keyId, keySecret } = readRazorpayCredentials();
     return new Razorpay({ key_id: keyId, key_secret: keySecret });
+  }
+
+  async validateRazorpayConfiguration({ verifyCredentials = true } = {}) {
+    const credentials = readRazorpayCredentials();
+    const result = {
+      keyId: maskCredential(credentials.keyId),
+      mode: credentials.mode,
+      credentialsVerified: false,
+    };
+
+    if (!verifyCredentials) return result;
+
+    try {
+      const razorpay = this.getRazorpayClient();
+      const healthOrder = await withTimeout(
+        razorpay.orders.create({
+          amount: Number(process.env.RAZORPAY_STARTUP_CHECK_AMOUNT || 100),
+          currency: process.env.RAZORPAY_DEFAULT_CURRENCY || "INR",
+          receipt: `startup_${Date.now()}`,
+          notes: {
+            purpose: "startup_credential_validation",
+          },
+        }),
+        Number(process.env.RAZORPAY_STARTUP_CHECK_TIMEOUT_MS || 8000),
+        "Razorpay credential validation timed out"
+      );
+      if (!healthOrder?.id || !String(healthOrder.id).startsWith("order_")) {
+        throw new AppError("Razorpay startup health order was invalid", 502, "RAZORPAY_STARTUP_ORDER_INVALID");
+      }
+      result.credentialsVerified = true;
+      return result;
+    } catch (error) {
+      logger.error("Razorpay credential validation failed", {
+        keyId: result.keyId,
+        mode: result.mode,
+        message: error?.error?.description || error.message,
+        code: error?.error?.code || error.statusCode,
+      });
+      throw new AppError(
+        "Razorpay credentials are invalid or do not belong to an accessible account",
+        500,
+        "RAZORPAY_CREDENTIAL_VALIDATION_FAILED"
+      );
+    }
+  }
+
+  async getRazorpayHealth({ deepCreateOrder = false } = {}) {
+    const startedAt = Date.now();
+    const checks = {
+      credentialsConfigured: false,
+      credentialFormat: false,
+      apiReachable: false,
+      ordersReadable: false,
+      orderCreatable: false,
+      webhookSecretConfigured: Boolean(process.env.RAZORPAY_WEBHOOK_SECRET),
+    };
+    const diagnostics = [];
+    let credentials;
+
+    try {
+      credentials = readRazorpayCredentials();
+      checks.credentialsConfigured = true;
+      checks.credentialFormat = credentials.mode !== "unknown";
+    } catch (error) {
+      diagnostics.push({
+        code: error.code || "RAZORPAY_CONFIG_ERROR",
+        message: error.message,
+      });
+      return {
+        status: "Unhealthy",
+        mode: "unknown",
+        keyId: "",
+        checks,
+        diagnostics,
+        latencyMs: Date.now() - startedAt,
+      };
+    }
+
+    try {
+      const razorpay = this.getRazorpayClient();
+      await withTimeout(
+        razorpay.orders.all({ count: 1 }),
+        Number(process.env.RAZORPAY_HEALTH_TIMEOUT_MS || 8000),
+        "Razorpay health check timed out"
+      );
+      checks.apiReachable = true;
+      checks.ordersReadable = true;
+
+      if (deepCreateOrder) {
+        const healthOrder = await withTimeout(
+          razorpay.orders.create({
+            amount: Number(process.env.RAZORPAY_HEALTH_ORDER_AMOUNT || 100),
+            currency: process.env.RAZORPAY_DEFAULT_CURRENCY || "INR",
+            receipt: `health_${Date.now()}`,
+            notes: {
+              purpose: "payment_health_check",
+            },
+          }),
+          Number(process.env.RAZORPAY_HEALTH_TIMEOUT_MS || 8000),
+          "Razorpay health order creation timed out"
+        );
+        checks.orderCreatable = Boolean(
+          healthOrder?.id &&
+            String(healthOrder.id).startsWith("order_") &&
+            String(healthOrder.status || "").toLowerCase() === "created"
+        );
+        if (!checks.orderCreatable) {
+          diagnostics.push({
+            code: "RAZORPAY_HEALTH_ORDER_INVALID",
+            message: "Razorpay health order was not returned in created state",
+          });
+        }
+      }
+    } catch (error) {
+      diagnostics.push({
+        code: error?.error?.code || error.code || "RAZORPAY_HEALTH_CHECK_FAILED",
+        message: error?.error?.description || error.message,
+      });
+    }
+
+    const status =
+      checks.credentialsConfigured &&
+      checks.credentialFormat &&
+      checks.apiReachable &&
+      checks.ordersReadable &&
+      (!deepCreateOrder || checks.orderCreatable)
+        ? checks.webhookSecretConfigured
+          ? "Healthy"
+          : "Warning"
+        : "Unhealthy";
+
+    if (!checks.webhookSecretConfigured) {
+      diagnostics.push({
+        code: "RAZORPAY_WEBHOOK_SECRET_MISSING",
+        message: "Razorpay webhook secret is not configured",
+      });
+    }
+
+    return {
+      status,
+      mode: credentials.mode,
+      keyId: maskCredential(credentials.keyId),
+      checks,
+      diagnostics,
+      latencyMs: Date.now() - startedAt,
+    };
   }
 
   async ensurePaymentRecordForSession(paymentSession) {
@@ -292,7 +478,14 @@ class PaymentService {
 
       const amount = Math.round(Number(summary.total || 0) * 100);
       const currency = summary.currency || "INR";
+      if (!Number.isInteger(amount) || amount <= 0) {
+        throw new AppError("Payment amount must be greater than zero", 400, "INVALID_PAYMENT_AMOUNT");
+      }
+      if (!/^[A-Z]{3}$/.test(String(currency))) {
+        throw new AppError("Payment currency is invalid", 400, "INVALID_PAYMENT_CURRENCY");
+      }
       const receipt = buildReceipt(userId);
+      const credentials = readRazorpayCredentials();
       
       let razorpay;
       try {
@@ -307,22 +500,19 @@ class PaymentService {
 
       let order;
       try {
-        // Add timeout of 10 seconds for Razorpay API call
-        order = await Promise.race([
+        order = await withTimeout(
           razorpay.orders.create({
             amount,
             currency,
             receipt,
-            payment_capture: 1,
             notes: {
               userId: String(userId),
               cartId: String(cartId || "current"),
             },
           }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Razorpay API timeout")), 10000)
-          )
-        ]);
+          10000,
+          "Razorpay API timeout"
+        );
       } catch (error) {
         logger.error("Razorpay order creation failed", {
           userId: String(userId),
@@ -330,6 +520,18 @@ class PaymentService {
           code: error?.error?.code,
         });
         throw normalizeRazorpayError(error, "Failed to create payment order. Please try again.");
+      }
+
+      if (!order?.id || !String(order.id).startsWith("order_") || Number(order.amount) !== amount || order.currency !== currency) {
+        logger.error("Razorpay order payload failed validation", {
+          userId: String(userId),
+          razorpayOrderId: order?.id,
+          expectedAmount: amount,
+          receivedAmount: order?.amount,
+          expectedCurrency: currency,
+          receivedCurrency: order?.currency,
+        });
+        throw new AppError("Invalid Razorpay order token. Please retry checkout.", 502, "RAZORPAY_ORDER_VALIDATION_FAILED");
       }
 
       const amountBreakdown = buildAmountBreakdown(summary);
@@ -399,9 +601,20 @@ class PaymentService {
         paymentSessionId: paymentSession._id,
         razorpayOrderId: order.id,
         orderId: order.id,
+        razorpay_order_id: order.id,
         amount: order.amount,
         currency: order.currency,
-        key: process.env.RAZORPAY_KEY_ID,
+        key: credentials.keyId,
+        key_id: credentials.keyId,
+        gatewayMode: credentials.mode,
+        expiresAt: paymentSession.expiresAt,
+        checkoutIntegrity: {
+          orderStatus: order.status,
+          orderEntity: order.entity,
+          amountMatches: Number(order.amount) === amount,
+          currencyMatches: order.currency === currency,
+          mode: credentials.mode,
+        },
         receipt,
         summary,
       };
@@ -661,16 +874,23 @@ class PaymentService {
   }
 
   async fetchGatewayPayment(razorpayPaymentId) {
-    if (!razorpayPaymentId) return null;
+    if (!razorpayPaymentId) {
+      throw new AppError("Razorpay payment id is required", 400, "PAYMENT_REFERENCE_MISSING");
+    }
     try {
       const razorpay = this.getRazorpayClient();
-      return await razorpay.payments.fetch(razorpayPaymentId);
+      return await withTimeout(
+        razorpay.payments.fetch(razorpayPaymentId),
+        Number(process.env.RAZORPAY_PAYMENT_FETCH_TIMEOUT_MS || 8000),
+        "Razorpay payment fetch timed out"
+      );
     } catch (error) {
-      logger.warn("Unable to fetch Razorpay payment for server-side confirmation", {
+      logger.error("Unable to fetch Razorpay payment for server-side confirmation", {
         paymentId: razorpayPaymentId,
-        message: error.message,
+        message: error?.error?.description || error.message,
+        code: error?.error?.code || error.statusCode,
       });
-      return null;
+      throw normalizeRazorpayError(error, "Unable to verify payment with Razorpay. Please retry.");
     }
   }
 
@@ -736,7 +956,7 @@ class PaymentService {
       throw new AppError("Payment already linked to another order", 409, "PAYMENT_ALREADY_PROCESSED");
     }
 
-    const secret = process.env.RAZORPAY_KEY_SECRET;
+    const { keySecret: secret } = readRazorpayCredentials();
     const expectedSignature = crypto
       .createHmac("sha256", secret)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -781,14 +1001,32 @@ class PaymentService {
     }
 
     const gatewayPayment = await this.fetchGatewayPayment(razorpay_payment_id);
+    if (!gatewayPayment?.id) {
+      throw new AppError("Invalid payment returned by gateway", 409, "INVALID_GATEWAY_PAYMENT");
+    }
+    if (String(gatewayPayment.id) !== String(razorpay_payment_id)) {
+      throw new AppError("Gateway payment id mismatch", 409, "PAYMENT_ID_MISMATCH");
+    }
     if (gatewayPayment?.order_id && String(gatewayPayment.order_id) !== String(razorpay_order_id)) {
       throw new AppError("Gateway payment order mismatch", 409, "PAYMENT_ORDER_MISMATCH");
     }
-    if (
-      gatewayPayment?.status &&
-      !["captured", "authorized"].includes(String(gatewayPayment.status).toLowerCase())
-    ) {
+    if (String(gatewayPayment.status || "").toLowerCase() !== "captured") {
       throw new AppError("Payment is not captured by Razorpay", 409, "PAYMENT_NOT_CAPTURED");
+    }
+    const expectedAmount = Math.round(Number(paymentSession.amount || payment.amount || 0) * 100);
+    if (Number(gatewayPayment.amount) !== expectedAmount) {
+      await paymentRepo.updateById(payment._id, {
+        $inc: { "fraudChecks.duplicateAttemptCount": 1 },
+        $addToSet: { "fraudChecks.flaggedReasons": "AMOUNT_MISMATCH" },
+      });
+      throw new AppError("Payment amount mismatch", 409, "PAYMENT_AMOUNT_MISMATCH");
+    }
+    if (String(gatewayPayment.currency || "").toUpperCase() !== String(paymentSession.currency || payment.currency || "INR").toUpperCase()) {
+      await paymentRepo.updateById(payment._id, {
+        $inc: { "fraudChecks.duplicateAttemptCount": 1 },
+        $addToSet: { "fraudChecks.flaggedReasons": "CURRENCY_MISMATCH" },
+      });
+      throw new AppError("Payment currency mismatch", 409, "PAYMENT_CURRENCY_MISMATCH");
     }
 
     await Promise.all([
@@ -837,6 +1075,323 @@ class PaymentService {
       razorpayPaymentId: razorpay_payment_id,
       razorpaySignature: razorpay_signature,
     });
+  }
+
+  async recordCheckoutFailure({
+    userId,
+    razorpay_order_id,
+    paymentSessionId,
+    key_id,
+    gatewayMode,
+    amount,
+    currency,
+    error = {},
+    ipAddress,
+    userAgent,
+  }) {
+    const credentials = readRazorpayCredentials();
+    const currentMode = credentials.mode;
+    const keyMode = key_id ? resolveRazorpayMode(key_id) : "unknown";
+    const receivedMode = keyMode !== "unknown" ? keyMode : gatewayMode || "unknown";
+    const safeError = {
+      code: String(error.code || ""),
+      description: String(error.description || ""),
+      source: String(error.source || ""),
+      step: String(error.step || ""),
+      reason: String(error.reason || ""),
+      metadata: error.metadata || {},
+    };
+    const flaggedReasons = ["CHECKOUT_PAYMENT_FAILED"];
+
+    if (safeError.reason === "invalid_token" || safeError.description.toLowerCase().includes("invalid token")) {
+      flaggedReasons.push("RAZORPAY_INVALID_TOKEN");
+    }
+    if (key_id && key_id !== credentials.keyId) flaggedReasons.push("CHECKOUT_KEY_MISMATCH");
+    if (receivedMode !== "unknown" && receivedMode !== currentMode) flaggedReasons.push("CHECKOUT_MODE_MISMATCH");
+
+    let payment = null;
+    let paymentSession = null;
+    try {
+      const result = await this.getPaymentAndSessionByOrder(razorpay_order_id);
+      payment = result.payment;
+      paymentSession = result.paymentSession;
+    } catch (lookupError) {
+      logger.warn("Checkout failure could not be linked to a payment session", {
+        userId: String(userId),
+        razorpayOrderId: razorpay_order_id,
+        message: lookupError.message,
+      });
+    }
+
+    if (paymentSession && paymentSessionId && String(paymentSession._id) !== String(paymentSessionId)) {
+      flaggedReasons.push("CHECKOUT_SESSION_MISMATCH");
+    }
+
+    if (payment) {
+      const paymentOwnerId = String(payment.userId?._id || payment.userId);
+      if (paymentOwnerId !== String(userId)) {
+        flaggedReasons.push("CHECKOUT_OWNER_MISMATCH");
+        await recordPaymentAttempt({
+          userId,
+          paymentRecordId: payment._id,
+          razorpayOrderId: razorpay_order_id,
+          status: "FAILED",
+          stage: "checkout-failure-authorization",
+          message: "Checkout failure ownership mismatch",
+          requestPayload: {
+            keyId: maskCredential(key_id),
+            currentKeyId: maskCredential(credentials.keyId),
+            currentMode,
+            receivedMode,
+            ipAddress,
+            userAgent,
+            error: safeError,
+          },
+        });
+        throw new AppError("Forbidden", 403, "FORBIDDEN");
+      }
+    }
+
+    const expectedAmount = paymentSession
+      ? Math.round(Number(paymentSession.amount || 0) * 100)
+      : payment
+        ? Math.round(Number(payment.amount || 0) * 100)
+        : null;
+    const expectedCurrency = String(paymentSession?.currency || payment?.currency || "").toUpperCase();
+    if (expectedAmount && amount && Number(amount) !== expectedAmount) flaggedReasons.push("CHECKOUT_AMOUNT_MISMATCH");
+    if (expectedCurrency && currency && String(currency).toUpperCase() !== expectedCurrency) {
+      flaggedReasons.push("CHECKOUT_CURRENCY_MISMATCH");
+    }
+
+    const diagnostic = {
+      razorpayOrderId: razorpay_order_id,
+      paymentSessionId: paymentSession?._id || paymentSessionId || null,
+      paymentRecordId: payment?._id || null,
+      currentKeyId: maskCredential(credentials.keyId),
+      checkoutKeyId: maskCredential(key_id),
+      currentMode,
+      checkoutMode: gatewayMode || receivedMode,
+      expectedAmount,
+      checkoutAmount: amount || null,
+      expectedCurrency,
+      checkoutCurrency: currency || "",
+      flaggedReasons,
+      error: safeError,
+      ipAddress,
+      userAgent,
+    };
+
+    await recordPaymentAttempt({
+      userId,
+      paymentRecordId: payment?._id,
+      razorpayOrderId: razorpay_order_id,
+      status: "FAILED",
+      stage: "checkout-payment-failed",
+      message: safeError.description || safeError.reason || "Razorpay checkout payment failed",
+      requestPayload: diagnostic,
+    });
+
+    if (payment) {
+      await paymentRepo.updateById(payment._id, {
+        $set: {
+          status: "FAILED",
+          failedAt: new Date(),
+          gatewayResponse: {
+            ...(payment.gatewayResponse || {}),
+            checkoutFailure: diagnostic,
+          },
+        },
+        $inc: { "fraudChecks.duplicateAttemptCount": 1 },
+        $addToSet: { "fraudChecks.flaggedReasons": { $each: flaggedReasons } },
+      }).catch((updateError) => {
+        logger.warn("Unable to update payment after checkout failure", {
+          paymentRecordId: String(payment._id),
+          message: updateError.message,
+        });
+      });
+    }
+
+    if (paymentSession) {
+      await PaymentSession.updateOne(
+        { _id: paymentSession._id },
+        {
+          $set: {
+            status: "FAILED",
+            failedAt: new Date(),
+            lastVerificationAt: new Date(),
+          },
+          $inc: {
+            verificationAttempts: 1,
+          },
+        }
+      ).catch((updateError) => {
+        logger.warn("Unable to update payment session after checkout failure", {
+          paymentSessionId: String(paymentSession._id),
+          message: updateError.message,
+        });
+      });
+    }
+
+    logger.warn("Razorpay checkout failure recorded", diagnostic);
+    return {
+      recorded: true,
+      status: "FAILED",
+      diagnostic: {
+        razorpayOrderId: diagnostic.razorpayOrderId,
+        paymentSessionId: diagnostic.paymentSessionId,
+        currentMode,
+        checkoutMode: diagnostic.checkoutMode,
+        flaggedReasons,
+      },
+    };
+  }
+
+  async recordCheckoutOpened({
+    userId,
+    razorpay_order_id,
+    paymentSessionId,
+    key_id,
+    gatewayMode,
+    amount,
+    currency,
+    ipAddress,
+    userAgent,
+  }) {
+    const credentials = readRazorpayCredentials();
+    const { payment, paymentSession } = await this.getPaymentAndSessionByOrder(razorpay_order_id);
+    const paymentOwnerId = String(payment.userId?._id || payment.userId);
+    if (paymentOwnerId !== String(userId)) {
+      await recordPaymentAttempt({
+        userId,
+        paymentRecordId: payment._id,
+        razorpayOrderId: razorpay_order_id,
+        status: "FAILED",
+        stage: "checkout-opened-authorization",
+        message: "Checkout opened ownership mismatch",
+      });
+      throw new AppError("Forbidden", 403, "FORBIDDEN");
+    }
+
+    const openedAt = new Date();
+    const expectedAmount = Math.round(Number(paymentSession.amount || payment.amount || 0) * 100);
+    const expectedCurrency = String(paymentSession.currency || payment.currency || "INR").toUpperCase();
+    const flaggedReasons = [];
+    if (paymentSessionId && String(paymentSession._id) !== String(paymentSessionId)) {
+      flaggedReasons.push("CHECKOUT_SESSION_MISMATCH");
+    }
+    if (key_id !== credentials.keyId) flaggedReasons.push("CHECKOUT_KEY_MISMATCH");
+    if (gatewayMode && gatewayMode !== credentials.mode) flaggedReasons.push("CHECKOUT_MODE_MISMATCH");
+    if (Number(amount) !== expectedAmount) flaggedReasons.push("CHECKOUT_AMOUNT_MISMATCH");
+    if (String(currency).toUpperCase() !== expectedCurrency) flaggedReasons.push("CHECKOUT_CURRENCY_MISMATCH");
+
+    const diagnostic = {
+      razorpayOrderId: razorpay_order_id,
+      paymentSessionId: paymentSession._id,
+      paymentRecordId: payment._id,
+      openedAt,
+      currentKeyId: maskCredential(credentials.keyId),
+      checkoutKeyId: maskCredential(key_id),
+      currentMode: credentials.mode,
+      checkoutMode: gatewayMode || "",
+      expectedAmount,
+      checkoutAmount: amount,
+      expectedCurrency,
+      checkoutCurrency: currency,
+      flaggedReasons,
+      ipAddress,
+      userAgent,
+    };
+
+    await recordPaymentAttempt({
+      userId,
+      paymentRecordId: payment._id,
+      razorpayOrderId: razorpay_order_id,
+      status: "CREATED",
+      stage: "checkout-opened",
+      message: "Razorpay checkout opened",
+      requestPayload: diagnostic,
+    });
+
+    if (["CREATED", "PENDING"].includes(paymentSession.status)) {
+      await PaymentSession.updateOne(
+        { _id: paymentSession._id },
+        {
+          $set: {
+            status: "PENDING",
+            lastVerificationAt: openedAt,
+            "metadata.checkoutOpenedAt": openedAt,
+            "metadata.checkoutOpenDiagnostic": diagnostic,
+          },
+        }
+      );
+    }
+
+    await paymentRepo.updateById(payment._id, {
+      $set: {
+        gatewayResponse: {
+          ...(payment.gatewayResponse || {}),
+          checkoutOpened: diagnostic,
+        },
+      },
+      ...(flaggedReasons.length
+        ? {
+            $addToSet: { "fraudChecks.flaggedReasons": { $each: flaggedReasons } },
+          }
+        : {}),
+    }).catch((error) => {
+      logger.warn("Unable to update payment checkout-opened diagnostic", {
+        paymentRecordId: String(payment._id),
+        message: error.message,
+      });
+    });
+
+    logger.info("Razorpay checkout opened", diagnostic);
+    return {
+      recorded: true,
+      status: "PENDING",
+      diagnostic: {
+        razorpayOrderId: razorpay_order_id,
+        paymentSessionId: paymentSession._id,
+        openedAt,
+        flaggedReasons,
+      },
+    };
+  }
+
+  async inspectCheckoutOrder({ userId, razorpayOrderId }) {
+    const normalizedOrderId = String(razorpayOrderId || "").trim();
+    if (!/^order_[A-Za-z0-9]+$/.test(normalizedOrderId)) {
+      throw new AppError("Invalid Razorpay order id", 400, "INVALID_RAZORPAY_ORDER_ID");
+    }
+
+    const credentials = readRazorpayCredentials();
+    const { payment, paymentSession } = await this.getPaymentAndSessionByOrder(normalizedOrderId);
+    const paymentOwnerId = String(payment.userId?._id || payment.userId);
+    if (paymentOwnerId !== String(userId)) {
+      throw new AppError("Forbidden", 403, "FORBIDDEN");
+    }
+
+    return {
+      backendConfiguration: {
+        key: credentials.keyId,
+        key_id: credentials.keyId,
+        mode: credentials.mode,
+        currency: paymentSession.currency || payment.currency || "INR",
+      },
+      order: {
+        razorpay_order_id: paymentSession.razorpayOrderId,
+        order_id: paymentSession.razorpayOrderId,
+        amount: Math.round(Number(paymentSession.amount || payment.amount || 0) * 100),
+        currency: paymentSession.currency || payment.currency || "INR",
+        status: paymentSession.status,
+        expiresAt: paymentSession.expiresAt,
+        paymentSessionId: paymentSession._id,
+        paymentRecordId: payment._id,
+        alreadyPaid: payment.status === "PAID" || payment.fulfillmentStatus === "COMPLETED",
+      },
+      checkoutJsUrl: "https://checkout.razorpay.com/v1/checkout.js",
+      generatedAt: new Date(),
+    };
   }
 
   async listPayments(query = {}) {

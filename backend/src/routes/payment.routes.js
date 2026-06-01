@@ -7,6 +7,8 @@ const codController = require("../controllers/cod.controller");
 const {
   createRazorpayOrderSchema,
   verifyRazorpayPaymentSchema,
+  checkoutFailureSchema,
+  checkoutOpenedSchema,
   refundPaymentSchema,
   razorpaySettingsSchema,
 } = require("../utils/validators/payment.validation");
@@ -15,6 +17,9 @@ const router = express.Router();
 
 router.post("/create-order", authRequired, validate(createRazorpayOrderSchema), paymentController.createRazorpayOrder);
 router.post("/verify", authRequired, validate(verifyRazorpayPaymentSchema), paymentController.verifyRazorpayPayment);
+router.post("/checkout-opened", authRequired, validate(checkoutOpenedSchema), paymentController.recordCheckoutOpened);
+router.post("/checkout-failure", authRequired, validate(checkoutFailureSchema), paymentController.recordCheckoutFailure);
+router.get("/checkout-inspect/:razorpayOrderId", authRequired, paymentController.inspectCheckoutOrder);
 router.post("/razorpay/create-order", authRequired, validate(createRazorpayOrderSchema), paymentController.createRazorpayOrder);
 router.post("/razorpay/verify", authRequired, validate(verifyRazorpayPaymentSchema), paymentController.verifyRazorpayPayment);
 router.post("/cod/check", authRequired, codController.checkAvailability);

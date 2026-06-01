@@ -11,6 +11,23 @@ export async function verifyRazorpayPayment(payload) {
   return data?.data || data;
 }
 
+export async function recordCheckoutFailure(payload) {
+  const { data } = await api.post("/api/payments/checkout-failure", payload, { timeout: 15000 });
+  return data?.data || data;
+}
+
+export async function recordCheckoutOpened(payload) {
+  const { data } = await api.post("/api/payments/checkout-opened", payload, { timeout: 15000 });
+  return data?.data || data;
+}
+
+export async function inspectCheckoutOrder(razorpayOrderId) {
+  const { data } = await api.get(`/api/payments/checkout-inspect/${encodeURIComponent(razorpayOrderId)}`, {
+    timeout: 15000,
+  });
+  return data?.data || data;
+}
+
 export async function checkCodAvailability(payload) {
   const { data } = await api.post("/api/payments/cod/check", payload);
   return data?.data || data;

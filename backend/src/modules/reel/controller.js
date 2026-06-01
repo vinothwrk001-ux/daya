@@ -12,8 +12,22 @@ const uploadMedia = asyncHandler(async (req, res) => {
   }, "Content media uploaded", 201);
 });
 const publish = asyncHandler(async (req, res) => ok(res, await reelService.publish(req.user, req.body.reelId, req.body), "Reel updated"));
-const feed = asyncHandler(async (req, res) => ok(res, await reelService.getFeed(req.query), "Reel feed loaded"));
-const getById = asyncHandler(async (req, res) => ok(res, await reelService.getById(req.params.id), "Reel loaded"));
+const feed = asyncHandler(async (req, res) => ok(res, await reelService.getFeed(req.query, req.user?.sub), "Reel feed loaded"));
+const getById = asyncHandler(async (req, res) => ok(res, await reelService.getById(req.params.id, req.user?.sub), "Reel loaded"));
+const engagement = asyncHandler(async (req, res) => ok(res, await reelService.getEngagement(req.params.id, req.user?.sub), "Reel engagement loaded"));
+const like = asyncHandler(async (req, res) => ok(res, await reelService.toggleLike(req.user.sub, req.params.id), "Reel like updated"));
+const save = asyncHandler(async (req, res) => ok(res, await reelService.toggleSave(req.user.sub, req.params.id, req.body), "Reel save updated"));
+const comments = asyncHandler(async (req, res) => ok(res, await reelService.listComments(req.params.id, req.query, req.user?.sub), "Reel comments loaded"));
+const comment = asyncHandler(async (req, res) => ok(res, await reelService.createComment(req.user.sub, req.params.id, req.body), "Comment added", 201));
+const reply = asyncHandler(async (req, res) => ok(res, await reelService.createReply(req.user.sub, req.params.id, req.params.commentId, req.body), "Reply added", 201));
+const commentLike = asyncHandler(async (req, res) => ok(res, await reelService.toggleCommentLike(req.user.sub, req.params.id, req.params.commentId), "Comment like updated"));
+const commentReport = asyncHandler(async (req, res) => ok(res, await reelService.reportComment(req.user.sub, req.params.id, req.params.commentId, req.body), "Comment reported"));
+const share = asyncHandler(async (req, res) => ok(res, await reelService.shareReel(req.user, req.params.id, req.body), "Reel share tracked"));
+const view = asyncHandler(async (req, res) => ok(res, await reelService.recordView(req.user, req.params.id, req.body), "Reel view tracked"));
+const storeVisit = asyncHandler(async (req, res) => ok(res, await reelService.recordStoreVisit(req.user, req.params.id, req.body), "Store visit tracked"));
+const productClick = asyncHandler(async (req, res) => ok(res, await reelService.recordProductClick(req.user, req.params.id, req.body), "Product click tracked"));
+const follow = asyncHandler(async (req, res) => ok(res, await reelService.followCreator(req.user.sub, req.params.id, req.body), "Creator follow updated"));
+const adjacent = asyncHandler(async (req, res) => ok(res, await reelService.getAdjacent(req.params.id), "Adjacent reels loaded"));
 const influencerList = asyncHandler(async (req, res) => ok(res, await reelService.listForInfluencer(req.user.sub), "Influencer reels loaded"));
 const influencerPaginated = asyncHandler(async (req, res) =>
   ok(res, await reelService.listForInfluencerPaginated(req.user.sub, req.query), "Influencer reels loaded")
@@ -27,4 +41,4 @@ const liveSessions = asyncHandler(async (req, res) => ok(res, await reelService.
 const createLiveSession = asyncHandler(async (req, res) => ok(res, await reelService.saveLiveSession(req.user.sub, req.body), "Live session saved", 201));
 const adminList = asyncHandler(async (req, res) => ok(res, await reelService.listAll(), "Reels loaded"));
 
-module.exports = { upload, uploadMedia, publish, feed, getById, influencerList, influencerPaginated, contentList, contentUpdate, contentDelete, contentAnalytics, mediaLibrary, liveSessions, createLiveSession, adminList };
+module.exports = { upload, uploadMedia, publish, feed, getById, engagement, like, save, comments, comment, reply, commentLike, commentReport, share, view, storeVisit, productClick, follow, adjacent, influencerList, influencerPaginated, contentList, contentUpdate, contentDelete, contentAnalytics, mediaLibrary, liveSessions, createLiveSession, adminList };

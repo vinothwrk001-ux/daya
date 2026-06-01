@@ -59,7 +59,20 @@ const adminApplication = asyncHandler(async (req, res) => ok(res, await influenc
 const reviewApplication = asyncHandler(async (req, res) => ok(res, await influencerService.reviewApplication(req.params.applicationId, req.body, req.user?.sub), "Influencer application reviewed"));
 const approveApplication = asyncHandler(async (req, res) => ok(res, await influencerService.reviewApplication(req.body.applicationId, { decision: "approve", comments: req.body.comments || "Approved" }, req.user?.sub), "Influencer approved and activated", 201));
 const activationWelcome = asyncHandler(async (req, res) => ok(res, await influencerService.getWelcomeForUser(req.user.sub), "Influencer activation loaded"));
-const storefront = asyncHandler(async (req, res) => ok(res, await influencerService.getStorefront({ slug: req.query.slug, userId: req.user?.sub }), "Influencer storefront loaded"));
+const storefront = asyncHandler(async (req, res) => ok(res, await influencerService.getStorefront({
+  slug: req.query.slug || req.params.username,
+  username: req.params.username,
+  userId: req.user?.sub,
+  tab: req.params.tab || req.query.tab || "storefront",
+  filter: req.query.filter || req.query.sort || "",
+  search: req.query.search || "",
+  page: req.query.page,
+  limit: req.query.limit,
+}), "Influencer storefront loaded"));
+const followPublic = asyncHandler(async (req, res) => ok(res, await influencerService.followPublicStorefront(req.params.username, req.user?.sub, req.body.source), "Influencer followed"));
+const unfollowPublic = asyncHandler(async (req, res) => ok(res, await influencerService.unfollowPublicStorefront(req.params.username, req.user?.sub), "Influencer unfollowed"));
+const subscribePublicNewsletter = asyncHandler(async (req, res) => ok(res, await influencerService.subscribePublicNewsletter(req.params.username, req.body), "Newsletter subscription saved", 201));
+const trackPublicEvent = asyncHandler(async (req, res) => ok(res, await influencerService.trackPublicEvent(req.params.username, req.user?.sub, req.body), "Influencer event tracked", 201));
 const getStorefrontBuilder = asyncHandler(async (req, res) => ok(res, await influencerService.getStorefrontBuilder(req.user.sub), "Storefront builder loaded"));
 const updateStorefrontBuilder = asyncHandler(async (req, res) => ok(res, await influencerService.updateStorefrontBuilder(req.user.sub, req.body), "Storefront builder saved"));
 const previewStorefrontBuilder = asyncHandler(async (req, res) => ok(res, await influencerService.previewStorefrontBuilder(req.user.sub, req.body), "Storefront preview generated"));
@@ -93,7 +106,7 @@ const registerStepOne = asyncHandler(async (req, res) =>
 const register = asyncHandler(async (req, res) => ok(res, await influencerService.register(req.user.sub, req.body), "Influencer profile saved"));
 const profile = asyncHandler(async (req, res) => ok(res, await influencerService.getProfile(req.user.sub), "Influencer profile loaded"));
 const update = asyncHandler(async (req, res) => ok(res, await influencerService.updateProfile(req.user.sub, req.body), "Influencer profile updated"));
-const list = asyncHandler(async (req, res) => ok(res, await influencerService.list(req.query), "Influencers loaded"));
+const list = asyncHandler(async (req, res) => ok(res, await influencerService.list(req.query, req.user?.sub), "Influencers loaded"));
 const moderate = asyncHandler(async (req, res) => ok(res, await influencerService.moderate(req.params.id, req.body), "Influencer status updated"));
 const dashboard = asyncHandler(async (req, res) =>
   ok(res, await commissionService.getInfluencerDashboard(req.user.sub, req.query), "Influencer dashboard loaded")
@@ -184,6 +197,10 @@ module.exports = {
   approveApplication,
   activationWelcome,
   storefront,
+  followPublic,
+  unfollowPublic,
+  subscribePublicNewsletter,
+  trackPublicEvent,
   getStorefrontBuilder,
   updateStorefrontBuilder,
   previewStorefrontBuilder,

@@ -6,6 +6,7 @@ const { emitDomainEvent } = require("../events/event-bus");
 const { INFLUENCER_EVENTS } = require("../shared/constants");
 const { CommissionRecord } = require("../commission/models");
 const { Campaign } = require("./model");
+const { InfluencerProductAssignment } = require("../influencer/model");
 
 async function ensureVendorOwnsProducts(vendorId, productIds = []) {
   const products = await Promise.all(productIds.map((productId) => productRepo.findById(productId)));
@@ -25,6 +26,28 @@ function pushHistory(state, actorId, note = "") {
     note,
     changedAt: new Date(),
   };
+}
+
+async function upsertProductAssignments({ campaign, influencerId, status = "approved", source = "vendor_campaign", actorId = null }) {
+  const now = new Date();
+  await Promise.all((campaign.productIds || []).map((productId) => InfluencerProductAssignment.findOneAndUpdate(
+    { influencerId, productId, campaignId: campaign._id },
+    {
+      $set: {
+        influencerId,
+        vendorId: campaign.vendorId,
+        productId,
+        campaignId: campaign._id,
+        status,
+        source,
+        ...(status === "accepted" ? { acceptedAt: now } : {}),
+        ...(status === "approved" || status === "active" ? { approvedAt: now } : {}),
+        "metadata.lastActorId": actorId || undefined,
+      },
+      $setOnInsert: { assignedAt: now },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  )));
 }
 
 function toNumber(value, fallback = 0) {
@@ -241,6 +264,8 @@ class CampaignService {
       },
       { new: true }
     );
+
+    await upsertProductAssignments({ campaign: updated, influencerId: updated.influencerId, status: "accepted", source: "influencer_acceptance", actorId: userId });
 
     await emitDomainEvent(INFLUENCER_EVENTS.CAMPAIGN_ACTIVATED, {
       campaignId: updated._id,
