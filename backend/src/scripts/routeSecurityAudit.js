@@ -36,7 +36,7 @@ function routeLines(source) {
 }
 
 function hasProtection(source, line) {
-  const protectedTokens = ["authRequired", "adminWorkspaceAuthRequired", "notificationAuthRequired", "requireRole", "requireWorkspacePermission", "requireVendorPermission", "StaffProtectedRoute", "router.use(authRequired", "router.use(adminWorkspaceAuthRequired"];
+  const protectedTokens = ["authRequired", "adminWorkspaceAuthRequired", "notificationAuthRequired", "privateDocumentAuth", "requireRole", "requireWorkspacePermission", "requireVendorPermission", "StaffProtectedRoute", "router.use(authRequired", "router.use(adminWorkspaceAuthRequired"];
   return protectedTokens.some((token) => line.includes(token) || source.includes(token));
 }
 

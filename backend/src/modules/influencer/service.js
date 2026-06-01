@@ -16,6 +16,7 @@ const { Reel } = require("../reel/model");
 const { Campaign } = require("../campaign/model");
 const commissionRuleService = require("../../services/commission-rule.service");
 const homepageLayoutService = require("../../services/homepage-layout.service");
+const PrivateDocument = require("../../models/PrivateDocument");
 const {
   InfluencerApplication,
   InfluencerProfile,
@@ -876,7 +877,8 @@ function presentDocument(document = {}) {
     documentName: document.originalName || document.documentType,
     category: document.category || documentCategoryFor(document.documentType),
     documentType: document.documentType,
-    filePath: document.filePath,
+    privateDocumentId: document.privateDocumentId || null,
+    accessUrl: document.privateDocumentId ? `/api/private-documents/${document.privateDocumentId}/access` : "",
     mimeType: document.mimeType,
     size: Number(document.size || 0),
     status: document.status,
@@ -889,6 +891,40 @@ function presentDocument(document = {}) {
     reviewNotes: document.reviewNotes || "",
     ocr: document.ocr || {},
   };
+}
+
+function redactDocumentMap(documents = {}) {
+  return Object.fromEntries(
+    Object.entries(documents || {}).map(([key, value]) => [key, Boolean(value)])
+  );
+}
+
+async function registerPrivateDocuments({ records = [], assets = [], ownerType = "influencer", ownerId, sourceModel = "InfluencerApplicationDocument" }) {
+  if (!records.length || !ownerId || !mongoose.Types.ObjectId.isValid(String(ownerId))) return records;
+  const created = await PrivateDocument.insertMany(
+    records.map((record, index) => {
+      const asset = assets[index] || {};
+      return {
+        ownerType,
+        ownerId,
+        documentType: record.documentType,
+        category: record.category || documentCategoryFor(record.documentType),
+        storageKey: asset.storageKey || record.filePath,
+        originalName: record.originalName || asset.originalName || "",
+        mimeType: record.mimeType || asset.mimeType || "application/octet-stream",
+        size: Number(record.size || asset.size || 0),
+        status: record.status === "verified" ? "verified" : "pending",
+        sourceModel,
+        sourceId: record._id,
+      };
+    })
+  );
+  await Promise.all(
+    created.map((doc, index) =>
+      InfluencerApplicationDocument.updateOne({ _id: records[index]._id }, { $set: { privateDocumentId: doc._id } })
+    )
+  );
+  return records.map((record, index) => ({ ...(record.toObject?.() || record), privateDocumentId: created[index]?._id }));
 }
 
 function verificationScore({ profile, business, payment, payoutAccount, documents = [] }) {
@@ -1339,7 +1375,7 @@ class InfluencerService {
     const uploaded = {};
     for (const file of fileList) {
       const [asset] = await uploadMany([file], { folder: "influencer-business-documents" });
-      uploaded[file.fieldname] = asset?.url || "";
+      uploaded[file.fieldname] = asset?.storageKey || asset?.url || "";
     }
     const business = sanitizeBusinessPayload(payload, uploaded);
     if (submit) validateBusiness(business);
@@ -1447,11 +1483,11 @@ class InfluencerService {
     for (const file of fileList) {
       const documentType = file.fieldname === "identityDocuments" ? "identity_document" : file.fieldname === "brandProofs" ? "brand_collaboration" : "sample_content";
       const [asset] = await uploadMany([file], { folder: "influencer-application-review" });
-      if (asset?.url) {
+      if (asset?.storageKey || asset?.url) {
         uploadedDocuments.push({
           applicationId,
           documentType,
-          filePath: asset.url,
+          filePath: asset.storageKey || asset.url,
           originalName: file.originalname || "",
           mimeType: file.mimetype || "",
           size: Number(file.size || 0),
@@ -1460,7 +1496,14 @@ class InfluencerService {
         });
       }
     }
-    if (uploadedDocuments.length) await InfluencerApplicationDocument.insertMany(uploadedDocuments);
+    if (uploadedDocuments.length) {
+      const savedDocuments = await InfluencerApplicationDocument.insertMany(uploadedDocuments);
+      await registerPrivateDocuments({
+        records: savedDocuments,
+        assets: uploadedDocuments.map((document) => ({ storageKey: document.filePath, originalName: document.originalName, mimeType: document.mimeType, size: document.size })),
+        ownerId: application.influencerId || application.userId,
+      });
+    }
 
     const [socialAccounts, business, payment, documents] = await Promise.all([
       InfluencerSocialAccount.find({ applicationId }).lean(),
@@ -1572,7 +1615,7 @@ class InfluencerService {
         businessName: business.businessName,
         dateOfBirth: business.dateOfBirth,
         nationality: business.nationality,
-        documents: business.documents || {},
+        documents: redactDocumentMap(business.documents),
       } : null,
       payment: payment ? {
         status: payment.status,
@@ -2819,8 +2862,9 @@ class InfluencerService {
 
   async trackPublicEvent(username, userId, payload = {}) {
     const data = await this.getStorefront({ slug: username, userId });
-    const allowed = new Set(["profile_view", "storefront_view", "product_view", "product_click", "add_to_cart", "collection_view", "reel_view", "post_view", "post_engagement", "social_click", "newsletter_subscribe", "follow", "unfollow", "carousel_view", "carousel_navigation", "share", "search"]);
+    const allowed = new Set(["profile_view", "storefront_view", "product_view", "product_click", "add_to_cart", "collection_view", "reel_view", "post_view", "post_engagement", "social_click", "newsletter_subscribe", "follow", "unfollow", "carousel_view", "carousel_navigation", "share", "search", "profile_report", "profile_block"]);
     const eventType = allowed.has(payload.eventType) ? payload.eventType : "profile_view";
+    const metadata = payload.metadata || {};
     await InfluencerStorefrontEvent.create({
       influencerId: data.storefront.influencerId,
       storefrontId: data.storefront._id,
@@ -2832,8 +2876,30 @@ class InfluencerService {
       collectionId: payload.collectionId || undefined,
       reelId: payload.reelId || undefined,
       postId: payload.postId || undefined,
-      metadata: payload.metadata || {},
+      metadata,
     });
+
+    if (payload.postId) {
+      const metricByAction = {
+        like: "metrics.likes",
+        unlike: "metrics.likes",
+        comment: "metrics.comments",
+        share: "metrics.shares",
+        save: "metrics.saves",
+        unsave: "metrics.saves",
+        click: "metrics.clicks",
+        view: "metrics.views",
+      };
+      const action = cleanString(metadata.action || "");
+      const metricPath = metricByAction[action] || (eventType === "share" ? "metrics.shares" : "");
+      if (metricPath) {
+        const decrement = action === "unlike" || action === "unsave";
+        await InfluencerPost.updateOne(
+          { _id: payload.postId, influencerId: data.storefront.influencerId },
+          { $inc: { [metricPath]: decrement ? -1 : 1 } }
+        ).catch(() => null);
+      }
+    }
     return { tracked: true };
   }
 
@@ -3273,7 +3339,7 @@ class InfluencerService {
       issueDate: payload.issueDate || undefined,
       expiryDate: payload.expiryDate || undefined,
       side: fileList[index]?.fieldname || payload.side || "",
-      filePath: asset.url,
+      filePath: asset.storageKey || asset.url,
       originalName: asset.originalName || fileList[index]?.originalname || "",
       mimeType: asset.mimeType || fileList[index]?.mimetype || "",
       size: Number(asset.size || fileList[index]?.size || 0),
@@ -3281,7 +3347,8 @@ class InfluencerService {
       submittedAt: new Date(),
       ocr: ["identity", "tax"].includes(category) ? { status: "queued" } : { status: "not_started" },
     }));
-    const saved = await InfluencerApplicationDocument.insertMany(documents);
+    const inserted = await InfluencerApplicationDocument.insertMany(documents);
+    const saved = await registerPrivateDocuments({ records: inserted, assets: uploaded, ownerId: profile._id });
     await writeActivationAudit({
       applicationId,
       influencerId: profile._id,
@@ -3301,7 +3368,7 @@ class InfluencerService {
     const uploaded = {};
     for (const file of fileList) {
       const [asset] = await uploadMany([file], { folder: `influencer-tax/${profile._id}` });
-      uploaded[file.fieldname] = asset?.url || "";
+      uploaded[file.fieldname] = asset?.storageKey || asset?.url || "";
     }
     const update = {
       applicationId,

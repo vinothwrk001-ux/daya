@@ -125,6 +125,7 @@ export function Layout() {
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Shop", href: "/shop" },
+    { label: "Compare", href: "/compare" },
     { label: "Stores", href: "/stores" },
     { label: "Influencers", href: "/influencers" },
     { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },

@@ -1,4 +1,5 @@
 import { mergeGuestData } from "../services/authService";
+import { followPublicInfluencer } from "../services/influencerCommerceService";
 import * as vendorService from "../services/vendorService";
 import useGuestCartStore from "../context/guestCartStore";
 import useGuestWishlistStore from "../context/guestWishlistStore";
@@ -43,6 +44,7 @@ function isAllowedPrimaryTarget(target) {
     pathname.startsWith("/profile") ||
     pathname.startsWith("/orders") ||
     pathname.startsWith("/wishlist") ||
+    pathname.startsWith("/influencer/") ||
     pathname.startsWith("/addresses") ||
     pathname.startsWith("/reviews") ||
     pathname.startsWith("/support") ||
@@ -110,6 +112,16 @@ export async function continueAfterPrimaryAuth({ result, attemptedFrom, nav }) {
   if (isShopperRole(role) && (pendingAction?.type === "buy_now" || pendingAction?.type === "checkout")) {
     pendingActionManager.clearPendingAction();
     return nav("/checkout", { replace: true });
+  }
+
+  if (isShopperRole(role) && pendingAction?.type === "follow_creator" && pendingAction?.data?.username) {
+    try {
+      await followPublicInfluencer(pendingAction.data.username);
+    } catch {
+      // The storefront will still reload and show the current relationship state.
+    }
+    pendingActionManager.clearPendingAction();
+    return nav(`/influencer/${pendingAction.data.username}/storefront`, { replace: true });
   }
 
   if (redirect && isAllowedPrimaryTarget(redirect)) {

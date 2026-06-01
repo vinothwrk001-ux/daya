@@ -45,6 +45,7 @@ const HomepageContainerProductsPage = lazyNamed(() => import("./pages/HomepageCo
 const ProductDetailsPage = lazyNamed(() => import("./pages/ProductDetailsPage"), "ProductDetailsPage");
 const CartPage = lazyNamed(() => import("./pages/CartPage"), "CartPage");
 const WishlistPage = lazyNamed(() => import("./pages/WishlistPage"), "WishlistPage");
+const ComparePage = lazyNamed(() => import("./pages/ComparePage"), "ComparePage");
 const CheckoutPage = lazyNamed(() => import("./pages/CheckoutPage"), "CheckoutPage");
 const TermsAndConditionsPage = lazyNamed(() => import("./pages/TermsAndConditionsPage"), "TermsAndConditionsPage");
 const PrivacyPolicyPage = lazyNamed(() => import("./pages/PrivacyPolicyPage"), "PrivacyPolicyPage");
@@ -215,6 +216,7 @@ export default function App() {
         <Route path="/product/:productId" element={<ProductDetailsPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
+        <Route path="/compare" element={<ComparePage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

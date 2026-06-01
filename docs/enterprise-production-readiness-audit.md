@@ -11,10 +11,10 @@ Current validation is materially better than the previous audit state:
 
 - `frontend`: `npm run lint` passed with zero reported errors/warnings.
 - `frontend`: `npm run build` passed.
-- `backend`: `npm run test` passed, 32/32 tests.
+- `backend`: `npm run test` passed, 45/45 tests.
 - `backend`: `npm run audit:route-security` passed.
 
-The system is not yet enterprise launch-ready. The strongest remaining risks are private document authorization proof, UI-only controls in storefront/homepage builder surfaces, broad event/tracking write surfaces, insufficient end-to-end coverage for money flows, limited DevOps/monitoring assets, and object-level authorization that is not proven by automated tests. The previously critical public platform config initializer has been removed from HTTP and replaced with a locked CLI bootstrap flow; browser auth now uses cookie transport with CSRF protection and no frontend token storage.
+The system is not yet enterprise launch-ready. The strongest remaining risks are broader object-level authorization coverage outside the hardened document gateway, UI-only controls in storefront/homepage builder surfaces, broad event/tracking write surfaces, insufficient end-to-end coverage for money flows, and limited DevOps/monitoring assets. The previously critical public platform config initializer has been removed from HTTP and replaced with a locked CLI bootstrap flow; browser auth now uses cookie transport with CSRF protection and no frontend token storage; private document access now requires document-record authorization and audit logging.
 
 ## 2. Project Architecture Overview
 
@@ -54,8 +54,9 @@ Backend architecture:
 | --- | --- | --- |
 | `frontend/npm run lint` | Passed | ESLint reported no errors/warnings. |
 | `frontend/npm run build` | Passed | Vite production build succeeded. Largest raw chunks include `vendor-react` 454.04 kB, `vendor-charts` 267.33 kB, `AdminHomepageContainersPage` 79.90 kB, `AdminInfluencerCommercePage` 63.44 kB. |
-| `backend/npm run test` | Passed | 32 tests passed across affiliate, auth/CSRF security, campaign, commission, COD, payment security, webhook security, shipping, inventory, payouts, homepage, branding, documents. |
+| `backend/npm run test` | Passed | 45 tests passed across affiliate, authorization negative security, auth/CSRF security, campaign, commission, COD, private-document security, payment security, webhook security, shipping, inventory, payouts, homepage, branding, documents. |
 | `backend/npm run audit:route-security` | Passed | Confirms route files use auth/permission middleware or are allowlisted public routes. This is useful but not proof of object-level authorization. |
+| `backend/npm run security:audit` | Action required | Generated `docs/security/authorization-inventory.md`, `docs/security/idor-report.md`, and `docs/security/rbac-violation-report.md`; exited nonzero because 151 high-risk static findings still need API-level proof. |
 
 ## 5. Critical And High Findings
 
@@ -83,47 +84,53 @@ Verification: Added `backend/src/services/__tests__/auth-cookie-csrf-security.te
 Residual risk: Access JWTs remain HttpOnly cookies rather than opaque database sessions; this is acceptable for the current architecture but should be revisited if the platform standard changes to server-side opaque sessions only.  
 Priority: Closed
 
-### Finding P0-03: Private upload/file access needs object-level authorization proof
+### Finding P0-03: Private upload/file access hardened
 
-Severity: High  
+Status: Resolved  
+Severity: Was High  
 Module: Media / KYC / Verification  
-File paths: `backend/src/app.js:160`, `backend/src/utils/privateFileAccess.js`, `backend/src/routes/system.routes.js`  
+File paths: `backend/src/app.js`, `backend/src/routes/private-document.routes.js`, `backend/src/controllers/privateDocument.controller.js`, `backend/src/middleware/privateDocumentAuth.js`, `backend/src/services/privateDocument.service.js`, `backend/src/models/PrivateDocument.js`, `backend/src/models/DocumentAccessLog.js`, `backend/src/utils/upload.js`, `backend/src/modules/influencer/model.js`, `backend/src/modules/influencer/service.js`  
 Root cause: Private uploads are no longer served directly because `/uploads/private` returns 404, but signed/private access must be tied to document records and ownership/role checks.  
-Impact: If signing accepts filenames instead of document IDs, leaked filenames can become IDOR candidates.  
-Fix recommendation: Sign only by document ID after resolving owner/admin/staff permission, and log every access to KYC, bank, tax, and verification documents. Add negative tests for unrelated user/vendor/influencer access.  
-Estimated effort: 1-2 days  
-Priority: P0
+Fix applied: Removed the legacy filename signing utility and system private-file routes; added `private_documents` and `document_access_logs`; added `GET /api/private-documents/:documentId/access`; added cookie-authenticated user/staff private document auth; enforced owner, legacy admin, finance, compliance/staff permission checks before filesystem access; rejected path traversal storage keys; stopped private local uploads from returning direct URLs; registered influencer verification uploads as private document records; redacted private storage keys from influencer document responses.  
+Verification: Added `backend/src/services/__tests__/private-document-security.test.js` for owner-only access, cross-role denial, finance/compliance boundaries, staff permission boundaries, path traversal rejection, and failed-access audit logging. Backend tests and route-security audit pass.  
+Residual risk: Existing historical rows that predate `private_documents` need a one-time migration if they must be downloadable through the new document gateway.  
+Priority: Closed
 
 ### Finding P1-01: Route-security audit is heuristic, not authorization proof
 
+Status: Partially remediated  
 Severity: High  
 Module: API / RBAC  
-File path: `backend/src/scripts/routeSecurityAudit.js`  
+File paths: `backend/src/scripts/routeSecurityAudit.js`, `backend/src/scripts/authorizationSecurityAudit.js`, `backend/src/security/authorizationPolicies.js`, `backend/src/services/__tests__/authorization-negative.test.js`, `docs/security/authorization-inventory.md`, `docs/security/idor-report.md`, `docs/security/rbac-violation-report.md`  
 Root cause: The audit confirms route-level middleware presence/allowlists, but it cannot prove controller/service ownership checks.  
-Impact: Authenticated IDOR can still exist on orders, invoices, reviews, payouts, documents, campaigns, reels, or collections.  
-Fix recommendation: Add negative API tests for cross-user, cross-vendor, cross-influencer, staff-without-permission, and admin-role downgrade cases.  
-Estimated effort: 3-6 days  
+Fix applied: Added a centralized authorization policy layer for orders, products, campaigns, influencer-owned resources, commissions, withdrawals, documents, and RBAC; wired private document access through that policy layer; added negative authorization tests for cross-user orders, cross-vendor products, cross-influencer reels/collections/commission/withdrawals, finance-admin RBAC escalation, read-only-admin mutation, and staff-without-permission document access; added `npm run security:audit` to generate authorization inventory, IDOR findings, and RBAC violation report.  
+Current proof: Backend tests pass with 45/45 tests, including 13 authorization/private-document negative tests. `npm run security:audit` inventories 527 routes and currently flags 151 high-risk static findings without obvious ownership proof.  
+Remaining work: Convert the 151 high-risk static findings in `docs/security/idor-report.md` into endpoint-level negative tests and/or policy-enforced service checks until the high-risk count reaches zero.  
 Priority: P1
 
 ### Finding P1-02: Homepage product card has UI-only wishlist/compare controls
 
+Status: Resolved on 2026-06-01  
 Severity: High  
 Module: Frontend / Homepage Builder / Commerce Conversion  
 File path: `frontend/src/components/homepage/DynamicHomepageRenderer.jsx:1001`, `frontend/src/components/homepage/DynamicHomepageRenderer.jsx:1003`  
 Root cause: Dynamic product cards render Wishlist and Compare buttons without handlers or persistence. Quick view is a link, but wishlist/compare are visual-only.  
 Impact: Customers can click controls that appear to work but do not save state, causing trust and conversion loss.  
-Fix recommendation: Wire Wishlist to `wishlistService`/guest wishlist and either implement Compare or render it disabled/hidden until supported.  
+Fix applied: Dynamic homepage featured-product cards now use the existing unified wishlist hook for guest and authenticated persistence, with stateful saved/remove behavior and customer feedback. A production compare system was added with guest localStorage support, authenticated `/api/compare` persistence, guest-to-user merge, a four-product limit, `/compare` page, header navigation, and route-security coverage.  
+Validation: `frontend npm run lint`, `frontend npm run build`, `backend npm run audit:route-security`, `backend npm test -- --test-name-pattern compare`, and `node -c backend/src/app.js` passed.  
 Estimated effort: 1-2 days  
 Priority: P1
 
 ### Finding P1-03: Public influencer storefront has placeholder-risk social actions
 
+Status: Resolved on 2026-06-01  
 Severity: High  
 Module: Influencer Commerce / Public Storefront  
 File path: `frontend/src/pages/InfluencerPublicStorefrontPage.jsx`  
 Root cause: Storefront includes rich controls for follow/share/subscribe/social actions. Follow and event tracking are wired, but some secondary social/post controls appear presentational.  
 Impact: Public creator pages can expose non-functional actions, weakening user trust and engagement analytics.  
-Fix recommendation: Build a button-action inventory test for this page; every clickable control should map to service call, navigation, disabled state, or explicit non-persistent browser action.  
+Fix applied: Replaced placeholder post action icons with explicit like/share/save handlers, optimistic UI state, duplicate prevention via local persisted action sets, and `InfluencerStorefrontEvent` analytics. Profile share/copy/report/block actions now run concrete browser and persisted event workflows. Unauthenticated follow/post actions preserve the storefront return URL and pending action through login; follow is resumed after successful shopper auth. Removed the dead filter click by converting it into a real filter panel with tracked tab selection.  
+Validation: `frontend npm run lint`, `frontend npm run build`, `backend npm run audit:route-security`, `backend npm test -- --test-name-pattern storefront`, `node -c backend/src/modules/influencer/service.js`, and `node -c backend/src/modules/influencer/model.js` passed.  
 Estimated effort: 1-2 days  
 Priority: P1
 
@@ -287,7 +294,7 @@ Affiliate/reels:
 | --- | --- | --- | --- |
 | Platform config bootstrap | Resolved | HTTP initializer removed; CLI-only locked bootstrap added | Keep super-admin reinitialization unavailable until MFA/approval workflow exists. |
 | CSRF gap during cookie migration | Resolved | Cookie-only browser transport with CSRF middleware and bearer rejection added | Keep auth/CSRF tests in CI. |
-| IDOR not fully proven | High | Route audit passes but cannot prove service ownership | Add negative access tests. |
+| IDOR not fully proven outside document gateway | High | Route audit passes but cannot prove every non-document service ownership check | Add negative access tests. |
 | Event write abuse | High | Optional auth on reels/tracking | Per-route rate limits and dedupe. |
 | Console logging of permissions | Resolved | Staff/vendor permission logs moved to logger wrappers | Keep permission payloads redacted. |
 | JSON-LD injection test missing | Medium | `dangerouslySetInnerHTML` with JSON-LD | Add escaping/regression test. |
@@ -365,7 +372,7 @@ Risks:
 | --- | --- | --- | --- |
 | Closed | `/api/config/initialize-defaults` removed from HTTP and replaced with CLI-only locked bootstrap | Resolved | Backend/Security |
 | Closed | Cookie auth uses HttpOnly cookies, CSRF protection, no frontend token storage, and bearer rejection | Resolved | Backend/Frontend |
-| P0 | Private document access needs document-level authorization tests | High | Backend/Security |
+| Closed | Private document access uses document-id authorization, audit logging, and no filename signing | Resolved | Backend/Security |
 | P1 | Object-level authorization not proven across full API | High | Backend/QA |
 | P1 | Homepage/influencer UI-only actions | High | Frontend/Product |
 | P1 | Tracking/reel event abuse controls insufficient | High | Backend/Security |
@@ -380,7 +387,7 @@ Do not approve enterprise production launch until:
 
 1. Keep `/api/config/initialize-defaults` production-blocked and CLI-only bootstrap locked by `system_bootstrap`.
 2. Keep cookie auth/CSRF tests in CI and reject any reintroduction of bearer/localStorage token auth.
-3. Private document access is authorized by document record and audited.
+3. Backfill historical private upload rows into `private_documents` before enabling old document download links in production.
 4. E2E tests cover login, checkout, Razorpay verify/webhook, refund, vendor settlement, affiliate attribution, commission settlement, and reel engagement.
 5. Per-route rate limiting/deduplication exists for tracking, reels, reviews, uploads, auth, payment, and recommendations.
 6. Placeholder/UI-only buttons are wired, disabled, or removed.
@@ -405,4 +412,4 @@ Do not approve enterprise production launch until:
 
 Result: Not approved for enterprise production yet.
 
-The codebase is functional and substantially wired, and current lint/build/backend test gates pass. The remaining blockers are not simple syntax or lint issues; they are launch-grade concerns around private document authorization proof, broader object-level authorization proof, event abuse prevention, E2E coverage for financial/influencer attribution flows, and operational readiness.
+The codebase is functional and substantially wired, and current lint/build/backend test gates pass. The remaining blockers are not simple syntax or lint issues; they are launch-grade concerns around broader object-level authorization proof, event abuse prevention, E2E coverage for financial/influencer attribution flows, and operational readiness.

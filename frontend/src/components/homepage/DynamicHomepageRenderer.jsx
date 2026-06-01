@@ -6,6 +6,9 @@ import { ProductCarousel } from "../ProductCarousel";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { trackHomepageContainerEvent } from "../../services/homepageContainerService";
 import { formatCurrency } from "../../utils/formatCurrency";
+import { useCartDrawer } from "../../hooks/useCartDrawer";
+import { useCompare } from "../../hooks/useCompare";
+import { useWishlist } from "../../hooks/useWishlist";
 import {
   isInfluencerStorefrontContainerType,
   isStorefrontDiscoveryContainerType,
@@ -956,6 +959,13 @@ function resolveFeaturedButtonStyles(config = {}) {
 }
 
 function FeaturedProductTile({ product, config = {}, hero = false }) {
+  const productId = String(product?._id || "");
+  const { showToast } = useCartDrawer();
+  const { addItem: addWishlistItem, removeItem: removeWishlistItem, isInWishlist } = useWishlist();
+  const { addItem: addCompareItem, removeItem: removeCompareItem, isInCompare, maxItems } = useCompare();
+  const [wishlistSaved, setWishlistSaved] = useState(false);
+  const [compareSaved, setCompareSaved] = useState(false);
+  const [actionPending, setActionPending] = useState("");
   const imageUrl = resolveApiAssetUrl(product?.images?.[0]?.url || "");
   const price = product.discountPrice || product.price || 0;
   const discount = product.discountPrice && product.price ? Math.round(((product.price - product.discountPrice) / product.price) * 100) : 0;
@@ -967,10 +977,71 @@ function FeaturedProductTile({ product, config = {}, hero = false }) {
     boxShadow: config.cardShadow === false ? "none" : "0 24px 70px -48px rgba(15, 23, 42, 0.45)",
   };
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadActionState() {
+      if (!productId) return;
+      const [savedToWishlist, savedToCompare] = await Promise.all([
+        isInWishlist(productId).catch(() => false),
+        isInCompare(productId).catch(() => false),
+      ]);
+      if (!active) return;
+      setWishlistSaved(Boolean(savedToWishlist));
+      setCompareSaved(Boolean(savedToCompare));
+    }
+
+    loadActionState();
+
+    return () => {
+      active = false;
+    };
+  }, [isInCompare, isInWishlist, productId]);
+
+  const handleWishlistToggle = async () => {
+    if (!productId || actionPending) return;
+    setActionPending("wishlist");
+    try {
+      if (wishlistSaved) {
+        await removeWishlistItem(productId);
+        setWishlistSaved(false);
+        showToast("Removed from wishlist.", "success");
+      } else {
+        await addWishlistItem(productId);
+        setWishlistSaved(true);
+        showToast("Added to wishlist.", "success");
+      }
+    } catch (err) {
+      showToast(err?.response?.data?.message || err?.message || "Unable to update wishlist.");
+    } finally {
+      setActionPending("");
+    }
+  };
+
+  const handleCompareToggle = async () => {
+    if (!productId || actionPending) return;
+    setActionPending("compare");
+    try {
+      if (compareSaved) {
+        await removeCompareItem(productId);
+        setCompareSaved(false);
+        showToast("Removed from compare.", "success");
+      } else {
+        await addCompareItem(product);
+        setCompareSaved(true);
+        showToast(`Added to compare. You can compare up to ${maxItems} products.`, "success");
+      }
+    } catch (err) {
+      showToast(err?.response?.data?.message || err?.message || `You can compare up to ${maxItems} products at a time.`);
+    } finally {
+      setActionPending("");
+    }
+  };
+
   return (
     <article className={`group relative flex h-full min-h-0 flex-col overflow-hidden bg-white transition ${config.cardHoverEffect === "LIFT" ? "hover:-translate-y-1" : ""}`} style={cardStyle}>
       {config.showProductImage !== false ? (
-        <a href={`/product/${product._id}`} className={hero ? "block aspect-[16/11] bg-slate-100" : "block aspect-[4/3] bg-slate-100"}>
+        <a href={`/product/${productId}`} className={hero ? "block aspect-[16/11] bg-slate-100" : "block aspect-[4/3] bg-slate-100"}>
           {imageUrl ? <img src={imageUrl} alt={product.name} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center text-sm text-slate-400">Image coming soon</div>}
         </a>
       ) : null}
@@ -983,7 +1054,7 @@ function FeaturedProductTile({ product, config = {}, hero = false }) {
           {config.showDeliveryBadge ? <span className="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-bold text-white">Fast Delivery</span> : null}
         </div>
         {config.showBrand !== false && brand ? <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{brand}</div> : null}
-        {config.showProductName !== false ? <a href={`/product/${product._id}`} className={`${hero ? "text-xl" : "text-sm"} line-clamp-2 font-semibold text-slate-950 hover:text-blue-600`}>{product.name}</a> : null}
+        {config.showProductName !== false ? <a href={`/product/${productId}`} className={`${hero ? "text-xl" : "text-sm"} line-clamp-2 font-semibold text-slate-950 hover:text-blue-600`}>{product.name}</a> : null}
         {config.showRating !== false && product?.ratings?.averageRating > 0 ? (
           <div className="flex items-center gap-1 text-xs text-slate-600">
             <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
@@ -997,10 +1068,32 @@ function FeaturedProductTile({ product, config = {}, hero = false }) {
         </div>
         {config.showStockStatus !== false ? <div className="text-xs font-medium text-emerald-600">{Number(product.stock || 0) > 0 ? "In stock" : "Out of stock"}</div> : null}
         <div className="mt-2 flex flex-wrap gap-2">
-          {config.showAddToCart !== false ? <a href={`/product/${product._id}`} className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white"><ShoppingCart className="h-3.5 w-3.5" /> Add</a> : null}
-          {config.showWishlist !== false ? <button type="button" className="rounded-full border border-slate-200 p-2 text-slate-600" aria-label="Wishlist"><Heart className="h-4 w-4" /></button> : null}
-          {config.showQuickView ? <a href={`/product/${product._id}`} className="rounded-full border border-slate-200 p-2 text-slate-600" aria-label="Quick view"><Eye className="h-4 w-4" /></a> : null}
-          {config.showCompare ? <button type="button" className="rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600" aria-label="Compare product">Compare</button> : null}
+          {config.showAddToCart !== false ? <a href={`/product/${productId}`} className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white"><ShoppingCart className="h-3.5 w-3.5" /> Add</a> : null}
+          {config.showWishlist !== false ? (
+            <button
+              type="button"
+              onClick={handleWishlistToggle}
+              disabled={actionPending === "wishlist"}
+              className={`rounded-full border p-2 transition disabled:cursor-wait disabled:opacity-60 ${wishlistSaved ? "border-rose-200 bg-rose-50 text-rose-600" : "border-slate-200 text-slate-600 hover:border-rose-200 hover:text-rose-600"}`}
+              aria-label={wishlistSaved ? "Remove from wishlist" : "Add to wishlist"}
+              title={wishlistSaved ? "Remove from wishlist" : "Add to wishlist"}
+            >
+              <Heart className={`h-4 w-4 ${wishlistSaved ? "fill-current" : ""}`} />
+            </button>
+          ) : null}
+          {config.showQuickView ? <a href={`/product/${productId}`} className="rounded-full border border-slate-200 p-2 text-slate-600" aria-label="Quick view"><Eye className="h-4 w-4" /></a> : null}
+          {config.showCompare ? (
+            <button
+              type="button"
+              onClick={handleCompareToggle}
+              disabled={actionPending === "compare"}
+              className={`rounded-full border px-3 py-2 text-xs font-semibold transition disabled:cursor-wait disabled:opacity-60 ${compareSaved ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:border-blue-200 hover:text-blue-700"}`}
+              aria-label={compareSaved ? "Remove product from compare" : "Compare product"}
+              title={compareSaved ? "Remove from compare" : "Compare product"}
+            >
+              {compareSaved ? "Compared" : "Compare"}
+            </button>
+          ) : null}
         </div>
       </div>
     </article>

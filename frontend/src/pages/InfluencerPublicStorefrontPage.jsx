@@ -2,7 +2,7 @@ import { createElement, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   BadgeCheck,
-  Bell,
+  Bookmark,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -41,6 +41,8 @@ import {
 } from "../services/influencerCommerceService";
 import { formatCurrency } from "../utils/formatCurrency";
 import { saveTrackingContext } from "../utils/influencerTracking";
+import { saveRedirectAfterLogin } from "../utils/loginRedirect";
+import pendingActionManager from "../utils/pendingActionManager";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 
 const TABS = [
@@ -72,6 +74,51 @@ function imageOf(product = {}) {
 
 function mediaOf(item = {}) {
   return resolveApiAssetUrl(item.media?.coverImage || item.media?.thumbnail || item.media?.bannerImage || item.media?.[0]?.url || item.thumbnailUrl || item.videoUrl || "");
+}
+
+function currentRelativeUrl() {
+  if (typeof window === "undefined") return "/";
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function getStoredActionSet(key) {
+  if (typeof window === "undefined") return new Set();
+  try {
+    return new Set(JSON.parse(window.localStorage.getItem(key) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function setStoredActionSet(key, values) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(key, JSON.stringify([...values]));
+}
+
+async function shareStorefrontResource({ username, eventType = "share", surface, title, url, payload = {} }) {
+  const shareUrl = url || (typeof window !== "undefined" ? window.location.href : "");
+  let destination = "copy_link";
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, url: shareUrl });
+      destination = "native_share";
+    } catch (err) {
+      if (err?.name === "AbortError") return { shared: false, destination: "cancelled" };
+      throw err;
+    }
+  } else if (navigator.clipboard) {
+    await navigator.clipboard.writeText(shareUrl);
+  }
+
+  await trackPublicInfluencerEvent(username, {
+    eventType,
+    surface,
+    ...payload,
+    metadata: { ...(payload.metadata || {}), destination, url: shareUrl },
+  }).catch(() => null);
+
+  return { shared: true, destination };
 }
 
 function CreatorProductCard({ product, data, surface = "storefront", collectionId = "", postId = "" }) {
@@ -153,7 +200,18 @@ function CreatorProductCard({ product, data, surface = "storefront", collectionI
 
   return (
     <article className="group flex min-w-[220px] max-w-[240px] flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
-      <button type="button" onClick={openProduct} className="relative aspect-[4/5] bg-slate-100 text-left dark:bg-slate-800">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={openProduct}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openProduct();
+          }
+        }}
+        className="relative aspect-[4/5] cursor-pointer bg-slate-100 text-left dark:bg-slate-800"
+      >
         {imageOf(product) ? <img src={imageOf(product)} alt={product.name} className="h-full w-full object-cover transition group-hover:scale-105" loading="lazy" /> : null}
         <button
           type="button"
@@ -164,7 +222,7 @@ function CreatorProductCard({ product, data, surface = "storefront", collectionI
         >
           <Heart className={`h-5 w-5 ${saved ? "fill-rose-500 text-rose-500" : ""}`} />
         </button>
-      </button>
+      </div>
       <div className="flex flex-1 flex-col gap-2 p-3">
         <p className="line-clamp-1 text-[11px] font-bold uppercase text-slate-500">{product.category || "Creator Pick"}</p>
         <button type="button" onClick={openProduct} className="line-clamp-2 min-h-10 text-left text-sm font-bold text-slate-950 hover:text-indigo-600 dark:text-white">
@@ -339,7 +397,92 @@ function CompactReelCard({ reel, username, surface = "creator-reels-grid", class
   );
 }
 
-function PostsGrid({ data, posts = [], compactMode = false }) {
+function PostActionButtons({ data, post, onRequireAuth }) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const postId = post?._id || "";
+  const [busyAction, setBusyAction] = useState("");
+  const [liked, setLiked] = useState(() => getStoredActionSet("creator_post_likes").has(postId));
+  const [saved, setSaved] = useState(() => getStoredActionSet("creator_post_saves").has(postId));
+  const [counts, setCounts] = useState(() => ({
+    likes: Number(post?.metrics?.likes || 0),
+    comments: Number(post?.metrics?.comments || 0),
+    shares: Number(post?.metrics?.shares || 0),
+    saves: Number(post?.metrics?.saves || 0),
+  }));
+
+  const toggleStoredAction = useCallback((storageKey, nextValue) => {
+    const values = getStoredActionSet(storageKey);
+    if (nextValue) values.add(postId);
+    else values.delete(postId);
+    setStoredActionSet(storageKey, values);
+  }, [postId]);
+
+  async function handleEngagement(action) {
+    if (!postId || busyAction) return;
+    if ((action === "like" || action === "save") && !isAuthenticated) {
+      onRequireAuth?.({ type: `post_${action}`, postId });
+      return;
+    }
+
+    setBusyAction(action);
+    try {
+      if (action === "share") {
+        const result = await shareStorefrontResource({
+          username: data.profile.username,
+          eventType: "share",
+          surface: "post-card",
+          title: post.caption || data.profile.name,
+          url: `${window.location.origin}/influencer/${data.profile.username}/posts#${postId}`,
+          payload: { postId, metadata: { action: "share" } },
+        });
+        if (result.shared) setCounts((current) => ({ ...current, shares: current.shares + 1 }));
+        return;
+      }
+
+      const nextValue = action === "like" ? !liked : !saved;
+      const metric = action === "like" ? "likes" : "saves";
+      if (action === "like") setLiked(nextValue);
+      else setSaved(nextValue);
+      toggleStoredAction(action === "like" ? "creator_post_likes" : "creator_post_saves", nextValue);
+      setCounts((current) => ({ ...current, [metric]: Math.max(0, current[metric] + (nextValue ? 1 : -1)) }));
+
+      await trackPublicInfluencerEvent(data.profile.username, {
+        eventType: "post_engagement",
+        surface: "post-card",
+        postId,
+        metadata: { action: nextValue ? action : action === "like" ? "unlike" : "unsave" },
+      });
+    } catch {
+      if (action === "like") setLiked((value) => !value);
+      if (action === "save") setSaved((value) => !value);
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
+        <span>{compact(counts.likes)} likes</span>
+        <span>{compact(counts.comments)} comments</span>
+        <span>{compact(counts.shares)} shares</span>
+      </div>
+      <div className="flex gap-1">
+        <button type="button" onClick={() => handleEngagement("like")} disabled={busyAction === "like"} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 disabled:opacity-60 dark:hover:bg-slate-800" aria-label={liked ? "Unlike post" : "Like post"} title={liked ? "Unlike post" : "Like post"}>
+          <Heart className={`h-4 w-4 ${liked ? "fill-rose-500 text-rose-500" : ""}`} />
+        </button>
+        <button type="button" onClick={() => handleEngagement("share")} disabled={busyAction === "share"} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 disabled:opacity-60 dark:hover:bg-slate-800" aria-label="Share post" title="Share post">
+          <Share2 className="h-4 w-4" />
+        </button>
+        <button type="button" onClick={() => handleEngagement("save")} disabled={busyAction === "save"} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 disabled:opacity-60 dark:hover:bg-slate-800" aria-label={saved ? "Unsave post" : "Save post"} title={saved ? "Unsave post" : "Save post"}>
+          <Bookmark className={`h-4 w-4 ${saved ? "fill-indigo-500 text-indigo-500" : ""}`} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PostsGrid({ data, posts = [], compactMode = false, onRequireAuth }) {
   return (
     <section>
       {!compactMode ? null : <SectionHeader title="Latest Posts" to={`/influencer/${data.profile.username}/posts`} />}
@@ -351,13 +494,7 @@ function PostsGrid({ data, posts = [], compactMode = false }) {
             </div>
             <div className="space-y-2 p-3">
               <p className="line-clamp-2 text-sm text-slate-700 dark:text-slate-200">{post.caption || "Creator post"}</p>
-              <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
-                <span>{compact(post.metrics?.likes || 0)} likes</span>
-                <span>{compact(post.metrics?.comments || 0)} comments</span>
-              </div>
-              <div className="flex gap-1">
-                {[Heart, Share2, Bell].map((Icon, index) => <button key={index} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"><Icon className="h-4 w-4" /></button>)}
-              </div>
+              <PostActionButtons data={data} post={post} onRequireAuth={onRequireAuth} />
             </div>
           </article>
         ))}
@@ -425,7 +562,7 @@ function Sidebar({ data }) {
         <h2 className="font-black text-slate-950 dark:text-white">Creator Updates</h2>
         <form onSubmit={subscribe} className="mt-3 space-y-2">
           <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="Email" className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
-          <button className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-bold text-white dark:bg-white dark:text-slate-950"><Send className="h-4 w-4" /> Subscribe</button>
+          <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-bold text-white dark:bg-white dark:text-slate-950"><Send className="h-4 w-4" /> Subscribe</button>
           {status ? <p className="text-xs font-bold text-slate-500">{status}</p> : null}
         </form>
       </section>
@@ -433,7 +570,7 @@ function Sidebar({ data }) {
   );
 }
 
-function ProfileHeader({ data, following, followBusy = false, onFollow, onMore, moreOpen, canEdit }) {
+function ProfileHeader({ data, following, followBusy = false, onFollow, onShare, onCopy, onReport, onBlock, onMore, moreOpen, canEdit, actionStatus = "" }) {
   const location = [data.profile.location?.city, data.profile.location?.state, data.profile.location?.country].filter(Boolean).join(", ");
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -465,18 +602,19 @@ function ProfileHeader({ data, following, followBusy = false, onFollow, onMore, 
               ) : (
                 <button onClick={onFollow} disabled={followBusy} className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-black ${following ? "bg-white text-slate-950" : "bg-indigo-600 text-white"}`}>{following ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}{followBusy ? (following ? "Unfollowing..." : "Following...") : following ? "Following" : "Follow"}</button>
               )}
-              <button onClick={() => navigator.share?.({ title: data.profile.name, url: window.location.href }) || navigator.clipboard?.writeText(window.location.href)} className="inline-flex items-center gap-2 rounded-md bg-white/95 px-4 py-2 text-sm font-black text-slate-950"><Share2 className="h-4 w-4" /> Share</button>
+              <button onClick={onShare} className="inline-flex items-center gap-2 rounded-md bg-white/95 px-4 py-2 text-sm font-black text-slate-950"><Share2 className="h-4 w-4" /> Share</button>
               <div className="relative">
                 <button onClick={onMore} className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-white/95 text-slate-950" aria-label="More profile actions"><MoreHorizontal className="h-5 w-5" /></button>
                 {moreOpen ? (
                   <div className="absolute right-0 top-12 z-20 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-sm font-bold text-slate-700 shadow-xl dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-                    <button className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800"><Flag className="h-4 w-4" /> Report Profile</button>
-                    <button onClick={() => navigator.clipboard?.writeText(window.location.href)} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800"><Copy className="h-4 w-4" /> Copy Profile URL</button>
-                    <button className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800"><X className="h-4 w-4" /> Block User</button>
+                    <button onClick={onReport} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800"><Flag className="h-4 w-4" /> Report Profile</button>
+                    <button onClick={onCopy} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800"><Copy className="h-4 w-4" /> Copy Profile URL</button>
+                    <button onClick={onBlock} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800"><X className="h-4 w-4" /> Block User</button>
                   </div>
                 ) : null}
               </div>
             </div>
+            {actionStatus ? <p className="mt-2 text-xs font-bold text-white/90">{actionStatus}</p> : null}
           </div>
         </div>
       </div>
@@ -621,6 +759,7 @@ function EmptyState({ label }) {
 }
 
 function LoginPromptModal({ onClose }) {
+  const returnTo = encodeURIComponent(currentRelativeUrl());
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Login required">
       <div className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl dark:bg-slate-900">
@@ -630,8 +769,8 @@ function LoginPromptModal({ onClose }) {
         </div>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">Log in or create an account to follow this influencer and receive creator updates.</p>
         <div className="mt-5 grid grid-cols-2 gap-2">
-          <Link to="/login" className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white dark:bg-white dark:text-slate-950">Login</Link>
-          <Link to="/register" className="rounded-2xl border border-slate-200 px-4 py-3 text-center text-sm font-black text-slate-700 dark:border-slate-700 dark:text-slate-200">Register</Link>
+          <Link to={`/login?redirect=${returnTo}`} className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white dark:bg-white dark:text-slate-950">Login</Link>
+          <Link to={`/register?redirect=${returnTo}`} className="rounded-2xl border border-slate-200 px-4 py-3 text-center text-sm font-black text-slate-700 dark:border-slate-700 dark:text-slate-200">Register</Link>
         </div>
       </div>
     </div>
@@ -640,6 +779,7 @@ function LoginPromptModal({ onClose }) {
 
 export function InfluencerPublicStorefrontPage() {
   const { username, slug, tab } = useParams();
+  const navigate = useNavigate();
   const location = useLocation();
   const authUser = useAuthStore((state) => state.user);
   const routeUsername = username || slug;
@@ -651,6 +791,8 @@ export function InfluencerPublicStorefrontPage() {
   const [loginPrompt, setLoginPrompt] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [actionStatus, setActionStatus] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -668,6 +810,8 @@ export function InfluencerPublicStorefrontPage() {
 
   async function toggleFollow() {
     if (!useAuthStore.getState().isAuthenticated) {
+      saveRedirectAfterLogin(currentRelativeUrl());
+      pendingActionManager.setPendingAction("follow_creator", { username: routeUsername });
       setLoginPrompt(true);
       return;
     }
@@ -688,6 +832,7 @@ export function InfluencerPublicStorefrontPage() {
     try {
       const response = previousFollowing ? await unfollowPublicInfluencer(routeUsername) : await followPublicInfluencer(routeUsername);
       setFollowing(Boolean(response?.data?.following));
+      setActionStatus(response?.data?.following ? "You are following this creator." : "You unfollowed this creator.");
       setData((current) => current ? {
         ...current,
         stats: { ...current.stats, followers: response?.data?.followers ?? current.stats.followers },
@@ -701,20 +846,90 @@ export function InfluencerPublicStorefrontPage() {
         viewer: { ...current.viewer, isFollowing: previousFollowing },
       } : current);
       if (err?.response?.status === 401) setLoginPrompt(true);
+      else setActionStatus("Unable to update follow status. Please try again.");
     }
     finally {
       setFollowBusy(false);
     }
   }
 
+  const requireAuthenticatedAction = useCallback((action = {}) => {
+    saveRedirectAfterLogin(currentRelativeUrl());
+    pendingActionManager.setPendingAction(action.type || "storefront_action", { username: routeUsername, ...action });
+    setLoginPrompt(true);
+  }, [routeUsername]);
+
+  async function handleShareProfile() {
+    if (!data) return;
+    const result = await shareStorefrontResource({
+      username: data.profile.username,
+      eventType: "share",
+      surface: "profile-header",
+      title: data.profile.name,
+      url: window.location.href,
+      payload: { metadata: { action: "share_profile" } },
+    });
+    if (result.shared) setActionStatus(result.destination === "copy_link" ? "Profile link copied." : "Profile shared.");
+  }
+
+  async function handleCopyProfileUrl() {
+    if (!data || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(window.location.href);
+    await trackPublicInfluencerEvent(data.profile.username, {
+      eventType: "share",
+      surface: "profile-menu",
+      metadata: { action: "copy_profile_url", destination: "clipboard", url: window.location.href },
+    }).catch(() => null);
+    setMoreOpen(false);
+    setActionStatus("Profile URL copied.");
+  }
+
+  async function handleReportProfile() {
+    if (!data) return;
+    await trackPublicInfluencerEvent(data.profile.username, {
+      eventType: "profile_report",
+      surface: "profile-menu",
+      metadata: { action: "report_profile", url: window.location.href },
+    }).catch(() => null);
+    setMoreOpen(false);
+    setActionStatus("Report submitted for moderation review.");
+  }
+
+  async function handleBlockProfile() {
+    if (!data) return;
+    const blocked = getStoredActionSet("blocked_creator_profiles");
+    blocked.add(data.profile.username);
+    setStoredActionSet("blocked_creator_profiles", blocked);
+    await trackPublicInfluencerEvent(data.profile.username, {
+      eventType: "profile_block",
+      surface: "profile-menu",
+      metadata: { action: "block_profile" },
+    }).catch(() => null);
+    setMoreOpen(false);
+    setActionStatus("Creator blocked on this device.");
+    navigate("/influencers", { replace: true });
+  }
+
+  function toggleFilters() {
+    const nextOpen = !filtersOpen;
+    setFiltersOpen(nextOpen);
+    if (nextOpen && data) {
+      trackPublicInfluencerEvent(data.profile.username, {
+        eventType: "search",
+        surface: "storefront-filters",
+        metadata: { action: "open_filters", activeTab: active, search },
+      }).catch(() => null);
+    }
+  }
+
   const content = useMemo(() => {
     if (!data) return null;
-    if (active === "posts") return <PostsGrid data={data} posts={data.posts || []} />;
+    if (active === "posts") return <PostsGrid data={data} posts={data.posts || []} onRequireAuth={requireAuthenticatedAction} />;
     if (active === "reels") return <ReelsTab data={data} />;
     if (active === "collections") return <CollectionsTab data={data} />;
     if (active === "about") return <AboutTab data={data} />;
     return <StorefrontTab data={data} />;
-  }, [active, data]);
+  }, [active, data, requireAuthenticatedAction]);
 
   const canEdit = Boolean(
     data?.viewer?.isOwner ||
@@ -734,7 +949,20 @@ export function InfluencerPublicStorefrontPage() {
         <span className="text-slate-900 dark:text-white">{data.profile.name}</span>
       </nav>
 
-      <ProfileHeader data={data} following={following} followBusy={followBusy} onFollow={toggleFollow} onMore={() => setMoreOpen((value) => !value)} moreOpen={moreOpen} canEdit={canEdit} />
+      <ProfileHeader
+        data={data}
+        following={following}
+        followBusy={followBusy}
+        onFollow={toggleFollow}
+        onShare={handleShareProfile}
+        onCopy={handleCopyProfileUrl}
+        onReport={handleReportProfile}
+        onBlock={handleBlockProfile}
+        onMore={() => setMoreOpen((value) => !value)}
+        moreOpen={moreOpen}
+        canEdit={canEdit}
+        actionStatus={actionStatus}
+      />
       <Tabs username={data.profile.username} active={active} />
 
       <div className="flex flex-col gap-6 lg:flex-row">
@@ -744,8 +972,25 @@ export function InfluencerPublicStorefrontPage() {
             <Search className="ml-2 h-4 w-4 text-slate-400" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products, collections, reels, posts" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm outline-none dark:text-white" />
             {search ? <button onClick={() => setSearch("")} className="rounded-md p-2 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Clear search"><X className="h-4 w-4" /></button> : null}
-            <button className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-2 text-sm font-bold dark:border-slate-700">Filters <ChevronDown className="h-4 w-4" /></button>
+            <button type="button" onClick={toggleFilters} aria-expanded={filtersOpen} className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-2 text-sm font-bold dark:border-slate-700">Filters <ChevronDown className="h-4 w-4" /></button>
           </div>
+          {filtersOpen ? (
+            <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex flex-wrap gap-2">
+                {TABS.map(([key, label]) => (
+                  <Link
+                    key={key}
+                    to={key === "storefront" ? `/influencer/${data.profile.username}/storefront` : `/influencer/${data.profile.username}/${key}`}
+                    onClick={() => trackPublicInfluencerEvent(data.profile.username, { eventType: "search", surface: "storefront-filters", metadata: { action: "select_filter_tab", tab: key } }).catch(() => null)}
+                    className={`rounded-full px-3 py-2 text-xs font-black ${active === key ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950" : "border border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"}`}
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+              <p className="mt-3 text-xs font-semibold text-slate-500">Search is applied across creator products, collections, reels, and posts.</p>
+            </div>
+          ) : null}
           {content}
         </section>
       </div>

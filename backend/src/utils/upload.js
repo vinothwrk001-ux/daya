@@ -86,8 +86,9 @@ async function uploadToLocal(files, { folder = "uploads", visibility = "public" 
     await fs.promises.writeFile(fullPath, file.buffer);
 
     results.push({
-      url: privateAsset ? `/api/system/private-files/${filename}` : `/uploads/${filename}`,
+      url: privateAsset ? "" : `/uploads/${filename}`,
       storage: privateAsset ? "private" : "public",
+      storageKey: privateAsset ? filename : `public/${filename}`,
       localPath: fullPath,
       publicId: null,
       originalName: file.originalname,
