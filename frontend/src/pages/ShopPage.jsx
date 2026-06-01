@@ -316,6 +316,7 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
   const { cart, addItem: addCartItem } = useCart();
   const { openDrawer, showToast } = useCartDrawer();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const productId = useMemo(() => extractProductId(product), [product]);
 
   const { selectedVariant, hasAvailableVariants, availableStock } = useMemo(
     () => getAvailableProductVariant(product, cart?.items),
@@ -330,7 +331,7 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
 
   return (
     <Link
-      to={`/product/${product._id}`}
+      to={`/product/${productId}`}
       className="group flex flex-col h-full bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-300 overflow-hidden"
     >
       {/* Image Container with Discount Badge & Action Buttons */}
@@ -360,7 +361,7 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex flex-col gap-2 sm:gap-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-out">
           {/* Wishlist Button */}
           <button
-            onClick={(e) => onToggleWishlist(e, product._id)}
+            onClick={(e) => onToggleWishlist(e, productId)}
             className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 hover:bg-white dark:hover:bg-slate-700 active:scale-95 transition-all duration-200"
             title="Add to wishlist"
             aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
@@ -387,7 +388,7 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
                 setIsSubmitting(true);
                 const { selectedVariant: nextSelectedVariant } = getAvailableProductVariant(product, cart?.items);
                 const variantId = nextSelectedVariant?.variantId || "";
-                const added = await addCartItem(product._id, 1, variantId);
+                const added = await addCartItem(productId, 1, variantId);
                 if (added) {
                   openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
                 }
@@ -400,8 +401,8 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
             }}
             disabled={isSubmitting || !hasAvailableVariants}
             className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={hasAvailableVariants ? "Add to cart" : "Out of stock"}
-            aria-label="Add to cart"
+            title={hasAvailableVariants ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
+            aria-label={hasAvailableVariants ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
           >
             <ShoppingCart size={20} strokeWidth={2} />
           </button>

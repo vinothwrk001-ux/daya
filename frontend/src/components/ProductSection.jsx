@@ -100,6 +100,7 @@ function ProductCard({ product }) {
   const { openDrawer, showToast } = useCartDrawer();
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const productId = useMemo(() => extractProductId(product), [product]);
 
   const { selectedVariant, hasAvailableVariants, availableStock } = useMemo(
     () => getAvailableProductVariant(product, cart?.items),
@@ -126,7 +127,7 @@ function ProductCard({ product }) {
       setIsSubmitting(true);
       const { selectedVariant: nextSelectedVariant } = getAvailableProductVariant(product, cart?.items);
       const variantId = nextSelectedVariant?.variantId || "";
-      const added = await addCartItem(product._id, 1, variantId);
+      const added = await addCartItem(productId, 1, variantId);
       if (added) {
         openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
       }
@@ -140,7 +141,7 @@ function ProductCard({ product }) {
 
   return (
     <Link
-      to={`/product/${product._id}`}
+      to={`/product/${productId}`}
       className="group flex flex-col h-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-300 overflow-hidden"
     >
       {/* Image Container with Actions */}
@@ -191,8 +192,8 @@ function ProductCard({ product }) {
             onClick={handleAddToCart}
             disabled={isSubmitting || !hasAvailableVariants || availableStock <= 0}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Add to cart"
-            aria-label="Add to cart"
+            title={hasAvailableVariants ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
+            aria-label={hasAvailableVariants ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
           >
             <ShoppingCart size={18} strokeWidth={2} />
           </button>

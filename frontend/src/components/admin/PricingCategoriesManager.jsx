@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import * as pricingService from "../../services/pricingService";
 
 export function PricingCategoriesManager() {
@@ -22,7 +22,7 @@ export function PricingCategoriesManager() {
     return err?.response?.data?.message || err?.message || fallback;
   }
 
-  async function loadCategories() {
+  const loadCategories = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -41,11 +41,11 @@ export function PricingCategoriesManager() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [filterActive]);
 
   useEffect(() => {
     loadCategories();
-  }, [filterActive]);
+  }, [loadCategories]);
 
   function resetForm() {
     setFormData({

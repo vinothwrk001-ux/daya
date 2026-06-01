@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bookmark, Flag, Image as ImageIcon, Star, ThumbsDown, ThumbsUp, UserCircle, Video } from "lucide-react";
 import { useAuthStore } from "../context/authStore";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
@@ -155,7 +155,7 @@ export function ProductReviewsSection({ productId, product = null }) {
     [filter]
   );
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!productId) return;
     setLoading(true);
     try {
@@ -167,11 +167,11 @@ export function ProductReviewsSection({ productId, product = null }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [params, productId]);
 
   useEffect(() => {
     void load();
-  }, [productId, params]);
+  }, [load]);
 
   async function handleSubmit(event) {
     event.preventDefault();

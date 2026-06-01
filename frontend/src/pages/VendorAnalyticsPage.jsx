@@ -79,8 +79,8 @@ export function VendorAnalyticsPage() {
   }
 
   const overview = data?.overview || {};
-  const topProducts = data?.topProducts || [];
-  const categoryPerformance = data?.categoryPerformance || [];
+  const topProducts = useMemo(() => data?.topProducts || [], [data?.topProducts]);
+  const categoryPerformance = useMemo(() => data?.categoryPerformance || [], [data?.categoryPerformance]);
   const inventoryPerformance = data?.inventoryPerformance || [];
   const insights = data?.insights || {};
 

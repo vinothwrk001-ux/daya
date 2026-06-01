@@ -5,7 +5,9 @@ const STORAGE_KEY = "grm_staff_auth";
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return { token: null, refreshToken: null, user: parsed.user || null };
   } catch {
     return null;
   }
@@ -16,8 +18,6 @@ function save(state) {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        token: state.token,
-        refreshToken: state.refreshToken,
         user: state.user,
       })
     );

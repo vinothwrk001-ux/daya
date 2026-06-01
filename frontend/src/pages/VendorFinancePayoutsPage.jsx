@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { InlineToast } from "../components/commerce/InlineToast";
 import {
   FinanceInfoBanner,
@@ -34,7 +34,7 @@ export function VendorFinancePayoutsPage() {
   const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
 
-  async function loadRequests(nextPage = pagination.page) {
+  const loadRequests = useCallback(async (nextPage = 1) => {
     setLoading(true);
     setError("");
     try {
@@ -52,11 +52,11 @@ export function VendorFinancePayoutsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [pagination.limit, status]);
 
   useEffect(() => {
     loadRequests(1);
-  }, [status]);
+  }, [loadRequests]);
 
   return (
     <div className="space-y-6">

@@ -9,7 +9,8 @@ function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return { token: null, refreshToken: null, user: parsed.user || null };
   } catch {
     return null;
   }
@@ -21,8 +22,6 @@ function save(state) {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        token: state.token,
-        refreshToken: state.refreshToken,
         user: state.user,
       })
     );
@@ -37,7 +36,7 @@ export const useAuthStore = create((set, get) => ({
   token: initial.token,
   refreshToken: initial.refreshToken,
   user: initial.user,
-  isAuthenticated: !!initial.token,
+  isAuthenticated: Boolean(initial.token),
   
   setAuth: ({ token, accessToken, refreshToken, user }) => {
     const nextToken = accessToken || token;
@@ -45,7 +44,7 @@ export const useAuthStore = create((set, get) => ({
       token: nextToken || null,
       refreshToken: refreshToken || null,
       user: user || null,
-      isAuthenticated: !!nextToken,
+      isAuthenticated: Boolean(nextToken),
     };
     set(nextState);
     save(nextState);

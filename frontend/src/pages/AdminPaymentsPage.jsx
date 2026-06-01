@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FilterBar } from "../components/FilterBar";
 import { PaymentTable } from "../components/PaymentTable";
 import { RefundModal } from "../components/RefundModal";
@@ -22,7 +22,7 @@ export function AdminPaymentsPage() {
   const [savingCodSettings, setSavingCodSettings] = useState(false);
   const [savingRazorpaySettings, setSavingRazorpaySettings] = useState(false);
 
-  async function loadPayments() {
+  const loadPayments = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -42,11 +42,11 @@ export function AdminPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [filters]);
 
   useEffect(() => {
     loadPayments();
-  }, [filters.search, filters.status, filters.method]);
+  }, [loadPayments]);
 
   async function handleRefund(payload) {
     if (!refundTarget) return;

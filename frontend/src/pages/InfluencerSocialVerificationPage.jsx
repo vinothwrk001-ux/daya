@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
@@ -56,7 +56,10 @@ function apiError(err, fallback = "Something went wrong. Please try again.") {
 }
 
 function serializeSocialAccount(account = {}) {
-  const { proofFile, proofFileName, clientId, ...payload } = account;
+  const payload = { ...account };
+  delete payload.proofFile;
+  delete payload.proofFileName;
+  delete payload.clientId;
   const numericFields = [
     "followersCount",
     "subscribers",
@@ -334,34 +337,13 @@ export function InfluencerSocialVerificationPage() {
     return () => window.clearInterval(timer);
   }, [applicationId, accounts]);
 
-  useEffect(() => {
-    const candidates = accounts.filter((account) => {
-      if (account.platform !== "instagram") return false;
-      if (!account.profileUrl || account.followersCount) return false;
-      try {
-        new URL(account.profileUrl);
-        return !fetchedMetricUrlsRef.current.has(`${account.clientId}:${account.profileUrl}`);
-      } catch {
-        return false;
-      }
-    });
-    if (!candidates.length) return undefined;
-    const timer = window.setTimeout(() => {
-      candidates.forEach((account) => {
-        fetchedMetricUrlsRef.current.add(`${account.clientId}:${account.profileUrl}`);
-        void fetchMetrics(account);
-      });
-    }, 900);
-    return () => window.clearTimeout(timer);
-  }, [accounts]);
-
-  function updateAccount(clientId, nextAccount) {
+  const updateAccount = useCallback((clientId, nextAccount) => {
     setAccounts((current) => current.map((account) => account.clientId === clientId ? nextAccount : account));
     setErrors((current) => ({ ...current, [clientId]: undefined }));
     setPageError("");
-  }
+  }, []);
 
-  async function fetchMetrics(account) {
+  const fetchMetrics = useCallback(async (account) => {
     if (!account.profileUrl) return;
     setMetricStates((current) => ({ ...current, [account.clientId]: { loading: true, message: "Fetching profile metrics..." } }));
     try {
@@ -385,7 +367,28 @@ export function InfluencerSocialVerificationPage() {
     } catch (err) {
       setMetricStates((current) => ({ ...current, [account.clientId]: { type: "error", message: apiError(err, "Could not fetch metrics.") } }));
     }
-  }
+  }, [updateAccount]);
+
+  useEffect(() => {
+    const candidates = accounts.filter((account) => {
+      if (account.platform !== "instagram") return false;
+      if (!account.profileUrl || account.followersCount) return false;
+      try {
+        new URL(account.profileUrl);
+        return !fetchedMetricUrlsRef.current.has(`${account.clientId}:${account.profileUrl}`);
+      } catch {
+        return false;
+      }
+    });
+    if (!candidates.length) return undefined;
+    const timer = window.setTimeout(() => {
+      candidates.forEach((account) => {
+        fetchedMetricUrlsRef.current.add(`${account.clientId}:${account.profileUrl}`);
+        void fetchMetrics(account);
+      });
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [accounts, fetchMetrics]);
 
   function addAccount(platform = "other") {
     setAccounts((current) => [...current, createSocialAccount(platform)]);

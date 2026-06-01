@@ -17,7 +17,7 @@ export function useStaffPermission() {
 
   // Force sync permissions from server
   const syncPermissions = useCallback(async () => {
-    if (!token || syncing) return;
+    if (syncing) return;
 
     try {
       setSyncing(true);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FilterBar } from "../components/FilterBar";
 import { StatusBadge } from "../components/StatusBadge";
@@ -135,7 +135,7 @@ export function AdminRefundsPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedRefund, setSelectedRefund] = useState(null);
 
-  async function loadRefunds() {
+  const loadRefunds = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -147,11 +147,11 @@ export function AdminRefundsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [status]);
 
   useEffect(() => {
     loadRefunds();
-  }, [status]);
+  }, [loadRefunds]);
 
   async function handleProcessRefund(payload) {
     if (!selectedRefund) return;

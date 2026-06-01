@@ -28,6 +28,7 @@ function resolveAuthContext() {
 export const adminHttp = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
   timeout: 20000,
+  withCredentials: true,
 });
 
 adminHttp.interceptors.request.use((config) => {
@@ -65,17 +66,13 @@ adminHttp.interceptors.response.use(
 
       if (originalRequest.__authType === "staff") {
         const { refreshToken, setAuth, logout } = useStaffAuthStore.getState();
-        if (!refreshToken) {
-          logout();
-          return Promise.reject(error);
-        }
 
         try {
           refreshPromise =
             refreshPromise ||
             adminHttp.post(
               "/api/staff/auth/refresh",
-              { refreshToken },
+              refreshToken ? { refreshToken } : {},
               {
                 headers: { Authorization: undefined },
                 __authType: "staff_refresh",
@@ -96,17 +93,13 @@ adminHttp.interceptors.response.use(
       }
 
       const { refreshToken, setAuth, logout } = useAuthStore.getState();
-      if (!refreshToken) {
-        logout();
-        return Promise.reject(error);
-      }
 
       try {
         refreshPromise =
           refreshPromise ||
           adminHttp.post(
             "/api/auth/refresh",
-            { refreshToken },
+            refreshToken ? { refreshToken } : {},
             {
               headers: { Authorization: undefined },
               __authType: "legacy_refresh",

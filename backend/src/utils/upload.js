@@ -4,7 +4,8 @@ const crypto = require("crypto");
 const { configureCloudinary } = require("../config/cloudinary");
 const { AppError } = require("./AppError");
 
-const UPLOAD_DIR = path.join(process.cwd(), "uploads");
+const PUBLIC_UPLOAD_DIR = path.join(process.cwd(), "uploads", "public");
+const PRIVATE_UPLOAD_DIR = path.join(process.cwd(), "uploads", "private");
 const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE_BYTES || 5 * 1024 * 1024); // 5MB
 const MAX_VIDEO_FILE_SIZE = Number(process.env.MAX_VIDEO_FILE_SIZE_BYTES || 50 * 1024 * 1024); // 50MB
 
@@ -18,8 +19,12 @@ const ALLOWED_MIME = new Set([
   "application/pdf",
 ]);
 
-function ensureUploadDir() {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+function ensureUploadDir(uploadDir) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+function isPrivateFolder(folder = "") {
+  return /(^|[-_/])(kyc|identity|bank|tax|verification|withdrawal|finance|document|documents)([-_/]|$)/i.test(String(folder || ""));
 }
 
 function validateFiles(files) {
@@ -70,16 +75,20 @@ async function uploadToCloudinary(files, folder) {
   return results;
 }
 
-async function uploadToLocal(files) {
-  ensureUploadDir();
+async function uploadToLocal(files, { folder = "uploads", visibility = "public" } = {}) {
+  const privateAsset = visibility === "private" || isPrivateFolder(folder);
+  const uploadDir = privateAsset ? PRIVATE_UPLOAD_DIR : PUBLIC_UPLOAD_DIR;
+  ensureUploadDir(uploadDir);
   const results = [];
   for (const file of files) {
     const filename = randomName(file.originalname);
-    const fullPath = path.join(UPLOAD_DIR, filename);
+    const fullPath = path.join(uploadDir, filename);
     await fs.promises.writeFile(fullPath, file.buffer);
 
     results.push({
-      url: `/uploads/${filename}`,
+      url: privateAsset ? `/api/system/private-files/${filename}` : `/uploads/${filename}`,
+      storage: privateAsset ? "private" : "public",
+      localPath: fullPath,
       publicId: null,
       originalName: file.originalname,
       mimeType: file.mimetype,
@@ -97,8 +106,8 @@ async function uploadMany(files, { folder } = {}) {
   const cloud = await uploadToCloudinary(files, folder || "uploads");
   if (cloud) return cloud;
 
-  return await uploadToLocal(files);
+  return await uploadToLocal(files, { folder, visibility: isPrivateFolder(folder) ? "private" : "public" });
 }
 
-module.exports = { uploadMany, validateFiles, ALLOWED_MIME, MAX_FILE_SIZE, MAX_VIDEO_FILE_SIZE };
+module.exports = { uploadMany, validateFiles, ALLOWED_MIME, MAX_FILE_SIZE, MAX_VIDEO_FILE_SIZE, PUBLIC_UPLOAD_DIR, PRIVATE_UPLOAD_DIR, isPrivateFolder };
 

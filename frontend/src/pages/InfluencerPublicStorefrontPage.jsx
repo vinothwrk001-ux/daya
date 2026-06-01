@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   BadgeCheck,
@@ -203,7 +203,7 @@ function BenefitsBar() {
     <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
       {benefits.map(([Icon, label]) => (
         <div key={label} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-          <Icon className="h-5 w-5 text-indigo-600" />
+          {createElement(Icon, { className: "h-5 w-5 text-indigo-600" })}
           {label}
         </div>
       ))}
@@ -641,7 +641,6 @@ function LoginPromptModal({ onClose }) {
 export function InfluencerPublicStorefrontPage() {
   const { username, slug, tab } = useParams();
   const location = useLocation();
-  const navigate = useNavigate();
   const authUser = useAuthStore((state) => state.user);
   const routeUsername = username || slug;
   const active = activeTabFromRoute(tab || location.pathname.split("/").filter(Boolean)[2]);

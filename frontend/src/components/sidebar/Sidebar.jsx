@@ -1,12 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { NavLink } from "react-router-dom";
 import { LayoutDashboard, Loader, FolderTree, Settings, Users, Wallet, Boxes, Megaphone, Clapperboard, Store } from "lucide-react";
 import { SidebarSection } from "./SidebarSection";
 import { BrandLogo } from "../BrandLogo";
-
-function pathMatches(pathname, targetPath) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
 
 export function Sidebar({
   open = true,
@@ -18,7 +14,6 @@ export function Sidebar({
   loading = false,
   error = "",
 }) {
-  const location = useLocation();
   const PrimaryIcon = primaryItem.icon || LayoutDashboard;
 
   const SECTION_ICONS = {
@@ -52,6 +47,7 @@ export function Sidebar({
         <BrandLogo showName={false} imgClassName="h-7 w-auto max-w-[44px] object-contain" />
         <div className="hidden truncate text-base font-semibold text-slate-950 dark:text-white sm:text-lg group-hover:block">
           {title}
+          {subtitle ? <span className="block truncate text-xs font-medium text-slate-500 dark:text-slate-400">{subtitle}</span> : null}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, forwardRef } from "react";
+import { useState, forwardRef } from "react";
 
 /**
  * PayoutAccountForm Component
@@ -25,21 +25,6 @@ export const PayoutAccountForm = forwardRef(function PayoutAccountForm(
   });
 
   const [errors, setErrors] = useState({});
-  const isInitialMount = useRef(true);
-
-  // Only sync form data on initial mount or when explicitly changing accounts
-  useEffect(() => {
-    if (isInitialMount.current) {
-      setFormData({
-        accountHolderName: initialData.accountHolderName || "",
-        accountNumber: initialData.accountNumber || "",
-        ifscCode: (initialData.ifscCode || "").toUpperCase(),
-        bankName: initialData.bankName || "",
-        upiId: initialData.upiId || "",
-      });
-      isInitialMount.current = false;
-    }
-  }, []);
 
   // Form validation
   const validate = () => {

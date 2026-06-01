@@ -1,5 +1,5 @@
 const express = require("express");
-const { adminWorkspaceAuthRequired } = require("../middleware/adminAccess");
+const { adminWorkspaceAuthRequired, requireWorkspacePermission } = require("../middleware/adminAccess");
 const { authRequired } = require("../middleware/auth");
 const { AppError } = require("../utils/AppError");
 const { logger } = require("../utils/logger");
@@ -24,7 +24,7 @@ router.use(adminWorkspaceAuthRequired);
  * POST /admin/settlement/run
  * Manually trigger settlement job
  */
-router.post("/settlement/run", async (req, res, next) => {
+router.post("/settlement/run", requireWorkspacePermission("settlements.settle"), async (req, res, next) => {
   try {
     const { batchSize = 50, vendorId = null, priority = "normal" } = req.body;
 
@@ -55,7 +55,7 @@ router.post("/settlement/run", async (req, res, next) => {
  * GET /admin/settlement/status
  * Get settlement queue and system status
  */
-router.get("/settlement/status", async (req, res, next) => {
+router.get("/settlement/status", requireWorkspacePermission("settlements.read"), async (req, res, next) => {
   try {
     const queueStatus = await getQueueStatus();
     const systemStats = await settlementMetricsService.getSettlementStatistics(30);
@@ -76,7 +76,7 @@ router.get("/settlement/status", async (req, res, next) => {
  * GET /admin/settlement/metrics
  * Get settlement metrics and history
  */
-router.get("/settlement/metrics", async (req, res, next) => {
+router.get("/settlement/metrics", requireWorkspacePermission("settlements.read"), async (req, res, next) => {
   try {
     const { days = 30, limit = 10 } = req.query;
 
@@ -107,7 +107,7 @@ router.get("/settlement/metrics", async (req, res, next) => {
  * GET /admin/settlement/job/:jobId
  * Get detailed information about a specific job
  */
-router.get("/settlement/job/:jobId", async (req, res, next) => {
+router.get("/settlement/job/:jobId", requireWorkspacePermission("settlements.read"), async (req, res, next) => {
   try {
     const { jobId } = req.params;
 
@@ -130,7 +130,7 @@ router.get("/settlement/job/:jobId", async (req, res, next) => {
  * GET /admin/settlement/vendor/:vendorId
  * Get settlement status for a specific vendor
  */
-router.get("/settlement/vendor/:vendorId", async (req, res, next) => {
+router.get("/settlement/vendor/:vendorId", requireWorkspacePermission("settlements.read"), async (req, res, next) => {
   try {
     const { vendorId } = req.params;
 
@@ -149,7 +149,7 @@ router.get("/settlement/vendor/:vendorId", async (req, res, next) => {
  * POST /admin/settlement/verify
  * Verify settlement integrity for orders
  */
-router.post("/settlement/verify", async (req, res, next) => {
+router.post("/settlement/verify", requireWorkspacePermission("settlements.read"), async (req, res, next) => {
   try {
     const { orderIds = [] } = req.body;
 
@@ -186,7 +186,7 @@ router.post("/settlement/verify", async (req, res, next) => {
  * POST /admin/settlement/pause
  * Pause settlement jobs (emergency stop)
  */
-router.post("/settlement/pause", async (req, res, next) => {
+router.post("/settlement/pause", requireWorkspacePermission("settlements.hold"), async (req, res, next) => {
   try {
     logger.warn("⏸️  Settlement jobs paused by admin", {
       adminId: req.user._id,
@@ -207,7 +207,7 @@ router.post("/settlement/pause", async (req, res, next) => {
  * POST /admin/settlement/resume
  * Resume settlement jobs
  */
-router.post("/settlement/resume", async (req, res, next) => {
+router.post("/settlement/resume", requireWorkspacePermission("settlements.release"), async (req, res, next) => {
   try {
     logger.info("▶️  Settlement jobs resumed by admin", {
       adminId: req.user._id,
@@ -228,7 +228,7 @@ router.post("/settlement/resume", async (req, res, next) => {
  * GET /admin/settlement/queue
  * Get queue jobs (Bull queue only)
  */
-router.get("/settlement/queue", async (req, res, next) => {
+router.get("/settlement/queue", requireWorkspacePermission("settlements.read"), async (req, res, next) => {
   try {
     const { limit = 20 } = req.query;
 
@@ -247,7 +247,7 @@ router.get("/settlement/queue", async (req, res, next) => {
  * DELETE /admin/settlement/queue (development only)
  * Clear all queued jobs
  */
-router.delete("/settlement/queue", async (req, res, next) => {
+router.delete("/settlement/queue", requireWorkspacePermission("settlements.reverse"), async (req, res, next) => {
   try {
     if (process.env.NODE_ENV === "production") {
       throw new AppError(
@@ -276,7 +276,7 @@ router.delete("/settlement/queue", async (req, res, next) => {
  * POST /admin/settlement/cleanup-metrics
  * Clean old metrics (keep last N days)
  */
-router.post("/settlement/cleanup-metrics", async (req, res, next) => {
+router.post("/settlement/cleanup-metrics", requireWorkspacePermission("settlements.reverse"), async (req, res, next) => {
   try {
     const { daysToKeep = 90 } = req.body;
 

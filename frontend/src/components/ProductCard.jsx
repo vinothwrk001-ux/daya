@@ -10,6 +10,23 @@ import { useWishlist } from "../hooks/useWishlist";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { extractProductId, getAvailableProductVariant } from "../utils/cartState";
 
+function reportProductCardError(message, details = {}) {
+  const payload = {
+    component: "ProductCard",
+    message,
+    productId: details.productId || "",
+    errorMessage: details.error?.message || String(details.error || ""),
+    stack: details.error?.stack,
+  };
+
+  if (import.meta.env.DEV) {
+    console.error(message, payload);
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent("app:error", { detail: payload }));
+}
+
 export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[4/5]", onProductClick }) {
   const navigate = useNavigate();
   const { cart, addItem: addCartItem } = useCart();
@@ -17,6 +34,7 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
   const { addItem: addWishlistItem, removeItem: removeWishlistItem, isInWishlist: checkWishlistStatus } = useWishlist();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
+  const productId = useMemo(() => extractProductId(product), [product]);
   const imageUrl = resolveApiAssetUrl(product?.images?.[0]?.url || "");
 
   const { selectedVariant, hasAvailableVariants, availableStock } = useMemo(
@@ -24,7 +42,7 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
     [cart?.items, product]
   );
 
-  const discountPercent = product?.discountPrice
+  const discountPercent = product?.discountPrice && product?.price
     ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
     : 0;
 
@@ -33,25 +51,26 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
 
     async function resolveWishlistStatus() {
       try {
-        const status = await checkWishlistStatus(product._id);
+        const status = await checkWishlistStatus(productId);
         if (active) {
           setIsInWishlist(Boolean(status));
         }
       } catch (err) {
+        reportProductCardError("Failed to resolve wishlist status.", { productId, error: err });
         if (active) {
           setIsInWishlist(false);
         }
       }
     }
 
-    if (product?._id) {
+    if (productId) {
       resolveWishlistStatus();
     }
 
     return () => {
       active = false;
     };
-  }, [product?._id, checkWishlistStatus]);
+  }, [productId, checkWishlistStatus]);
 
   const handleWishlist = async (event) => {
     event.preventDefault();
@@ -62,14 +81,15 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
       setIsSubmitting(true);
 
       if (isInWishlist) {
-        await removeWishlistItem(product._id);
+        await removeWishlistItem(productId);
         setIsInWishlist(false);
       } else {
-        await addWishlistItem(product._id, selectedVariant?.variantId || "");
+        await addWishlistItem(productId, selectedVariant?.variantId || "");
         setIsInWishlist(true);
       }
     } catch (err) {
-      console.error("Failed to update wishlist:", err);
+      reportProductCardError("Failed to update wishlist.", { productId, error: err });
+      showToast(getCartErrorMessage(err, "Unable to update wishlist."));
     } finally {
       setIsSubmitting(false);
     }
@@ -78,18 +98,18 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
   const handleAddToCart = async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    if (isSubmitting || !hasAvailableVariants || availableStock <= 0) return;
+    if (isSubmitting || !productId || !hasAvailableVariants || availableStock <= 0) return;
 
     try {
       setIsSubmitting(true);
       const { selectedVariant: nextSelectedVariant } = getAvailableProductVariant(product, cart?.items);
       const variantId = nextSelectedVariant?.variantId || "";
-      const added = await addCartItem(product._id, 1, variantId);
+      const added = await addCartItem(productId, 1, variantId);
       if (added) {
         openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
       }
     } catch (err) {
-      console.error("Failed to add to cart:", err);
+      reportProductCardError("Failed to add product to cart.", { productId, error: err });
       showToast(getCartErrorMessage(err, "Failed to add item to cart."));
     } finally {
       setIsSubmitting(false);
@@ -121,9 +141,11 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
     : "text-xs text-slate-500 dark:text-slate-400 line-through";
   const stockClass = isEditorial ? "text-emerald-300" : "text-green-600 dark:text-green-400";
   const stockOutClass = isEditorial ? "text-rose-300" : "text-red-600 dark:text-red-400";
+  const inStock = hasAvailableVariants && availableStock > 0;
   const navigateToProduct = () => {
+    if (!productId) return;
     onProductClick?.(product);
-    navigate(`/product/${product._id}`);
+    navigate(`/product/${productId}`);
   };
 
   return (
@@ -146,7 +168,7 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
         {imageUrl ? (
           <img
             src={imageUrl}
-            alt={product.name}
+            alt={product?.name || "Product image"}
             className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-110"
             loading="lazy"
           />
@@ -191,10 +213,10 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
           {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart}
-            disabled={isSubmitting || !hasAvailableVariants || availableStock <= 0}
+            disabled={isSubmitting || !productId || !inStock}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-            title={hasAvailableVariants ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
-            aria-label={hasAvailableVariants ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
+            title={inStock ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
+            aria-label={inStock ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
           >
             <ShoppingCart size={20} strokeWidth={2} />
           </button>
@@ -208,6 +230,10 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
 
         {/* Product Name */}
         <h3 className={titleTextClass}>{product.name}</h3>
+
+        <div className={`text-xs font-semibold ${inStock ? stockClass : stockOutClass}`}>
+          {inStock ? `${availableStock} in stock` : "Out of stock"}
+        </div>
 
         {/* Spacer */}
         <div className="flex-grow" />

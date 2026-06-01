@@ -146,7 +146,7 @@ function MediaUpload({ label, field, value, file, transform, error, recommended,
         ) : (
           <span className="grid justify-items-center gap-2 text-sm font-bold"><Upload className="h-7 w-7" /> Drag & drop or browse files</span>
         )}
-        <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => {
+        <input name={field} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => {
           const selected = event.target.files?.[0] || null;
           setLocalError("");
           if (selected && selected.size > maxBytes) {

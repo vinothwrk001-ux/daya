@@ -4,6 +4,7 @@ import { useAuthStore } from "../context/authStore";
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
   timeout: 20000,
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
@@ -30,24 +31,24 @@ api.interceptors.response.use(
 
     // Don't retry logout/logout-all requests - let them fail naturally
     // These endpoints now handle 401 gracefully
-    const isAuthEndpoint = requestPath.includes("/api/auth/logout");
+    const isAuthEndpoint =
+      requestPath.includes("/api/auth/login") ||
+      requestPath.includes("/api/auth/register") ||
+      requestPath.includes("/api/auth/refresh") ||
+      requestPath.includes("/api/auth/logout");
     if (isAuthEndpoint) {
       return Promise.reject(err);
     }
 
     if (status === 401 && originalRequest && !originalRequest._retry) {
       const { refreshToken, setAuth, logout } = useAuthStore.getState();
-      if (!refreshToken) {
-        logout();
-        return Promise.reject(err);
-      }
 
       originalRequest._retry = true;
 
       try {
         refreshPromise =
           refreshPromise ||
-          api.post("/api/auth/refresh", { refreshToken }, { headers: { Authorization: undefined } });
+          api.post("/api/auth/refresh", refreshToken ? { refreshToken } : {}, { headers: { Authorization: undefined } });
 
         const response = await refreshPromise;
         refreshPromise = null;

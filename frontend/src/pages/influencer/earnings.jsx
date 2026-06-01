@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Banknote,
@@ -48,7 +48,7 @@ function MoneyCard({ label, value, hint, icon: Icon = Wallet }) {
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
-        <Icon className="h-5 w-5 text-indigo-500" />
+        {createElement(Icon, { className: "h-5 w-5 text-indigo-500" })}
       </div>
       <p className="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">{formatCurrency(value || 0)}</p>
       {hint ? <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{hint}</p> : null}

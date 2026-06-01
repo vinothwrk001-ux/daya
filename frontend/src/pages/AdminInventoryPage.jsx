@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAdminInventorySummary } from "../services/adminApi";
 
@@ -14,11 +14,7 @@ export function AdminInventoryPage() {
   const [data, setData] = useState(null);
   const [expandedProductId, setExpandedProductId] = useState("");
 
-  useEffect(() => {
-    loadInventory();
-  }, [query]);
-
-  async function loadInventory() {
+  const loadInventory = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -29,7 +25,11 @@ export function AdminInventoryPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [query]);
+
+  useEffect(() => {
+    loadInventory();
+  }, [loadInventory]);
 
   const products = useMemo(() => data?.products || [], [data?.products]);
 

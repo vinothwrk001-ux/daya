@@ -22,6 +22,9 @@ const webhookEventSchema = new mongoose.Schema(
       trim: true,
       unique: true,
     },
+    providerEventId: { type: String, trim: true, index: true, default: "" },
+    payloadHash: { type: String, trim: true, index: true, default: "" },
+    receivedAt: { type: Date, default: Date.now, index: true },
     signatureVerified: {
       type: Boolean,
       default: false,

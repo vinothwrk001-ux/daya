@@ -64,7 +64,7 @@ export const useCart = () => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, setAuthCart]);
 
   /**
    * Initialize cart on mount (fetch if authenticated)
@@ -148,7 +148,7 @@ export const useCart = () => {
         pendingAddItemRequests.delete(requestKey);
       }
     },
-    [guestCart, isGuest]
+    [guestCart, isGuest, setAuthCart]
   );
 
   /**
@@ -183,7 +183,7 @@ export const useCart = () => {
         }
       }
     },
-    [guestCart, isGuest]
+    [guestCart, isGuest, setAuthCart]
   );
 
   /**
@@ -213,7 +213,7 @@ export const useCart = () => {
         }
       }
     },
-    [guestCart, isGuest]
+    [guestCart, isGuest, setAuthCart]
   );
 
   /**
@@ -239,7 +239,7 @@ export const useCart = () => {
         setLoading(false);
       }
     }
-  }, [guestCart, isGuest]);
+  }, [guestCart, isGuest, setAuthCart]);
 
   /**
    * Validate cart (recheck inventory, pricing)
@@ -306,7 +306,7 @@ export const useCart = () => {
     } finally {
       setLoading(false);
     }
-  }, [guestCart, isGuest]);
+  }, [guestCart, isGuest, setAuthCart]);
 
   return {
     // State

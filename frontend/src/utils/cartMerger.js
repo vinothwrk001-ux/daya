@@ -4,8 +4,6 @@
  * High-level orchestration for cart sync operations
  */
 
-import { useCart } from "../hooks/useCart";
-import { useWishlist } from "../hooks/useWishlist";
 import useGuestCartStore from "../context/guestCartStore";
 import useGuestWishlistStore from "../context/guestWishlistStore";
 

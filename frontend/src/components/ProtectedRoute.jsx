@@ -3,9 +3,9 @@ import { useAuthStore } from "../context/authStore";
 import { saveRedirectAfterLogin } from "../utils/loginRedirect";
 
 export function ProtectedRoute() {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const location = useLocation();
-  if (!token) {
+  if (!isAuthenticated) {
     const attemptedPath = `${location.pathname}${location.search}${location.hash}`;
     if (attemptedPath && attemptedPath !== "/login") {
       saveRedirectAfterLogin(window.location.origin + attemptedPath);

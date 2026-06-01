@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FilterBar } from "../components/FilterBar";
 import { PayoutCard } from "../components/PayoutCard";
 import { StatusBadge } from "../components/StatusBadge";
@@ -16,7 +16,7 @@ export function AdminPayoutsPage() {
   const [error, setError] = useState("");
   const [busyOrderId, setBusyOrderId] = useState("");
 
-  async function loadPayouts() {
+  const loadPayouts = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -27,11 +27,11 @@ export function AdminPayoutsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [status]);
 
   useEffect(() => {
     loadPayouts();
-  }, [status]);
+  }, [loadPayouts]);
 
   async function handleProcess(orderId) {
     setBusyOrderId(orderId);

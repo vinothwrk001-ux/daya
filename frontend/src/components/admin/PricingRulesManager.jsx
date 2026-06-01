@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import * as pricingService from "../../services/pricingService";
 
 const PAYMENT_METHOD_OPTIONS = [
@@ -51,9 +51,9 @@ export function PricingRulesManager() {
     notes: "",
   });
 
-  function getOtherCategoryId(items = categories) {
+  const getOtherCategoryId = useCallback((items = []) => {
     return items.find((item) => item.key === "OTHER")?._id || "";
-  }
+  }, []);
 
   function normalizeMessage(err, fallback) {
     return err?.response?.data?.message || err?.message || fallback;
@@ -67,7 +67,7 @@ export function PricingRulesManager() {
     return String(value);
   }
 
-  async function loadRules() {
+  const loadRules = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -83,9 +83,9 @@ export function PricingRulesManager() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [filterActive, filterCategory]);
 
-  async function loadCategories() {
+  const loadCategories = useCallback(async () => {
     try {
       const response = await pricingService.getPricingCategories();
       const items = Array.isArray(response?.data) ? response.data : [];
@@ -97,11 +97,11 @@ export function PricingRulesManager() {
     } catch (err) {
       setError(normalizeMessage(err, "Failed to load pricing categories"));
     }
-  }
+  }, [getOtherCategoryId]);
 
   useEffect(() => {
     loadRules();
-  }, [filterActive, filterCategory]);
+  }, [loadRules]);
 
   useEffect(() => {
     const filtered = filterPaymentMethod
@@ -112,7 +112,7 @@ export function PricingRulesManager() {
 
   useEffect(() => {
     loadCategories();
-  }, []);
+  }, [loadCategories]);
 
   function resetForm() {
     setFormData({
@@ -120,7 +120,7 @@ export function PricingRulesManager() {
       displayName: "",
       type: "FIXED",
       value: 0,
-      categoryId: getOtherCategoryId(),
+      categoryId: getOtherCategoryId(categories),
       appliesTo: "ORDER",
       paymentMethod: "ALL",
       sortOrder: 0,
@@ -141,7 +141,7 @@ export function PricingRulesManager() {
     try {
       const payload = {
         ...formData,
-        categoryId: normalizeCategoryId(formData.categoryId) || getOtherCategoryId(),
+        categoryId: normalizeCategoryId(formData.categoryId) || getOtherCategoryId(categories),
       };
 
       if (editingRule) {
@@ -166,7 +166,7 @@ export function PricingRulesManager() {
       displayName: rule.displayName,
       type: rule.type,
       value: rule.value,
-      categoryId: normalizeCategoryId(rule.categoryId) || getOtherCategoryId(),
+      categoryId: normalizeCategoryId(rule.categoryId) || getOtherCategoryId(categories),
       appliesTo: rule.appliesTo,
       paymentMethod: rule.paymentMethod || "ALL",
       sortOrder: rule.sortOrder,

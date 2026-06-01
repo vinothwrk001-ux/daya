@@ -4,6 +4,7 @@ import { useStaffAuthStore } from "../context/staffAuthStore";
 export const staffHttp = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
   timeout: 20000,
+  withCredentials: true,
 });
 
 staffHttp.interceptors.request.use((config) => {
@@ -35,11 +36,6 @@ staffHttp.interceptors.response.use(
     }
 
     const { refreshToken, setAuth, logout } = useStaffAuthStore.getState();
-    if (!refreshToken) {
-      logout();
-      return Promise.reject(error);
-    }
-
     originalRequest._retry = true;
 
     try {
@@ -47,7 +43,7 @@ staffHttp.interceptors.response.use(
         refreshPromise ||
         staffHttp.post(
           "/api/staff/auth/refresh",
-          { refreshToken },
+          refreshToken ? { refreshToken } : {},
           { headers: { Authorization: undefined } }
         );
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as inventoryService from "../services/inventoryService";
 import { formatCurrency } from "../utils/formatCurrency";
@@ -23,16 +23,7 @@ export function InventoryDetailsPage() {
   });
   const [thresholdValue, setThresholdValue] = useState(0);
 
-  useEffect(() => {
-    loadInventory();
-  }, [productId]);
-
-  useEffect(() => {
-    if (!selectedVariant?.variantId) return;
-    loadLedger(selectedVariant.variantId);
-  }, [productId, selectedVariant?.variantId]);
-
-  async function loadInventory() {
+  const loadInventory = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -49,9 +40,9 @@ export function InventoryDetailsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [productId]);
 
-  async function loadLedger(variantId) {
+  const loadLedger = useCallback(async (variantId) => {
     setLedgerLoading(true);
     try {
       const response = await inventoryService.getVariantLedger(productId, variantId, 20, 0);
@@ -61,7 +52,16 @@ export function InventoryDetailsPage() {
     } finally {
       setLedgerLoading(false);
     }
-  }
+  }, [productId]);
+
+  useEffect(() => {
+    loadInventory();
+  }, [loadInventory]);
+
+  useEffect(() => {
+    if (!selectedVariant?.variantId) return;
+    loadLedger(selectedVariant.variantId);
+  }, [loadLedger, selectedVariant?.variantId]);
 
   async function handleAdjustStock() {
     if (!selectedVariant || !adjustmentForm.reason.trim()) {

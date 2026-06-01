@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { FinanceField, FinanceInput, FinanceTabs, FinanceTextarea, formatFinanceDateTime } from "../components/finance/FinanceComponents";
 import { InvoicePreviewCard } from "../components/invoice/InvoicePreviewCard";
@@ -38,7 +38,7 @@ export function AdminInvoiceDetailsPage() {
     },
   });
 
-  async function loadInvoice() {
+  const loadInvoice = useCallback(async () => {
     setLoading(true);
     try {
       const [invoiceResponse, auditResponse] = await Promise.all([getAdminInvoice(id), getAdminInvoiceAudit(id)]);
@@ -66,11 +66,11 @@ export function AdminInvoiceDetailsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
 
   useEffect(() => {
     loadInvoice();
-  }, [id]);
+  }, [loadInvoice]);
 
   async function onSave(event) {
     event.preventDefault();

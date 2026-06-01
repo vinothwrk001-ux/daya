@@ -2,10 +2,10 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useStaffAuthStore } from "../context/staffAuthStore";
 
 export function StaffProtectedRoute() {
-  const token = useStaffAuthStore((s) => s.token);
+  const isAuthenticated = useStaffAuthStore((s) => s.isAuthenticated);
   const location = useLocation();
 
-  if (!token) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

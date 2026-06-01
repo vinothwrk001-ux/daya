@@ -5,11 +5,36 @@ const authService = require("../services/auth.service");
 const cartMergeService = require("../services/cartMerge.service");
 const wishlistMergeService = require("../services/wishlistMerge.service");
 
+function cookieOptions(maxAgeMs) {
+  const secure = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: process.env.AUTH_COOKIE_SAMESITE || (secure ? "none" : "lax"),
+    path: "/",
+    maxAge: maxAgeMs,
+  };
+}
+
+function setSessionCookies(res, result) {
+  if (!result?.accessToken || !result?.refreshToken) return;
+  const accessMaxAgeMs = Number(process.env.JWT_ACCESS_COOKIE_MAX_AGE_MS || 15 * 60 * 1000);
+  const refreshMaxAgeMs = Number(process.env.JWT_REFRESH_TTL_DAYS || 30) * 24 * 60 * 60 * 1000;
+  res.cookie("accessToken", result.accessToken, cookieOptions(accessMaxAgeMs));
+  res.cookie("refreshToken", result.refreshToken, cookieOptions(refreshMaxAgeMs));
+}
+
+function clearSessionCookies(res) {
+  res.clearCookie("accessToken", cookieOptions(0));
+  res.clearCookie("refreshToken", cookieOptions(0));
+}
+
 const register = asyncHandler(async (req, res) => {
   const result = await authService.register(req.body, {
     ipAddress: req.ip,
     userAgent: req.get("user-agent"),
   });
+  setSessionCookies(res, result);
   return ok(res, result, "Registered successfully");
 });
 
@@ -18,26 +43,29 @@ const login = asyncHandler(async (req, res) => {
     ipAddress: req.ip,
     userAgent: req.get("user-agent"),
   });
+  setSessionCookies(res, result);
   return ok(res, result, "Logged in successfully");
 });
 
 const refresh = asyncHandler(async (req, res) => {
-  const refreshToken = req.body?.refreshToken;
+  const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken;
   const result = await authService.refreshSession(refreshToken, {
     ipAddress: req.ip,
     userAgent: req.get("user-agent"),
   });
+  setSessionCookies(res, result);
   return ok(res, result, "Session refreshed");
 });
 
 const logout = asyncHandler(async (req, res) => {
-  const refreshToken = req.body?.refreshToken;
+  const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken;
   // req.user might be null if authOptional didn't find a token
   // That's OK - logout service handles it gracefully
   const result = await authService.logout(refreshToken, req.user, {
     ipAddress: req.ip,
     userAgent: req.get("user-agent"),
   });
+  clearSessionCookies(res);
   return ok(res, result, "Logged out successfully");
 });
 
@@ -46,6 +74,7 @@ const logoutAll = asyncHandler(async (req, res) => {
     ipAddress: req.ip,
     userAgent: req.get("user-agent"),
   });
+  clearSessionCookies(res);
   return ok(res, result, "Logged out from all sessions");
 });
 

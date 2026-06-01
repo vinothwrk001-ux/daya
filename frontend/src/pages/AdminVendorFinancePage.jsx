@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { InlineToast } from "../components/commerce/InlineToast";
 import {
@@ -56,7 +56,7 @@ export function AdminVendorFinancePage() {
     [pagination.limit, pagination.page, type]
   );
 
-  async function loadFinance() {
+  const loadFinance = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -71,7 +71,12 @@ export function AdminVendorFinancePage() {
       setWallet(walletRes.data?.wallet || null);
       setConsistency(walletRes.data?.consistency || null);
       setLedgerEntries(ledgerRes.data?.entries || []);
-      setPagination((current) => ({ ...current, ...(ledgerRes.data?.pagination || {}) }));
+      setPagination((current) => {
+        const next = { ...current, ...(ledgerRes.data?.pagination || {}) };
+        return current.page === next.page && current.limit === next.limit && current.pages === next.pages && current.total === next.total
+          ? current
+          : next;
+      });
       setRequests(requestsRes.data?.requests || []);
       setAccount(accountRes.data || null);
     } catch (err) {
@@ -79,11 +84,11 @@ export function AdminVendorFinancePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id, ledgerQuery]);
 
   useEffect(() => {
     loadFinance();
-  }, [id, ledgerQuery]);
+  }, [loadFinance]);
 
   async function handleVerifyAccount() {
     if (!account?._id) return;

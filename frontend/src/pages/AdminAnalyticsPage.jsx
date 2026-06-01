@@ -126,11 +126,10 @@ export function AdminAnalyticsPage() {
   }, [appliedFilters, reporting.appliedParams]);
 
   const overview = analytics?.overview || {};
-  const categoryPerformance = analytics?.categoryPerformance || [];
-  const highestRevenueProducts = analytics?.highestRevenueProducts || [];
+  const categoryPerformance = useMemo(() => analytics?.categoryPerformance || [], [analytics?.categoryPerformance]);
+  const highestRevenueProducts = useMemo(() => analytics?.highestRevenueProducts || [], [analytics?.highestRevenueProducts]);
   const highestReturnProducts = analytics?.highestReturnProducts || [];
   const inventoryMovement = analytics?.inventoryMovement || [];
-  const topSellingProducts = analytics?.topSellingProducts || [];
   const productRows = analytics?.productRows || [];
   const insights = analytics?.insights || {};
 

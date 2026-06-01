@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { InlineToast } from "../components/commerce/InlineToast";
 import {
@@ -66,7 +66,7 @@ export function AdminFinancePayoutManagementPage() {
   const [rejectNote, setRejectNote] = useState("");
   const [payForm, setPayForm] = useState({ mode: "MANUAL", transactionId: "", adminNote: "" });
 
-  async function loadRequests(nextPage = pagination.page) {
+  const loadRequests = useCallback(async (nextPage = 1) => {
     setLoading(true);
     setError("");
     try {
@@ -84,9 +84,9 @@ export function AdminFinancePayoutManagementPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [pagination.limit, status]);
 
-  async function loadAccounts(nextPage = accountsPagination.page) {
+  const loadAccounts = useCallback(async (nextPage = 1) => {
     try {
       const response = await listPayoutAccounts({
         page: nextPage,
@@ -100,12 +100,12 @@ export function AdminFinancePayoutManagementPage() {
       setError(message);
       setToast({ type: "error", message });
     }
-  }
+  }, [accountsPagination.limit]);
 
   useEffect(() => {
     loadRequests(1);
     loadAccounts(1);
-  }, [status]);
+  }, [loadAccounts, loadRequests]);
 
   async function handleVerifyAccount(account) {
     if (!account?._id) return;

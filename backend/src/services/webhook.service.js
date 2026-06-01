@@ -15,6 +15,20 @@ function buildEventId(provider, eventType, rawBody) {
   return `${provider}:${eventType}:${crypto.createHash("sha1").update(String(rawBody || "")).digest("hex")}`;
 }
 
+function payloadHash(rawBody) {
+  return crypto.createHash("sha256").update(String(rawBody || "")).digest("hex");
+}
+
+function assertFreshRazorpayEvent(event) {
+  const maxAgeSeconds = Number(process.env.RAZORPAY_WEBHOOK_MAX_AGE_SECONDS || 10 * 60);
+  const createdAt = Number(event?.created_at || event?.payload?.payment?.entity?.created_at || 0);
+  if (!createdAt) return;
+  const ageSeconds = Math.abs(Math.floor(Date.now() / 1000) - createdAt);
+  if (ageSeconds > maxAgeSeconds) {
+    throw new AppError("Stale Razorpay webhook event", 400, "STALE_WEBHOOK_EVENT");
+  }
+}
+
 function safeEqual(left, right) {
   const a = Buffer.from(String(left || ""));
   const b = Buffer.from(String(right || ""));
@@ -35,7 +49,7 @@ async function recordInvalidWebhook(rawBody, signature, message) {
       status: "FAILED",
       payload: {
         hasSignature: Boolean(signature),
-        rawBodySha256: crypto.createHash("sha256").update(String(rawBody || "")).digest("hex"),
+        rawBodySha256: payloadHash(rawBody),
       },
       errorMessage: message,
     });
@@ -68,7 +82,9 @@ class WebhookService {
       throw new AppError("Invalid Razorpay webhook payload", 400, "INVALID_WEBHOOK_PAYLOAD");
     }
     const eventType = event.event;
+    assertFreshRazorpayEvent(event);
     const eventId = event.id ? `RAZORPAY:${event.id}` : buildEventId("RAZORPAY", eventType, rawBody);
+    const hash = payloadHash(rawBody);
     const existing = await webhookEventRepo.findByEventId(eventId);
     if (existing) {
       return { status: "duplicate_ignored", eventId };
@@ -78,6 +94,9 @@ class WebhookService {
       provider: "RAZORPAY",
       eventType,
       eventId,
+      providerEventId: event.id || "",
+      payloadHash: hash,
+      receivedAt: new Date(),
       signatureVerified: true,
       status: "RECEIVED",
       payload: event,
@@ -235,6 +254,7 @@ class WebhookService {
   async handleShiprocketWebhook(data, { rawBody, signature } = {}) {
     logisticsService.verifyWebhookSignature(rawBody, signature);
     const eventId = buildEventId("SHIPROCKET", String(data?.current_status || "status"), JSON.stringify(data || {}));
+    const hash = payloadHash(rawBody || JSON.stringify(data || {}));
     const existing = await webhookEventRepo.findByEventId(eventId);
     if (existing) {
       return { status: "duplicate_ignored", eventId };
@@ -244,6 +264,9 @@ class WebhookService {
       provider: "SHIPROCKET",
       eventType: String(data?.current_status || "unknown"),
       eventId,
+      providerEventId: String(data?.shipment_id || data?.awb || data?.awb_code || ""),
+      payloadHash: hash,
+      receivedAt: new Date(),
       signatureVerified: true,
       status: "RECEIVED",
       payload: data,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { AlertCircle, BarChart3, CheckCircle2, Eye, Loader2, RefreshCw, Save, SlidersHorizontal, Trash2, ToggleLeft } from "lucide-react";
 import { listProducts } from "../services/adminApi";
@@ -86,7 +86,7 @@ function SectionHeading({ icon: Icon, title, description }) {
   return (
     <div className="flex items-start gap-3">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-        <Icon className="h-5 w-5" />
+        {createElement(Icon, { className: "h-5 w-5" })}
       </div>
       <div>
         <h3 className="text-base font-semibold text-slate-950 dark:text-white">{title}</h3>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { InlineToast } from "../components/commerce/InlineToast";
 import {
   FinancePagination,
@@ -44,16 +44,18 @@ export function VendorFinanceLedgerPage() {
     [appliedFilters, pagination.limit, pagination.page]
   );
 
-  async function loadLedger() {
+  const loadLedger = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const response = await vendorDashboardService.getVendorLedger(query);
       setEntries(response.data?.entries || []);
-      setPagination((current) => ({
-        ...current,
-        ...(response.data?.pagination || {}),
-      }));
+      setPagination((current) => {
+        const next = { ...current, ...(response.data?.pagination || {}) };
+        return current.page === next.page && current.limit === next.limit && current.pages === next.pages && current.total === next.total
+          ? current
+          : next;
+      });
     } catch (err) {
       const message = normalizeError(err);
       setError(message);
@@ -61,11 +63,11 @@ export function VendorFinanceLedgerPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [query]);
 
   useEffect(() => {
     loadLedger();
-  }, [query]);
+  }, [loadLedger]);
 
   function handleApplyFilters() {
     setPagination((current) => ({ ...current, page: 1 }));

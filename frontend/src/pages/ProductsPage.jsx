@@ -25,12 +25,6 @@ const RESERVED_QUERY_KEYS = new Set([
   "page",
 ]);
 
-function toDisplayValue(value) {
-  return String(value || "")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
 function toRangeKeys(key) {
   const capitalized = key.charAt(0).toUpperCase() + key.slice(1);
   return {
@@ -803,21 +797,22 @@ const ProductCard = memo(function ProductCard({ product }) {
   const { addItem: addWishlistItem, removeItem: removeWishlistItem, isInWishlist: checkWishlistStatus } = useWishlist();
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const productId = useMemo(() => extractProductId(product), [product]);
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const status = await checkWishlistStatus(product._id);
+        const status = await checkWishlistStatus(productId);
         if (active) setIsInWishlist(Boolean(status));
-      } catch (err) {
+      } catch {
         if (active) setIsInWishlist(false);
       }
     })();
     return () => {
       active = false;
     };
-  }, [product._id, checkWishlistStatus]);
+  }, [productId, checkWishlistStatus]);
 
   const { selectedVariant, hasAvailableVariants, availableStock } = useMemo(
     () => getAvailableProductVariant(product, cart?.items),
@@ -836,10 +831,10 @@ const ProductCard = memo(function ProductCard({ product }) {
     try {
       setIsSubmitting(true);
       if (isInWishlist) {
-        await removeWishlistItem(product._id);
+        await removeWishlistItem(productId);
         setIsInWishlist(false);
       } else {
-        await addWishlistItem(product._id, selectedVariant?.variantId || "");
+        await addWishlistItem(productId, selectedVariant?.variantId || "");
         setIsInWishlist(true);
       }
     } catch (err) {
@@ -858,7 +853,7 @@ const ProductCard = memo(function ProductCard({ product }) {
       setIsSubmitting(true);
       const { selectedVariant: nextSelectedVariant } = getAvailableProductVariant(product, cart?.items);
       const variantId = nextSelectedVariant?.variantId || "";
-      const added = await addCartItem(product._id, 1, variantId);
+      const added = await addCartItem(productId, 1, variantId);
       if (added) {
         openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
       }
@@ -872,7 +867,7 @@ const ProductCard = memo(function ProductCard({ product }) {
 
   return (
     <Link
-      to={`/product/${product._id}`}
+      to={`/product/${productId}`}
       className="group/card flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-all duration-200 hover:border-slate-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:shadow-slate-950/50"
     >
       <div className="group relative w-full overflow-hidden bg-slate-100 dark:bg-slate-800" style={{ aspectRatio: "3/4" }}>

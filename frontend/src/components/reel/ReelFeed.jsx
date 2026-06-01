@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
@@ -15,9 +15,7 @@ import {
   VolumeX,
   X,
 } from "lucide-react";
-import { CartDrawerContext } from "../../context/CartDrawerContext";
 import { useAuthStore } from "../../context/authStore";
-import { useCart } from "../../hooks/useCart";
 import {
   createReelComment,
   createReelCommentReply,
@@ -33,11 +31,10 @@ import {
   toggleReelCommentLike,
   toggleReelLike,
   toggleReelSave,
-  trackAffiliateEvent,
 } from "../../services/influencerCommerceService";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
-import { loadTrackingContext, saveTrackingContext } from "../../utils/influencerTracking";
+import { saveTrackingContext } from "../../utils/influencerTracking";
 
 const FEED_TABS = [
   ["for_you", "For You"],
@@ -407,10 +404,9 @@ function ShareModal({ reel, onClose, onShare }) {
 export function ReelFeed({ detailId = "" }) {
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const cartDrawer = useContext(CartDrawerContext);
-  const { addItem } = useCart();
   const [tab, setTab] = useState("for_you");
-  const [page, setPage] = useState(1);
+  const [, setPage] = useState(1);
+  const pageRef = useRef(1);
   const [reels, setReels] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(true);
@@ -435,7 +431,7 @@ export function ReelFeed({ detailId = "" }) {
   const activeReel = reels[activeIndex] || null;
 
   const load = useCallback(async ({ reset = false } = {}) => {
-    const nextPage = reset ? 1 : page;
+    const nextPage = reset ? 1 : pageRef.current;
     setLoading(true);
     setError("");
     try {
@@ -450,6 +446,7 @@ export function ReelFeed({ detailId = "" }) {
       setLiked((current) => nextItems.reduce((next, reel) => ({ ...next, [reel._id]: Boolean(reel.engagement?.viewer?.liked) }), current));
       setSaved((current) => nextItems.reduce((next, reel) => ({ ...next, [reel._id]: Boolean(reel.engagement?.viewer?.saved) }), current));
       setHasMore(Boolean(payload.hasMore));
+      pageRef.current = nextPage + 1;
       setPage(nextPage + 1);
       if (reset) setActiveIndex(0);
     } catch (err) {
@@ -457,13 +454,14 @@ export function ReelFeed({ detailId = "" }) {
     } finally {
       setLoading(false);
     }
-  }, [detailId, page, tab]);
+  }, [detailId, tab]);
 
   useEffect(() => {
     if (detailId) return;
+    pageRef.current = 1;
     setPage(1);
     load({ reset: true });
-  }, [detailId, tab]);
+  }, [detailId, load, tab]);
 
   useEffect(() => {
     if (!detailId) return;
@@ -540,6 +538,19 @@ export function ReelFeed({ detailId = "" }) {
     recordReelView(reel._id, { anonymousId: getAnonymousId(), source: detailId ? "detail" : "feed" }).catch(() => null);
   }, [activeIndex, detailId, reels]);
 
+  const navigateAdjacent = useCallback((direction) => {
+    const targetId = adjacent?.[direction]?._id;
+    if (!targetId) return;
+    const cached = preloadedReelsRef.current.get(String(targetId));
+    if (cached) {
+      setReels([cached]);
+      setActiveIndex(0);
+      const id = creatorId(cached);
+      if (id) setFollowed((current) => ({ ...current, [id]: Boolean(cached.influencerId?.isFollowing) }));
+    }
+    navigate(`/reels/${targetId}`);
+  }, [adjacent, navigate]);
+
   useEffect(() => {
     function onKey(event) {
       if (detailId && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
@@ -559,7 +570,7 @@ export function ReelFeed({ detailId = "" }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeIndex, adjacent, detailId, reels.length]);
+  }, [activeIndex, detailId, navigateAdjacent, reels.length]);
 
   const lastCardRef = useCallback((node) => {
     if (loading) return;
@@ -593,32 +604,6 @@ export function ReelFeed({ detailId = "" }) {
       navigate(buildAffiliateProductPath(reel, product, tracking));
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || "Could not prepare affiliate link.");
-    } finally {
-      setBusyProductId("");
-    }
-  }
-
-  async function handleAddToCart(reel, product, buyNow = false) {
-    const productId = productIdOf(product);
-    if (!productId) return;
-    setBusyProductId(productId);
-    setError("");
-    try {
-      const tracking = await attributeClick(reel, product);
-      const added = await addItem(productId, 1);
-      const trackingContext = loadTrackingContext() || tracking;
-      if (trackingContext?.trackingToken) {
-        await trackAffiliateEvent({
-          trackingToken: trackingContext.trackingToken,
-          anonymousId: trackingContext.anonymousId || "",
-          eventType: "add_to_cart",
-          metadata: { reelId: reel._id, productId, buyNow },
-        }).catch(() => null);
-      }
-      cartDrawer?.openDrawer(added || product, added?.variant || null, 1);
-      if (buyNow) navigate("/checkout");
-    } catch (err) {
-      setError(err?.response?.data?.message || err?.message || "Could not add product to cart.");
     } finally {
       setBusyProductId("");
     }
@@ -736,19 +721,6 @@ export function ReelFeed({ detailId = "" }) {
   function handleStoreVisit(reel) {
     if (!reel?._id) return;
     recordReelStoreVisit(reel._id, { anonymousId: getAnonymousId(), source: "creator_panel" }).catch(() => null);
-  }
-
-  function navigateAdjacent(direction) {
-    const targetId = adjacent?.[direction]?._id;
-    if (!targetId) return;
-    const cached = preloadedReelsRef.current.get(String(targetId));
-    if (cached) {
-      setReels([cached]);
-      setActiveIndex(0);
-      const id = creatorId(cached);
-      if (id) setFollowed((current) => ({ ...current, [id]: Boolean(cached.influencerId?.isFollowing) }));
-    }
-    navigate(`/reels/${targetId}`);
   }
 
   function goTo(index) {

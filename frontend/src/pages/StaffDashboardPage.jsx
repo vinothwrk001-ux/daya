@@ -19,7 +19,7 @@ function formatCompact(value) {
 export function StaffDashboardPage() {
   const { user } = useStaffUser();
   const { hasPermission, permissions } = useStaffPermission();
-  const enabledModules = user?.enabledModules || {};
+  const enabledModules = useMemo(() => user?.enabledModules || {}, [user?.enabledModules]);
   const accessibleModules = useMemo(
     () => getAccessibleModules(permissions, enabledModules),
     [enabledModules, permissions]

@@ -26,7 +26,9 @@ export const initialInfluencerStepOneForm = {
 };
 
 export function sanitizeInfluencerStepOneDraft(values = {}) {
-  const { password, confirmPassword, ...safeValues } = values;
+  const safeValues = { ...values };
+  delete safeValues.password;
+  delete safeValues.confirmPassword;
   return {
     ...initialInfluencerStepOneForm,
     ...safeValues,

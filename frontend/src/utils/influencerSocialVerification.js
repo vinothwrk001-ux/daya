@@ -58,7 +58,11 @@ export function normalizePlatformKey(value = "") {
 export function saveSocialVerificationDraft(values, storage = window.localStorage) {
   const safeValues = {
     ...values,
-    accounts: (values.accounts || []).map(({ proofFile, ...account }) => account),
+    accounts: (values.accounts || []).map((account) => {
+      const safeAccount = { ...account };
+      delete safeAccount.proofFile;
+      return safeAccount;
+    }),
   };
   const payload = { values: safeValues, savedAt: new Date().toISOString() };
   storage.setItem(INFLUENCER_STEP_TWO_STORAGE_KEY, JSON.stringify(payload));

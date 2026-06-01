@@ -87,14 +87,41 @@ function createApp() {
 
   app.use(helmet());
 
-  const origins = (process.env.CORS_ORIGINS || "")
+  const origins = (process.env.CORS_ORIGINS || [
+    process.env.FRONTEND_URL,
+    process.env.ADMIN_URL,
+    process.env.VENDOR_URL,
+    process.env.INFLUENCER_URL,
+    process.env.INTERNAL_SERVICE_ORIGINS,
+  ].filter(Boolean).join(","))
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+  const developmentOrigins = new Set([
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ]);
+  const allowedOrigins = new Set(origins);
+
+  if (!isDevelopment && !allowedOrigins.size) {
+    throw new Error("CORS_ORIGINS or explicit frontend/admin/vendor/influencer origins must be configured in production");
+  }
 
   app.use(
     cors({
-      origin: origins.length ? origins : true,
+      origin(origin, callback) {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.has(origin) || (isDevelopment && developmentOrigins.has(origin))) {
+          logger.debug("CORS origin allowed", { origin });
+          return callback(null, true);
+        }
+        logger.warn("CORS origin blocked", { origin });
+        return callback(new Error("CORS origin is not allowed"));
+      },
       credentials: true,
     })
   );
@@ -129,6 +156,21 @@ function createApp() {
 
   // Local upload fallback (Cloudinary preferred). The frontend dev server runs on
   // a different origin, so uploaded media must be embeddable by video/img tags.
+  app.use(
+    "/uploads/private",
+    (_req, res) => res.status(404).json({ success: false, message: "Not found" })
+  );
+
+  app.use(
+    "/uploads",
+    express.static(path.join(process.cwd(), "uploads", "public"), {
+      setHeaders(res) {
+        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Accept-Ranges", "bytes");
+      },
+    })
+  );
   app.use(
     "/uploads",
     express.static(path.join(process.cwd(), "uploads"), {

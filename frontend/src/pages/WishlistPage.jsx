@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
@@ -18,18 +18,18 @@ export function WishlistPage() {
   const { addItem: addCartItem } = useCart();
   const wishlistItems = wishlist?.items || [];
 
-  async function loadWishlist() {
+  const loadWishlist = useCallback(async () => {
     try {
       await validateWishlist();
       setError("");
     } catch (err) {
       setError(normalizeError(err));
     }
-  }
+  }, [validateWishlist]);
 
   useEffect(() => {
     loadWishlist();
-  }, []);
+  }, [loadWishlist]);
 
   async function removeItem(productId) {
     setBusyProductId(productId);

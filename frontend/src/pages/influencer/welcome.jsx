@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { BadgeCheck, BarChart3, Boxes, Link2, Store, Wallet } from "lucide-react";
 import { getInfluencerActivationWelcome } from "../../services/influencerCommerceService";
@@ -33,7 +33,7 @@ export default function InfluencerWelcomePage() {
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {CAPABILITIES.map(([key, label, Icon]) => (
             <div key={key} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-bold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
-              <Icon className="mb-3 h-5 w-5" />
+              {createElement(Icon, { className: "mb-3 h-5 w-5" })}
               {data?.capabilities?.[key] === false ? label.replace("Activated", "Pending").replace("Created", "Pending") : label}
             </div>
           ))}

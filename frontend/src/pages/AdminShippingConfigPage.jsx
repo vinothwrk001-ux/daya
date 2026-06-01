@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackButton } from "../components/BackButton";
 import { adminHttp } from "../services/adminHttp";
 
@@ -118,11 +118,28 @@ export function AdminShippingConfigPage() {
     return Array.from(new Set(names));
   }, [availableStates, locationStates, formData.state]);
 
-  useEffect(() => {
-    loadPage();
+  const loadRules = useCallback(async () => {
+    const res = await adminHttp.get("/api/admin/shipping-config");
+    setRules(Array.isArray(res.data?.data?.data) ? res.data.data.data : []);
   }, []);
 
-  async function loadPage() {
+  const loadStatistics = useCallback(async () => {
+    const res = await adminHttp.get("/api/admin/shipping-config/statistics");
+    setStats(res.data?.data || null);
+  }, []);
+
+  const loadOptions = useCallback(async () => {
+    const res = await adminHttp.get("/api/admin/shipping-config/options");
+    setAvailableStates(res.data?.data?.states?.length ? res.data.data.states : ["Tamil Nadu"]);
+  }, []);
+
+  const loadLocationConfig = useCallback(async () => {
+    const res = await adminHttp.get("/api/admin/shipping-config/location-config");
+    const states = Array.isArray(res.data?.data?.states) ? res.data.data.states : [];
+    setLocationStates(states.length ? states.map(normalizeLocationStateForForm) : [createLocationState()]);
+  }, []);
+
+  const loadPage = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -132,28 +149,11 @@ export function AdminShippingConfigPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [loadLocationConfig, loadOptions, loadRules, loadStatistics]);
 
-  async function loadRules() {
-    const res = await adminHttp.get("/api/admin/shipping-config");
-    setRules(Array.isArray(res.data?.data?.data) ? res.data.data.data : []);
-  }
-
-  async function loadStatistics() {
-    const res = await adminHttp.get("/api/admin/shipping-config/statistics");
-    setStats(res.data?.data || null);
-  }
-
-  async function loadOptions() {
-    const res = await adminHttp.get("/api/admin/shipping-config/options");
-    setAvailableStates(res.data?.data?.states?.length ? res.data.data.states : ["Tamil Nadu"]);
-  }
-
-  async function loadLocationConfig() {
-    const res = await adminHttp.get("/api/admin/shipping-config/location-config");
-    const states = Array.isArray(res.data?.data?.states) ? res.data.data.states : [];
-    setLocationStates(states.length ? states.map(normalizeLocationStateForForm) : [createLocationState()]);
-  }
+  useEffect(() => {
+    loadPage();
+  }, [loadPage]);
 
   function resetForm() {
     setFormData(createRuleForm(stateOptions[0] || "Tamil Nadu"));

@@ -48,13 +48,20 @@ class LogisticsService {
 
   verifyWebhookSignature(rawBody, signature) {
     const secret = process.env.SHIPROCKET_WEBHOOK_SECRET;
-    if (!secret) return true;
+    if (!secret) {
+      if (process.env.NODE_ENV === "production") {
+        throw new AppError("Logistics webhook secret is not configured", 500, "WEBHOOK_NOT_CONFIGURED");
+      }
+      return true;
+    }
     if (!signature) {
       throw new AppError("Missing logistics webhook signature", 400, "INVALID_SIGNATURE");
     }
 
     const expected = crypto.createHmac("sha256", secret).update(String(rawBody || "")).digest("hex");
-    if (expected !== signature) {
+    const left = Buffer.from(String(expected));
+    const right = Buffer.from(String(signature));
+    if (left.length !== right.length || !crypto.timingSafeEqual(left, right)) {
       throw new AppError("Invalid logistics webhook signature", 400, "INVALID_SIGNATURE");
     }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Archive,
@@ -69,7 +69,7 @@ function Panel({ title, icon: Icon = Boxes, action, children }) {
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex min-h-14 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-indigo-500" />
+          {createElement(Icon, { className: "h-4 w-4 text-indigo-500" })}
           <h2 className="text-sm font-semibold text-slate-950 dark:text-white">{title}</h2>
         </div>
         {action}

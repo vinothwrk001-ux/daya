@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Bell,
@@ -255,7 +255,7 @@ export function InfluencersHubPage() {
         <nav className="space-y-1">
           {HUB_ITEMS.map(([key, label, Icon]) => (
             <button key={key} onClick={() => navigate(key === "home" ? "/influencers" : `/influencers/${key}`)} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold ${section === key || (!params.section && key === "home") ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"}`}>
-              <Icon className="h-5 w-5" />
+              {createElement(Icon, { className: "h-5 w-5" })}
               {label}
             </button>
           ))}
@@ -327,7 +327,7 @@ function MobileHubNav({ section, navigate }) {
     <div className="mb-4 flex gap-2 overflow-x-auto lg:hidden">
       {HUB_ITEMS.map(([key, label, Icon]) => (
         <button key={key} onClick={() => navigate(key === "home" ? "/influencers" : `/influencers/${key}`)} className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ${section === key || (!section && key === "home") ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950" : "bg-white text-slate-600 dark:bg-slate-900 dark:text-slate-300"}`}>
-          <Icon className="h-4 w-4" />
+          {createElement(Icon, { className: "h-4 w-4" })}
           {label}
         </button>
       ))}

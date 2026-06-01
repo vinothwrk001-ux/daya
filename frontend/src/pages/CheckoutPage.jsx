@@ -581,6 +581,16 @@ export function CheckoutPage() {
       validateCart,
     ]
   );
+  const refreshRef = useRef(refresh);
+  const addressFormRef = useRef(addressForm);
+
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
+
+  useEffect(() => {
+    addressFormRef.current = addressForm;
+  }, [addressForm]);
 
   const redirectToLoginForFinalCheckout = useCallback(
     (shippingAddress, step = "payment") => {
@@ -595,10 +605,7 @@ export function CheckoutPage() {
   );
 
   useEffect(() => {
-    refresh({ selectedAddressForm: addressForm });
-    // We intentionally reload on auth changes, not every local address keystroke.
-    // Address-driven recalculation is handled by explicit actions and the payment effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    refreshRef.current({ selectedAddressForm: addressFormRef.current });
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -831,7 +838,7 @@ export function CheckoutPage() {
         throw new Error("Razorpay checkout is not available.");
       }
 
-      const clearedRazorpayState = clearStaleRazorpayCheckoutState();
+      clearStaleRazorpayCheckoutState();
       const normalizedContact = String(shippingAddress.phone || "").replace(/\D/g, "");
       const checkoutContact =
         normalizedContact.length === 10 ? `+91${normalizedContact}` : normalizedContact ? `+${normalizedContact}` : "";

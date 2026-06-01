@@ -4,6 +4,7 @@ const STAFF_PERMISSION_CATALOG = Object.freeze({
   products: ["read", "create", "update", "delete"],
   payments: ["read", "refund"],
   payouts: ["read", "process"],
+  settlements: ["read", "settle", "hold", "release", "reverse", "payout"],
   reviews: ["read", "delete"],
   analytics: ["read"],
   influencerCommerce: [
