@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 /**
  * Script to initialize Vendor Modules
  * Run this script once during app setup
@@ -11,7 +12,7 @@ const vendorModuleService = require("../src/services/vendorModule.service");
 
 async function initializeModules() {
   try {
-    console.log("🔄 Connecting to database...");
+    logger.info("script_output", { value: "🔄 Connecting to database..." });
     
     const mongoUri = process.env.MONGODB_URI;
     if (!mongoUri) {
@@ -19,30 +20,30 @@ async function initializeModules() {
     }
 
     await mongoose.connect(mongoUri);
-    console.log("✅ Connected to MongoDB");
+    logger.info("script_output", { value: "✅ Connected to MongoDB" });
 
-    console.log("🔄 Initializing vendor modules...");
+    logger.info("script_output", { value: "🔄 Initializing vendor modules..." });
     await vendorModuleService.initializeModules();
-    console.log("✅ Vendor modules initialized successfully");
+    logger.info("script_output", { value: "✅ Vendor modules initialized successfully" });
 
     const modules = await vendorModuleService.getAllModules();
-    console.log("\n📦 Initialized Modules:");
+    logger.info("script_output", { value: "\n📦 Initialized Modules:" });
     modules.forEach((module) => {
-      console.log(`  • ${module.name} (${module.key})`);
-      console.log(`    - Global: ${module.enabled ? "✅ Enabled" : "❌ Disabled"}`);
-      console.log(`    - Vendors: ${module.vendorEnabled ? "✅ Enabled" : "❌ Disabled"}`);
+      logger.info("script_output", { value: `  • ${module.name} (${module.key})` });
+      logger.info("script_output", { value: `    - Global: ${module.enabled ? "✅ Enabled" : "❌ Disabled"}` });
+      logger.info("script_output", { value: `    - Vendors: ${module.vendorEnabled ? "✅ Enabled" : "❌ Disabled"}` });
     });
 
     const stats = await vendorModuleService.getModuleStats();
-    console.log("\n📊 Module Statistics:");
-    console.log(`  • Total: ${stats.total}`);
-    console.log(`  • Enabled Globally: ${stats.enabledGlobally}`);
-    console.log(`  • Enabled for Vendors: ${stats.enabledForVendors}`);
-    console.log(`  • Disabled for Vendors: ${stats.disabledForVendors}`);
+    logger.info("script_output", { value: "\n📊 Module Statistics:" });
+    logger.info("script_output", { value: `  • Total: ${stats.total}` });
+    logger.info("script_output", { value: `  • Enabled Globally: ${stats.enabledGlobally}` });
+    logger.info("script_output", { value: `  • Enabled for Vendors: ${stats.enabledForVendors}` });
+    logger.info("script_output", { value: `  • Disabled for Vendors: ${stats.disabledForVendors}` });
 
-    console.log("\n✨ Done! Vendor module system is ready.");
+    logger.info("script_output", { value: "\n✨ Done! Vendor module system is ready." });
   } catch (error) {
-    console.error("❌ Error initializing modules:", error.message);
+    logger.error("❌ Error initializing modules:", { error: error.message });
     process.exit(1);
   } finally {
     await mongoose.connection.close();

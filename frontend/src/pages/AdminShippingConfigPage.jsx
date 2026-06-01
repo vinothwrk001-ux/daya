@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { BackButton } from "../components/BackButton";
 import { adminHttp } from "../services/adminHttp";
 
@@ -250,7 +251,7 @@ export function AdminShippingConfigPage() {
   }
 
   async function handleDeleteRule(ruleId) {
-    if (!window.confirm("Delete this shipping rule?")) return;
+    if (!(await confirmAction({ message: "Delete this shipping rule?", tone: "danger", confirmLabel: "Confirm" }))) return;
 
     try {
       setSavingRule(true);

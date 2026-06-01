@@ -1150,7 +1150,11 @@ class CheckoutService {
         );
       } catch (error) {
         // If shipping calculation fails, fall back to regular pricing
-        console.error("Shipping calculation error in createOrder:", error.message);
+        logger.warn("Shipping calculation failed during order creation", {
+          source: "checkout.service",
+          event: "shipping_calculation_failed",
+          error,
+        });
         pricingBreakdown = await pricingService.calculateOrderTotal(overallSubtotal, totalItemCount, paymentMethod);
       }
 

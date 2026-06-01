@@ -733,7 +733,15 @@ class ReelService {
     return { reported: true, reportsCount: comment.reportsCount };
   }
 
-  async shareReel(user, reelId, payload = {}) {
+  uncountedSecurityResponse(security) {
+    return security && security.counted === false
+      ? { tracked: true, counted: false, reason: security.reason, fraudScore: security.fraudScore, fraudLevel: security.fraudLevel }
+      : null;
+  }
+
+  async shareReel(user, reelId, payload = {}, security = null) {
+    const uncounted = this.uncountedSecurityResponse(security);
+    if (uncounted) return { shared: false, destination: cleanString(payload.destination || "copy_link").toLowerCase(), ...uncounted };
     const reel = await getPublishedReel(reelId);
     const destination = cleanString(payload.destination || "copy_link").toLowerCase();
     const userId = user?.sub || null;
@@ -743,10 +751,12 @@ class ReelService {
       Reel.updateOne({ _id: reelId }, { $inc: { "metrics.shares": 1 } }),
       incrementAnalytics({ reel, metric: "shares", metadata: { eventType: "reel_share", userId, anonymousId, destination, source: payload.source || "reel" } }),
     ]);
-    return { shared: true, destination, ...(await this.getEngagement(reelId, userId || "")) };
+    return { shared: true, counted: true, destination, ...(await this.getEngagement(reelId, userId || "")) };
   }
 
-  async recordView(user, reelId, payload = {}) {
+  async recordView(user, reelId, payload = {}, security = null) {
+    const uncounted = this.uncountedSecurityResponse(security);
+    if (uncounted) return uncounted;
     const reel = await getPublishedReel(reelId);
     const userId = user?.sub || null;
     const anonymousId = cleanString(payload.anonymousId);
@@ -763,10 +773,12 @@ class ReelService {
       incrementAnalytics({ reel, metric: "views", metadata: { eventType: "reel_view", userId, anonymousId, source: payload.source || "feed" } }),
       watchTimeSeconds ? incrementAnalytics({ reel, metric: "watchTimeSeconds", amount: watchTimeSeconds, metadata: {} }) : Promise.resolve(),
     ]);
-    return { tracked: true };
+    return { tracked: true, counted: true };
   }
 
-  async recordStoreVisit(user, reelId, payload = {}) {
+  async recordStoreVisit(user, reelId, payload = {}, security = null) {
+    const uncounted = this.uncountedSecurityResponse(security);
+    if (uncounted) return uncounted;
     const reel = await getPublishedReel(reelId);
     const userId = user?.sub || null;
     const anonymousId = cleanString(payload.anonymousId);
@@ -775,10 +787,12 @@ class ReelService {
       InfluencerStorefrontEvent.create({ influencerId: reel.influencerId, userId, anonymousId, eventType: "storefront_view", surface: "reel", reelId, metadata: payload.metadata || {} }).catch(() => null),
       incrementAnalytics({ reel, metric: "storeVisits", metadata: { eventType: "reel_store_visit", userId, anonymousId, source: payload.source || "reel_creator_panel" } }),
     ]);
-    return { tracked: true };
+    return { tracked: true, counted: true };
   }
 
-  async recordProductClick(user, reelId, payload = {}) {
+  async recordProductClick(user, reelId, payload = {}, security = null) {
+    const uncounted = this.uncountedSecurityResponse(security);
+    if (uncounted) return uncounted;
     const reel = await getPublishedReel(reelId);
     const productId = payload.productId;
     if (!productId) throw new AppError("productId is required", 400, "VALIDATION_ERROR");
@@ -829,7 +843,7 @@ class ReelService {
       }),
       incrementAnalytics({ reel, metric: "productClicks", productId, metadata: { eventType: "reel_product_click", userId: user?.sub || null, anonymousId: tracking.anonymousId || payload.anonymousId || "", source: payload.source || "reel_product_card" } }),
     ]);
-    return { ...tracking, attributionWindowDays: windowDays, affiliateClickId: click._id };
+    return { ...tracking, counted: true, attributionWindowDays: windowDays, affiliateClickId: click._id };
   }
 
   async followCreator(userId, reelId, payload = {}) {

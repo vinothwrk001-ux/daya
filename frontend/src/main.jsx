@@ -6,13 +6,16 @@ import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import App from "./App.jsx";
 import { BrandingProvider } from "./context/BrandingContext.jsx";
+import { NotificationProvider } from "./context/NotificationContext.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrandingProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <NotificationProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </NotificationProvider>
     </BrandingProvider>
   </StrictMode>,
 );

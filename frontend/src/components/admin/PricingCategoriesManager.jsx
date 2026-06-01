@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { confirmAction } from "../../services/notificationService";
 import * as pricingService from "../../services/pricingService";
 
 export function PricingCategoriesManager() {
@@ -117,7 +118,7 @@ export function PricingCategoriesManager() {
       return;
     }
 
-    if (!window.confirm(`Delete category "${category.name}"? This action cannot be undone.`)) return;
+    if (!(await confirmAction({ message: `Delete category "${category.name}"? This action cannot be undone.`, tone: "danger", confirmLabel: "Confirm" }))) return;
 
     try {
       await pricingService.deletePricingCategory(category._id);

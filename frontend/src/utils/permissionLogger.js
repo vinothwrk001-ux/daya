@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 /**
  * Frontend Permission Logging & Debugging Utility
  * Tracks permission-related events on the client side
@@ -12,32 +13,32 @@ const LOG_LEVELS = {
 
 const isDev = import.meta.env.DEV;
 
-function formatPermissions(permissions) {
-  if (!permissions) return "{}";
-  return Object.entries(permissions)
-    .map(([module, actions]) => {
-      const granted = Object.entries(actions || {})
-        .filter(([, allowed]) => allowed)
-        .map(([action]) => action)
-        .join(",");
-      return `${module}:[${granted}]`;
-    })
-    .join("|");
+function summarizePermissions(permissions) {
+  if (!permissions) return { moduleCount: 0, permissionCount: 0 };
+  return Object.entries(permissions).reduce(
+    (summary, [, actions]) => ({
+      moduleCount: summary.moduleCount + 1,
+      permissionCount:
+        summary.permissionCount +
+        Object.values(actions || {}).filter(Boolean).length,
+    }),
+    { moduleCount: 0, permissionCount: 0 }
+  );
 }
 
 function log(level, context, message, data = {}) {
   if (!isDev && level === LOG_LEVELS.DEBUG) return;
 
-  const timestamp = new Date().toISOString();
-  const prefix = `[${timestamp}] [${level}] [${context}]`;
-  const fullMessage = `${prefix} ${message}`;
+  const payload = { context, ...data };
 
   if (level === LOG_LEVELS.ERROR) {
-    console.error(fullMessage, data);
+    logger.error(message, payload);
   } else if (level === LOG_LEVELS.WARN) {
-    console.warn(fullMessage, data);
+    logger.warn(message, payload);
+  } else if (level === LOG_LEVELS.INFO) {
+    logger.info(message, payload);
   } else {
-    console.log(fullMessage, data);
+    logger.debug(message, payload);
   }
 }
 
@@ -45,7 +46,7 @@ export function logLogin(email, roleId, permissions) {
   log(LOG_LEVELS.INFO, "AUTH_LOGIN", "Staff logged in", {
     email,
     roleId,
-    permissions: formatPermissions(permissions),
+    permissionSummary: summarizePermissions(permissions),
   });
 }
 
@@ -62,7 +63,7 @@ export function logPermissionSyncStart() {
 export function logPermissionSyncSuccess(email, permissions, syncedAt) {
   log(LOG_LEVELS.INFO, "PERMISSION_SYNC", "Permission sync successful", {
     email,
-    permissions: formatPermissions(permissions),
+    permissionSummary: summarizePermissions(permissions),
     syncedAt,
   });
 }
@@ -86,7 +87,7 @@ export function logPermissionCheck(permission, granted, availablePermissions) {
     {
       permission,
       granted,
-      availablePermissions: formatPermissions(availablePermissions),
+      permissionSummary: summarizePermissions(availablePermissions),
     }
   );
 }

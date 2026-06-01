@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { confirmAction } from "../../services/notificationService";
 import * as pricingService from "../../services/pricingService";
 
 const PAYMENT_METHOD_OPTIONS = [
@@ -180,7 +181,7 @@ export function PricingRulesManager() {
   }
 
   async function handleDelete(rule) {
-    if (!window.confirm(`Delete rule "${rule.displayName}"?`)) return;
+    if (!(await confirmAction({ message: `Delete rule "${rule.displayName}"?`, tone: "danger", confirmLabel: "Confirm" }))) return;
 
     try {
       await pricingService.deletePricingRule(rule._id);

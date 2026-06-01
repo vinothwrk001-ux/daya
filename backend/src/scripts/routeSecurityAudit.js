@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 const fs = require("fs");
 const path = require("path");
 
@@ -55,9 +56,9 @@ for (const filePath of routeFiles()) {
 }
 
 if (findings.length) {
-  console.error("Route security audit found routes that need manual review:");
-  for (const finding of findings) console.error(`${finding.file}:${finding.line} ${finding.route}`);
+  logger.error("script_error", { error: "Route security audit found routes that need manual review:" });
+  for (const finding of findings) logger.error("script_error", { error: `${finding.file}:${finding.line} ${finding.route}` });
   process.exitCode = 1;
 } else {
-  console.log("Route security audit passed: protected route files use auth/permission middleware or are allowlisted public routes.");
+  logger.info("script_output", { value: "Route security audit passed: protected route files use auth/permission middleware or are allowlisted public routes." });
 }

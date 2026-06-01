@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 const PDFDocument = require("pdfkit");
+const { logger } = require("../utils/logger");
 
 const SUPPORT_EMAIL = process.env.ORDER_SUPPORT_EMAIL || "support@uchooseme.com";
 const SUPPORT_PHONE = process.env.ORDER_SUPPORT_PHONE || "+91 00000 00000";
@@ -430,7 +431,11 @@ async function generateInvoicePdf(summary) {
         textStartX = 50 + 36 + 10; // 50 (logo x) + 36 (logo width) + 10 (margin)
       } catch (error) {
         // If logo fails to load, proceed without it
-        console.warn('Failed to load invoice logo for PDF:', error);
+        logger.warn("Failed to load invoice logo for PDF", {
+          source: "order-document.service",
+          event: "invoice_logo_load_failed",
+          error,
+        });
       }
     }
 
@@ -575,7 +580,11 @@ async function generateInvoicePdf(summary) {
       try {
         doc.image(signatureSource, 430, 728, { width: 80, height: 32, fit: [80, 32] });
       } catch (error) {
-        console.warn("Failed to load invoice signature for PDF:", error);
+        logger.warn("Failed to load invoice signature for PDF", {
+          source: "order-document.service",
+          event: "invoice_signature_load_failed",
+          error,
+        });
       }
     }
 

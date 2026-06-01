@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { useCategories } from "../hooks/useCategories";
 import {
   createSubcategory,
@@ -98,7 +99,7 @@ export function AdminSubcategoriesPage() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this subcategory?")) return;
+    if (!(await confirmAction({ message: "Delete this subcategory?", tone: "danger", confirmLabel: "Confirm" }))) return;
     try {
       await deleteSubcategory(id);
       await refresh();

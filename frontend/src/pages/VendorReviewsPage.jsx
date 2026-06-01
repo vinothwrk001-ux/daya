@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { requestInput } from "../services/notificationService";
 import { ReportingToolbar } from "../components/ReportingToolbar";
 import { InlineToast } from "../components/commerce/InlineToast";
 import { useReporting } from "../hooks/useReporting";
@@ -33,7 +34,7 @@ export function VendorReviewsPage() {
   }, [load]);
 
   async function respondToReview(id) {
-    const message = window.prompt("Reply to customer");
+    const message = await requestInput({ title: "Reply to customer", label: "Message", multiline: true });
     if (!message) return;
     try {
       await vendorDashboardService.respondToVendorReview(id, { message });

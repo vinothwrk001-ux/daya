@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { deleteReview, listReviews } from "../services/adminApi";
 import { useStaffPermission, useRequirePermission } from "../hooks/useStaffAuth";
 
@@ -49,7 +50,7 @@ export function StaffReviewsPage() {
   }, [reviews, statusFilter]);
 
   async function handleDelete(reviewId) {
-    if (!window.confirm("Delete this review?")) return;
+    if (!(await confirmAction({ message: "Delete this review?", tone: "danger", confirmLabel: "Confirm" }))) return;
 
     setBusyId(reviewId);
     setError("");

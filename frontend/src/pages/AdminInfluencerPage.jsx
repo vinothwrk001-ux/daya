@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import {
   getAdminCampaigns,
   getCommissionOverview,
@@ -35,7 +36,7 @@ export function AdminInfluencerPage() {
   }
 
   async function review(applicationId, decision) {
-    if (["reject", "suspend"].includes(decision) && !window.confirm("Rejecting this application will revoke influencer access if it is already approved. Continue?")) return;
+    if (["reject", "suspend"].includes(decision) && !(await confirmAction({ message: "Rejecting this application will revoke influencer access if it is already approved. Continue?", tone: "danger", confirmLabel: "Confirm" }))) return;
     setSubmittingId(applicationId);
     setFeedback("");
     try {

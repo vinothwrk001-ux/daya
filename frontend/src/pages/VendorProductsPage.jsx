@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { Link } from "react-router-dom";
 import { ReportingToolbar } from "../components/ReportingToolbar";
 import { InlineToast } from "../components/commerce/InlineToast";
@@ -85,7 +86,12 @@ export function VendorProductsPage() {
   }
 
   async function handleDelete(productId, productName) {
-    if (!window.confirm(`Delete "${productName}" permanently? This cannot be undone.`)) {
+    if (!(await confirmAction({
+      title: "Delete product",
+      message: `Delete "${productName}" permanently? This cannot be undone.`,
+      tone: "danger",
+      confirmLabel: "Delete product",
+    }))) {
       return;
     }
 

@@ -6,6 +6,7 @@
 const { ok, error: sendError } = require("../../../utils/apiResponse");
 const { asyncHandler } = require("../../../utils/asyncHandler");
 const { AppError } = require("../../../utils/AppError");
+const { logger } = require("../../../utils/logger");
 const {
   verifyStaffPermissions,
   verifyRoleStaff,
@@ -79,7 +80,14 @@ const testPermissionSyncEndpoint = asyncHandler(async (req, res) => {
     syncedAt: new Date(),
   };
 
-  console.log(`[PERMISSION_TEST] Test result:`, result);
+  logger.audit("Permission sync test completed", {
+    source: "permission-verification.controller",
+    event: "permission_sync_test",
+    staffId: String(staffId),
+    roleName: result.roleName,
+    permissionCount: result.totalPermissions,
+    valid: result.valid,
+  });
   return ok(res, result, "Permission sync test completed");
 });
 
@@ -128,7 +136,14 @@ const testModuleAccessEndpoint = asyncHandler(async (req, res) => {
     testedAt: new Date(),
   };
 
-  console.log(`[MODULE_ACCESS_TEST] Test result:`, result);
+  logger.audit("Module access test completed", {
+    source: "permission-verification.controller",
+    event: "module_access_test",
+    staffId: String(staffId),
+    moduleName,
+    action,
+    hasAccess,
+  });
   return ok(res, result, `Module access test completed - ${hasAccess ? "GRANTED" : "DENIED"}`);
 });
 
@@ -191,7 +206,14 @@ const testPermissionUpdateSyncEndpoint = asyncHandler(async (req, res) => {
     testedAt: new Date(),
   };
 
-  console.log(`[PERMISSION_UPDATE_SYNC_TEST] Test result:`, result);
+  logger.audit("Permission update sync test completed", {
+    source: "permission-verification.controller",
+    event: "permission_update_sync_test",
+    roleId: String(roleId),
+    roleName: result.roleName,
+    staffCount: result.staffCount,
+    permissionsChanged: result.permissionsChanged,
+  });
   return ok(res, result, "Permission update sync test completed");
 });
 

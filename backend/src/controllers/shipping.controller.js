@@ -7,6 +7,7 @@ const orderService = require("../services/order.service");
 const vendorRepo = require("../repositories/vendor.repository");
 const orderRepo = require("../repositories/order.repository");
 const inventoryService = require("../services/inventory.service");
+const { logger } = require("../utils/logger");
 
 /**
  * ==================== VENDOR SHIPPING ENDPOINTS ====================
@@ -368,8 +369,11 @@ const handleShiprocketWebhook = asyncHandler(async (req, res) => {
     const updated = await shippingService.processShiprocketWebhook(event);
     return ok(res, { processed: true, orderId: updated?._id }, "Webhook processed");
   } catch (error) {
-    // Log error but don't fail webhook (Shiprocket expects 200)
-    console.error("Shiprocket webhook processing error:", error.message);
+    logger.webhook("Shiprocket webhook processing failed", {
+      source: "shipping.controller",
+      event: "shiprocket_webhook_failed",
+      error,
+    });
     return ok(res, { received: true, error: error.message }, "Webhook received with error");
   }
 });

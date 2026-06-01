@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("node:assert/strict");
 
 const {
@@ -13,9 +14,9 @@ const {
 function runTest(name, fn) {
   try {
     fn();
-    console.log(`PASS ${name}`);
+    logger.info("script_output", { value: `PASS ${name}` });
   } catch (error) {
-    console.error(`FAIL ${name}`);
+    logger.error("script_error", { error: `FAIL ${name}` });
     throw error;
   }
 }
@@ -88,4 +89,4 @@ runTest("ledger snapshot matches wallet after request and payment lifecycle", ()
   );
 });
 
-console.log("All vendor payout domain checks passed.");
+logger.info("script_output", { value: "All vendor payout domain checks passed." });

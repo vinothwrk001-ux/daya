@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import {
   createCommissionRule,
   deleteCommissionRule,
@@ -147,9 +148,12 @@ export function AdminCommissionManagementPage() {
   }
 
   async function handleDeleteRule(rule) {
-    const confirmed = window.confirm(
-      `Delete commission rule "${rule.name}" permanently? This will remove it from the backend database.`
-    );
+    const confirmed = await confirmAction({
+      title: "Delete commission rule",
+      message: `Delete commission rule "${rule.name}" permanently? This will remove it from the backend database.`,
+      tone: "danger",
+      confirmLabel: "Delete rule",
+    });
     if (!confirmed) return;
 
     setBusyRuleId(rule._id);

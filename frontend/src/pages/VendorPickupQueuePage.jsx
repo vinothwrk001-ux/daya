@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { Link } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
 import { VendorDataTable, VendorMetricCard, VendorSection } from "../components/VendorPanel";
@@ -71,7 +72,11 @@ export function VendorPickupQueuePage() {
       setError("Select at least one shipment to schedule pickup.");
       return;
     }
-    if (!window.confirm(`You are scheduling ${selectedShipmentIds.length} shipments. Continue?`)) {
+    if (!(await confirmAction({
+      title: "Schedule pickup",
+      message: `You are scheduling ${selectedShipmentIds.length} shipments. Continue?`,
+      confirmLabel: "Schedule",
+    }))) {
       return;
     }
 

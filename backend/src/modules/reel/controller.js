@@ -22,10 +22,10 @@ const comment = asyncHandler(async (req, res) => ok(res, await reelService.creat
 const reply = asyncHandler(async (req, res) => ok(res, await reelService.createReply(req.user.sub, req.params.id, req.params.commentId, req.body), "Reply added", 201));
 const commentLike = asyncHandler(async (req, res) => ok(res, await reelService.toggleCommentLike(req.user.sub, req.params.id, req.params.commentId), "Comment like updated"));
 const commentReport = asyncHandler(async (req, res) => ok(res, await reelService.reportComment(req.user.sub, req.params.id, req.params.commentId, req.body), "Comment reported"));
-const share = asyncHandler(async (req, res) => ok(res, await reelService.shareReel(req.user, req.params.id, req.body), "Reel share tracked"));
-const view = asyncHandler(async (req, res) => ok(res, await reelService.recordView(req.user, req.params.id, req.body), "Reel view tracked"));
-const storeVisit = asyncHandler(async (req, res) => ok(res, await reelService.recordStoreVisit(req.user, req.params.id, req.body), "Store visit tracked"));
-const productClick = asyncHandler(async (req, res) => ok(res, await reelService.recordProductClick(req.user, req.params.id, req.body), "Product click tracked"));
+const share = asyncHandler(async (req, res) => ok(res, await reelService.shareReel(req.user, req.params.id, req.body, req.trackingSecurity), "Reel share tracked"));
+const view = asyncHandler(async (req, res) => ok(res, await reelService.recordView(req.user, req.params.id, req.body, req.trackingSecurity), "Reel view tracked"));
+const storeVisit = asyncHandler(async (req, res) => ok(res, await reelService.recordStoreVisit(req.user, req.params.id, req.body, req.trackingSecurity), "Store visit tracked"));
+const productClick = asyncHandler(async (req, res) => ok(res, await reelService.recordProductClick(req.user, req.params.id, req.body, req.trackingSecurity), "Product click tracked"));
 const follow = asyncHandler(async (req, res) => ok(res, await reelService.followCreator(req.user.sub, req.params.id, req.body), "Creator follow updated"));
 const adjacent = asyncHandler(async (req, res) => ok(res, await reelService.getAdjacent(req.params.id), "Adjacent reels loaded"));
 const influencerList = asyncHandler(async (req, res) => ok(res, await reelService.listForInfluencer(req.user.sub), "Influencer reels loaded"));

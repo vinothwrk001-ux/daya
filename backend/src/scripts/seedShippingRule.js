@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("../config/env");
 
 const { connectDb } = require("../config/db");
@@ -31,16 +32,16 @@ async function main() {
   if (existing) {
     Object.assign(existing, payload);
     await existing.save();
-    console.log("Shipping rule updated:", existing._id.toString());
+    logger.info("Shipping rule updated:", { value: existing._id.toString() });
     process.exit(0);
   }
 
   const created = await ShippingConfig.create(payload);
-  console.log("Shipping rule created:", created._id.toString());
+  logger.info("Shipping rule created:", { value: created._id.toString() });
   process.exit(0);
 }
 
 main().catch((error) => {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exit(1);
 });

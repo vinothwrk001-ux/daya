@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("assert/strict");
 const {
   CONTAINER_TYPES,
@@ -8,9 +9,9 @@ const {
 async function runTest(name, fn) {
   try {
     await fn();
-    console.log(`PASS ${name}`);
+    logger.info("script_output", { value: `PASS ${name}` });
   } catch (error) {
-    console.error(`FAIL ${name}`);
+    logger.error("script_error", { error: `FAIL ${name}` });
     throw error;
   }
 }
@@ -70,10 +71,10 @@ async function main() {
     assert.ok(influencerSchema.typeFields.some((field) => field.name === "manualInfluencerIds"));
   });
 
-  console.log("All homepage container registry checks passed.");
+  logger.info("script_output", { value: "All homepage container registry checks passed." });
 }
 
 main().catch((error) => {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exit(1);
 });

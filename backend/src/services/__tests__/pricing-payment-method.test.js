@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("node:assert/strict");
 
 const PricingRule = require("../../models/PricingRule");
@@ -8,10 +9,10 @@ function runTest(name, fn) {
   return Promise.resolve()
     .then(fn)
     .then(() => {
-      console.log(`PASS ${name}`);
+      logger.info("script_output", { value: `PASS ${name}` });
     })
     .catch((error) => {
-      console.error(`FAIL ${name}`);
+      logger.error("script_error", { error: `FAIL ${name}` });
       throw error;
     });
 }
@@ -169,7 +170,7 @@ async function main() {
     assert.equal(result.paymentMethod, "ALL");
   });
 
-  console.log("All pricing payment-method checks passed.");
+  logger.info("script_output", { value: "All pricing payment-method checks passed." });
 }
 
 process.on("exit", () => {
@@ -179,6 +180,6 @@ process.on("exit", () => {
 });
 
 main().catch((error) => {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exitCode = 1;
 });

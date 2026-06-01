@@ -136,34 +136,39 @@ Priority: P1
 
 ### Finding P1-04: Engagement and tracking endpoints need tighter abuse controls
 
+Status: Resolved on 2026-06-01  
 Severity: High  
 Module: Reels / Affiliate / Analytics  
 File paths: `backend/src/app.js:244`, `backend/src/app.js:245`, `backend/src/modules/reel/routes.js`, `backend/src/modules/tracking/routes.js`  
 Root cause: Reels and tracking routes are mounted with optional auth so guest engagement and affiliate attribution can work. This is valid product behavior, but global API limits are too broad for high-volume event writes.  
 Impact: Anonymous view/share/product-click/store-visit writes can be spammed, distorting analytics, affiliate attribution, and commission quality.  
-Fix recommendation: Add route-specific rate limits by IP, anonymous ID, user ID, reel ID, and tracking token. Add deduplication windows for views/clicks and fraud scoring for abnormal event volume.  
+Fix applied: Added a tracking security layer for reel and affiliate event routes with visitor identity fingerprints, route-specific configurable limits, deduplication keys/windows, fraud scoring, event quality decisions, and audit/verified/fraud/dedup/visitor collections. Guest tracking remains enabled, but duplicate/rate-limited/fraudulent view/share/store-visit/product-click/tracking events no longer increment analytics or create attribution sessions. Authenticated like/comment routes are now route-throttled and fraud-gated.  
+Validation: `backend npm test -- --test-name-pattern tracking`, `backend npm run audit:route-security`, and `node -c` checks for tracking/reel route, controller, service, middleware, and model files passed.  
 Estimated effort: 2-4 days  
 Priority: P1
 
 ### Finding P1-05: Admin homepage builder still uses blocking browser alerts
 
+Status: Resolved on 2026-06-01  
 Severity: Medium  
 Module: Admin UX / Homepage Builder  
 File path: `frontend/src/pages/AdminHomepageContainersPage.jsx:1190`, `frontend/src/pages/AdminHomepageContainersPage.jsx:1202`, `frontend/src/pages/AdminHomepageContainersPage.jsx:1205`, `frontend/src/pages/AdminHomepageContainersPage.jsx:1540`, `frontend/src/pages/AdminHomepageContainersPage.jsx:1651`, `frontend/src/pages/AdminHomepageContainersPage.jsx:1851`, `frontend/src/pages/AdminHomepageContainersPage.jsx:2004`  
 Root cause: Some long-lived admin flows still report validation/success/failure using `alert()` or `window.alert()`.  
 Impact: Blocking alerts are poor for admin workflows, are difficult to test, and can interrupt batch editing.  
-Fix recommendation: Replace with existing toast/inline status patterns and add failure details in the page state.  
+Fix applied: Added a centralized React notification provider/service with toast notifications, accessible confirmation modals, and accessible input modals. Replaced all frontend `alert`, `confirm`, `prompt`, `window.alert`, `window.confirm`, and `window.prompt` calls with non-blocking notification flows while preserving existing action confirmation and input behavior across admin, staff, vendor, customer, influencer, product, reel, order, review, payout, and settings pages. Added `no-alert: error` to the frontend ESLint config to prevent regression.  
+Validation: `frontend npm run lint`, `frontend npm run build`, and a project scan for native browser dialogs passed with zero matches in `frontend/src` and `backend/src`.  
 Estimated effort: 0.5-1 day  
 Priority: P2
 
 ### Finding P1-06: Production logging still uses console in runtime paths
 
-Status: Resolved  
+Status: Resolved on 2026-06-01  
 Severity: Medium  
 Module: Observability / Security  
 File paths: `frontend/src/hooks/useStaffAuth.js:24`, `frontend/src/hooks/useStaffAuth.js:27`, `frontend/src/hooks/useStaffAuth.js:49`, `frontend/src/components/staff/DashboardLayout.jsx:48`, `backend/src/middleware/vendorModuleAccess.js:27`, `backend/src/middleware/vendorModuleAccess.js:70`, `backend/src/modules/staff/middleware/staff-auth.js:74`  
 Root cause: Permission sync and denial diagnostics were implemented with `console.log` instead of structured logging with environment controls.  
-Fix applied: Replaced frontend permission sync/check console calls with the existing frontend permission logger wrapper and replaced backend vendor/staff denial console logs with structured `logger.warn` calls that avoid dumping full permission maps.  
+Fix applied: Added an environment-aware frontend logger service with automatic redaction for tokens, secrets, cookies, sessions, emails, phone numbers, permission/RBAC objects, KYC, tax, bank, and account fields. Hardened the backend Winston logger with shared redaction and structured `audit`, `security`, `payment`, `commission`, and `webhook` channels. Replaced all direct console calls across frontend and backend source, including scripts and domain tests, with logger calls. RBAC and permission logs now emit role/module names and permission counts only, never full permission maps. Added frontend `no-console: error` with a single config-level exception for the logger implementation.  
+Validation: `frontend npm run lint`, `frontend npm run build`, `backend npm run audit:console`, full backend `node -c` syntax scan, and a repository scan for direct console usage passed. The only remaining console calls are inside `frontend/src/services/logger/logger.js`, the approved browser logger implementation.  
 Priority: Closed
 
 ## 6. Frontend Audit Findings

@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useState, useEffect, useCallback } from "react";
 import vendorModuleService from "../services/vendorModule.service";
 
@@ -37,7 +38,7 @@ export const useVendorModules = () => {
       setError(null);
     } catch (err) {
       setError(err.message || "Failed to fetch modules");
-      console.error("Error fetching modules:", err);
+      logger.error("Error fetching modules:", { error: err });
     } finally {
       setLoading(false);
     }
@@ -49,7 +50,7 @@ export const useVendorModules = () => {
       const data = await vendorModuleService.getModuleStats();
       setStats(data);
     } catch (err) {
-      console.error("Error fetching module stats:", err);
+      logger.error("Error fetching module stats:", { error: err });
     }
   }, []);
 
@@ -172,7 +173,7 @@ export const useVendorModuleAccess = () => {
       setAccessMap(data);
       return data;
     } catch (err) {
-      console.error("Error checking module access:", err);
+      logger.error("Error checking module access:", { error: err });
       return {};
     } finally {
       setLoading(false);
@@ -211,7 +212,7 @@ export const useAccessibleVendorModules = () => {
       return data;
     } catch (err) {
       setError(err.message || "Failed to fetch accessible modules");
-      console.error("Error fetching accessible modules:", err);
+      logger.error("Error fetching accessible modules:", { error: err });
       return [];
     } finally {
       if (!silent) {

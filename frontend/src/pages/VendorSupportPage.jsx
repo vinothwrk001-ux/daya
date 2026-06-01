@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { requestInput } from "../services/notificationService";
 import { StatusBadge } from "../components/StatusBadge";
 import { VendorList, VendorSection } from "../components/VendorPanel";
 import * as vendorDashboardService from "../services/vendorDashboardService";
@@ -24,9 +25,9 @@ export function VendorSupportPage() {
   }, []);
 
   async function createTicket() {
-    const subject = window.prompt("Ticket subject");
+    const subject = await requestInput({ title: "Create support ticket", label: "Ticket subject" });
     if (!subject) return;
-    const message = window.prompt("Describe the issue");
+    const message = await requestInput({ title: "Create support ticket", label: "Describe the issue", multiline: true });
     if (!message) return;
 
     try {
@@ -43,7 +44,7 @@ export function VendorSupportPage() {
   }
 
   async function reply(ticketId) {
-    const message = window.prompt("Reply");
+    const message = await requestInput({ title: "Reply to ticket", label: "Reply", multiline: true });
     if (!message) return;
 
     try {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { deleteUser, listUsers, toggleUserBlock } from "../services/adminApi";
 import { ReportingToolbar } from "../components/ReportingToolbar";
 import { StatusBadge } from "../components/StatusBadge";
@@ -75,7 +76,7 @@ export function AdminUsersPage() {
   }
 
   async function handleDelete(user) {
-    if (!window.confirm(`Delete ${user.name}?`)) return;
+    if (!(await confirmAction({ message: `Delete ${user.name}?`, tone: "danger", confirmLabel: "Confirm" }))) return;
     setBusyId(user._id);
     setError("");
     try {

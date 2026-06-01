@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Heart, ShoppingCart } from "lucide-react";
@@ -26,7 +27,7 @@ export function ProductSection({ title, icon, sortBy = "createdAt", limit = 8 })
         setProducts(res.data.products);
       } catch (err) {
         setError("Failed to load products");
-        console.error(err);
+        logger.error("frontend_error", { error: err });
       } finally {
         setLoading(false);
       }
@@ -132,7 +133,7 @@ function ProductCard({ product }) {
         openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
       }
     } catch (err) {
-      console.error("Failed to add to cart:", err);
+      logger.error("Failed to add to cart:", { error: err });
       showToast(getCartErrorMessage(err, "Failed to add item to cart."));
     } finally {
       setIsSubmitting(false);

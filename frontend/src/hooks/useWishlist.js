@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthStore } from "../context/authStore";
 import useGuestWishlistStore from "../context/guestWishlistStore";
@@ -54,7 +55,7 @@ export const useWishlist = () => {
       setAuthWishlist(normalizeAuthWishlist(wishlist));
     } catch (err) {
       setError(err.message);
-      console.error("Failed to fetch wishlist:", err);
+      logger.error("Failed to fetch wishlist:", { error: err });
     } finally {
       setLoading(false);
     }
@@ -81,7 +82,7 @@ export const useWishlist = () => {
           const status = await wishlistService.checkWishlistStatus(productId);
           return Boolean(status?.saved ?? status?.inWishlist);
         } catch (err) {
-          console.error("Failed to check wishlist status:", err);
+          logger.error("Failed to check wishlist status:", { error: err });
           return false;
         }
       }
@@ -228,7 +229,7 @@ export const useWishlist = () => {
       return mergeResult;
     } catch (err) {
       setError(err.message);
-      console.error("Wishlist merge failed:", err);
+      logger.error("Wishlist merge failed:", { error: err });
       throw err;
     } finally {
       setLoading(false);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { AlertTriangle, DatabaseZap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { resetPlatformData } from "../services/adminApi";
@@ -66,7 +67,7 @@ export function AdminSettingsPage() {
 
   async function handleResetPlatformData() {
     if (resetConfirmation !== RESET_CONFIRMATION) return;
-    const approved = window.confirm("This will permanently delete every document from every MongoDB collection. Collections and indexes will remain. Continue?");
+    const approved = await confirmAction({ message: "This will permanently delete every document from every MongoDB collection. Collections and indexes will remain. Continue?", tone: "danger", confirmLabel: "Confirm" });
     if (!approved) return;
 
     setResetting(true);

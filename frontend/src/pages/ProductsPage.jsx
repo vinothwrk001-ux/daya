@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useEffect, useMemo, useState, memo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronDown, Heart, ShoppingCart } from "lucide-react";
@@ -838,7 +839,7 @@ const ProductCard = memo(function ProductCard({ product }) {
         setIsInWishlist(true);
       }
     } catch (err) {
-      console.error("Failed to update wishlist:", err);
+      logger.error("Failed to update wishlist:", { error: err });
     } finally {
       setIsSubmitting(false);
     }
@@ -858,7 +859,7 @@ const ProductCard = memo(function ProductCard({ product }) {
         openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
       }
     } catch (err) {
-      console.error("Failed to add to cart:", err);
+      logger.error("Failed to add to cart:", { error: err });
       showToast(getCartErrorMessage(err, "Failed to add item to cart."));
     } finally {
       setIsSubmitting(false);

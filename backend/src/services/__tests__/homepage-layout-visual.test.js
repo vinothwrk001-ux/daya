@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("assert");
 const {
   __test: {
@@ -12,10 +13,10 @@ const {
 async function runTest(name, fn) {
   try {
     await fn();
-    console.log(`PASS ${name}`);
+    logger.info("script_output", { value: `PASS ${name}` });
   } catch (error) {
-    console.error(`FAIL ${name}`);
-    console.error(error);
+    logger.error("script_error", { error: `FAIL ${name}` });
+    logger.error("script_error", { error: error });
     process.exitCode = 1;
   }
 }
@@ -96,6 +97,6 @@ runTest("detects invalid spans and duplicate assignments", () => {
 
 process.on("beforeExit", () => {
   if (!process.exitCode) {
-    console.log("All homepage layout visual tests passed.");
+    logger.info("script_output", { value: "All homepage layout visual tests passed." });
   }
 });

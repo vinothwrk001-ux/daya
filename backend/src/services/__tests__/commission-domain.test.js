@@ -1,12 +1,13 @@
+const { logger } = require("../../utils/logger");
 const assert = require("node:assert/strict");
 const commissionRuleService = require("../commission-rule.service");
 
 function runTest(name, fn) {
   try {
     fn();
-    console.log(`PASS ${name}`);
+    logger.info("script_output", { value: `PASS ${name}` });
   } catch (error) {
-    console.error(`FAIL ${name}`);
+    logger.error("script_error", { error: `FAIL ${name}` });
     throw error;
   }
 }
@@ -61,5 +62,5 @@ runTest("commission cannot exceed subtotal", () => {
   );
 });
 
-console.log("All commission domain checks passed.");
+logger.info("script_output", { value: "All commission domain checks passed." });
 

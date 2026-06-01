@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthStore } from "../context/authStore";
 import useAuthCartStore from "../context/authCartStore";
@@ -59,7 +60,7 @@ export const useCart = () => {
       return normalized;
     } catch (err) {
       setError(err.message);
-      console.error("Failed to fetch cart:", err);
+      logger.error("Failed to fetch cart:", { error: err });
       throw err;
     } finally {
       setLoading(false);
@@ -301,7 +302,7 @@ export const useCart = () => {
       return mergeResult;
     } catch (err) {
       setError(err.message);
-      console.error("Cart merge failed:", err);
+      logger.error("Cart merge failed:", { error: err });
       throw err;
     } finally {
       setLoading(false);

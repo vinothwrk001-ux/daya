@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronDown, Image, Search, Share2, ShieldCheck, ShoppingBag, Star, Users } from "lucide-react";
@@ -29,7 +30,7 @@ export function StoresPage() {
         const vendorsData = Array.isArray(response) ? response : response?.data || [];
         if (alive) setStores(vendorsData);
       } catch (error) {
-        console.error("Failed to load stores:", error);
+        logger.error("Failed to load stores:", { error: error });
         if (alive) setStores([]);
       } finally {
         if (alive) setLoading(false);

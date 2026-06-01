@@ -1,4 +1,5 @@
 import { createElement, useCallback, useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -550,9 +551,9 @@ function RelationshipsView({ rows, busyId, onStatus }) {
 }
 
 function CampaignsView({ campaigns, products, influencers, busyId, onCreate, onReview, onStatus, onDelete }) {
-  function confirmDelete(campaign) {
+  async function confirmDelete(campaign) {
     const title = campaign.title || "this campaign";
-    if (window.confirm(`Delete "${title}"? This is only allowed before applications, content, or commissions exist.`)) {
+    if (await confirmAction({ message: `Delete "${title}"? This is only allowed before applications, content, or commissions exist.`, tone: "danger", confirmLabel: "Confirm" })) {
       onDelete(campaign);
     }
   }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { cancelOrder, listOrders, updateOrderStatus } from "../services/adminApi";
 import { useStaffPermission } from "../hooks/useStaffAuth";
 
@@ -88,7 +89,7 @@ export function StaffOrdersPage() {
 
   async function handleCancel(order) {
     if (order.status === "Cancelled") return;
-    if (!window.confirm(`Cancel order ${order.orderNumber || order._id}?`)) return;
+    if (!(await confirmAction({ message: `Cancel order ${order.orderNumber || order._id}?`, tone: "danger", confirmLabel: "Confirm" }))) return;
 
     setBusyId(order._id);
     setError("");

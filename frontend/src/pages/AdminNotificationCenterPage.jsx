@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { confirmAction } from "../services/notificationService";
 import { adminNotificationService } from '../services/adminService';
 import { StatusBadge, Toast } from '../components/AdminComponents';
 import { formatDateTime } from '../utils/adminUtils';
@@ -99,7 +100,7 @@ export function AdminNotificationCenterPage() {
   };
 
   const handleClearAll = async () => {
-    if (window.confirm('Clear all notifications?')) {
+    if (await confirmAction({ message: 'Clear all notifications?', tone: "danger", confirmLabel: "Confirm" })) {
       try {
         await adminNotificationService.clearAll();
         loadNotifications();

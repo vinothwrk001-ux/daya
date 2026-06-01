@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useState, useCallback, useEffect } from 'react';
 import { adminService } from '../services/adminService';
 
@@ -115,7 +116,7 @@ export function useAdminNotifications(pollingInterval = 30000) {
       setNotifications(result?.notifications || []);
       setUnreadCount(result?.unreadCount || 0);
     } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+      logger.error("Failed to fetch notifications:", { error: error });
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +127,7 @@ export function useAdminNotifications(pollingInterval = 30000) {
       await adminService.markAsRead(notificationId);
       fetchNotifications();
     } catch (error) {
-      console.error('Failed to mark as read:', error);
+      logger.error("Failed to mark as read:", { error: error });
     }
   }, [fetchNotifications]);
 

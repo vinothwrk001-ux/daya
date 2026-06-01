@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { confirmAction } from "../../services/notificationService";
 import { ImagePreviewGrid } from "./ImagePreviewGrid";
 import { ImageUploadZone } from "./ImageUploadZone";
 import { createImageFingerprint, hydrateManagedImages, syncManagedImages, validateImageFiles } from "../../utils/productImages";
@@ -123,10 +124,10 @@ export function ProductImageUploader({
     }
   }
 
-  function handleRemove(index) {
+  async function handleRemove(index) {
     const target = managedImages[index];
     if (target?.isPrimary) {
-      const confirmed = window.confirm("This is the primary image. Remove it and promote the next image automatically?");
+      const confirmed = await confirmAction({ message: "This is the primary image. Remove it and promote the next image automatically?", tone: "danger", confirmLabel: "Confirm" });
       if (!confirmed) return;
     }
 

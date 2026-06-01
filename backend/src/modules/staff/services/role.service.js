@@ -1,6 +1,14 @@
 const { AppError } = require("../../../utils/AppError");
 const { Role } = require("../models/Role");
 const { Staff } = require("../models/Staff");
+const { logger } = require("../../../utils/logger");
+
+function countGrantedPermissions(permissions = {}) {
+  return Object.values(permissions).reduce(
+    (total, actions) => total + Object.values(actions || {}).filter(Boolean).length,
+    0
+  );
+}
 const {
   STAFF_PERMISSION_CATALOG,
   createEmptyPermissions,
@@ -116,11 +124,15 @@ async function updateRole(roleId, payload) {
 
   await role.save();
   
-  // Log permission change for audit trail
-  console.log(`[PERMISSION_INVALIDATION] Role ${roleId} (${role.name}) updated`);
-  console.log(`[PERMISSION_INVALIDATION] Old permissions:`, oldPermissions);
-  console.log(`[PERMISSION_INVALIDATION] New permissions:`, role.permissions);
-  console.log(`[PERMISSION_INVALIDATION] All staff with this role will see updated permissions on next sync`);
+  logger.security("Role permissions updated", {
+    source: "role.service",
+    event: "permission_invalidation",
+    roleId: String(roleId),
+    roleName: role.name,
+    oldPermissionCount: countGrantedPermissions(oldPermissions),
+    newPermissionCount: countGrantedPermissions(role.permissions),
+    moduleCount: Object.keys(role.permissions || {}).length,
+  });
   
   return role;
 }

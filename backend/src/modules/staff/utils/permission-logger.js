@@ -3,6 +3,8 @@
  * Centralizes permission-related logging for easy troubleshooting
  */
 
+const { logger } = require("../../../utils/logger");
+
 const LOG_LEVELS = {
   DEBUG: "DEBUG",
   INFO: "INFO",
@@ -10,29 +12,30 @@ const LOG_LEVELS = {
   ERROR: "ERROR",
 };
 
-function formatPermissions(permissions) {
-  if (!permissions) return "{}";
-  return Object.entries(permissions)
-    .map(([module, actions]) => {
-      const granted = Object.entries(actions || {})
-        .filter(([, granted]) => granted)
-        .map(([action]) => action)
-        .join(",");
-      return `${module}:[${granted}]`;
-    })
-    .join("|");
+function summarizePermissions(permissions) {
+  if (!permissions) return { moduleCount: 0, permissionCount: 0 };
+  return Object.entries(permissions).reduce(
+    (summary, [, actions]) => ({
+      moduleCount: summary.moduleCount + 1,
+      permissionCount:
+        summary.permissionCount +
+        Object.values(actions || {}).filter(Boolean).length,
+    }),
+    { moduleCount: 0, permissionCount: 0 }
+  );
 }
 
 function log(level, context, message, data = {}) {
-  const timestamp = new Date().toISOString();
-  const prefix = `[${timestamp}] [${level}] [${context}]`;
+  const payload = { source: "staff-permission-logger", context, ...data };
   
   if (level === LOG_LEVELS.ERROR) {
-    console.error(`${prefix} ${message}`, data);
+    logger.error(message, payload);
   } else if (level === LOG_LEVELS.WARN) {
-    console.warn(`${prefix} ${message}`, data);
+    logger.warn(message, payload);
+  } else if (level === LOG_LEVELS.INFO) {
+    logger.info(message, payload);
   } else {
-    console.log(`${prefix} ${message}`, data);
+    logger.debug(message, payload);
   }
 }
 
@@ -43,7 +46,7 @@ function logLogin(staffId, email, roleId, permissions) {
     staffId,
     email,
     roleId,
-    permissions: formatPermissions(permissions),
+    permissionSummary: summarizePermissions(permissions),
   });
 }
 
@@ -62,8 +65,8 @@ function logSessionRefresh(staffId, oldPermissions, newPermissions) {
     `Session refreshed${permissionsChanged ? " - PERMISSIONS CHANGED" : ""}`,
     {
       staffId,
-      oldPermissions: formatPermissions(oldPermissions),
-      newPermissions: formatPermissions(newPermissions),
+    oldPermissionSummary: summarizePermissions(oldPermissions),
+    newPermissionSummary: summarizePermissions(newPermissions),
     }
   );
 }
@@ -83,7 +86,7 @@ function logPermissionCheck(staffId, email, permission, granted, availablePermis
       granted,
       module,
       action,
-      availablePermissions: formatPermissions(availablePermissions),
+      permissionSummary: summarizePermissions(availablePermissions),
     }
   );
 }
@@ -105,8 +108,8 @@ function logRoleUpdate(roleId, roleName, oldPermissions, newPermissions) {
     log(LOG_LEVELS.WARN, "ROLE_UPDATE", `Role updated - PERMISSIONS CHANGED`, {
       roleId,
       roleName,
-      oldPermissions: formatPermissions(oldPermissions),
-      newPermissions: formatPermissions(newPermissions),
+      oldPermissionSummary: summarizePermissions(oldPermissions),
+      newPermissionSummary: summarizePermissions(newPermissions),
     });
   } else {
     log(LOG_LEVELS.INFO, "ROLE_UPDATE", `Role updated`, {
@@ -122,7 +125,7 @@ function logPermissionAssignment(staffId, email, oldRoleId, newRoleId, permissio
     email,
     oldRoleId,
     newRoleId,
-    newPermissions: formatPermissions(permissions),
+    newPermissionSummary: summarizePermissions(permissions),
   });
 }
 
@@ -133,7 +136,7 @@ function logPermissionSync(staffId, email, source, permissions) {
     staffId,
     email,
     source,
-    permissions: formatPermissions(permissions),
+    permissionSummary: summarizePermissions(permissions),
   });
 }
 
@@ -190,14 +193,14 @@ function logPermissionVerification(staffId, email, roleId, roleName, result) {
       roleName,
       valid: result.valid,
       discrepancies: result.discrepancies,
-      permissions: formatPermissions(result.rolePermissions),
+      permissionSummary: summarizePermissions(result.rolePermissions),
     }
   );
 }
 
 module.exports = {
   LOG_LEVELS,
-  formatPermissions,
+  summarizePermissions,
   log,
   logLogin,
   logLogout,

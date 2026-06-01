@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../context/authStore";
@@ -73,7 +74,7 @@ export function UserMenu() {
     try {
       await authService.logout();
     } catch (error) {
-      console.debug("Server logout response:", error?.response?.status);
+      logger.debug("Server logout response:", { value: error?.response?.status });
     } finally {
       logout();
       setIsOpen(false);

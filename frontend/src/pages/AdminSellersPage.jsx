@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { requestInput } from "../services/notificationService";
 import { Link } from "react-router-dom";
 import { approveSeller, listSellers, moderateVendorStore, rejectSeller } from "../services/adminApi";
 import { ReportingToolbar } from "../components/ReportingToolbar";
@@ -73,7 +74,7 @@ export function AdminSellersPage() {
   }
 
   async function handleReject(id) {
-    const reason = window.prompt("Rejection reason") || "";
+    const reason = (await requestInput({ title: "Reject seller", label: "Rejection reason", required: false, multiline: true })) || "";
     setBusyId(id);
     setError("");
     try {

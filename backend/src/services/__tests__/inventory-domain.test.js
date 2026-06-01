@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("assert");
 const inventoryService = require("../inventory.service");
 const { Product } = require("../../models/Product");
@@ -123,7 +124,7 @@ async function run() {
       "ledger should capture returns"
     );
 
-    console.log("Inventory domain checks passed.");
+    logger.info("script_output", { value: "Inventory domain checks passed." });
   } finally {
     Product.findById = originalProductFindById;
     InventoryLedger.findOne = originalLedgerFindOne;
@@ -132,6 +133,6 @@ async function run() {
 }
 
 run().catch((error) => {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exit(1);
 });

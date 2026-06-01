@@ -2,6 +2,7 @@ const express = require("express");
 const Joi = require("joi");
 const { authOptional } = require("../../middleware/auth");
 const { validate } = require("../../middleware/validate");
+const { eventSecurity } = require("./security.middleware");
 const controller = require("./controller");
 
 const router = express.Router();
@@ -9,6 +10,7 @@ const router = express.Router();
 router.post(
   "/click",
   authOptional,
+  eventSecurity("product_click", { blockOnLimit: false }),
   validate(
     Joi.object({
         reelId: Joi.string().allow("", null),
@@ -28,6 +30,7 @@ router.post(
 router.post(
   "/event",
   authOptional,
+  eventSecurity("tracking_event", { blockOnLimit: false }),
   validate(
     Joi.object({
       trackingToken: Joi.string().required(),

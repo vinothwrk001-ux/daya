@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("dotenv").config();
 
 const mongoose = require("mongoose");
@@ -36,20 +37,29 @@ async function run() {
   const [productsRes, cartsRes, ordersRes] = await Promise.all(updates);
 
   // eslint-disable-next-line no-console
-  console.log("Currency migration complete");
+  logger.info("script_output", { value: "Currency migration complete" });
   // eslint-disable-next-line no-console
-  console.log("Products matched:", productsRes.matchedCount, "modified:", productsRes.modifiedCount);
+  logger.info("Currency migration products updated", {
+    matchedCount: productsRes.matchedCount,
+    modifiedCount: productsRes.modifiedCount,
+  });
   // eslint-disable-next-line no-console
-  console.log("Carts matched:", cartsRes.matchedCount, "modified:", cartsRes.modifiedCount);
+  logger.info("Currency migration carts updated", {
+    matchedCount: cartsRes.matchedCount,
+    modifiedCount: cartsRes.modifiedCount,
+  });
   // eslint-disable-next-line no-console
-  console.log("Orders matched:", ordersRes.matchedCount, "modified:", ordersRes.modifiedCount);
+  logger.info("Currency migration orders updated", {
+    matchedCount: ordersRes.matchedCount,
+    modifiedCount: ordersRes.modifiedCount,
+  });
 
   await mongoose.disconnect();
 }
 
 run().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error("Migration failed", err);
+  logger.error("Migration failed", { error: err });
   process.exit(1);
 });
 

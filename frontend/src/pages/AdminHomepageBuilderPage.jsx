@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import {
   DndContext,
   DragOverlay,
@@ -808,7 +809,13 @@ export function AdminHomepageBuilderPage() {
   );
 
   const handleDeleteLayout = useCallback(async () => {
-    if (!activeLayoutId || !canEdit || !window.confirm("Delete this homepage layout and revision history?")) return;
+    if (!activeLayoutId || !canEdit) return;
+    if (!(await confirmAction({
+      title: "Delete homepage layout",
+      message: "Delete this homepage layout and revision history?",
+      tone: "danger",
+      confirmLabel: "Delete layout",
+    }))) return;
     setLayoutLoading(true);
     setError("");
     try {

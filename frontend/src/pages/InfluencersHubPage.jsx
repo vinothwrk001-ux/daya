@@ -1,4 +1,5 @@
 import { createElement, useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Bell,
@@ -153,7 +154,7 @@ export function InfluencersHubPage() {
       return;
     }
     const wasFollowing = Boolean(followedIds[creatorId]);
-    if (wasFollowing && !window.confirm(`Do you want to unfollow ${influencerName(creatorLike)}?`)) return;
+    if (wasFollowing && !(await confirmAction({ message: `Do you want to unfollow ${influencerName(creatorLike)}?`, tone: "danger", confirmLabel: "Confirm" }))) return;
     setFollowBusy((current) => ({ ...current, [creatorId]: true }));
     setFollowedIds((current) => ({ ...current, [creatorId]: !wasFollowing }));
     updateCreatorFollowerCount(creatorId, wasFollowing ? -1 : 1);

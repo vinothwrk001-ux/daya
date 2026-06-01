@@ -14,6 +14,7 @@ const click = asyncHandler(async (req, res) => {
     influencerId: req.body.influencerId,
     trackingCode: req.body.trackingCode,
     surface: req.body.surface,
+    security: req.trackingSecurity,
   });
   return ok(res, result, "Tracking session created");
 });
@@ -25,6 +26,7 @@ const event = asyncHandler(async (req, res) => {
     anonymousId: req.body.anonymousId,
     eventType: req.body.eventType,
     metadata: req.body.metadata || {},
+    security: req.trackingSecurity,
   });
   return ok(res, result, "Tracking event recorded");
 });

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { requestInput } from "../services/notificationService";
 import { Link, useParams } from "react-router-dom";
 import { CancelOrderModal } from "../components/CancelOrderModal";
 import { StatusBadge } from "../components/StatusBadge";
@@ -84,7 +85,7 @@ export function OrderDetailsPage() {
   const timelineEvents = useMemo(() => tracking?.timeline || order?.timeline?.events || [], [order, tracking]);
 
   async function handleReturn() {
-    const reason = window.prompt("Reason for return");
+    const reason = await requestInput({ title: "Request return", label: "Reason for return", multiline: true });
     if (!reason) return;
     setActionBusy(true);
     try {

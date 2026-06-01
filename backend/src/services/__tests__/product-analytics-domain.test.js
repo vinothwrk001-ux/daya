@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("assert");
 process.env.ENCRYPTION_MASTER_KEY = process.env.ENCRYPTION_MASTER_KEY || "12345678901234567890123456789012";
 const {
@@ -205,10 +206,10 @@ async function main() {
   ].filter((row) => row.vendorId === "vendor_1");
   assert.equal(vendorRows.length, 1, "vendor analytics must stay isolated to one vendor scope");
 
-  console.log("Product analytics domain checks passed.");
+  logger.info("script_output", { value: "Product analytics domain checks passed." });
 }
 
 main().catch((error) => {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exit(1);
 });

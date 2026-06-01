@@ -1,3 +1,4 @@
+import { logger } from "../../services/logger/logger.js";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Check, ShieldCheck, Star, Store, Users } from "lucide-react";
@@ -136,7 +137,7 @@ export function FollowStoreButton({ seller, initialFollowing = false, className 
           setFollowing(isFollowing);
         }
       } catch (error) {
-        console.error("Failed to load follow status:", error);
+        logger.error("Failed to load follow status:", { error: error });
         if (active) {
           setFollowing(initialFollowing);
         }

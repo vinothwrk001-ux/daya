@@ -26,6 +26,7 @@
     "test:integration": "node --test src/services/__tests__/*.test.js",
     "test:e2e": "node --test src/e2e/**/*.test.js",
     "audit:route-security": "node src/scripts/routeSecurityAudit.js",
+    "audit:console": "node src/scripts/consoleUsageAudit.js",
     "security:audit": "node src/scripts/authorizationSecurityAudit.js",
     "bootstrap:platform": "node src/scripts/bootstrapPlatformConfig.js",
     "seed:admin": "node src/scripts/seedAdmin.js",

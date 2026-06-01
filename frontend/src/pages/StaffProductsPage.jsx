@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { Link } from "react-router-dom";
 import { deleteProduct, getProductStats, listProducts } from "../services/adminApi";
 import { StatusBadge } from "../components/StatusBadge";
@@ -89,7 +90,7 @@ export function StaffProductsPage() {
   }, [loadProducts]);
 
   async function handleDelete(productId) {
-    if (!window.confirm("Delete this product?")) return;
+    if (!(await confirmAction({ message: "Delete this product?", tone: "danger", confirmLabel: "Confirm" }))) return;
     setBusyId(productId);
     setError("");
     try {

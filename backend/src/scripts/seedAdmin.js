@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("dotenv").config();
 
 const bcrypt = require("bcryptjs");
@@ -19,7 +20,7 @@ async function main() {
   const existing = await userRepo.findByEmail(email);
   if (existing) {
     // eslint-disable-next-line no-console
-    console.log("Admin already exists:", existing.email);
+    logger.info("Admin already exists:", { value: existing.email });
     process.exit(0);
   }
 
@@ -34,13 +35,13 @@ async function main() {
   });
 
   // eslint-disable-next-line no-console
-  console.log("Admin created:", user.email);
+  logger.info("Admin created:", { value: user.email });
   process.exit(0);
 }
 
 main().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error(err);
+  logger.error("script_error", { error: err });
   process.exit(1);
 });
 

@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import React, { useState } from "react";
 import { useVendorModules } from "../hooks/useVendorModules";
 import {
@@ -73,7 +74,7 @@ export default function AdminVendorAccessPage() {
       await initModules();
       showSuccess("Modules initialized successfully.");
     } catch (err) {
-      console.error("Error initializing modules:", err);
+      logger.error("Error initializing modules:", { error: err });
     } finally {
       setInitializingModules(false);
     }
@@ -86,7 +87,7 @@ export default function AdminVendorAccessPage() {
       await updateModuleSettings(moduleKey, payload);
       showSuccess(successLabel);
     } catch (err) {
-      console.error("Error updating module settings:", err);
+      logger.error("Error updating module settings:", { error: err });
     } finally {
       setPendingControl(null);
     }

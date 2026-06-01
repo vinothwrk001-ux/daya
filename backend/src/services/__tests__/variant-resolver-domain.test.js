@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("assert");
 const { resolveNextAvailableVariant } = require("../variantResolver.service");
 
@@ -45,10 +46,10 @@ async function run() {
   assert.equal(result.variant, null, "Legacy product should not return a variant id");
   assert.equal(result.availableStock, 1, "Legacy product stock should decrement by cart quantity");
 
-  console.log("Variant resolver domain checks passed.");
+  logger.info("script_output", { value: "Variant resolver domain checks passed." });
 }
 
 run().catch((error) => {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exit(1);
 });

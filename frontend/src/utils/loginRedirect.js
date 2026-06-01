@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 /**
  * Login Redirect Utility
  * 
@@ -79,7 +80,7 @@ export function saveRedirectAfterLogin(url) {
   } catch (error) {
     // Silently fail
     if (isDev) {
-      console.debug("Failed to save redirect URL:", error);
+      logger.debug("Failed to save redirect URL:", { value: error });
     }
   }
 }
@@ -112,7 +113,7 @@ export function consumeRedirectAfterLogin() {
   } catch (error) {
     // Silently fail
     if (isDev) {
-      console.debug("Failed to consume redirect URL:", error);
+      logger.debug("Failed to consume redirect URL:", { value: error });
     }
     return null;
   }
@@ -130,7 +131,7 @@ export function clearRedirectAfterLogin() {
   } catch (error) {
     // Silently fail
     if (isDev) {
-      console.debug("Failed to clear redirect URL:", error);
+      logger.debug("Failed to clear redirect URL:", { value: error });
     }
   }
 }

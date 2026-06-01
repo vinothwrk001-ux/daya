@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { memo, useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import * as subcategoryService from "../services/subcategoryService";
@@ -71,7 +72,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
         [categoryId]: response.data || [],
       }));
     } catch (error) {
-      console.error("Failed to load subcategories:", error);
+      logger.error("Failed to load subcategories:", { error: error });
     } finally {
       setLoadingSubcategories(null);
     }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import {
   createStaffRole,
   deleteStaffRole,
@@ -180,7 +181,7 @@ export function StaffRolesPage() {
 
   async function handleDelete(role) {
     if (role.isSystem) return;
-    if (!window.confirm(`Delete role "${role.name}"?`)) return;
+    if (!(await confirmAction({ message: `Delete role "${role.name}"?`, tone: "danger", confirmLabel: "Confirm" }))) return;
 
     try {
       await deleteStaffRole(role._id);

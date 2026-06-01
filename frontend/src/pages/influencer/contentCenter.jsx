@@ -1,4 +1,5 @@
 import { createElement, useCallback, useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../../services/notificationService";
 import { useSearchParams } from "react-router-dom";
 import {
   BarChart3,
@@ -234,7 +235,7 @@ export default function InfluencerContentCenterPage() {
   async function handleAction(item, action) {
     const id = item._id || item.id;
     if (!id) return;
-    if (action === "delete" && !window.confirm("Delete this video or live session?")) return;
+    if (action === "delete" && !(await confirmAction({ message: "Delete this video or live session?", tone: "danger", confirmLabel: "Confirm" }))) return;
     setBusyId(String(id));
     setNotice("");
     try {

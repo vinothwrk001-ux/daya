@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { Link } from "react-router-dom";
 import { deleteOrder, listOrders } from "../services/adminApi";
 import { AdminTable } from "../components/AdminTable";
@@ -66,7 +67,7 @@ export function AdminOrdersPage() {
   }, [refresh]);
 
   async function handleDelete(orderId) {
-    if (!window.confirm("Soft delete this order?")) return;
+    if (!(await confirmAction({ message: "Soft delete this order?", tone: "danger", confirmLabel: "Confirm" }))) return;
     setBusyId(orderId);
     setError("");
     try {

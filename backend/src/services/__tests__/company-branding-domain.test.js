@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("assert");
 const {
   buildManifest,
@@ -8,10 +9,10 @@ const {
 function test(name, fn) {
   Promise.resolve()
     .then(fn)
-    .then(() => console.log(`ok - ${name}`))
+    .then(() => logger.info("script_output", { value: `ok - ${name}` }))
     .catch((error) => {
-      console.error(`not ok - ${name}`);
-      console.error(error);
+      logger.error("script_error", { error: `not ok - ${name}` });
+      logger.error("script_error", { error: error });
       process.exitCode = 1;
     });
 }

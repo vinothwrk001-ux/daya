@@ -2,6 +2,7 @@ const { VendorModule } = require("../models/VendorModule");
 const { getDefaultVendorModules, isValidModuleKey } = require("../config/vendorModules.config");
 const { AppError } = require("../utils/AppError");
 const { AuditLog } = require("../models/AuditLog");
+const { logger } = require("../utils/logger");
 
 class VendorModuleService {
   constructor() {
@@ -68,7 +69,9 @@ class VendorModuleService {
 
   _logAccessDecision(context, decision, user) {
     if (!this._shouldLogDebug()) return;
-    console.log("[VENDOR_ACCESS]", {
+    logger.security("Vendor module access decision", {
+      source: "vendorModule.service",
+      event: "vendor_module_access_decision",
       context,
       module: decision.moduleKey,
       action: decision.action,
@@ -79,7 +82,10 @@ class VendorModuleService {
       requiredPermission: decision.requiredPermission,
       userId: user?.sub || user?._id || null,
       role: user?.role || null,
-      rolePermissions: decision.userPermissions,
+      permissionCount: Object.values(decision.userPermissions || {}).reduce(
+        (total, actions) => total + Object.values(actions || {}).filter(Boolean).length,
+        0
+      ),
     });
   }
 
@@ -236,7 +242,12 @@ class VendorModuleService {
           userAgent: adminUser.userAgent,
         });
       } catch (err) {
-        console.error("Failed to create audit log:", err);
+        logger.error("Failed to create vendor module audit log", {
+          source: "vendorModule.service",
+          event: "vendor_module_audit_log_failed",
+          action: "module_update",
+          error: err,
+        });
       }
     }
 
@@ -287,7 +298,12 @@ class VendorModuleService {
           userAgent: adminUser.userAgent,
         });
       } catch (err) {
-        console.error("Failed to create audit log:", err);
+        logger.error("Failed to create vendor module audit log", {
+          source: "vendorModule.service",
+          event: "vendor_module_audit_log_failed",
+          action: "vendor_module_update",
+          error: err,
+        });
       }
     }
 
@@ -333,7 +349,12 @@ class VendorModuleService {
           userAgent: adminUser.userAgent,
         });
       } catch (err) {
-        console.error("Failed to create audit log:", err);
+        logger.error("Failed to create vendor module audit log", {
+          source: "vendorModule.service",
+          event: "vendor_module_audit_log_failed",
+          action: "global_feature_update",
+          error: err,
+        });
       }
     }
 

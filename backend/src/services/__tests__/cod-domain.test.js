@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("node:assert/strict");
 
 const codService = require("../cod.service");
@@ -5,9 +6,9 @@ const codService = require("../cod.service");
 function runTest(name, fn) {
   return Promise.resolve()
     .then(fn)
-    .then(() => console.log(`PASS ${name}`))
+    .then(() => logger.info("script_output", { value: `PASS ${name}` }))
     .catch((error) => {
-      console.error(`FAIL ${name}`);
+      logger.error("script_error", { error: `FAIL ${name}` });
       throw error;
     });
 }
@@ -60,10 +61,10 @@ async function main() {
     assert.equal(rule.zone, "metro");
   });
 
-  console.log("COD domain checks passed.");
+  logger.info("script_output", { value: "COD domain checks passed." });
 }
 
 main().catch((error) => {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exitCode = 1;
 });

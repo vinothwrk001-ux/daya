@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("../config/env");
 
 const mongoose = require("mongoose");
@@ -21,12 +22,12 @@ async function main() {
     },
     { upsert: true }
   );
-  console.log("Company branding migration complete.");
+  logger.info("script_output", { value: "Company branding migration complete." });
   await mongoose.disconnect();
 }
 
 main().catch(async (error) => {
-  console.error("Company branding migration failed:", error);
+  logger.error("Company branding migration failed:", { error: error });
   await mongoose.disconnect();
   process.exitCode = 1;
 });

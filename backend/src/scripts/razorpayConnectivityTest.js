@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("../config/env");
 
 const Razorpay = require("razorpay");
@@ -97,7 +98,7 @@ async function main() {
 
   diagnostics.verificationResult = diagnostics.mismatches.length ? "FAILED" : "PASSED";
 
-  console.log(JSON.stringify(diagnostics, null, 2));
+  logger.info("script_output", { value: JSON.stringify(diagnostics, null, 2) });
 
   if (diagnostics.mismatches.length) {
     process.exitCode = 1;
@@ -105,18 +106,13 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(
-    JSON.stringify(
-      {
-        verificationResult: "FAILED",
-        message: error?.error?.description || error.message,
-        code: error?.error?.code || error.code || "RAZORPAY_CONNECTIVITY_TEST_FAILED",
-        reason: error?.error?.reason,
-        field: error?.error?.field,
-      },
-      null,
-      2
-    )
-  );
+  logger.error("Razorpay connectivity test failed", {
+    source: "razorpayConnectivityTest",
+    verificationResult: "FAILED",
+    message: error?.error?.description || error.message,
+    code: error?.error?.code || error.code || "RAZORPAY_CONNECTIVITY_TEST_FAILED",
+    reason: error?.error?.reason,
+    field: error?.error?.field,
+  });
   process.exit(1);
 });

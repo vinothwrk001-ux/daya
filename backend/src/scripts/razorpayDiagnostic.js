@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("../config/env");
 
 const crypto = require("crypto");
@@ -30,7 +31,7 @@ function now() {
 }
 
 function print(message = "", colour = color.reset) {
-  console.log(`${colour}${message}${color.reset}`);
+  logger.info("script_output", { value: `${colour}${message}${color.reset}` });
 }
 
 function mask(value = "") {

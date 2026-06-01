@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { deleteOrder, getOrderById, updateOrder } from "../services/adminApi";
 import { StatusBadge } from "../components/StatusBadge";
@@ -161,7 +162,7 @@ export function AdminOrderDetailsPage() {
   }
 
   async function onDelete() {
-    if (!window.confirm("Soft delete this order?")) return;
+    if (!(await confirmAction({ message: "Soft delete this order?", tone: "danger", confirmLabel: "Confirm" }))) return;
     setDeleting(true);
     setError("");
     try {

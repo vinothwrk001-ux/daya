@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import {
   createAdminProductModule,
   deleteAdminProductModule,
@@ -81,7 +82,7 @@ export function AdminProductModulesPage() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this module?")) return;
+    if (!(await confirmAction({ message: "Delete this module?", tone: "danger", confirmLabel: "Confirm" }))) return;
     try {
       await deleteAdminProductModule(id);
       await refresh();

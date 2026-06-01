@@ -86,7 +86,11 @@ async function resolveStorefrontContext({ reelId, storefrontId, collectionId, po
 }
 
 class TrackingService {
-  async click({ user, reelId, productId, anonymousId, storefrontId, collectionId, postId, influencerId, trackingCode, surface = "" }) {
+  async click({ user, reelId, productId, anonymousId, storefrontId, collectionId, postId, influencerId, trackingCode, surface = "", security = null }) {
+    if (security && security.counted === false) {
+      return { tracked: true, counted: false, reason: security.reason, fraudScore: security.fraudScore, fraudLevel: security.fraudLevel, anonymousId: security.anonymousId || anonymousId || "" };
+    }
+
     if (!(await isInfluencerCommerceEnabled())) {
       throw new AppError("Influencer commerce is disabled", 403, "INFLUENCER_COMMERCE_DISABLED");
     }
@@ -170,6 +174,7 @@ class TrackingService {
     });
 
     return {
+      counted: true,
       trackingToken: signed.token,
       expiresAt,
       session,
@@ -197,7 +202,11 @@ class TrackingService {
     };
   }
 
-  async event({ user, trackingToken, anonymousId = "", eventType = "", metadata = {} }) {
+  async event({ user, trackingToken, anonymousId = "", eventType = "", metadata = {}, security = null }) {
+    if (security && security.counted === false) {
+      return { tracked: true, counted: false, reason: security.reason, fraudScore: security.fraudScore, fraudLevel: security.fraudLevel };
+    }
+
     const allowed = new Set(["product_view", "add_to_cart", "wishlist", "checkout_started", "order_completed", "order_cancelled", "refund", "commission_approved", "commission_paid"]);
     const cleanEventType = allowed.has(eventType) ? eventType : "";
     if (!cleanEventType) throw new AppError("Invalid tracking event", 400, "VALIDATION_ERROR");
@@ -223,7 +232,7 @@ class TrackingService {
         metadata,
       }).catch(() => null),
     ]);
-    return { tracked: true };
+    return { tracked: true, counted: true };
   }
 
   async cleanupExpiredSessions() {

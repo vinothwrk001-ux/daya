@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { PasswordField } from "../components/PasswordField";
 import {
   createStaffAccount,
@@ -145,7 +146,7 @@ export function StaffStaffPage() {
   }
 
   async function handleDelete(member) {
-    if (!window.confirm(`Delete staff account "${member.name}"?`)) return;
+    if (!(await confirmAction({ message: `Delete staff account "${member.name}"?`, tone: "danger", confirmLabel: "Confirm" }))) return;
 
     try {
       await deleteStaffAccount(member._id);

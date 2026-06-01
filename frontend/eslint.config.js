@@ -24,8 +24,16 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-alert': 'error',
+      'no-console': 'error',
       'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: ['src/services/logger/logger.js'],
+    rules: {
+      'no-console': 'off',
     },
   },
 ])

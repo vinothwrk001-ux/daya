@@ -1,6 +1,7 @@
 const { AppError } = require("../utils/AppError");
 const { SHIPPING_MODE } = require("../models/Vendor");
 const { ORDER_STATUS, SHIPPING_STATUS, PICKUP_STATUS } = require("../models/Order");
+const { logger } = require("../utils/logger");
 const {
   resolveEnabledShippingModes,
   getShippingModesConfig,
@@ -306,7 +307,11 @@ async function processShiprocketWebhook(event) {
   // Find order by shipment ID
   const order = await orderRepo.findOne({ shipmentId: String(shipmentId) });
   if (!order) {
-    console.warn(`Webhook: Shipment ${shipmentId} not found`);
+    logger.webhook("Shiprocket webhook shipment not found", {
+      source: "shipping.service",
+      event: "shiprocket_shipment_not_found",
+      shipmentId: String(shipmentId),
+    });
     return null;
   }
 

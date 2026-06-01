@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 const fs = require("fs");
 const path = require("path");
 
@@ -124,11 +125,11 @@ function writeReports() {
   );
 
   const coverage = inventory.length ? Math.round(((inventory.length - highRisk.length) / inventory.length) * 100) : 100;
-  console.log(`Authorization inventory routes: ${inventory.length}`);
-  console.log(`Potential IDOR findings: ${idor.length}`);
-  console.log(`High-risk static findings: ${highRisk.length}`);
-  console.log(`Authorization coverage estimate: ${Math.max(0, coverage)}%`);
-  console.log(`Reports written to ${path.relative(process.cwd(), DOCS_DIR)}`);
+  logger.info("script_output", { value: `Authorization inventory routes: ${inventory.length}` });
+  logger.info("script_output", { value: `Potential IDOR findings: ${idor.length}` });
+  logger.info("script_output", { value: `High-risk static findings: ${highRisk.length}` });
+  logger.info("script_output", { value: `Authorization coverage estimate: ${Math.max(0, coverage)}%` });
+  logger.info("script_output", { value: `Reports written to ${path.relative(process.cwd(), DOCS_DIR)}` });
 
   if (highRisk.length) {
     process.exitCode = 1;

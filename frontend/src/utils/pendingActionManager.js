@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 /**
  * Pending Action Manager
  * Handles storing and retrieving pending checkout actions before login
@@ -29,7 +30,7 @@ export const pendingActionManager = {
       sessionStorage.setItem(PENDING_ACTION_KEY, JSON.stringify(action));
       sessionStorage.setItem(PENDING_ACTION_EXPIRY_KEY, action.expiresAt.toString());
     } catch (err) {
-      console.error("Failed to save pending action:", err);
+      logger.error("Failed to save pending action:", { error: err });
     }
   },
 
@@ -51,7 +52,7 @@ export const pendingActionManager = {
 
       return action;
     } catch (err) {
-      console.error("Failed to get pending action:", err);
+      logger.error("Failed to get pending action:", { error: err });
       return null;
     }
   },
@@ -64,7 +65,7 @@ export const pendingActionManager = {
       sessionStorage.removeItem(PENDING_ACTION_KEY);
       sessionStorage.removeItem(PENDING_ACTION_EXPIRY_KEY);
     } catch (err) {
-      console.error("Failed to clear pending action:", err);
+      logger.error("Failed to clear pending action:", { error: err });
     }
   },
 

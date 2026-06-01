@@ -1,4 +1,5 @@
 const { AppError } = require("./AppError");
+const { logger } = require("./logger");
 
 /**
  * Cart Weight Calculation Utilities
@@ -64,9 +65,11 @@ function getItemWeight(item) {
   }
 
   // Default weight for products without weight specified (0.5kg)
-  console.warn(
-    `Product ${product.name || product._id} does not have weight defined. Using default weight of 0.5kg`
-  );
+  logger.warn("Product weight missing; using default shipment weight", {
+    source: "cartWeightCalculator",
+    event: "product_weight_missing",
+    productId: product._id ? String(product._id) : null,
+  });
   return 0.5;
 }
 

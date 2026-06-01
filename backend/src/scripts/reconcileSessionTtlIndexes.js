@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("../config/env");
 
 const { connectDb } = require("../config/db");
@@ -29,24 +30,23 @@ async function reconcileModelIndexes({ model, expectedName }) {
   const expiresAtIndexes = indexes.filter(isExactExpiresAtIndex);
   const ttlIndexes = expiresAtIndexes.filter(isTtlIndex);
 
-  console.log(`\n[${model.modelName}] Collection: ${collection.collectionName}`);
-  console.log(
-    `[${model.modelName}] Matching expiresAt indexes: ${
+  logger.info("script_output", { value: `\n[${model.modelName}] Collection: ${collection.collectionName}` });
+  logger.info(
+    "script_output",
+    { value: `[${model.modelName}] Matching expiresAt indexes: ${
       expiresAtIndexes.length ? expiresAtIndexes.map((index) => index.name).join(", ") : "none"
-    }`
+    }` }
   );
 
   if (!ttlIndexes.length) {
     if (expiresAtIndexes.length) {
       for (const index of expiresAtIndexes) {
-        console.log(
-          `[${model.modelName}] Replacing non-TTL expiresAt index "${index.name}" with "${expectedName}".`
-        );
+        logger.info("script_output", { value: `[${model.modelName}] Replacing non-TTL expiresAt index "${index.name}" with "${expectedName}".` });
         await collection.dropIndex(index.name);
       }
     }
 
-    console.log(`[${model.modelName}] Creating TTL index "${expectedName}".`);
+    logger.info("script_output", { value: `[${model.modelName}] Creating TTL index "${expectedName}".` });
     await collection.createIndex(
       { expiresAt: 1 },
       {
@@ -69,12 +69,12 @@ async function reconcileModelIndexes({ model, expectedName }) {
   const indexesToDrop = refreshedExpiresAtIndexes.filter((index) => index.name !== indexToKeep.name);
 
   if (!indexesToDrop.length) {
-    console.log(`[${model.modelName}] No redundant expiresAt indexes found.`);
+    logger.info("script_output", { value: `[${model.modelName}] No redundant expiresAt indexes found.` });
     return;
   }
 
   for (const index of indexesToDrop) {
-    console.log(`[${model.modelName}] Dropping redundant index "${index.name}".`);
+    logger.info("script_output", { value: `[${model.modelName}] Dropping redundant index "${index.name}".` });
     await collection.dropIndex(index.name);
   }
 }
@@ -87,11 +87,11 @@ async function main() {
       await reconcileModelIndexes(target);
     }
 
-    console.log("\nTTL index reconciliation completed.");
+    logger.info("script_output", { value: "\nTTL index reconciliation completed." });
     process.exit(0);
   } catch (error) {
-    console.error("\nTTL index reconciliation failed.");
-    console.error(error);
+    logger.error("script_error", { error: "\nTTL index reconciliation failed." });
+    logger.error("script_error", { error: error });
     process.exit(1);
   }
 }

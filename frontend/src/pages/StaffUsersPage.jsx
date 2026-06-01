@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { PasswordField } from "../components/PasswordField";
 import { createUser, deleteUser, listUsers, toggleUserBlock } from "../services/adminApi";
 import { useStaffPermission } from "../hooks/useStaffAuth";
@@ -74,7 +75,7 @@ export function StaffUsersPage() {
   }
 
   async function handleDelete(user) {
-    if (!window.confirm(`Delete ${user.name}?`)) return;
+    if (!(await confirmAction({ message: `Delete ${user.name}?`, tone: "danger", confirmLabel: "Confirm" }))) return;
     setBusyId(user._id);
     setError("");
     try {

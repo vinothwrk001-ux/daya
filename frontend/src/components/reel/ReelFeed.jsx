@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { confirmAction } from "../../services/notificationService";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
@@ -617,7 +618,7 @@ export function ReelFeed({ detailId = "" }) {
       return;
     }
     const wasFollowing = Boolean(followed[id]);
-    if (wasFollowing && !window.confirm(`Do you want to unfollow ${creatorName(reel)}?`)) return;
+    if (wasFollowing && !(await confirmAction({ message: `Do you want to unfollow ${creatorName(reel)}?`, tone: "danger", confirmLabel: "Confirm" }))) return;
     setFollowBusy((current) => ({ ...current, [id]: true }));
     setFollowed((current) => ({ ...current, [id]: !wasFollowing }));
     updateReelCreatorFollowers(id, wasFollowing ? -1 : 1);

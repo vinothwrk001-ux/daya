@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("dotenv").config();
 
 const bcrypt = require("bcryptjs");
@@ -101,7 +102,7 @@ async function ensureSubcategories(categoryId) {
   const staleGlobalSlugIndex = indexes.find((index) => index.name === "slug_1" && index.unique);
   if (staleGlobalSlugIndex) {
     await Subcategory.collection.dropIndex("slug_1");
-    console.log("Dropped stale unique subcategories.slug_1 index.");
+    logger.info("script_output", { value: "Dropped stale unique subcategories.slug_1 index." });
   }
 
   const entries = await Promise.all(
@@ -194,14 +195,14 @@ async function main() {
     seeded.push(await upsertProduct(vendor, category, subcategoryByName, products[index], index));
   }
 
-  console.log(`Seeded ${seeded.length} electronics products under ${vendor.shopName}.`);
-  seeded.forEach((product) => console.log(`- ${product.productNumber} | ${product.name}`));
+  logger.info("script_output", { value: `Seeded ${seeded.length} electronics products under ${vendor.shopName}.` });
+  seeded.forEach((product) => logger.info("script_output", { value: `- ${product.productNumber} | ${product.name}` }));
 
   await mongoose.disconnect();
 }
 
 main().catch(async (err) => {
-  console.error(err);
+  logger.error("script_error", { error: err });
   await mongoose.disconnect();
   process.exit(1);
 });

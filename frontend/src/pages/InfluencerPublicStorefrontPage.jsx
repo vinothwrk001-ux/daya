@@ -1,4 +1,5 @@
 import { createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   BadgeCheck,
@@ -818,7 +819,7 @@ export function InfluencerPublicStorefrontPage() {
     const nextFollowing = !following;
     const previousFollowing = following;
     const previousFollowers = data?.stats?.followers || 0;
-    if (previousFollowing && !window.confirm(`Do you want to unfollow ${data?.profile?.name || "this creator"}?`)) return;
+    if (previousFollowing && !(await confirmAction({ message: `Do you want to unfollow ${data?.profile?.name || "this creator"}?`, tone: "danger", confirmLabel: "Confirm" }))) return;
     setFollowBusy(true);
     setFollowing(nextFollowing);
     setData((current) => current ? {

@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("dotenv").config();
 
 const mongoose = require("mongoose");
@@ -9,12 +10,12 @@ const { Vendor } = require("../models/Vendor");
 async function main() {
   try {
     await connectDb();
-    console.log("Connected to MongoDB");
+    logger.info("script_output", { value: "Connected to MongoDB" });
 
     // Find or create buyer
     let buyer = await User.findOne({ role: "user" });
     if (!buyer) {
-      console.log("Creating test buyer...");
+      logger.info("script_output", { value: "Creating test buyer..." });
       buyer = await User.create({
         name: "Test Buyer",
         email: "buyer@test.com",
@@ -28,7 +29,7 @@ async function main() {
     // Get or create vendors
     let vendors = await Vendor.find({ status: "approved" }).limit(10);
     if (vendors.length < 10) {
-      console.log(`Creating ${10 - vendors.length} test vendors...`);
+      logger.info("script_output", { value: `Creating ${10 - vendors.length} test vendors...` });
       for (let i = vendors.length; i < 10; i++) {
         const vendorUser = await User.create({
           name: `Vendor ${i + 1}`,
@@ -90,7 +91,7 @@ async function main() {
 
     // Create 5 orders for each date
     for (const { date, label } of dates) {
-      console.log(`\n📅 Creating orders for ${label}...`);
+      logger.info("script_output", { value: `\n📅 Creating orders for ${label}...` });
 
       for (let i = 0; i < 5; i++) {
         const productData = productDataSets[i];
@@ -144,23 +145,23 @@ async function main() {
           updatedAt: new Date(orderTime.getTime() + 24 * 60 * 60 * 1000),
         });
 
-        console.log(`  ✅ Order ${i + 1}: ${order.orderNumber} - ₹${order.totalAmount}`);
+        logger.info("script_output", { value: `  ✅ Order ${i + 1}: ${order.orderNumber} - ₹${order.totalAmount}` });
         totalOrders++;
         totalRevenue += order.totalAmount;
       }
     }
 
-    console.log("\n" + "=".repeat(50));
-    console.log("📊 SUMMARY");
-    console.log("=".repeat(50));
-    console.log(`✅ Created ${totalOrders} orders`);
-    console.log(`📈 Total Revenue: ₹${totalRevenue}`);
-    console.log(`  - April 15: 5 orders`);
-    console.log(`  - April 14: 5 orders`);
+    logger.info("script_output", { value: "\n" + "=".repeat(50) });
+    logger.info("script_output", { value: "📊 SUMMARY" });
+    logger.info("script_output", { value: "=".repeat(50) });
+    logger.info("script_output", { value: `✅ Created ${totalOrders} orders` });
+    logger.info("script_output", { value: `📈 Total Revenue: ₹${totalRevenue}` });
+    logger.info("script_output", { value: `  - April 15: 5 orders` });
+    logger.info("script_output", { value: `  - April 14: 5 orders` });
 
     process.exit(0);
   } catch (err) {
-    console.error("Error:", err.message);
+    logger.error("Error:", { error: err.message });
     process.exit(1);
   }
 }

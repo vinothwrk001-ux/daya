@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("assert");
 const { generateInvoicePdf } = require("../order-document.service");
 
@@ -82,6 +83,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exit(1);
 });

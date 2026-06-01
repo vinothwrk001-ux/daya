@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("dotenv").config();
 
 const mongoose = require("mongoose");
@@ -9,12 +10,12 @@ const { Vendor } = require("../models/Vendor");
 async function main() {
   try {
     await connectDb();
-    console.log("Connected to MongoDB");
+    logger.info("script_output", { value: "Connected to MongoDB" });
 
     // Find an existing user (buyer)
     let buyer = await User.findOne({ role: "user" });
     if (!buyer) {
-      console.log("Creating test buyer...");
+      logger.info("script_output", { value: "Creating test buyer..." });
       buyer = await User.create({
         name: "Test Buyer",
         email: "buyer@test.com",
@@ -29,7 +30,7 @@ async function main() {
     let vendors = await Vendor.find({ status: "approved" }).limit(4);
     
     if (vendors.length < 4) {
-      console.log("Creating test vendors...");
+      logger.info("script_output", { value: "Creating test vendors..." });
       for (let i = 0; i < 4 - vendors.length; i++) {
         const vendorUser = await User.create({
           name: `Vendor ${i + 1}`,
@@ -142,17 +143,17 @@ async function main() {
       });
 
       orders.push(order);
-      console.log(`✅ Order ${i + 1} created: ${order.orderNumber} - ₹${order.totalAmount}`);
+      logger.info("script_output", { value: `✅ Order ${i + 1} created: ${order.orderNumber} - ₹${order.totalAmount}` });
     }
 
-    console.log("\n📊 Summary:");
-    console.log(`Created 4 orders for yesterday (${yesterday.toDateString()})`);
+    logger.info("script_output", { value: "\n📊 Summary:" });
+    logger.info("script_output", { value: `Created 4 orders for yesterday (${yesterday.toDateString()})` });
     const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
-    console.log(`Total Revenue: ₹${totalRevenue}`);
+    logger.info("script_output", { value: `Total Revenue: ₹${totalRevenue}` });
 
     process.exit(0);
   } catch (err) {
-    console.error("Error:", err.message);
+    logger.error("Error:", { error: err.message });
     process.exit(1);
   }
 }

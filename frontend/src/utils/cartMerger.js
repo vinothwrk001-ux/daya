@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 /**
  * Cart Merger Utility
  * Handles merging of guest and authenticated user carts
@@ -33,7 +34,7 @@ export const cartMerger = {
 
       return mergeResult;
     } catch (err) {
-      console.error("Failed to merge guest data:", err);
+      logger.error("Failed to merge guest data:", { error: err });
       throw err;
     }
   },
@@ -54,7 +55,7 @@ export const cartMerger = {
 
       return summary;
     } catch (err) {
-      console.error("Failed to get merge summary:", err);
+      logger.error("Failed to get merge summary:", { error: err });
       return null;
     }
   },

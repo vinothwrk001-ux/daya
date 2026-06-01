@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 const CHECKOUT_JS_URL = "https://checkout.razorpay.com/v1/checkout.js";
 const RAZORPAY_ALLOWED_SCRIPT_HOSTS = new Set(["checkout.razorpay.com", "cdn.razorpay.com"]);
 const REPORT_NAME = "checkout-diagnostic-report.json";
@@ -93,7 +94,7 @@ export function clearStaleRazorpayCheckoutState() {
   };
   if (result.localStorage.length || result.sessionStorage.length) {
     window.__razorpayClearedCheckoutState = result;
-    console.info("[Razorpay Checkout Inspector] Cleared stale Razorpay checkout state", result);
+    logger.info("[Razorpay Checkout Inspector] Cleared stale Razorpay checkout state", { value: result });
   }
   return result;
 }
@@ -178,10 +179,8 @@ function downloadReport(report) {
 }
 
 function persistReport(report) {
-  console.groupCollapsed("[Razorpay Checkout Inspector]");
-  console.log(report);
-  console.groupEnd();
-  window.localStorage.setItem("razorpayCheckoutDiagnosticReport", JSON.stringify(report));
+    logger.debug("frontend_log", { value: report });
+    window.localStorage.setItem("razorpayCheckoutDiagnosticReport", JSON.stringify(report));
   window.__razorpayCheckoutDiagnosticReport = report;
   downloadReport(report);
 }

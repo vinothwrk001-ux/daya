@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("assert");
 const cancellationRefundService = require("../cancellation-refund.service");
 
@@ -110,12 +111,12 @@ function main() {
   assert.equal(codPreview.refundMethod, "WALLET");
   assert.equal(codPreview.refundAmount, 3000);
 
-  console.log("Cancellation refund domain checks passed.");
+  logger.info("script_output", { value: "Cancellation refund domain checks passed." });
 }
 
 try {
   main();
 } catch (error) {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exit(1);
 }

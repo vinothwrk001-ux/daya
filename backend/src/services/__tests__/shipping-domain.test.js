@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("node:assert/strict");
 
 const ShippingConfig = require("../../models/ShippingConfig");
@@ -7,9 +8,9 @@ const { resolveZoneFromMatrix } = require("../shipping-zone-config.service");
 function runTest(name, fn) {
   try {
     fn();
-    console.log(`PASS ${name}`);
+    logger.info("script_output", { value: `PASS ${name}` });
   } catch (error) {
-    console.error(`FAIL ${name}`);
+    logger.error("script_error", { error: `FAIL ${name}` });
     throw error;
   }
 }
@@ -86,4 +87,4 @@ runTest("cart weight preserves gram precision in kg values", () => {
   assert.equal(total, 0.35);
 });
 
-console.log("All shipping domain checks passed.");
+logger.info("script_output", { value: "All shipping domain checks passed." });

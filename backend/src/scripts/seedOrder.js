@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("dotenv").config();
 
 const mongoose = require("mongoose");
@@ -9,12 +10,12 @@ const { Vendor } = require("../models/Vendor");
 async function main() {
   try {
     await connectDb();
-    console.log("Connected to MongoDB");
+    logger.info("script_output", { value: "Connected to MongoDB" });
 
     // Find an existing user (buyer)
     let buyer = await User.findOne({ role: "user" });
     if (!buyer) {
-      console.log("Creating test buyer...");
+      logger.info("script_output", { value: "Creating test buyer..." });
       buyer = await User.create({
         name: "Test Buyer",
         email: "buyer@test.com",
@@ -23,7 +24,7 @@ async function main() {
         role: "user",
         status: "active",
       });
-      console.log("Test buyer created:", buyer._id);
+      logger.info("Test buyer created:", { value: buyer._id });
     }
 
     // Find an existing vendor (seller)
@@ -48,7 +49,7 @@ async function main() {
         status: "approved",
         stepCompleted: 4,
       });
-      console.log("Test vendor created:", vendor._id);
+      logger.info("Test vendor created:", { value: vendor._id });
     }
 
     // Create a test order
@@ -100,18 +101,18 @@ async function main() {
       deliveredAt: new Date(),
     });
 
-    console.log("✅ Test order created successfully!");
-    console.log("Order Details:");
-    console.log("- Order ID:", order._id);
-    console.log("- Order Number:", order.orderNumber);
-    console.log("- Buyer:", buyer.email);
-    console.log("- Seller:", vendor.shopName);
-    console.log("- Total Amount: ₹", order.totalAmount);
-    console.log("- Status:", order.status);
+    logger.info("script_output", { value: "✅ Test order created successfully!" });
+    logger.info("script_output", { value: "Order Details:" });
+    logger.info("- Order ID:", { value: order._id });
+    logger.info("- Order Number:", { value: order.orderNumber });
+    logger.info("- Buyer:", { value: buyer.email });
+    logger.info("- Seller:", { value: vendor.shopName });
+    logger.info("- Total Amount: ₹", { value: order.totalAmount });
+    logger.info("- Status:", { value: order.status });
 
     process.exit(0);
   } catch (err) {
-    console.error("Error:", err.message);
+    logger.error("Error:", { error: err.message });
     process.exit(1);
   }
 }

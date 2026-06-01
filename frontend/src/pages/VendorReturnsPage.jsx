@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { requestInput } from "../services/notificationService";
 import { ReportingToolbar } from "../components/ReportingToolbar";
 import { InlineToast } from "../components/commerce/InlineToast";
 import { useReporting } from "../hooks/useReporting";
@@ -33,9 +34,9 @@ export function VendorReturnsPage() {
   }, [load]);
 
   async function updateReturn(id, status) {
-    const resolutionNote = window.prompt("Resolution note", "");
+    const resolutionNote = await requestInput({ title: "Update return", label: "Resolution note", defaultValue: "", required: false, multiline: true });
     if (resolutionNote == null) return;
-    const refundAmount = status === "REFUNDED" ? window.prompt("Refund amount", "0") : 0;
+    const refundAmount = status === "REFUNDED" ? await requestInput({ title: "Refund return", label: "Refund amount", defaultValue: "0" }) : 0;
     if (refundAmount == null) return;
 
     try {

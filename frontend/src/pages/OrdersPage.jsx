@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { requestInput } from "../services/notificationService";
 import { Link } from "react-router-dom";
 import { CancelOrderModal } from "../components/CancelOrderModal";
 import { StatusBadge } from "../components/StatusBadge";
@@ -85,7 +86,7 @@ export function OrdersPage() {
   }
 
   async function requestReturn(orderId) {
-    const reason = window.prompt("Reason for return");
+    const reason = await requestInput({ title: "Request return", label: "Reason for return", multiline: true });
     if (!reason) return;
 
     setBusyId(orderId);

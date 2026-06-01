@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import {
   verifyPayoutAccount,
   rejectPayoutAccount,
@@ -31,7 +32,7 @@ export function AdminPayoutAccountVerificationPanel({
   const isRejected = account.verificationStatus === "REJECTED";
 
   const handleVerify = async () => {
-    if (!window.confirm("Verify this payout account?")) return;
+    if (!(await confirmAction({ message: "Verify this payout account?", tone: "danger", confirmLabel: "Confirm" }))) return;
 
     setVerifying(true);
     setError("");
@@ -54,7 +55,7 @@ export function AdminPayoutAccountVerificationPanel({
       return;
     }
 
-    if (!window.confirm("Reject this payout account?")) return;
+    if (!(await confirmAction({ message: "Reject this payout account?", tone: "danger", confirmLabel: "Confirm" }))) return;
 
     setRejecting(true);
     setError("");

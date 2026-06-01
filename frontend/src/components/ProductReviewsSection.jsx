@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { requestInput } from "../services/notificationService";
 import { Bookmark, Flag, Image as ImageIcon, Star, ThumbsDown, ThumbsUp, UserCircle, Video } from "lucide-react";
 import { useAuthStore } from "../context/authStore";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
@@ -199,7 +200,11 @@ export function ProductReviewsSection({ productId, product = null }) {
   }
 
   async function handleReport(reviewId) {
-    const reason = window.prompt("Report reason: spam, fake_review, abusive_content, wrong_information, harassment, other");
+    const reason = await requestInput({
+      title: "Report review",
+      message: "Use one of: spam, fake_review, abusive_content, wrong_information, harassment, other.",
+      label: "Report reason",
+    });
     if (!reason) return;
     try {
       await reviewService.reportReview(reviewId, { reason });

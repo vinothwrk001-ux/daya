@@ -100,8 +100,11 @@ async function start() {
 }
 
 start().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error("Fatal startup error", err);
+  logger.error("Fatal startup error", {
+    source: "server",
+    event: "startup_failed",
+    error: err,
+  });
   process.exit(1);
 });
 

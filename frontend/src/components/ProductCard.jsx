@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
@@ -20,7 +21,7 @@ function reportProductCardError(message, details = {}) {
   };
 
   if (import.meta.env.DEV) {
-    console.error(message, payload);
+    logger.error("frontend_error", { error: message, payload });
     return;
   }
 

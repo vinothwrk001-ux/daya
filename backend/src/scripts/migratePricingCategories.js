@@ -1,3 +1,4 @@
+const { logger } = require("../utils/logger");
 require("dotenv").config();
 
 const mongoose = require("mongoose");
@@ -31,13 +32,13 @@ async function main() {
   }
 
   // eslint-disable-next-line no-console
-  console.log(`Pricing category migration complete. Updated ${updatedCount} pricing rule(s).`);
+  logger.info("script_output", { value: `Pricing category migration complete. Updated ${updatedCount} pricing rule(s).` });
   await mongoose.disconnect();
 }
 
 main().catch(async (error) => {
   // eslint-disable-next-line no-console
-  console.error("Pricing category migration failed:", error);
+  logger.error("Pricing category migration failed:", { error: error });
   try {
     await mongoose.disconnect();
   } catch (disconnectError) {

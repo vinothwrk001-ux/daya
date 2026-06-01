@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("assert");
 const paymentService = require("../payment.service");
 
@@ -88,10 +89,10 @@ async function run() {
     });
   }
 
-  console.log("payment-security-domain tests passed");
+  logger.info("script_output", { value: "payment-security-domain tests passed" });
 }
 
 run().catch((error) => {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exit(1);
 });

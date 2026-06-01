@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { ChevronDown, Heart, ShoppingCart } from "lucide-react";
@@ -77,7 +78,7 @@ export function ShopPage() {
         setTotalPages(response.data?.pages || 1);
       } catch (err) {
         setError("Failed to load products");
-        console.error(err);
+        logger.error("frontend_error", { error: err });
       } finally {
         setLoading(false);
       }
@@ -393,7 +394,7 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
                   openDrawer(product, nextSelectedVariant || added?.variant || added || null, added?.quantity || 1);
                 }
               } catch (err) {
-                console.error("Failed to add to cart:", err);
+                logger.error("Failed to add to cart:", { error: err });
                 showToast(getCartErrorMessage(err, "Failed to add item to cart."));
               } finally {
                 setIsSubmitting(false);

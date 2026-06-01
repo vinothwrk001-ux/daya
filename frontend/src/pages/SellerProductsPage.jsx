@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { BackButton } from "../components/BackButton";
 import { useNavigate } from "react-router-dom";
 import { useModuleAccess } from "../context/VendorModuleContext";
@@ -50,7 +51,7 @@ export function SellerProductsPage() {
   }, [refresh]);
 
   async function deleteProduct(productId) {
-    if (!window.confirm("Delete this product?")) return;
+    if (!(await confirmAction({ message: "Delete this product?", tone: "danger", confirmLabel: "Confirm" }))) return;
     setIsDeleting(productId);
     try {
       await productService.deleteProduct(productId);

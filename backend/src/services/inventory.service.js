@@ -1,6 +1,7 @@
 const { AppError } = require("../utils/AppError");
 const { Product } = require("../models/Product");
 const { InventoryLedger } = require("../models/InventoryLedger");
+const { logger } = require("../utils/logger");
 
 const LEGACY_VARIANT_ID = "__default__";
 const DEFAULT_THRESHOLD = 10;
@@ -748,7 +749,11 @@ class InventoryService {
 
       await InventoryLedger.create(payload, { session: data.session || undefined });
     } catch (error) {
-      console.error("Failed to record inventory transaction:", error.message);
+      logger.error("Failed to record inventory transaction", {
+        source: "inventory.service",
+        event: "inventory_ledger_record_failed",
+        error,
+      });
     }
   }
 }

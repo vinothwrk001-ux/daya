@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { Link } from "react-router-dom";
 import {
   approveProduct,
@@ -102,7 +103,7 @@ export function AdminProductsPage() {
   }, [refresh]);
 
   async function handleApprove(productId) {
-    if (!window.confirm("Approve this product?")) return;
+    if (!(await confirmAction({ message: "Approve this product?", tone: "danger", confirmLabel: "Confirm" }))) return;
     setBusyId(productId);
     try {
       await approveProduct(productId);
@@ -121,7 +122,7 @@ export function AdminProductsPage() {
       setError("Please provide a rejection reason");
       return;
     }
-    if (!window.confirm("Reject this product?")) return;
+    if (!(await confirmAction({ message: "Reject this product?", tone: "danger", confirmLabel: "Confirm" }))) return;
     setBusyId(productId);
     try {
       await rejectProduct(productId, rejectReason);
@@ -136,7 +137,7 @@ export function AdminProductsPage() {
   }
 
   async function handleDelete(productId) {
-    if (!window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) return;
+    if (!(await confirmAction({ message: "Are you sure you want to delete this product? This action cannot be undone.", tone: "danger", confirmLabel: "Confirm" }))) return;
     setBusyId(productId);
     try {
       await deleteProduct(productId);

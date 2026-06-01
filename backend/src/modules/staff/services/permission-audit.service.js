@@ -5,6 +5,17 @@
 
 const { Staff } = require("../models/Staff");
 const { Role } = require("../models/Role");
+const { logger } = require("../../../utils/logger");
+
+function summarizePermissions(permissions = {}) {
+  return {
+    moduleCount: Object.keys(permissions).length,
+    permissionCount: Object.values(permissions).reduce(
+      (total, actions) => total + Object.values(actions || {}).filter(Boolean).length,
+      0
+    ),
+  };
+}
 
 /**
  * Verify that a staff member has the correct permissions based on their current role
@@ -41,17 +52,13 @@ async function verifyStaffPermissions(staffId) {
   const discrepancies = [];
   const rolePermissions = currentPermissions;
 
-  console.log(`[PERMISSION_AUDIT] Verified staff ${staffId}:`, {
-    staffName: staff.name,
-    roleId: staff.roleId._id,
+  logger.audit("Staff permissions verified", {
+    source: "permission-audit.service",
+    event: "permission_verification",
+    staffId: String(staffId),
+    roleId: String(staff.roleId._id),
     roleName: staff.roleId.name,
-    permissionModules: Object.keys(rolePermissions),
-    activePermissions: Object.entries(rolePermissions)
-      .map(([module, actions]) => `${module}:[${Object.entries(actions || {})
-        .filter(([, granted]) => granted)
-        .map(([action]) => action)
-        .join(",")}]`)
-      .join("|"),
+    ...summarizePermissions(rolePermissions),
   });
 
   return {
@@ -79,7 +86,12 @@ async function verifyStaffPermissions(staffId) {
 async function verifyRoleStaff(roleId) {
   const staffList = await Staff.find({ roleId }).select("_id name email status");
   
-  console.log(`[PERMISSION_AUDIT] Verifying ${staffList.length} staff with role ${roleId}`);
+  logger.audit("Role staff permission verification started", {
+    source: "permission-audit.service",
+    event: "role_staff_permission_verification",
+    roleId: String(roleId),
+    staffCount: staffList.length,
+  });
   
   const results = await Promise.all(
     staffList.map((staff) => verifyStaffPermissions(staff._id))
@@ -106,7 +118,9 @@ async function generatePermissionReport() {
   const staffWithoutRole = await Staff.countDocuments({ roleId: null });
   const suspendedStaff = await Staff.countDocuments({ status: "suspended" });
 
-  console.log(`[PERMISSION_AUDIT] Report:`, {
+  logger.audit("Permission report generated", {
+    source: "permission-audit.service",
+    event: "permission_report",
     totalStaff: staffCount,
     totalRoles: roleCount,
     staffWithoutRole,

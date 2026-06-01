@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { requestInput } from "../services/notificationService";
 import { StatusBadge } from "../components/StatusBadge";
 import { VendorDataTable, VendorSection } from "../components/VendorPanel";
 import * as vendorDashboardService from "../services/vendorDashboardService";
@@ -24,13 +25,13 @@ export function VendorOffersPage() {
   }, []);
 
   async function createOffer() {
-    const title = window.prompt("Offer title");
+    const title = await requestInput({ title: "Create offer", label: "Offer title" });
     if (!title) return;
-    const code = window.prompt("Coupon code");
+    const code = await requestInput({ title: "Create offer", label: "Coupon code" });
     if (!code) return;
-    const type = window.prompt("Type: PERCENTAGE or FIXED", "PERCENTAGE");
+    const type = await requestInput({ title: "Create offer", label: "Type: PERCENTAGE or FIXED", defaultValue: "PERCENTAGE" });
     if (!type) return;
-    const value = window.prompt("Discount value", "10");
+    const value = await requestInput({ title: "Create offer", label: "Discount value", defaultValue: "10" });
     if (value == null) return;
 
     try {

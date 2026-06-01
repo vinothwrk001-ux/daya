@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { confirmAction } from "../services/notificationService";
 import { useCategories } from "../hooks/useCategories";
 import { getSubcategoriesByCategory } from "../services/subcategoryService";
 import { listAdminProductModules } from "../services/productModuleService";
@@ -170,7 +171,7 @@ export function AdminAttributesPage() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this attribute?")) return;
+    if (!(await confirmAction({ message: "Delete this attribute?", tone: "danger", confirmLabel: "Confirm" }))) return;
     try {
       await deleteAdminAttribute(id);
       await refresh();

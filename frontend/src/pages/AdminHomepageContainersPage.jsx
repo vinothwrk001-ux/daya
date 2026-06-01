@@ -1,4 +1,6 @@
+import { logger } from "../services/logger/logger.js";
 import { createElement, useCallback, useEffect, useMemo, useState } from "react";
+import { confirmAction, requestInput, showError, showSuccess } from "../services/notificationService";
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import {
   BarChart3,
@@ -598,7 +600,7 @@ export function AdminHomepageContainersPage() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this homepage container?")) return;
+    if (!(await confirmAction({ message: "Delete this homepage container?", tone: "danger", confirmLabel: "Confirm" }))) return;
     try {
       await deleteAdminHomepageContainer(id);
       if (editingId === id) {
@@ -612,7 +614,7 @@ export function AdminHomepageContainersPage() {
 
   async function handleToggleDisable(container) {
     const action = container.status === "DISABLED" ? "Enable" : "Disable";
-    if (!window.confirm(`${action} this homepage container?`)) return;
+    if (!(await confirmAction({ message: `${action} this homepage container?`, tone: "danger", confirmLabel: "Confirm" }))) return;
     try {
       setSaving(true);
       await updateAdminHomepageContainer(container._id, {
@@ -1185,9 +1187,15 @@ export function AdminHomepageContainersPage() {
                     .map((id) => containers.find((c) => c._id === id))
                     .map((c) => Number(c?.presentation?.layout?.customHeight || c?.presentation?.customHeight || c?.presentation?.containerHeight?.replace?.(/[^\d]/g, "") || 0));
                   const defaultHeight = Math.max(...currentHeights, 450);
-                  const input = window.prompt("Enter custom height in px to apply to selected containers:", String(defaultHeight));
+                  const input = await requestInput({
+                    title: "Set custom height",
+                    message: "Enter custom height in px to apply to selected containers.",
+                    label: "Height in pixels",
+                    defaultValue: String(defaultHeight),
+                  });
                   const nextHeight = Number(input);
-                  if (!Number.isFinite(nextHeight) || nextHeight <= 0) return alert("Please enter a valid positive number for height.");
+                  if (input === null) return;
+                  if (!Number.isFinite(nextHeight) || nextHeight <= 0) return showError("Please enter a valid positive number for height.");
                   try {
                     setSaving(true);
                     await Promise.all(
@@ -1199,10 +1207,10 @@ export function AdminHomepageContainersPage() {
                     );
                     setSelectedIds([]);
                     await refresh();
-                    alert("Selected containers updated.");
+                    showSuccess("Selected containers updated.");
                   } catch (err) {
                     setError(normalizeError(err));
-                    alert("Failed to update containers: " + normalizeError(err));
+                    showError("Failed to update containers: " + normalizeError(err));
                   } finally {
                     setSaving(false);
                   }
@@ -1536,8 +1544,8 @@ function MediaUploadField({ field, value, onChange }) {
       const uploadedUrl = response?.data?.[0]?.url || "";
       onChange(uploadedUrl);
     } catch (err) {
-      console.error(err);
-      window.alert("Upload failed: " + (err?.message || "unknown"));
+      logger.error("frontend_error", { error: err });
+      showError("Upload failed: " + (err?.message || "unknown"));
     } finally {
       setUploading(false);
       event.target.value = "";
@@ -1647,8 +1655,8 @@ function CategoryCardImageField({ value, onChange }) {
       const response = await uploadHomepageContainerMedia([file]);
       onChange(response?.data?.[0]?.url || "");
     } catch (err) {
-      console.error(err);
-      window.alert("Upload failed: " + (err?.message || "unknown"));
+      logger.error("frontend_error", { error: err });
+      showError("Upload failed: " + (err?.message || "unknown"));
     } finally {
       setUploading(false);
       event.target.value = "";
@@ -1848,7 +1856,7 @@ function BannerMediaEditor({ media = [], onChange }) {
       const uploadedType = uploaded.mimeType?.startsWith("video/") ? "video" : "image";
       updateItem(index, (item) => ({ ...item, type: uploadedType, url: uploadedUrl }));
     } catch (err) {
-      window.alert("Media upload failed: " + (err?.message || "unknown"));
+      showError("Media upload failed: " + (err?.message || "unknown"));
     } finally {
       setUploadingIndex(null);
     }
@@ -2001,7 +2009,7 @@ function SlideEditor({ slides = [], onChange }) {
       const uploadedUrl = response?.data?.[0]?.url || "";
       updateSlide(index, (slide) => ({ ...slide, image: uploadedUrl }));
     } catch (err) {
-      window.alert("Image upload failed: " + (err?.message || "unknown"));
+      showError("Image upload failed: " + (err?.message || "unknown"));
     } finally {
       setUploadingIndex(null);
     }

@@ -12,6 +12,7 @@ const { StaffLoginHistory } = require("../models/StaffLoginHistory");
 const { StaffPasswordResetToken } = require("../models/StaffPasswordResetToken");
 const { normalizeStaff } = require("./staff.service");
 const vendorModuleService = require("../../../services/vendorModule.service");
+const { logger } = require("../../../utils/logger");
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -199,9 +200,17 @@ async function me(staffId) {
   const permissions = staff.roleId?.permissions || {};
   const enabledModules = await vendorModuleService.getGlobalModuleEnabledMap();
   
-  // DEBUG: Log permission sync
-  console.log(`[PERMISSION_SYNC] Staff ${staff._id} fetched permissions from role ${staff.roleId?._id}`);
-  console.log(`[PERMISSION_SYNC] Permissions:`, Object.keys(permissions).map(m => `${m}:${Object.keys(permissions[m] || {}).filter(a => permissions[m][a]).length}`).join(", "));
+  logger.debug("Staff permissions synced from role", {
+    source: "staff-auth.service",
+    event: "permission_sync",
+    staffId: String(staff._id),
+    roleId: staff.roleId?._id ? String(staff.roleId._id) : null,
+    moduleCount: Object.keys(permissions).length,
+    permissionCount: Object.values(permissions).reduce(
+      (total, actions) => total + Object.values(actions || {}).filter(Boolean).length,
+      0
+    ),
+  });
 
   return {
     ...normalizeStaff(staff),

@@ -1,3 +1,4 @@
+const { logger } = require("../../utils/logger");
 const assert = require("assert");
 const {
   buildOrderSnapshot,
@@ -114,10 +115,10 @@ async function main() {
   assert.equal(codSummary.payment.method, "COD");
   assert.equal(codSummary.payment.status, "Pending");
 
-  console.log("Order document domain checks passed.");
+  logger.info("script_output", { value: "Order document domain checks passed." });
 }
 
 main().catch((error) => {
-  console.error(error);
+  logger.error("script_error", { error: error });
   process.exit(1);
 });

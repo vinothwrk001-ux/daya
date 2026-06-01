@@ -1,3 +1,4 @@
+import { logger } from "../services/logger/logger.js";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, X } from "lucide-react";
@@ -32,7 +33,7 @@ export function SearchBar({ className = "" }) {
         setResults(response.data?.products || []);
         setShowResults(true);
       } catch (error) {
-        console.error("Search error:", error);
+        logger.error("Search error:", { error: error });
         setResults([]);
       } finally {
         setLoading(false);
