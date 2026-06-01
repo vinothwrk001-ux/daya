@@ -70,10 +70,8 @@ export function UserMenu() {
   }, [isOpen]);
 
   const handleLogout = async () => {
-    const { refreshToken: rt } = useAuthStore.getState();
-
     try {
-      await authService.logout(rt || "");
+      await authService.logout();
     } catch (error) {
       console.debug("Server logout response:", error?.response?.status);
     } finally {

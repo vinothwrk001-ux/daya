@@ -3,12 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { useStaffAuthStore } from "../context/staffAuthStore";
 import { hasStaffPermission } from "../utils/staffPermissions";
 import * as staffAuthService from "../services/staffAuthService";
+import {
+  logPermissionCheck,
+  logPermissionSyncFailed,
+  logPermissionSyncStart,
+  logPermissionSyncSuccess,
+  logUnauthorizedAccess,
+} from "../utils/permissionLogger";
 
 export function useStaffPermission() {
   const user = useStaffAuthStore((state) => state.user);
   const setAuth = useStaffAuthStore((state) => state.setAuth);
-  const token = useStaffAuthStore((state) => state.token);
-  const refreshToken = useStaffAuthStore((state) => state.refreshToken);
   const [syncing, setSyncing] = useState(false);
 
   const permissions = useMemo(() => user?.permissions || {}, [user]);
@@ -21,32 +26,25 @@ export function useStaffPermission() {
 
     try {
       setSyncing(true);
-      console.log("[PERMISSION_SYNC] Starting sync from /api/staff/auth/me");
+      logPermissionSyncStart();
       const response = await staffAuthService.getMe();
-      
-      console.log("[PERMISSION_SYNC] Sync successful", {
-        syncedAt: response.data.syncedAt,
-        modules: Object.keys(response.data.permissions || {}),
-        permissions: response.data.permissions,
-      });
 
       setAuth({
-        token,
-        refreshToken,
         user: response.data,
       });
+      logPermissionSyncSuccess(response.data?.email, response.data?.permissions, response.data?.syncedAt);
     } catch (error) {
-      console.error("[PERMISSION_SYNC] Sync failed:", error.message);
+      logPermissionSyncFailed(user?.email, error);
     } finally {
       setSyncing(false);
     }
-  }, [token, refreshToken, setAuth, syncing]);
+  }, [setAuth, syncing, user?.email]);
 
   const hasPermission = useCallback(
     (permissionKey) => {
       const [moduleName] = String(permissionKey || "").split(".");
       const result = enabledModules?.[moduleName] === false ? false : hasStaffPermission(permissions, permissionKey);
-      console.log(`[PERMISSION_CHECK] ${permissionKey}: ${result}`, { permissions, enabledModules });
+      logPermissionCheck(permissionKey, result, permissions);
       return result;
     },
     [enabledModules, permissions]
@@ -86,19 +84,18 @@ export function useRequirePermission(permissionKey) {
       user &&
       (user?.enabledModules?.[moduleName] === false || !hasStaffPermission(user.permissions, permissionKey))
     ) {
-      console.warn(`[PERMISSION_GUARD] Access denied for ${permissionKey}`);
+      logUnauthorizedAccess(window.location.pathname, permissionKey);
       navigate("/staff/unauthorized", { replace: true });
     }
   }, [navigate, permissionKey, user]);
 }
 
 export function useStaffUser() {
-  const { user, isAuthenticated, token } = useStaffAuthStore();
+  const { user, isAuthenticated } = useStaffAuthStore();
 
   return {
     user,
     isAuthenticated,
-    token,
     name: user?.name || "Staff",
     email: user?.email || "",
     roleId: user?.roleId || user?.role?._id || null,
@@ -108,8 +105,8 @@ export function useStaffUser() {
 }
 
 export function useStaffAuthLoading() {
-  const { token, user, isAuthenticated } = useStaffAuthStore();
-  return !isAuthenticated || (Boolean(token) && !user);
+  const { user, isAuthenticated } = useStaffAuthStore();
+  return !isAuthenticated || !user;
 }
 
 export function PermissionGate({ permission, children, fallback = null }) {

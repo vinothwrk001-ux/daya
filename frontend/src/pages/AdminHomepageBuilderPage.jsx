@@ -397,12 +397,12 @@ export function AdminHomepageBuilderPage() {
   const previewBackoffRef = useRef(0);
 
   const authUser = useAuthStore((store) => store.user);
-  const authToken = useAuthStore((store) => store.token);
-  const staffToken = useStaffAuthStore((store) => store.token);
+  const authAuthenticated = useAuthStore((store) => store.isAuthenticated);
+  const staffAuthenticated = useStaffAuthStore((store) => store.isAuthenticated);
   const staffUser = useStaffAuthStore((store) => store.user);
   const isLegacyAdmin = ["admin", "super_admin", "support_admin", "finance_admin"].includes(String(authUser?.role || "").toLowerCase());
   const canEdit = isLegacyAdmin || hasStaffPermission(staffUser?.permissions, "settings.update");
-  const hasAuth = Boolean(authToken || staffToken);
+  const hasAuth = Boolean(authAuthenticated || staffAuthenticated);
 
   const libraryMap = useMemo(() => new Map(containerLibrary.map((item) => [String(item._id), item])), [containerLibrary]);
   const selectedSlot = useMemo(() => draft.layouts.find((layout) => layout.id === selectedSlotId) || null, [draft.layouts, selectedSlotId]);

@@ -4,6 +4,7 @@ const { AppError } = require("../utils/AppError");
 const authService = require("../services/auth.service");
 const cartMergeService = require("../services/cartMerge.service");
 const wishlistMergeService = require("../services/wishlistMerge.service");
+const { issueCsrfToken } = require("../middleware/csrf");
 
 function cookieOptions(maxAgeMs) {
   const secure = process.env.NODE_ENV === "production";
@@ -24,6 +25,10 @@ function setSessionCookies(res, result) {
   res.cookie("refreshToken", result.refreshToken, cookieOptions(refreshMaxAgeMs));
 }
 
+function publicAuthPayload(result) {
+  return { user: result?.user || null };
+}
+
 function clearSessionCookies(res) {
   res.clearCookie("accessToken", cookieOptions(0));
   res.clearCookie("refreshToken", cookieOptions(0));
@@ -35,7 +40,8 @@ const register = asyncHandler(async (req, res) => {
     userAgent: req.get("user-agent"),
   });
   setSessionCookies(res, result);
-  return ok(res, result, "Registered successfully");
+  issueCsrfToken(req, res);
+  return ok(res, publicAuthPayload(result), "Registered successfully");
 });
 
 const login = asyncHandler(async (req, res) => {
@@ -44,21 +50,23 @@ const login = asyncHandler(async (req, res) => {
     userAgent: req.get("user-agent"),
   });
   setSessionCookies(res, result);
-  return ok(res, result, "Logged in successfully");
+  issueCsrfToken(req, res);
+  return ok(res, publicAuthPayload(result), "Logged in successfully");
 });
 
 const refresh = asyncHandler(async (req, res) => {
-  const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken;
+  const refreshToken = req.cookies?.refreshToken;
   const result = await authService.refreshSession(refreshToken, {
     ipAddress: req.ip,
     userAgent: req.get("user-agent"),
   });
   setSessionCookies(res, result);
-  return ok(res, result, "Session refreshed");
+  issueCsrfToken(req, res);
+  return ok(res, publicAuthPayload(result), "Session refreshed");
 });
 
 const logout = asyncHandler(async (req, res) => {
-  const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken;
+  const refreshToken = req.cookies?.refreshToken;
   // req.user might be null if authOptional didn't find a token
   // That's OK - logout service handles it gracefully
   const result = await authService.logout(refreshToken, req.user, {
@@ -82,6 +90,11 @@ const me = asyncHandler(async (req, res) => {
   const userId = req.user.sub;
   const user = await authService.me(userId);
   return ok(res, user, "OK");
+});
+
+const csrf = asyncHandler(async (req, res) => {
+  const csrfToken = issueCsrfToken(req, res);
+  return ok(res, { csrfToken }, "CSRF token issued");
 });
 
 const updateThemePreference = asyncHandler(async (req, res) => {
@@ -131,4 +144,5 @@ module.exports = {
   me,
   updateThemePreference,
   mergeGuestData,
+  csrf,
 };

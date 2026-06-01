@@ -5,9 +5,7 @@ import { useStaffAuthStore } from "../context/staffAuthStore";
 import { useAdminSession } from "../hooks/useAdminSession";
 
 export function Topbar({ title, subtitle, onMenuToggle, sidebarOpen }) {
-  const authRefreshToken = useAuthStore((s) => s.refreshToken);
   const authLogout = useAuthStore((s) => s.logout);
-  const staffRefreshToken = useStaffAuthStore((s) => s.refreshToken);
   const staffLogout = useStaffAuthStore((s) => s.logout);
   const { currentUser, sessionType } = useAdminSession();
 
@@ -20,7 +18,7 @@ export function Topbar({ title, subtitle, onMenuToggle, sidebarOpen }) {
   async function handleLogout() {
     if (sessionType === "staff") {
       try {
-        await staffAuthService.logout(staffRefreshToken);
+        await staffAuthService.logout();
       } catch {
         // local logout is still the fallback
       } finally {
@@ -30,7 +28,7 @@ export function Topbar({ title, subtitle, onMenuToggle, sidebarOpen }) {
     }
 
     try {
-      await authService.logout(authRefreshToken);
+      await authService.logout();
     } catch {
       // local logout is still the fallback
     } finally {

@@ -9,10 +9,9 @@ import {
 export function useAdminSession() {
   const legacyUser = useAuthStore((s) => s.user);
   const staffUser = useStaffAuthStore((s) => s.user);
-  const staffToken = useStaffAuthStore((s) => s.token);
 
   const isLegacyAdmin = legacyUser && LEGACY_ADMIN_ROLES.includes(legacyUser.role);
-  const isStaffSession = !isLegacyAdmin && Boolean(staffToken && staffUser);
+  const isStaffSession = !isLegacyAdmin && Boolean(staffUser);
 
   const currentUser = isLegacyAdmin ? legacyUser : isStaffSession ? staffUser : null;
   const sessionType = isLegacyAdmin ? "legacy" : isStaffSession ? "staff" : null;

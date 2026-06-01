@@ -2,64 +2,38 @@ import { create } from "zustand";
 
 const STORAGE_KEY = "grm_staff_auth";
 
-function load() {
+function clearLegacyStaffAuthStorage() {
+  if (typeof window === "undefined") return;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return { token: null, refreshToken: null, user: parsed.user || null };
+    localStorage.removeItem(STORAGE_KEY);
   } catch {
-    return null;
+    // ignore
   }
 }
 
-function save(state) {
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        user: state.user,
-      })
-    );
-  } catch {
-    // ignore localStorage errors
-  }
-}
-
-const initial = load() || { token: null, refreshToken: null, user: null };
+clearLegacyStaffAuthStorage();
 
 export const useStaffAuthStore = create((set, get) => ({
-  token: initial.token,
-  refreshToken: initial.refreshToken,
-  user: initial.user,
-  isAuthenticated: Boolean(initial.token),
+  user: null,
+  isAuthenticated: false,
 
-  setAuth: ({ token, accessToken, refreshToken, user }) => {
-    const nextToken = accessToken || token;
+  setAuth: ({ user }) => {
     const nextState = {
-      token: nextToken || null,
-      refreshToken: refreshToken || null,
       user: user || null,
-      isAuthenticated: Boolean(nextToken),
+      isAuthenticated: Boolean(user),
     };
     set(nextState);
-    save(nextState);
+    clearLegacyStaffAuthStorage();
   },
 
   logout: () => {
-    set({ token: null, refreshToken: null, user: null, isAuthenticated: false });
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // ignore
-    }
+    set({ user: null, isAuthenticated: false });
+    clearLegacyStaffAuthStorage();
   },
 
   setUser: (user) => {
-    const nextState = { ...get(), user: user || null, isAuthenticated: Boolean(get().token) };
+    const nextState = { ...get(), user: user || null, isAuthenticated: Boolean(user) };
     set(nextState);
-    save(nextState);
+    clearLegacyStaffAuthStorage();
   },
-
-  getToken: () => get().token,
 }));

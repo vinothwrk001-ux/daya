@@ -4,70 +4,40 @@ import useAuthCartStore from "./authCartStore";
 
 const STORAGE_KEY = "amazon_like_auth";
 
-function load() {
+function clearLegacyAuthStorage() {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return { token: null, refreshToken: null, user: parsed.user || null };
-  } catch {
-    return null;
-  }
-}
-
-function save(state) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        user: state.user,
-      })
-    );
+    localStorage.removeItem(STORAGE_KEY);
   } catch {
     // ignore
   }
 }
 
-const initial = load() || { token: null, refreshToken: null, user: null };
+clearLegacyAuthStorage();
 
 export const useAuthStore = create((set, get) => ({
-  token: initial.token,
-  refreshToken: initial.refreshToken,
-  user: initial.user,
-  isAuthenticated: Boolean(initial.token),
+  user: null,
+  isAuthenticated: false,
   
-  setAuth: ({ token, accessToken, refreshToken, user }) => {
-    const nextToken = accessToken || token;
+  setAuth: ({ user }) => {
     const nextState = {
-      token: nextToken || null,
-      refreshToken: refreshToken || null,
       user: user || null,
-      isAuthenticated: Boolean(nextToken),
+      isAuthenticated: Boolean(user),
     };
     set(nextState);
-    save(nextState);
+    clearLegacyAuthStorage();
   },
   
   logout: () => {
-    set({ token: null, refreshToken: null, user: null, isAuthenticated: false });
+    set({ user: null, isAuthenticated: false });
     useAuthCartStore.getState().clearCart();
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // ignore
-      }
-    }
+    clearLegacyAuthStorage();
     resetDarkModePreference();
   },
 
   setUser: (user) => {
-    const nextState = { ...get(), user: user || null, isAuthenticated: Boolean(get().token) };
+    const nextState = { ...get(), user: user || null, isAuthenticated: Boolean(user) };
     set(nextState);
-    save(nextState);
+    clearLegacyAuthStorage();
   },
-  
-  getToken: () => get().token,
 }));

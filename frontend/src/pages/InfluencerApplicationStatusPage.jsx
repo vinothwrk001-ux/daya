@@ -16,9 +16,7 @@ export function InfluencerApplicationStatusPage({ compact = false }) {
   const { applicationId } = useParams();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const refreshToken = useAuthStore((state) => state.refreshToken);
   const setAuth = useAuthStore((state) => state.setAuth);
-  const setUser = useAuthStore((state) => state.setUser);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -36,12 +34,11 @@ export function InfluencerApplicationStatusPage({ compact = false }) {
     let cancelled = false;
     async function refreshAndRedirect() {
       try {
-        if (refreshToken) {
-          const refreshed = await refreshSession(refreshToken);
-          if (!cancelled) setAuth(refreshed?.data || refreshed);
-        } else {
+        const refreshed = await refreshSession();
+        if (!cancelled) setAuth(refreshed?.data || refreshed);
+        if (!useAuthStore.getState().user) {
           const me = await getMe();
-          if (!cancelled) setUser(me?.data || me);
+          if (!cancelled) setAuth({ user: me?.data || me });
         }
         const nextUser = useAuthStore.getState().user;
         const roles = Array.from(new Set([nextUser?.role, ...(nextUser?.roles || [])].filter(Boolean)));
@@ -54,7 +51,7 @@ export function InfluencerApplicationStatusPage({ compact = false }) {
     return () => {
       cancelled = true;
     };
-  }, [data?.status, data?.application?.email, user, refreshToken, setAuth, setUser, navigate]);
+  }, [data?.status, data?.application?.email, user, setAuth, navigate]);
 
   if (error) return <main className="min-h-screen bg-slate-50 p-6 dark:bg-slate-950"><div className="mx-auto max-w-3xl rounded-3xl border border-rose-200 bg-rose-50 p-6 font-bold text-rose-700">{error}</div></main>;
   if (!data) return <main className="min-h-screen bg-slate-50 p-6 dark:bg-slate-950"><div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">Loading application status...</div></main>;

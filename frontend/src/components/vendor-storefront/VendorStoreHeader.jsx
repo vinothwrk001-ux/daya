@@ -19,7 +19,7 @@ function formatCount(value, compact = false) {
 
 export function VendorStoreHeader({ vendor, isFollowing, onFollowChange }) {
   const navigate = useNavigate();
-  const token = useAuthStore((state) => state.token);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
   const [busy, setBusy] = useState(false);
   const [isOwnStore, setIsOwnStore] = useState(false);
@@ -39,7 +39,7 @@ export function VendorStoreHeader({ vendor, isFollowing, onFollowChange }) {
   useEffect(() => {
     let alive = true;
 
-    if (!token || user?.role !== "vendor" || !vendor?.storeSlug) {
+    if (!isAuthenticated || user?.role !== "vendor" || !vendor?.storeSlug) {
       setIsOwnStore(false);
       return () => {
         alive = false;
@@ -59,10 +59,10 @@ export function VendorStoreHeader({ vendor, isFollowing, onFollowChange }) {
     return () => {
       alive = false;
     };
-  }, [token, user?.role, vendor?.storeSlug]);
+  }, [isAuthenticated, user?.role, vendor?.storeSlug]);
 
   async function toggleFollow() {
-    if (!token) {
+    if (!isAuthenticated) {
       navigate(`/login?redirect=/vendor/${vendor.storeSlug}`);
       return;
     }

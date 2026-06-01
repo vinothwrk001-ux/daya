@@ -56,9 +56,7 @@ const staffLoginSchema = Joi.object({
   password: Joi.string().min(8).max(128).required(),
 });
 
-const staffRefreshSchema = Joi.object({
-  refreshToken: Joi.string().trim().required(),
-});
+const staffRefreshSchema = Joi.object({}).unknown(false);
 
 const passwordResetRequestSchema = Joi.object({
   email: Joi.string().trim().email().lowercase().required(),

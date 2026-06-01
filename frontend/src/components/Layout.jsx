@@ -83,7 +83,7 @@ function isInfluencerWorkspacePath(pathname) {
 export function Layout() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const guestCartCount = useGuestCartStore((s) => s.getTotalQuantity());
   const guestWishlistCount = useGuestWishlistStore((s) => s.getItemCount());
   const [isDarkMode, setIsDarkMode] = useDarkMode();
@@ -139,7 +139,7 @@ export function Layout() {
         return;
       }
 
-      if (!token) {
+      if (!isAuthenticated) {
         setCartCount(guestCartCount);
         return;
       }
@@ -169,7 +169,7 @@ export function Layout() {
       cancelled = true;
       window.removeEventListener("cart:changed", handleCartChanged);
     };
-  }, [guestCartCount, showShopActions, token]);
+  }, [guestCartCount, isAuthenticated, showShopActions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,7 +180,7 @@ export function Layout() {
         return;
       }
 
-      if (!token) {
+      if (!isAuthenticated) {
         setWishlistCount(guestWishlistCount);
         return;
       }
@@ -210,7 +210,7 @@ export function Layout() {
       cancelled = true;
       window.removeEventListener("wishlist:changed", handleWishlistChanged);
     };
-  }, [guestWishlistCount, showShopActions, token]);
+  }, [guestWishlistCount, isAuthenticated, showShopActions]);
 
   return (
     <CartDrawerProvider>

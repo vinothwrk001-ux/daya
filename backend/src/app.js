@@ -11,6 +11,7 @@ const path = require("path");
 const { requestLoggerStream, logger } = require("./utils/logger");
 const { notFound } = require("./middleware/notFound");
 const { errorHandler } = require("./middleware/errorHandler");
+const { csrfProtection } = require("./middleware/csrf");
 
 const authRoutes = require("./routes/auth.routes");
 const vendorRoutes = require("./routes/vendor.routes");
@@ -55,6 +56,7 @@ const commissionRoutes = require("./modules/commission/routes");
 const recommendationRoutes = require("./modules/recommendation/routes");
 const { authOptional } = require("./middleware/auth");
 const { influencerCommerceGate } = require("./middleware/influencerCommerceGate");
+const { assertNoProductionBootstrapRoutes } = require("./utils/bootstrapRouteScanner");
 
 function createLimiter({
   windowMs = 15 * 60 * 1000,
@@ -78,6 +80,8 @@ function createLimiter({
 }
 
 function createApp() {
+  assertNoProductionBootstrapRoutes();
+
   const app = express();
   const isDevelopment = process.env.NODE_ENV !== "production";
   const authRateLimit = Number(process.env.AUTH_RATE_LIMIT_MAX || (isDevelopment ? 60 : 20));
@@ -153,6 +157,7 @@ function createApp() {
   );
   app.use(express.urlencoded({ extended: true, limit: "25mb" }));
   app.use(cookieParser());
+  app.use(csrfProtection);
 
   // Local upload fallback (Cloudinary preferred). The frontend dev server runs on
   // a different origin, so uploaded media must be embeddable by video/img tags.
@@ -236,6 +241,15 @@ function createApp() {
   app.use("/api/notifications", notificationRoutes);
   app.use("/api/reviews", reviewRoutes);
   app.use("/api/public", publicFeatureRoutes);
+  app.use("/api/config/initialize-defaults", (req, res) => {
+    logger.warn("Blocked platform bootstrap HTTP attempt", {
+      path: req.originalUrl,
+      method: req.method,
+      ip: req.ip,
+      environment: process.env.NODE_ENV || "development",
+    });
+    return res.status(404).json({ success: false, message: "Not found" });
+  });
   app.use("/api/config", configRoutes);
   app.use("/api/system", systemRoutes);
   app.use("/api/invoices", invoiceRoutes);

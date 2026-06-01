@@ -20,7 +20,6 @@ function normalizeError(err) {
 }
 
 export function SettingsPage() {
-  const refreshToken = useAuthStore((state) => state.refreshToken);
   const localLogout = useAuthStore((state) => state.logout);
   const [isDarkMode, setIsDarkMode] = useDarkMode();
   const [preferences, setPreferences] = useState({
@@ -92,7 +91,7 @@ export function SettingsPage() {
     setMessage("");
     try {
       await changeUserPassword(passwords);
-      await logoutRequest(refreshToken);
+      await logoutRequest();
       localLogout();
     } catch (err) {
       setError(normalizeError(err));
@@ -113,7 +112,7 @@ export function SettingsPage() {
   async function logoutAllDevices() {
     try {
       await logoutUserDevices();
-      await logoutRequest(refreshToken);
+      await logoutRequest();
       localLogout();
     } catch (err) {
       setError(normalizeError(err));

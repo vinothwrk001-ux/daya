@@ -9,8 +9,6 @@ function normalizeError(err) {
 
 export function ProfilePage() {
   const setAuth = useAuthStore((state) => state.setAuth);
-  const token = useAuthStore((state) => state.token);
-  const refreshToken = useAuthStore((state) => state.refreshToken);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -87,8 +85,6 @@ export function ProfilePage() {
       const profileData = response?.data ?? response;
       setProfile(profileData);
       setAuth({
-        token,
-        refreshToken,
         user: profileData,
       });
       setAvatarFile(null);

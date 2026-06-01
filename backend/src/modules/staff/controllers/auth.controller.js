@@ -1,6 +1,7 @@
 const { ok } = require("../../../utils/apiResponse");
 const { asyncHandler } = require("../../../utils/asyncHandler");
 const staffAuthService = require("../services/staff-auth.service");
+const { issueCsrfToken } = require("../../../middleware/csrf");
 
 function cookieOptions(maxAgeMs) {
   const secure = process.env.NODE_ENV === "production";
@@ -26,26 +27,32 @@ function clearSessionCookies(res) {
   res.clearCookie("staffRefreshToken", cookieOptions(0));
 }
 
+function publicAuthPayload(result) {
+  return { user: result?.user || null };
+}
+
 const login = asyncHandler(async (req, res) => {
   const result = await staffAuthService.login(req.body, {
     ipAddress: req.ip,
     userAgent: req.get("user-agent"),
   });
   setSessionCookies(res, result);
-  return ok(res, result, "Staff logged in successfully");
+  issueCsrfToken(req, res);
+  return ok(res, publicAuthPayload(result), "Staff logged in successfully");
 });
 
 const refresh = asyncHandler(async (req, res) => {
-  const result = await staffAuthService.refreshSession(req.body.refreshToken || req.cookies?.staffRefreshToken, {
+  const result = await staffAuthService.refreshSession(req.cookies?.staffRefreshToken, {
     ipAddress: req.ip,
     userAgent: req.get("user-agent"),
   });
   setSessionCookies(res, result);
-  return ok(res, result, "Staff session refreshed");
+  issueCsrfToken(req, res);
+  return ok(res, publicAuthPayload(result), "Staff session refreshed");
 });
 
 const logout = asyncHandler(async (req, res) => {
-  const result = await staffAuthService.logout(req.body?.refreshToken || req.cookies?.staffRefreshToken);
+  const result = await staffAuthService.logout(req.cookies?.staffRefreshToken);
   clearSessionCookies(res);
   return ok(res, result, "Staff logged out successfully");
 });
@@ -53,6 +60,11 @@ const logout = asyncHandler(async (req, res) => {
 const me = asyncHandler(async (req, res) => {
   const result = await staffAuthService.me(req.staff._id);
   return ok(res, result, "OK");
+});
+
+const csrf = asyncHandler(async (req, res) => {
+  const csrfToken = issueCsrfToken(req, res);
+  return ok(res, { csrfToken }, "CSRF token issued");
 });
 
 const requestPasswordReset = asyncHandler(async (req, res) => {
@@ -70,6 +82,7 @@ module.exports = {
   refresh,
   logout,
   me,
+  csrf,
   requestPasswordReset,
   resetPassword,
 };

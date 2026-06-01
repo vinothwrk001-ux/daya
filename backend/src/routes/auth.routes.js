@@ -21,6 +21,7 @@ router.post(
 
 router.post("/login", validate(loginSchema), authController.login);
 router.post("/refresh", authController.refresh);
+router.get("/csrf", authController.csrf);
 // Use authOptional for logout - allows graceful logout even if token is missing
 router.post("/logout", authOptional, authController.logout);
 router.post("/logout-all", authRequired, authController.logoutAll);

@@ -3,13 +3,8 @@ const router = express.Router();
 const configController = require("../controllers/config.controller");
 const { authRequired, requireRole } = require("../middleware/auth");
 
-/**
- * POST /api/config/initialize-defaults
- * Initialize default configurations (no auth required for initial setup)
- */
-router.post("/initialize-defaults", configController.initializeDefaults);
-
-// All other routes require admin authentication
+// All configuration routes require admin authentication.
+// Platform default initialization is CLI-only: npm run bootstrap:platform.
 router.use(authRequired);
 router.use(requireRole("admin", "super_admin", "support_admin", "finance_admin"));
 

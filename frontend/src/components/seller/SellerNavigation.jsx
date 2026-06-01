@@ -114,7 +114,7 @@ function getFollowedStoreSlugs(response) {
 export function FollowStoreButton({ seller, initialFollowing = false, className = "" }) {
   const normalized = normalizeSeller(seller);
   const navigate = useNavigate();
-  const token = useAuthStore((state) => state.token);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [following, setFollowing] = useState(initialFollowing);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -124,7 +124,7 @@ export function FollowStoreButton({ seller, initialFollowing = false, className 
     let active = true;
 
     async function loadFollowStatus() {
-      if (!token || !normalized?.storeSlug) return;
+      if (!isAuthenticated || !normalized?.storeSlug) return;
       
       try {
         setLoading(true);
@@ -151,19 +151,19 @@ export function FollowStoreButton({ seller, initialFollowing = false, className 
     return () => {
       active = false;
     };
-  }, [token, normalized?.storeSlug, initialFollowing]);
+  }, [isAuthenticated, normalized?.storeSlug, initialFollowing]);
 
   // Update state when initialFollowing prop changes (for guest/public views)
   useEffect(() => {
-    if (!token) {
+    if (!isAuthenticated) {
       setFollowing(initialFollowing);
     }
-  }, [initialFollowing, token]);
+  }, [initialFollowing, isAuthenticated]);
 
   if (!normalized?.storeSlug) return null;
 
   async function toggleFollow() {
-    if (!token) {
+    if (!isAuthenticated) {
       navigate(`/login?redirect=${encodeURIComponent(`/vendor/${normalized.storeSlug}`)}`);
       return;
     }

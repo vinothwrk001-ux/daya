@@ -125,7 +125,7 @@ export function AdminSettingsPage() {
         ) : null}
         {error ? (
           <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-100">
-            {error}. If this key does not exist yet, run <strong>POST /api/config/initialize-defaults</strong> once or restart so defaults are seeded.
+            {error}. If this key does not exist yet, ask an operator to run the server-side platform bootstrap script.
           </div>
         ) : null}
       </section>

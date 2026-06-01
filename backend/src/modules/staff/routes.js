@@ -22,6 +22,7 @@ const adminRouter = express.Router();
 // Public authentication routes (no auth required)
 router.post("/auth/login", validate(staffLoginSchema), authController.login);
 router.post("/auth/refresh", validate(staffRefreshSchema), authController.refresh);
+router.get("/auth/csrf", authController.csrf);
 router.post("/auth/logout", authController.logout);
 router.get("/auth/me", staffAuthRequired, authController.me);
 router.post(

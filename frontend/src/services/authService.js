@@ -24,13 +24,13 @@ export async function getMe() {
   return data;
 }
 
-export async function refreshSession(refreshToken) {
-  const { data } = await api.post("/api/auth/refresh", { refreshToken });
+export async function refreshSession() {
+  const { data } = await api.post("/api/auth/refresh", {});
   return data;
 }
 
-export async function logout(refreshToken) {
-  const { data } = await api.post("/api/auth/logout", { refreshToken });
+export async function logout() {
+  const { data } = await api.post("/api/auth/logout", {});
   return data;
 }
 

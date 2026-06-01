@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useAuthStore } from "../context/authStore";
+import { attachCsrfHeader } from "./csrf";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
@@ -7,18 +8,7 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-api.interceptors.request.use((config) => {
-  // Get the most current token from the store
-  const { token } = useAuthStore.getState();
-  
-  // Always add token if it exists, even if no headers exist yet
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  
-  return config;
-});
+api.interceptors.request.use(attachCsrfHeader);
 
 let refreshPromise = null;
 
@@ -41,20 +31,18 @@ api.interceptors.response.use(
     }
 
     if (status === 401 && originalRequest && !originalRequest._retry) {
-      const { refreshToken, setAuth, logout } = useAuthStore.getState();
+      const { setAuth, logout } = useAuthStore.getState();
 
       originalRequest._retry = true;
 
       try {
         refreshPromise =
           refreshPromise ||
-          api.post("/api/auth/refresh", refreshToken ? { refreshToken } : {}, { headers: { Authorization: undefined } });
+          api.post("/api/auth/refresh", {});
 
         const response = await refreshPromise;
         refreshPromise = null;
         setAuth(response.data.data);
-        originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers.Authorization = `Bearer ${response.data.data.accessToken || response.data.data.token}`;
         return api(originalRequest);
       } catch (refreshError) {
         refreshPromise = null;

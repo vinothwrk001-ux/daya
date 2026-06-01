@@ -1,5 +1,6 @@
 const { AppError } = require("../utils/AppError");
 const vendorModuleService = require("../services/vendorModule.service");
+const { logger } = require("../utils/logger");
 
 /**
  * 🔥 CRITICAL MIDDLEWARE
@@ -23,15 +24,12 @@ function requireVendorModule(moduleKey) {
       const hasAccess = await vendorModuleService.canVendorPerformAction(moduleKey, "read", req.user);
 
       if (!hasAccess) {
-        if (process.env.NODE_ENV !== "production") {
-          console.log("[VENDOR_MODULE_MIDDLEWARE_DENY]", {
-            moduleKey,
-            action: "read",
-            userId: req.user?.sub || null,
-            role: req.user?.role || null,
-            permissions: req.user?.permissions || null,
-          });
-        }
+        logger.warn("Vendor module access denied", {
+          moduleKey,
+          action: "read",
+          userId: req.user?.sub || null,
+          role: req.user?.role || null,
+        });
 
         return next(
           new AppError(
@@ -66,16 +64,13 @@ function requireVendorPermission(permission) {
       const allowed = await vendorModuleService.canVendorAccessModule(moduleKey, req.user);
 
       if (!allowed) {
-        if (process.env.NODE_ENV !== "production") {
-          console.log("[VENDOR_PERMISSION_MIDDLEWARE_DENY]", {
-            moduleKey,
-            action: "module_access",
-            permission,
-            userId: req.user?.sub || null,
-            role: req.user?.role || null,
-            permissions: req.user?.permissions || null,
-          });
-        }
+        logger.warn("Vendor permission denied", {
+          moduleKey,
+          action: "module_access",
+          permission,
+          userId: req.user?.sub || null,
+          role: req.user?.role || null,
+        });
 
         return next(
           new AppError(

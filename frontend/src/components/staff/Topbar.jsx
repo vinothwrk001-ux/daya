@@ -63,7 +63,7 @@ export function StaffTopbar({ user, role, permissions, module, onMenuToggle }) {
 
   async function handleLogout() {
     try {
-      await staffAuthService.logout(useStaffAuthStore.getState().refreshToken);
+      await staffAuthService.logout();
     } finally {
       logout();
       navigate("/login", { replace: true });

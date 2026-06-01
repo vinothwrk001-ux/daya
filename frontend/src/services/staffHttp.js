@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useStaffAuthStore } from "../context/staffAuthStore";
+import { attachCsrfHeader } from "./csrf";
 
 export const staffHttp = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
@@ -7,16 +8,7 @@ export const staffHttp = axios.create({
   withCredentials: true,
 });
 
-staffHttp.interceptors.request.use((config) => {
-  const { token } = useStaffAuthStore.getState();
-  config.headers = config.headers || {};
-
-  if (token && config.headers.Authorization === undefined) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
+staffHttp.interceptors.request.use(attachCsrfHeader);
 
 let refreshPromise = null;
 
@@ -35,25 +27,17 @@ staffHttp.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const { refreshToken, setAuth, logout } = useStaffAuthStore.getState();
+    const { setAuth, logout } = useStaffAuthStore.getState();
     originalRequest._retry = true;
 
     try {
       refreshPromise =
         refreshPromise ||
-        staffHttp.post(
-          "/api/staff/auth/refresh",
-          refreshToken ? { refreshToken } : {},
-          { headers: { Authorization: undefined } }
-        );
+        staffHttp.post("/api/staff/auth/refresh", {});
 
       const response = await refreshPromise;
       refreshPromise = null;
       setAuth(response.data.data);
-
-      const nextToken = response.data.data.accessToken || response.data.data.token;
-      originalRequest.headers = originalRequest.headers || {};
-      originalRequest.headers.Authorization = `Bearer ${nextToken}`;
       return staffHttp(originalRequest);
     } catch (refreshError) {
       refreshPromise = null;

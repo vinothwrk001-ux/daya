@@ -1,27 +1,17 @@
 import { staffHttp } from "./staffHttp";
 
 export async function login(payload) {
-  const { data } = await staffHttp.post("/api/staff/auth/login", payload, {
-    headers: { Authorization: undefined },
-  });
+  const { data } = await staffHttp.post("/api/staff/auth/login", payload);
   return data;
 }
 
-export async function logout(refreshToken) {
-  const { data } = await staffHttp.post(
-    "/api/staff/auth/logout",
-    { refreshToken },
-    {
-      headers: { Authorization: undefined },
-    }
-  );
+export async function logout() {
+  const { data } = await staffHttp.post("/api/staff/auth/logout", {});
   return data;
 }
 
-export async function me(token) {
-  const { data } = await staffHttp.get("/api/staff/auth/me", {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
+export async function me() {
+  const { data } = await staffHttp.get("/api/staff/auth/me");
   return data;
 }
 

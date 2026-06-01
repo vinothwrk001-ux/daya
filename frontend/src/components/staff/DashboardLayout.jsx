@@ -6,12 +6,18 @@ import { StaffTopbar } from "./Topbar";
 import * as staffAuthService from "../../services/staffAuthService";
 import { getStaffModuleByRoute } from "../../config/staffModules";
 import { useRoleNotifications } from "../../hooks/useRoleNotifications";
+import {
+  logPermissionSyncFailed,
+  logPermissionSyncStart,
+  logPermissionSyncSuccess,
+  logPeriodicSync,
+} from "../../utils/permissionLogger";
 
 // Periodic sync interval - 5 minutes
 const PERMISSION_SYNC_INTERVAL = 5 * 60 * 1000;
 
 export function StaffDashboardLayout({ children }) {
-  const { token, user } = useStaffAuthStore();
+  const { isAuthenticated, user } = useStaffAuthStore();
   const setAuth = useStaffAuthStore((state) => state.setAuth);
   const logout = useStaffAuthStore((state) => state.logout);
   const location = useLocation();
@@ -39,27 +45,20 @@ export function StaffDashboardLayout({ children }) {
     let syncInterval = null;
 
     async function syncSession() {
-      if (!token) {
+      if (!isAuthenticated) {
         setLoading(false);
         return;
       }
 
       try {
-        console.log("[DASHBOARD_LAYOUT] Starting permission sync...");
+        logPermissionSyncStart();
         const response = await staffAuthService.getMe();
         
         if (active) {
-          console.log("[DASHBOARD_LAYOUT] Permission sync successful", {
-            modules: Object.keys(response.data.permissions || {}),
-            syncedAt: response.data.syncedAt,
-            fullResponse: response.data,
-          });
-          
           setAuth({
-            token,
-            refreshToken: useStaffAuthStore.getState().refreshToken,
             user: response.data,
           });
+          logPermissionSyncSuccess(response.data?.email, response.data?.permissions, response.data?.syncedAt);
           setLastSyncTime(new Date());
           setError("");
         }
@@ -67,14 +66,13 @@ export function StaffDashboardLayout({ children }) {
         if (!active) return;
 
         if (err.response?.status === 401) {
-          console.log("[DASHBOARD_LAYOUT] Unauthorized - logging out");
           logout();
           return;
         }
 
         const errorMsg = err.response?.data?.message || "Failed to load the latest staff permissions.";
         setError(errorMsg);
-        console.error("[DASHBOARD_LAYOUT] Permission sync failed:", errorMsg, { error: err });
+        logPermissionSyncFailed(user?.email, err);
       } finally {
         if (active) setLoading(false);
       }
@@ -85,18 +83,16 @@ export function StaffDashboardLayout({ children }) {
 
     // Setup periodic sync
     syncInterval = setInterval(() => {
-      console.log("[DASHBOARD_LAYOUT] Periodic permission sync triggered");
+      logPeriodicSync(PERMISSION_SYNC_INTERVAL);
       syncSession();
     }, PERMISSION_SYNC_INTERVAL);
 
     const handleWindowFocus = () => {
-      console.log("[DASHBOARD_LAYOUT] Focus sync triggered");
       syncSession();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        console.log("[DASHBOARD_LAYOUT] Visibility sync triggered");
         syncSession();
       }
     };
@@ -110,9 +106,9 @@ export function StaffDashboardLayout({ children }) {
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [logout, setAuth, token]);
+  }, [isAuthenticated, logout, setAuth, user?.email]);
 
-  if (!token) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

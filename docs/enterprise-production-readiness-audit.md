@@ -11,10 +11,10 @@ Current validation is materially better than the previous audit state:
 
 - `frontend`: `npm run lint` passed with zero reported errors/warnings.
 - `frontend`: `npm run build` passed.
-- `backend`: `npm run test` passed, 24/24 tests.
+- `backend`: `npm run test` passed, 32/32 tests.
 - `backend`: `npm run audit:route-security` passed.
 
-The system is not yet enterprise launch-ready. The strongest remaining risks are unauthenticated first-run config initialization, cookie/localStorage/session migration gaps, UI-only controls in storefront/homepage builder surfaces, broad event/tracking write surfaces, insufficient end-to-end coverage for money flows, limited DevOps/monitoring assets, and object-level authorization that is not proven by automated tests.
+The system is not yet enterprise launch-ready. The strongest remaining risks are private document authorization proof, UI-only controls in storefront/homepage builder surfaces, broad event/tracking write surfaces, insufficient end-to-end coverage for money flows, limited DevOps/monitoring assets, and object-level authorization that is not proven by automated tests. The previously critical public platform config initializer has been removed from HTTP and replaced with a locked CLI bootstrap flow; browser auth now uses cookie transport with CSRF protection and no frontend token storage.
 
 ## 2. Project Architecture Overview
 
@@ -54,32 +54,34 @@ Backend architecture:
 | --- | --- | --- |
 | `frontend/npm run lint` | Passed | ESLint reported no errors/warnings. |
 | `frontend/npm run build` | Passed | Vite production build succeeded. Largest raw chunks include `vendor-react` 454.04 kB, `vendor-charts` 267.33 kB, `AdminHomepageContainersPage` 79.90 kB, `AdminInfluencerCommercePage` 63.44 kB. |
-| `backend/npm run test` | Passed | 24 tests passed across affiliate, campaign, commission, COD, payment security, webhook security, shipping, inventory, payouts, homepage, branding, documents. |
+| `backend/npm run test` | Passed | 32 tests passed across affiliate, auth/CSRF security, campaign, commission, COD, payment security, webhook security, shipping, inventory, payouts, homepage, branding, documents. |
 | `backend/npm run audit:route-security` | Passed | Confirms route files use auth/permission middleware or are allowlisted public routes. This is useful but not proof of object-level authorization. |
 
 ## 5. Critical And High Findings
 
-### Finding P0-01: Unauthenticated platform config initialization
+### Finding P0-01: Platform config initialization hardened
 
-Severity: Critical  
+Status: Resolved  
+Severity: Was Critical  
 Module: Config/Admin Security  
-File path: `backend/src/routes/config.routes.js:7`, `backend/src/routes/config.routes.js:10`, mounted at `backend/src/app.js:239`  
-Root cause: `/api/config/initialize-defaults` is intentionally declared before `router.use(authRequired)` and the comment says no auth is required for initial setup.  
-Impact: In production, an unauthenticated caller could initialize or reset default platform configuration if the controller is not internally environment-gated and idempotency-locked.  
-Fix recommendation: Gate this route by `NODE_ENV !== "production"` or a one-time bootstrap secret; preferably move it to a CLI script. Add an audit log and test that production requests return 403.  
-Estimated effort: 0.5 day  
-Priority: P0
+File paths: `backend/src/routes/config.routes.js`, `backend/src/app.js`, `backend/src/services/platform-bootstrap.service.js`, `backend/src/scripts/bootstrapPlatformConfig.js`, `backend/src/models/SystemBootstrap.js`, `backend/src/models/SecurityAuditLog.js`  
+Root cause: `/api/config/initialize-defaults` was previously declared before `router.use(authRequired)`.  
+Fix applied: Removed the HTTP initializer from `config.routes.js`; added a server-side `npm run bootstrap:platform` script; added a one-time `system_bootstrap` lock; added `security_audit_logs` records for attempt/success/re-run block; added a production startup scanner for dangerous bootstrap route markers; added an explicit 404 tombstone for the old URL.  
+Verification: Backend test suite now includes bootstrap security coverage proving the old production URL returns 404, defaults can be created once, re-runs are blocked, and route marker scanning fails production startup.  
+Residual risk: Future super-admin reinitialization workflow with MFA/approval is not implemented; direct reinitialization remains intentionally unavailable.  
+Priority: Closed
 
-### Finding P0-02: Cookie-session migration is incomplete
+### Finding P0-02: Cookie-session migration completed
 
-Severity: High  
+Status: Resolved  
+Severity: Was High  
 Module: Authentication / Session Security  
-File paths: `frontend/src/context/authStore.js`, `frontend/src/context/staffAuthStore.js`, `frontend/src/services/api.js`, `frontend/src/services/adminHttp.js`, `backend/src/middleware/auth.js`, `backend/src/middleware/adminAccess.js`  
+File paths: `backend/src/middleware/csrf.js`, `backend/src/controllers/auth.controller.js`, `backend/src/modules/staff/controllers/auth.controller.js`, `backend/src/middleware/auth.js`, `backend/src/middleware/adminAccess.js`, `backend/src/modules/staff/middleware/staff-auth.js`, `frontend/src/context/authStore.js`, `frontend/src/context/staffAuthStore.js`, `frontend/src/services/api.js`, `frontend/src/services/adminHttp.js`, `frontend/src/services/staffHttp.js`, `frontend/src/services/csrf.js`  
 Root cause: The codebase uses cookies and `withCredentials`, but frontend state and localStorage still hold profile/session metadata, and compatibility paths still read bearer tokens.  
-Impact: The architecture is between bearer-token and cookie-session models. Without CSRF protection for unsafe cookie-authenticated requests, cookie auth increases CSRF exposure.  
-Fix recommendation: Implement CSRF tokens for POST/PATCH/PUT/DELETE, move refresh tokens to httpOnly cookie only, keep access tokens memory-only if still needed, and remove token JSON responses after migration.  
-Estimated effort: 2-4 days  
-Priority: P0
+Fix applied: Added signed double-submit CSRF middleware for unsafe requests, CSRF token issue endpoints, HttpOnly cookie-only refresh flow, no token JSON responses, frontend CSRF request/header injection, refresh retry through cookies only, bearer-token rejection with `LEGACY_AUTH_REMOVED`, and profile-only auth stores that clear legacy localStorage keys. Webhook and bootstrap tombstone paths are explicitly exempted where browser CSRF does not apply.  
+Verification: Added `backend/src/services/__tests__/auth-cookie-csrf-security.test.js` proving CSRF cookie issuance, unsafe request blocking, valid CSRF pass-through to cookie refresh validation, and bearer rejection. Frontend lint/build, backend tests, and route-security audit pass.  
+Residual risk: Access JWTs remain HttpOnly cookies rather than opaque database sessions; this is acceptable for the current architecture but should be revisited if the platform standard changes to server-side opaque sessions only.  
+Priority: Closed
 
 ### Finding P0-03: Private upload/file access needs object-level authorization proof
 
@@ -149,14 +151,13 @@ Priority: P2
 
 ### Finding P1-06: Production logging still uses console in runtime paths
 
+Status: Resolved  
 Severity: Medium  
 Module: Observability / Security  
 File paths: `frontend/src/hooks/useStaffAuth.js:24`, `frontend/src/hooks/useStaffAuth.js:27`, `frontend/src/hooks/useStaffAuth.js:49`, `frontend/src/components/staff/DashboardLayout.jsx:48`, `backend/src/middleware/vendorModuleAccess.js:27`, `backend/src/middleware/vendorModuleAccess.js:70`, `backend/src/modules/staff/middleware/staff-auth.js:74`  
 Root cause: Permission sync and denial diagnostics were implemented with `console.log` instead of structured logging with environment controls.  
-Impact: Logs may expose permission maps, staff identifiers, or operational internals in browser consoles/server stdout.  
-Fix recommendation: Use the backend `logger` with redaction and frontend dev-only logger wrappers. Do not print full permission objects in production.  
-Estimated effort: 1 day  
-Priority: P2
+Fix applied: Replaced frontend permission sync/check console calls with the existing frontend permission logger wrapper and replaced backend vendor/staff denial console logs with structured `logger.warn` calls that avoid dumping full permission maps.  
+Priority: Closed
 
 ## 6. Frontend Audit Findings
 
@@ -192,7 +193,7 @@ Strengths:
 
 Risks:
 
-- `/api/config/initialize-defaults` is unauthenticated.
+- The former `/api/config/initialize-defaults` HTTP initializer is removed and returns 404 through a deny tombstone.
 - Optional-auth route mounting is broad for influencer/reel/tracking/commission modules: `backend/src/app.js:242` through `backend/src/app.js:246`; individual protected routes mitigate this, but tests must prove no sensitive route forgot `authRequired`.
 - Delivery route uses only `authRequired` at `backend/src/routes/delivery.routes.js`; controller ownership/role checks must be tested.
 - Object-level authorization is not proven for the full API surface.
@@ -284,11 +285,11 @@ Affiliate/reels:
 
 | Risk | Severity | Evidence | Fix |
 | --- | --- | --- | --- |
-| Unauthenticated config bootstrap | Critical | `backend/src/routes/config.routes.js:10` | Require bootstrap secret/admin auth or CLI-only execution. |
-| CSRF gap during cookie migration | High | Cookie and bearer flows coexist | Add CSRF tokens for unsafe requests. |
+| Platform config bootstrap | Resolved | HTTP initializer removed; CLI-only locked bootstrap added | Keep super-admin reinitialization unavailable until MFA/approval workflow exists. |
+| CSRF gap during cookie migration | Resolved | Cookie-only browser transport with CSRF middleware and bearer rejection added | Keep auth/CSRF tests in CI. |
 | IDOR not fully proven | High | Route audit passes but cannot prove service ownership | Add negative access tests. |
 | Event write abuse | High | Optional auth on reels/tracking | Per-route rate limits and dedupe. |
-| Console logging of permissions | Medium | Staff/vendor permission logs | Structured/redacted logging. |
+| Console logging of permissions | Resolved | Staff/vendor permission logs moved to logger wrappers | Keep permission payloads redacted. |
 | JSON-LD injection test missing | Medium | `dangerouslySetInnerHTML` with JSON-LD | Add escaping/regression test. |
 
 ## 13. Performance And Scalability Findings
@@ -354,7 +355,7 @@ Strengths:
 
 Risks:
 
-- Runtime `console.log` remains in staff/vendor permission code.
+- Staff/vendor permission diagnostics now use structured logger wrappers instead of runtime console output.
 - Some admin pages remain too large and use blocking browser alerts.
 - A few dynamic/homepage controls are presentational instead of wired.
 
@@ -362,8 +363,8 @@ Risks:
 
 | Priority | Risk | Severity | Owner |
 | --- | --- | --- | --- |
-| P0 | `/api/config/initialize-defaults` is unauthenticated | Critical | Backend/Security |
-| P0 | CSRF/cookie-auth migration incomplete | High | Backend/Frontend |
+| Closed | `/api/config/initialize-defaults` removed from HTTP and replaced with CLI-only locked bootstrap | Resolved | Backend/Security |
+| Closed | Cookie auth uses HttpOnly cookies, CSRF protection, no frontend token storage, and bearer rejection | Resolved | Backend/Frontend |
 | P0 | Private document access needs document-level authorization tests | High | Backend/Security |
 | P1 | Object-level authorization not proven across full API | High | Backend/QA |
 | P1 | Homepage/influencer UI-only actions | High | Frontend/Product |
@@ -371,14 +372,14 @@ Risks:
 | P1 | Missing E2E money-flow tests | High | QA |
 | P1 | Missing CI/CD/monitoring/backup assets | High | DevOps |
 | P2 | Blocking alerts in admin builder | Medium | Frontend |
-| P2 | Runtime console logging in permissions code | Medium | Backend/Frontend |
+| Closed | Runtime permission console logging replaced with structured/redacted logging | Resolved | Backend/Frontend |
 
 ## 18. Recommended Launch Gate
 
 Do not approve enterprise production launch until:
 
-1. `/api/config/initialize-defaults` is production-blocked or CLI-only.
-2. CSRF protection is added for cookie-authenticated unsafe requests.
+1. Keep `/api/config/initialize-defaults` production-blocked and CLI-only bootstrap locked by `system_bootstrap`.
+2. Keep cookie auth/CSRF tests in CI and reject any reintroduction of bearer/localStorage token auth.
 3. Private document access is authorized by document record and audited.
 4. E2E tests cover login, checkout, Razorpay verify/webhook, refund, vendor settlement, affiliate attribution, commission settlement, and reel engagement.
 5. Per-route rate limiting/deduplication exists for tracking, reels, reviews, uploads, auth, payment, and recommendations.
@@ -404,4 +405,4 @@ Do not approve enterprise production launch until:
 
 Result: Not approved for enterprise production yet.
 
-The codebase is functional and substantially wired, and current lint/build/backend test gates pass. The remaining blockers are not simple syntax or lint issues; they are launch-grade concerns around bootstrap security, session/CSRF architecture, object-level authorization proof, event abuse prevention, E2E coverage for financial/influencer attribution flows, and operational readiness.
+The codebase is functional and substantially wired, and current lint/build/backend test gates pass. The remaining blockers are not simple syntax or lint issues; they are launch-grade concerns around private document authorization proof, broader object-level authorization proof, event abuse prevention, E2E coverage for financial/influencer attribution flows, and operational readiness.

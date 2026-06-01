@@ -4,13 +4,16 @@ const { hasPermission } = require("../utils/adminPermissions");
 
 function getTokenFromReq(req) {
   const header = req.headers.authorization || "";
-  if (header.startsWith("Bearer ")) return header.slice("Bearer ".length);
+  if (header.startsWith("Bearer ")) return { legacyBearer: true };
   if (req.cookies && req.cookies.accessToken) return req.cookies.accessToken;
   return null;
 }
 
 function authRequired(req, res, next) {
   const token = getTokenFromReq(req);
+  if (token?.legacyBearer) {
+    return next(new AppError("Legacy bearer authentication has been removed", 410, "LEGACY_AUTH_REMOVED"));
+  }
   if (!token) return next(new AppError("Unauthorized", 401, "UNAUTHORIZED"));
 
   try {
@@ -25,6 +28,9 @@ function authRequired(req, res, next) {
 // Optional auth - doesn't throw error if token is missing
 function authOptional(req, res, next) {
   const token = getTokenFromReq(req);
+  if (token?.legacyBearer) {
+    return next(new AppError("Legacy bearer authentication has been removed", 410, "LEGACY_AUTH_REMOVED"));
+  }
   if (!token) {
     // No token, but continue anyway
     req.user = null;
