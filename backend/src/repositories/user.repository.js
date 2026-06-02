@@ -25,7 +25,7 @@ async function findById(id) {
 }
 
 async function updateById(id, update) {
-  return await User.findByIdAndUpdate(id, { $set: update }, { new: true }).exec();
+  return await User.findByIdAndUpdate(id, { $set: update }, { returnDocument: "after" }).exec();
 }
 
 async function deleteById(id) {

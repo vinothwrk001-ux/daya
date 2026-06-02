@@ -189,7 +189,7 @@ class CancellationPolicyService {
     const updated = await CancellationPolicy.findByIdAndUpdate(
       policyId,
       { $set: update },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     return updated;
   }

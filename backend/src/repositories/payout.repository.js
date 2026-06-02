@@ -29,7 +29,7 @@ class PayoutRepository {
   async updateStatus(orderId, status, transferId = null, extra = {}) {
     const update = { status, ...extra };
     if (transferId) update.transferId = transferId;
-    return await Payout.findOneAndUpdate({ orderId }, asUpdateDocument(update), { new: true })
+    return await Payout.findOneAndUpdate({ orderId }, asUpdateDocument(update), { returnDocument: "after" })
       .populate("sellerId", "companyName supportEmail supportPhone")
       .populate("orderId", "orderNumber totalAmount paymentMethod paymentStatus status createdAt deliveredAt")
       .exec();
@@ -69,7 +69,7 @@ class PayoutRepository {
   }
 
   async updateById(id, updateData = {}) {
-    return await Payout.findByIdAndUpdate(id, asUpdateDocument(updateData), { new: true })
+    return await Payout.findByIdAndUpdate(id, asUpdateDocument(updateData), { returnDocument: "after" })
       .populate("sellerId", "companyName supportEmail supportPhone")
       .populate("orderId", "orderNumber totalAmount paymentMethod paymentStatus status createdAt deliveredAt")
       .exec();

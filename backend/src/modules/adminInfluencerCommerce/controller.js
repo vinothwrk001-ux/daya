@@ -10,7 +10,9 @@ const applications = asyncHandler(async (req, res) => ok(res, await service.appl
 const reviewCampaignApplication = asyncHandler(async (req, res) => ok(res, await service.reviewCampaignApplication(req.user, req.params.campaignId, req.params.influencerId, req.body), "Campaign application reviewed"));
 const updateCampaign = asyncHandler(async (req, res) => ok(res, await service.updateCampaign(req.user, req.params.campaignId, req.body), "Campaign updated"));
 const matching = asyncHandler(async (req, res) => ok(res, await service.matching(req.query), "Influencer-vendor matches loaded"));
+const recommendMatch = asyncHandler(async (req, res) => ok(res, await service.recommendMatch(req.user, req.body), req.body.recommended === false ? "Recommendation removed" : "Match recommended"));
 const affiliateProducts = asyncHandler(async (req, res) => ok(res, await service.affiliateProducts(req.query), "Affiliate products loaded"));
+const affiliateLinks = asyncHandler(async (req, res) => ok(res, await service.affiliateLinks(req.query), "Affiliate links loaded"));
 const tracking = asyncHandler(async (req, res) => ok(res, await service.tracking(req.query), "Affiliate tracking loaded"));
 const content = asyncHandler(async (req, res) => ok(res, await service.content(req.query), "Content moderation queue loaded"));
 const moderateContent = asyncHandler(async (req, res) => ok(res, await service.moderateContent(req.user, req.params.reelId, req.body), "Content moderated"));
@@ -43,7 +45,9 @@ module.exports = {
   reviewCampaignApplication,
   updateCampaign,
   matching,
+  recommendMatch,
   affiliateProducts,
+  affiliateLinks,
   tracking,
   content,
   moderateContent,

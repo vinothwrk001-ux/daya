@@ -156,7 +156,7 @@ class ShippingConfigAdminService {
 
     try {
       const rule = await ShippingConfig.findByIdAndUpdate(ruleId, updates, {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       });
 

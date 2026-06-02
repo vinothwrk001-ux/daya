@@ -255,7 +255,7 @@ class OrderRepository {
           },
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     ).exec();
     return updated;
   }
@@ -274,7 +274,7 @@ class OrderRepository {
       },
     };
 
-    const updated = await Order.findByIdAndUpdate(id, update, { new: true })
+    const updated = await Order.findByIdAndUpdate(id, update, { returnDocument: "after" })
       .populate("userId", "name email phone")
       .populate("sellerId", SELLER_POPULATE_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
@@ -351,7 +351,7 @@ class OrderRepository {
       };
     }
 
-    return await Order.findByIdAndUpdate(id, update, { new: true, runValidators: true })
+    return await Order.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true })
       .populate("userId", "name email phone")
       .populate("sellerId", SELLER_POPULATE_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
@@ -363,7 +363,7 @@ class OrderRepository {
     return await Order.findByIdAndUpdate(
       id,
       { $set: { whatsappSent: true } },
-      { new: true }
+      { returnDocument: "after" }
     )
       .populate("userId", "name email phone")
       .populate("sellerId", SELLER_POPULATE_FIELDS)
@@ -387,7 +387,7 @@ class OrderRepository {
           }
         : {}),
     };
-    return await Order.findByIdAndUpdate(id, update, { new: true })
+    return await Order.findByIdAndUpdate(id, update, { returnDocument: "after" })
       .populate("userId", "name email phone")
       .populate("sellerId", SELLER_POPULATE_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")

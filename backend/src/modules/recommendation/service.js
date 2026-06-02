@@ -321,7 +321,7 @@ class RecommendationService {
           lastComputedAt: new Date(),
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
     return payload;
   }
@@ -557,7 +557,7 @@ class RecommendationService {
     await RecentlyViewed.findOneAndUpdate(
       { userId, productId },
       { $set: { lastViewedAt: new Date() }, $inc: { viewCount: 1 } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
     const all = await RecentlyViewed.find({ userId }).sort({ lastViewedAt: -1 }).lean();
     if (all.length > settings.recentlyViewed.maxHistorySize) {
@@ -771,7 +771,7 @@ class RecommendationService {
     const analytics = await RecommendationAnalytics.findOneAndUpdate(
       { dateKey, recommendationType, surface },
       { $inc: update, $setOnInsert: { dateKey, recommendationType, surface } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
     analytics.ctr = analytics.views > 0 ? analytics.clicks / analytics.views : 0;
     analytics.conversionRate = analytics.clicks > 0 ? analytics.conversions / analytics.clicks : 0;
@@ -843,7 +843,7 @@ class RecommendationService {
   }
 
   async updateJob(jobId, patch = {}) {
-    return RecommendationJob.findByIdAndUpdate(jobId, { $set: patch }, { new: true });
+    return RecommendationJob.findByIdAndUpdate(jobId, { $set: patch }, { returnDocument: "after" });
   }
 }
 

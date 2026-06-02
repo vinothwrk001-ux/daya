@@ -10,6 +10,11 @@ export async function logout() {
   return data;
 }
 
+export async function refreshSession() {
+  const { data } = await staffHttp.post("/api/staff/auth/refresh", {});
+  return data;
+}
+
 export async function me() {
   const { data } = await staffHttp.get("/api/staff/auth/me");
   return data;

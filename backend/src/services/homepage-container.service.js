@@ -1589,7 +1589,7 @@ class HomepageContainerService {
     const container = await HomepageContainer.findByIdAndUpdate(
       id,
       { $inc: inc },
-      { new: true, select: "_id metrics analyticsEnabled" }
+      { returnDocument: "after", select: "_id metrics analyticsEnabled" }
     ).lean();
 
     if (!container) {

@@ -403,7 +403,7 @@ class PayoutService {
       const updatedWallet = await VendorWallet.findOneAndUpdate(
         { _id: wallet._id },
         { $set: nextWalletSnapshot },
-        { new: true, session: session || undefined, runValidators: true }
+        { returnDocument: "after", session: session || undefined, runValidators: true }
       );
 
       const [request] = await PayoutRequest.create(
@@ -522,7 +522,7 @@ class PayoutService {
       const updatedWallet = await VendorWallet.findOneAndUpdate(
         { _id: wallet._id },
         { $set: nextWalletSnapshot },
-        { new: true, session: session || undefined, runValidators: true }
+        { returnDocument: "after", session: session || undefined, runValidators: true }
       );
 
       request.status = "REJECTED";
@@ -644,7 +644,7 @@ class PayoutService {
           adminNote: payload.adminNote || undefined,
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!request) {
@@ -695,7 +695,7 @@ class PayoutService {
       const updatedWallet = await VendorWallet.findOneAndUpdate(
         { _id: wallet._id },
         { $set: nextWalletSnapshot },
-        { new: true, session: session || undefined, runValidators: true }
+        { returnDocument: "after", session: session || undefined, runValidators: true }
       );
 
       lockedRequest.status = "PAID";

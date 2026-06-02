@@ -43,6 +43,17 @@ router.patch(
       fixedFee: Joi.number().min(0).optional(),
       deadline: Joi.date().iso().allow(null).optional(),
       state: Joi.string().valid("draft", "proposed", "accepted", "active", "completed", "cancelled").optional(),
+      status: Joi.string().trim().allow("").optional(),
+      action: Joi.string().valid("pause", "close", "activate", "feature", "unfeature").optional(),
+      featured: Joi.boolean().optional(),
+      marketplace: Joi.object({
+        public: Joi.boolean().optional(),
+        applicationDeadline: Joi.date().iso().allow(null).optional(),
+        availableSlots: Joi.number().integer().min(0).optional(),
+        requiredDeliverables: Joi.array().items(Joi.string()).optional(),
+        requirements: Joi.object().unknown(true).optional(),
+        assets: Joi.array().items(Joi.object().unknown(true)).optional(),
+      }).unknown(true).optional(),
       note: Joi.string().trim().max(1000).allow("").optional(),
     })
   ),
@@ -51,11 +62,26 @@ router.patch(
 router.get("/campaign-applications", validate(querySchema, "query"), controller.applications);
 router.patch(
   "/campaigns/:campaignId/applications/:influencerId",
-  validate(Joi.object({ decision: Joi.string().valid("approve", "reject", "reopen").required(), note: Joi.string().trim().max(1000).allow("").default("") })),
+  validate(Joi.object({
+    decision: Joi.string().valid("approve", "reject", "reopen").optional(),
+    status: Joi.string().valid("approved", "rejected", "submitted").optional(),
+    note: Joi.string().trim().max(1000).allow("").default(""),
+  }).or("decision", "status")),
   controller.reviewCampaignApplication
 );
 router.get("/matching", validate(querySchema, "query"), controller.matching);
+router.post(
+  "/matching/recommend",
+  validate(Joi.object({
+    vendorId: Joi.string().trim().required(),
+    influencerId: Joi.string().trim().required(),
+    recommended: Joi.boolean().default(true),
+    note: Joi.string().trim().max(1000).allow("").default(""),
+  })),
+  controller.recommendMatch
+);
 router.get("/affiliate-products", validate(querySchema, "query"), controller.affiliateProducts);
+router.get("/affiliate-links", validate(querySchema, "query"), controller.affiliateLinks);
 router.get("/affiliate-tracking", validate(querySchema, "query"), controller.tracking);
 router.get("/content-moderation", validate(querySchema, "query"), controller.content);
 router.patch(
@@ -67,7 +93,11 @@ router.get("/product-promotions", validate(querySchema, "query"), controller.pro
 router.get("/commissions", validate(querySchema, "query"), controller.commissions);
 router.patch(
   "/commissions/:commissionId",
-  validate(Joi.object({ state: Joi.string().valid("HOLD", "SETTLED", "CANCELLED", "REVERSED").optional(), note: Joi.string().trim().max(1000).allow("").optional() })),
+  validate(Joi.object({
+    action: Joi.string().valid("hold", "settle", "reverse", "cancel").optional(),
+    state: Joi.string().valid("HOLD", "SETTLED", "CANCELLED", "REVERSED").optional(),
+    note: Joi.string().trim().max(1000).allow("").optional(),
+  }).or("action", "state")),
   controller.updateCommission
 );
 router.get("/settlements", validate(querySchema, "query"), controller.settlements);

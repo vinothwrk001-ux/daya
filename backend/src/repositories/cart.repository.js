@@ -12,7 +12,7 @@ class CartRepository {
     return await Cart.findOneAndUpdate(
       { userId },
       { $setOnInsert: { userId, items: [], totalAmount: 0 } },
-      { new: true, upsert: true }
+      { returnDocument: "after", upsert: true }
     ).exec();
   }
 
@@ -24,7 +24,7 @@ class CartRepository {
     return await Cart.findOneAndUpdate(
       { userId },
       { $set: { items: [], totalAmount: 0 } },
-      { new: true }
+      { returnDocument: "after" }
     ).exec();
   }
 

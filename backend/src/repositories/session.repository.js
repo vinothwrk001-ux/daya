@@ -9,11 +9,11 @@ async function findById(id) {
 }
 
 async function updateById(id, update) {
-  return await Session.findByIdAndUpdate(id, { $set: update }, { new: true }).exec();
+  return await Session.findByIdAndUpdate(id, { $set: update }, { returnDocument: "after" }).exec();
 }
 
 async function revokeById(id) {
-  return await Session.findByIdAndUpdate(id, { $set: { revokedAt: new Date() } }, { new: true }).exec();
+  return await Session.findByIdAndUpdate(id, { $set: { revokedAt: new Date() } }, { returnDocument: "after" }).exec();
 }
 
 async function revokeAllForUser(userId) {

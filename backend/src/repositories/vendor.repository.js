@@ -46,7 +46,7 @@ async function upsertByUserId(userId, update) {
   const vendor = await Vendor.findOneAndUpdate(
     { userId },
     { $set: update, $setOnInsert: { userId } },
-    { new: true, upsert: true }
+    { returnDocument: "after", upsert: true }
   ).exec();
   return await ensureVendorCodeDocument(vendor);
 }
@@ -74,7 +74,7 @@ async function findById(id) {
 }
 
 async function updateById(id, update) {
-  const vendor = await Vendor.findByIdAndUpdate(id, { $set: update }, { new: true })
+  const vendor = await Vendor.findByIdAndUpdate(id, { $set: update }, { returnDocument: "after" })
     .populate("userId", "name email phone role status createdAt")
     .exec();
   return await ensureVendorCodeDocument(vendor);

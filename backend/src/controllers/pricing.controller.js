@@ -190,7 +190,7 @@ const updatePricingConfig = asyncHandler(async (req, res) => {
   updateData.updatedBy = req.user.sub;
 
   const config = await PricingConfig.findByIdAndUpdate(id, updateData, {
-    new: true,
+    returnDocument: "after",
     runValidators: true,
   });
 
@@ -436,7 +436,7 @@ const updatePricingRule = asyncHandler(async (req, res) => {
   }
 
   const updated = await PricingRule.findByIdAndUpdate(id, updateData, {
-    new: true,
+    returnDocument: "after",
     runValidators: true,
   }).populate("categoryId", "name key description isActive isSystem sortOrder");
 
@@ -545,7 +545,7 @@ const togglePricingRuleActive = asyncHandler(async (req, res) => {
   const updated = await PricingRule.findByIdAndUpdate(
     id,
     { $set: { isActive, lastModifiedBy: req.user.sub } },
-    { new: true, runValidators: true }
+    { returnDocument: "after", runValidators: true }
   ).populate("categoryId", "name key description isActive isSystem sortOrder");
 
   return ok(res, pricingService.decorateRule(updated.toObject()), "Pricing rule active state updated");

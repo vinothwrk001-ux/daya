@@ -179,7 +179,7 @@ async function updateZoneConfig(payload, updatedBy) {
   await PlatformConfig.findOneAndUpdate(
     { key: SHIPPING_ZONE_CONFIG_KEY },
     { $set: update },
-    { new: true, upsert: true }
+    { returnDocument: "after", upsert: true }
   );
 
   clearZoneConfigCache();

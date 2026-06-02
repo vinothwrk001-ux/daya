@@ -6,6 +6,7 @@ import {
   Calculator,
   CheckCircle2,
   Download,
+  Eye,
   FileCheck2,
   Link as LinkIcon,
   MessageSquare,
@@ -31,6 +32,7 @@ import {
   getAdminRevenueAnalytics,
   getAdminVendorPerformance,
   getCommissionEngineDashboard,
+  listAdminAffiliateLinks,
   listAdminAffiliateProducts,
   listAdminAffiliateTracking,
   listAdminCampaignApplications,
@@ -45,6 +47,7 @@ import {
   listAdminInfluencerWithdrawals,
   listCommissionEngineAuditLogs,
   listCommissionEngineRules,
+  listCommissionEngineSettlements,
   listAdminProductPromotions,
   approveCommissionEngineRule,
   approveCommissionEngineSettlement,
@@ -53,6 +56,7 @@ import {
   moderateAdminInfluencerContent,
   deactivateCommissionEngineRule,
   prepareCommissionEnginePayoutBatch,
+  recommendAdminInfluencerVendorMatch,
   reviewAdminCampaignApplication,
   saveAdminInfluencerReportSchedule,
   simulateCommissionEngine,
@@ -63,7 +67,9 @@ import {
   updateAdminInfluencerWithdrawal,
   updateCommissionEngineRule,
 } from "../services/adminInfluencerCommerceService";
+import { getCategories } from "../services/categoryService";
 import { formatCurrency } from "../utils/formatCurrency";
+import { resolveApiAssetUrl } from "../utils/resolveUrl";
 
 const MODULES = {
   dashboard: { label: "Dashboard", icon: BarChart3, path: "/admin/influencer-commerce" },
@@ -136,6 +142,13 @@ const defaultBonusForm = {
   value: 2,
 };
 
+const defaultConditionForm = {
+  field: "eligibleRevenue",
+  operator: "gte",
+  value: 0,
+  valueTo: "",
+};
+
 const defaultSimulatorForm = {
   influencerId: "",
   campaignId: "",
@@ -182,6 +195,7 @@ function unwrap(response) {
 }
 
 function idOf(row) {
+  if (typeof row === "string" || typeof row === "number") return String(row);
   return row?.id || row?._id;
 }
 
@@ -204,16 +218,22 @@ function dateValue(value) {
   return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString();
 }
 
+function shortText(value, max = 42) {
+  const next = text(value);
+  if (next === "-") return next;
+  return next.length > max ? `${next.slice(0, max - 3)}...` : next;
+}
+
 function statusText(value = "") {
   return String(value || "pending").replace(/_/g, " ");
 }
 
 function pickUserName(value) {
-  return value?.name || value?.userId?.name || value?.profile?.name || value?.username || value?.userId?.email || "Creator";
+  return value?.name || value?.displayName || value?.userId?.name || value?.profile?.name || value?.username || value?.userId?.email || "Creator";
 }
 
 function pickVendorName(value) {
-  return value?.shopName || value?.companyName || value?.vendor?.shopName || value?.vendorId?.shopName || "Vendor";
+  return value?.name || value?.shopName || value?.companyName || value?.vendor?.shopName || value?.vendorId?.shopName || "Vendor";
 }
 
 function Section({ title, icon: Icon, action, children }) {
@@ -249,10 +269,27 @@ function StatusBadge({ value }) {
   );
 }
 
+function campaignActionState(row = {}) {
+  const state = String(row.state || row.status || "").toLowerCase();
+  return {
+    cancelled: state === "cancelled",
+    completed: state === "completed",
+    published: Boolean(row.marketplace?.public),
+  };
+}
+
+function applicationActionState(row = {}) {
+  const status = String(row.status || "").toLowerCase();
+  return {
+    approved: status === "approved",
+    rejected: status === "rejected",
+  };
+}
+
 function FieldShell({ label, children, className = "" }) {
   return (
-    <label className={`grid gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 ${className}`}>
-      <span>{label}</span>
+    <label className={`grid min-w-0 gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 ${className}`}>
+      <span className="block min-w-0 truncate">{label}</span>
       {children}
     </label>
   );
@@ -397,10 +434,27 @@ export function AdminInfluencerCommercePage() {
     content: listAdminContentModeration,
     promotions: listAdminProductPromotions,
     "commission-engine": async (query) => {
-      const [dashboard, rules, auditLogs] = await Promise.all([
-        getCommissionEngineDashboard(query),
-        listCommissionEngineRules({ limit: 100 }),
-        listCommissionEngineAuditLogs({ limit: 10 }),
+      const dashboardQuery = {
+        ...query,
+        from: query.startDate,
+        to: query.endDate,
+      };
+      const listQuery = {
+        limit: 100,
+        search: query.search,
+        status: query.status,
+      };
+      const [dashboard, rules, auditLogs, settlements, campaigns, influencers, vendors, products, categories, affiliateLinks] = await Promise.all([
+        getCommissionEngineDashboard(dashboardQuery),
+        listCommissionEngineRules(listQuery),
+        listCommissionEngineAuditLogs({ limit: 10, search: query.search }),
+        listCommissionEngineSettlements({ limit: 25, status: query.status, startDate: query.startDate, endDate: query.endDate }),
+        listAdminInfluencerCommerceCampaigns({ limit: 100 }).catch(() => ({ data: { items: [] } })),
+        listAdminInfluencerCommerceInfluencers({ limit: 100 }).catch(() => ({ data: { items: [] } })),
+        listAdminInfluencerCommerceVendors({ limit: 100 }).catch(() => ({ data: { items: [] } })),
+        listAdminAffiliateProducts({ limit: 100 }).catch(() => ({ data: { items: [] } })),
+        getCategories().catch(() => ({ data: [] })),
+        listAdminAffiliateLinks({ limit: 100 }).catch(() => ({ data: { items: [] } })),
       ]);
       return {
         data: {
@@ -408,6 +462,14 @@ export function AdminInfluencerCommercePage() {
           rules: unwrap(rules)?.rules || [],
           rulePagination: unwrap(rules)?.pagination,
           auditLogs: unwrap(auditLogs)?.logs || [],
+          settlements: unwrap(settlements)?.items || [],
+          settlementPagination: unwrap(settlements)?.pagination,
+          campaigns: unwrap(campaigns)?.items || [],
+          influencers: unwrap(influencers)?.items || [],
+          vendors: unwrap(vendors)?.items || [],
+          products: unwrap(products)?.items || [],
+          categories: unwrap(categories)?.items || unwrap(categories)?.categories || unwrap(categories) || [],
+          affiliateLinks: unwrap(affiliateLinks)?.items || [],
         },
       };
     },
@@ -493,17 +555,18 @@ function renderModule(moduleId, data, items, pagination, setFilters, runAction, 
   if (moduleId === "vendors") return <VendorsView items={items} pagination={pagination} setFilters={setFilters} />;
   if (moduleId === "campaigns") return <CampaignsView items={items} pagination={pagination} setFilters={setFilters} runAction={runAction} busyId={busyId} />;
   if (moduleId === "applications") return <ApplicationsView items={items} pagination={pagination} setFilters={setFilters} runAction={runAction} busyId={busyId} />;
-  if (moduleId === "matching") return <MatchingView data={data} />;
-  if (moduleId === "affiliate-products" || moduleId === "promotions") return <AffiliateProductsView items={items} pagination={pagination} setFilters={setFilters} title={moduleId === "promotions" ? "Product Promotions" : "Affiliate Products"} />;
+  if (moduleId === "matching") return <MatchingView data={data} runAction={runAction} busyId={busyId} />;
+  if (moduleId === "affiliate-products") return <AffiliateProductsView items={items} pagination={pagination} setFilters={setFilters} title="Affiliate Products" />;
+  if (moduleId === "promotions") return <ProductPromotionsView items={items} pagination={pagination} setFilters={setFilters} />;
   if (moduleId === "tracking") return <TrackingView items={items} pagination={pagination} setFilters={setFilters} />;
   if (moduleId === "content") return <ContentView items={items} pagination={pagination} setFilters={setFilters} runAction={runAction} busyId={busyId} />;
-  if (moduleId === "commission-engine") return <CommissionEngineView data={data} refreshKey={busyId} runAction={runAction} />;
+  if (moduleId === "commission-engine") return <CommissionEngineView data={data} runAction={runAction} busyId={busyId} />;
   if (moduleId === "commissions") return <CommissionsView items={items} pagination={pagination} setFilters={setFilters} runAction={runAction} busyId={busyId} />;
   if (moduleId === "settlements") return <SettlementsView items={items} pagination={pagination} setFilters={setFilters} />;
   if (moduleId === "payouts") return <PayoutsView items={items} pagination={pagination} setFilters={setFilters} />;
   if (moduleId === "withdrawals") return <WithdrawalsView items={items} pagination={pagination} setFilters={setFilters} runAction={runAction} busyId={busyId} />;
-  if (moduleId === "creator-performance") return <PerformanceView title="Creator Performance" items={data.leaderboard || items} kind="creator" />;
-  if (moduleId === "vendor-performance") return <PerformanceView title="Vendor Performance" items={data.leaderboard || items} kind="vendor" />;
+  if (moduleId === "creator-performance") return <PerformanceView title="Creator Performance" items={data.leaderboard || items} pagination={pagination} setFilters={setFilters} kind="creator" />;
+  if (moduleId === "vendor-performance") return <PerformanceView title="Vendor Performance" items={data.leaderboard || items} pagination={pagination} setFilters={setFilters} kind="vendor" />;
   if (moduleId === "campaign-analytics") return <AnalyticsView title="Campaign Analytics" data={data} />;
   if (moduleId === "revenue-analytics") return <RevenueAnalyticsView data={data} />;
   if (moduleId === "fraud") return <FraudView items={items} pagination={pagination} setFilters={setFilters} runAction={runAction} busyId={busyId} />;
@@ -514,7 +577,7 @@ function renderModule(moduleId, data, items, pagination, setFilters, runAction, 
 }
 
 function DashboardView({ data }) {
-  const metrics = data.metrics || {};
+  const metrics = data.metrics || data.kpis || {};
   const charts = data.charts || {};
   const widgets = data.widgets || {};
   return (
@@ -535,9 +598,10 @@ function DashboardView({ data }) {
         <Section title="Revenue Trend" icon={BarChart3}><SimpleBars rows={charts.revenueTrend || []} valueKey="revenue" /></Section>
         <Section title="Commission Trend" icon={BarChart3}><SimpleBars rows={charts.commissionTrend || charts.revenueTrend || []} valueKey="commission" /></Section>
       </div>
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-4 xl:grid-cols-4">
         <MiniList title="Recent Campaigns" rows={widgets.recentCampaigns} label={(row) => row.title} value={(row) => <StatusBadge value={row.status || row.state} />} />
         <MiniList title="Top Influencers" rows={widgets.topInfluencers} label={pickUserName} value={(row) => formatCurrency(row.revenue || row.totalRevenue || 0)} />
+        <MiniList title="Top Vendors" rows={widgets.topVendors} label={pickVendorName} value={(row) => formatCurrency(row.revenue || row.campaignRevenue || 0)} />
         <MiniList title="Pending Withdrawals" rows={widgets.pendingWithdrawals} label={(row) => pickUserName(row.influencerId || row.influencer)} value={(row) => formatCurrency(row.amount || 0)} />
       </div>
     </div>
@@ -607,6 +671,7 @@ function CampaignsView({ items, pagination, setFilters, runAction, busyId }) {
     <Section title="Campaign Center" icon={BarChart3}>
       <ResponsiveTable headers={["Campaign", "Vendor", "Budget", "Revenue", "Applications", "Creators", "Products", "Commission", "Status", "Actions"]} rows={items} renderRow={(row) => {
         const id = idOf(row);
+        const actions = campaignActionState(row);
         return (
           <tr key={id}>
             <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{text(row.title)}</td>
@@ -620,9 +685,39 @@ function CampaignsView({ items, pagination, setFilters, runAction, busyId }) {
             <td className="px-3 py-3"><StatusBadge value={row.status || row.state} /></td>
             <td className="px-3 py-3">
               <div className="flex flex-wrap gap-2">
-                <ActionButton tone="amber" disabled={busyId === `pause-${id}`} onClick={() => runAction(`pause-${id}`, () => updateAdminInfluencerCommerceCampaign(id, { status: "paused" }), "Campaign paused.")}>Pause</ActionButton>
-                <ActionButton tone="slate" disabled={busyId === `feature-${id}`} onClick={() => runAction(`feature-${id}`, () => updateAdminInfluencerCommerceCampaign(id, { featured: true }), "Campaign featured.")}>Feature</ActionButton>
-                <ActionButton tone="red" disabled={busyId === `close-${id}`} onClick={() => runAction(`close-${id}`, () => updateAdminInfluencerCommerceCampaign(id, { status: "closed" }), "Campaign closed.")}>Close</ActionButton>
+                <ActionButton
+                  tone={actions.cancelled ? "slate" : "amber"}
+                  disabled={busyId === `cancel-${id}`}
+                  onClick={() => runAction(
+                    `cancel-${id}`,
+                    () => updateAdminInfluencerCommerceCampaign(id, { action: actions.cancelled ? "activate" : "pause" }),
+                    actions.cancelled ? "Campaign reactivated." : "Campaign cancelled."
+                  )}
+                >
+                  {actions.cancelled ? "Cancelled" : "Cancel"}
+                </ActionButton>
+                <ActionButton
+                  tone="slate"
+                  disabled={busyId === `publish-${id}`}
+                  onClick={() => runAction(
+                    `publish-${id}`,
+                    () => updateAdminInfluencerCommerceCampaign(id, { action: actions.published ? "unfeature" : "feature" }),
+                    actions.published ? "Campaign unpublished." : "Campaign published."
+                  )}
+                >
+                  {actions.published ? "Published" : "Publish"}
+                </ActionButton>
+                <ActionButton
+                  tone={actions.completed ? "slate" : "red"}
+                  disabled={busyId === `complete-${id}`}
+                  onClick={() => runAction(
+                    `complete-${id}`,
+                    () => updateAdminInfluencerCommerceCampaign(id, { action: actions.completed ? "activate" : "close" }),
+                    actions.completed ? "Campaign reactivated." : "Campaign completed."
+                  )}
+                >
+                  {actions.completed ? "Completed" : "Complete"}
+                </ActionButton>
               </div>
             </td>
           </tr>
@@ -640,10 +735,11 @@ function ApplicationsView({ items, pagination, setFilters, runAction, busyId }) 
         const campaignId = idOf(row.campaignId || row.campaign);
         const influencerId = idOf(row.influencerId || row.influencer);
         const id = `${campaignId}-${influencerId}`;
+        const actions = applicationActionState(row);
         return (
           <tr key={id}>
-            <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{pickUserName(row.influencerId || row.influencer)}</td>
-            <td className="px-3 py-3 text-slate-500">{pickVendorName(row.vendorId || row.vendor)}</td>
+            <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{text(row.influencerName || pickUserName(row.influencer || row.influencerId))}</td>
+            <td className="px-3 py-3 text-slate-500">{text(row.vendorName || pickVendorName(row.vendor || row.vendorId))}</td>
             <td className="px-3 py-3">{text(row.campaignId?.title || row.campaign?.title || row.campaignTitle)}</td>
             <td className="px-3 py-3"><StatusBadge value={row.status} /></td>
             <td className="px-3 py-3">{formatCurrency(row.expectedEarnings || 0)}</td>
@@ -651,8 +747,30 @@ function ApplicationsView({ items, pagination, setFilters, runAction, busyId }) 
             <td className="px-3 py-3">{dateValue(row.reviewedAt)}</td>
             <td className="px-3 py-3">
               <div className="flex flex-wrap gap-2">
-                <ActionButton icon={CheckCircle2} tone="green" disabled={busyId === `approve-${id}`} onClick={() => runAction(`approve-${id}`, () => reviewAdminCampaignApplication(campaignId, influencerId, { status: "approved" }), "Application approved.")}>Approve</ActionButton>
-                <ActionButton icon={XCircle} tone="red" disabled={busyId === `reject-${id}`} onClick={() => runAction(`reject-${id}`, () => reviewAdminCampaignApplication(campaignId, influencerId, { status: "rejected" }), "Application rejected.")}>Reject</ActionButton>
+                <ActionButton
+                  icon={CheckCircle2}
+                  tone={actions.approved ? "slate" : "green"}
+                  disabled={busyId === `approve-${id}`}
+                  onClick={() => runAction(
+                    `approve-${id}`,
+                    () => reviewAdminCampaignApplication(campaignId, influencerId, { decision: actions.approved ? "reopen" : "approve" }),
+                    actions.approved ? "Application reopened." : "Application approved."
+                  )}
+                >
+                  {actions.approved ? "Approved" : "Approve"}
+                </ActionButton>
+                <ActionButton
+                  icon={XCircle}
+                  tone={actions.rejected ? "slate" : "red"}
+                  disabled={busyId === `reject-${id}`}
+                  onClick={() => runAction(
+                    `reject-${id}`,
+                    () => reviewAdminCampaignApplication(campaignId, influencerId, { decision: actions.rejected ? "reopen" : "reject" }),
+                    actions.rejected ? "Application reopened." : "Application rejected."
+                  )}
+                >
+                  {actions.rejected ? "Rejected" : "Reject"}
+                </ActionButton>
               </div>
             </td>
           </tr>
@@ -663,23 +781,44 @@ function ApplicationsView({ items, pagination, setFilters, runAction, busyId }) 
   );
 }
 
-function MatchingView({ data }) {
+function MatchingView({ data, runAction, busyId }) {
   const rows = data.recommendedInfluencersForVendor || data.recommendedVendorsForInfluencer || data.recommendedCampaignsForInfluencer || [];
   return (
     <Section title="Recommendation-Powered Matching" icon={Search}>
-      <ResponsiveTable headers={["Recommended Match", "Category Fit", "Engagement", "Conversion", "Revenue", "Fraud Risk", "Location", "Language", "Action"]} rows={rows} renderRow={(row, index) => (
-        <tr key={idOf(row) || index}>
-          <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{pickUserName(row.influencer || row)}</td>
-          <td className="px-3 py-3">{percentValue(row.categoryFit || row.score)}</td>
-          <td className="px-3 py-3">{percentValue(row.engagementRate)}</td>
-          <td className="px-3 py-3">{percentValue(row.conversionRate)}</td>
-          <td className="px-3 py-3">{formatCurrency(row.revenue || row.pastRevenue || 0)}</td>
-          <td className="px-3 py-3"><StatusBadge value={row.fraudRisk || "low"} /></td>
-          <td className="px-3 py-3">{text(row.location || row.country)}</td>
-          <td className="px-3 py-3">{text(row.language || row.languages?.join(", "))}</td>
-          <td className="px-3 py-3"><ActionButton tone="slate">Recommend</ActionButton></td>
-        </tr>
-      )} />
+      <ResponsiveTable headers={["Recommended Match", "Category Fit", "Engagement", "Conversion", "Revenue", "Fraud Risk", "Location", "Language", "Action"]} rows={rows} renderRow={(row, index) => {
+        const vendorId = idOf(row.vendorId || row.vendor);
+        const influencerId = idOf(row.influencerId || row.influencer || row);
+        const id = idOf(row) || `${vendorId}-${influencerId}` || index;
+        const recommended = Boolean(row.recommended);
+        return (
+          <tr key={id}>
+            <td className="px-3 py-3">
+              <div className="font-medium text-slate-900 dark:text-white">{text(row.influencerName || pickUserName(row.influencer || row))}</div>
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{text(row.vendorName || pickVendorName(row.vendor || row.vendorId))}</div>
+            </td>
+            <td className="px-3 py-3">{percentValue(row.categoryFit || row.score)}</td>
+            <td className="px-3 py-3">{percentValue(row.engagementRate)}</td>
+            <td className="px-3 py-3">{percentValue(row.conversionRate)}</td>
+            <td className="px-3 py-3">{formatCurrency(row.revenue || row.pastRevenue || 0)}</td>
+            <td className="px-3 py-3"><StatusBadge value={row.fraudRisk || "low"} /></td>
+            <td className="px-3 py-3">{text(row.location || row.country)}</td>
+            <td className="px-3 py-3">{text(row.language || row.languages?.join(", "))}</td>
+            <td className="px-3 py-3">
+              <ActionButton
+                tone={recommended ? "slate" : "green"}
+                disabled={!vendorId || !influencerId || busyId === `recommend-${id}`}
+                onClick={() => runAction(
+                  `recommend-${id}`,
+                  () => recommendAdminInfluencerVendorMatch({ vendorId, influencerId, recommended: !recommended }),
+                  recommended ? "Recommendation removed." : "Recommendation sent."
+                )}
+              >
+                {recommended ? "Recommended" : "Recommend"}
+              </ActionButton>
+            </td>
+          </tr>
+        );
+      }} />
     </Section>
   );
 }
@@ -689,8 +828,8 @@ function AffiliateProductsView({ items, pagination, setFilters, title }) {
     <Section title={title} icon={Package}>
       <ResponsiveTable headers={["Product", "Vendor", "Influencers", "Clicks", "Orders", "Revenue", "Commission", "Conversion", "Status"]} rows={items} renderRow={(row) => (
         <tr key={idOf(row.product || row)}>
-          <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{text(row.product?.name || row.name)}</td>
-          <td className="px-3 py-3 text-slate-500">{pickVendorName(row.vendor || row.vendorId)}</td>
+          <td className="px-3 py-3 font-medium text-slate-900 dark:text-white" title={text(row.product?.name || row.name)}>{shortText(row.product?.name || row.name, 48)}</td>
+          <td className="px-3 py-3 text-slate-500">{text(row.vendorName || row.vendorLabel || (typeof row.vendor === "string" ? row.vendor : pickVendorName(row.vendor || row.vendorId)))}</td>
           <td className="px-3 py-3">{numberValue(row.influencersPromoting || row.promoters)}</td>
           <td className="px-3 py-3">{numberValue(row.clicks)}</td>
           <td className="px-3 py-3">{numberValue(row.orders)}</td>
@@ -705,18 +844,45 @@ function AffiliateProductsView({ items, pagination, setFilters, title }) {
   );
 }
 
+function ProductPromotionsView({ items, pagination, setFilters }) {
+  return (
+    <Section title="Product Promotions" icon={Package}>
+      <ResponsiveTable headers={["Product", "Campaign", "Vendor", "Creators", "Clicks", "Orders", "Revenue", "Commission", "Conversion", "Status"]} rows={items} renderRow={(row) => (
+        <tr key={row.id || `${idOf(row.campaignId || row.campaign)}-${idOf(row.productId || row.product)}`}>
+          <td className="px-3 py-3">
+            <div className="font-medium text-slate-900 dark:text-white" title={text(row.productName || row.product?.name || row.name)}>
+              {shortText(row.productName || row.product?.name || row.name, 42)}
+            </div>
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{text(row.category || row.product?.category)}</div>
+          </td>
+          <td className="px-3 py-3" title={text(row.campaignTitle || row.campaign?.title)}>{shortText(row.campaignTitle || row.campaign?.title, 28)}</td>
+          <td className="px-3 py-3 text-slate-500">{text(row.vendorName || pickVendorName(row.vendor || row.vendorId))}</td>
+          <td className="px-3 py-3">{numberValue(row.influencersPromoting || row.creators || row.promoters)}</td>
+          <td className="px-3 py-3">{numberValue(row.clicks)}</td>
+          <td className="px-3 py-3">{numberValue(row.orders)}</td>
+          <td className="px-3 py-3">{formatCurrency(row.revenue || 0)}</td>
+          <td className="px-3 py-3">{formatCurrency(row.commission || 0)}</td>
+          <td className="px-3 py-3">{percentValue(row.conversionRate)}</td>
+          <td className="px-3 py-3"><StatusBadge value={row.campaignState || row.status || row.product?.status} /></td>
+        </tr>
+      )} />
+      <Pagination pagination={pagination} setFilters={setFilters} />
+    </Section>
+  );
+}
+
 function TrackingView({ items, pagination, setFilters }) {
   return (
     <Section title="Affiliate Tracking Monitor" icon={LinkIcon}>
-      <ResponsiveTable headers={["Session", "Influencer", "Vendor", "Product", "Campaign", "Click", "Order", "Conversion", "Token Expiry", "Fraud Risk"]} rows={items} renderRow={(row) => (
+      <ResponsiveTable headers={["Click ID", "Influencer", "Vendor", "Product", "Campaign", "Clicked On", "Order", "Conversion", "Link Expires", "Fraud Risk"]} rows={items} renderRow={(row) => (
         <tr key={idOf(row)}>
-          <td className="px-3 py-3 font-mono text-xs">{text(idOf(row))}</td>
-          <td className="px-3 py-3">{pickUserName(row.influencerId || row.influencer)}</td>
-          <td className="px-3 py-3">{pickVendorName(row.vendorId || row.vendor)}</td>
-          <td className="px-3 py-3">{text(row.productId?.name || row.product?.name)}</td>
-          <td className="px-3 py-3">{text(row.campaignId?.title || row.campaign?.title)}</td>
+          <td className="px-3 py-3 font-mono text-xs" title={text(row.sessionId || row.trackingTokenId || idOf(row))}>{shortText(row.sessionId || row.trackingTokenId || idOf(row), 14)}</td>
+          <td className="px-3 py-3">{text(row.influencerName || pickUserName(row.influencerId || row.influencer))}</td>
+          <td className="px-3 py-3">{text(row.vendorName || pickVendorName(row.vendorId || row.vendor))}</td>
+          <td className="px-3 py-3" title={text(row.productName || row.productId?.name || row.product?.name)}>{shortText(row.productName || row.productId?.name || row.product?.name, 34)}</td>
+          <td className="px-3 py-3">{text(row.campaignTitle || row.campaignId?.title || row.campaign?.title)}</td>
           <td className="px-3 py-3">{dateValue(row.createdAt || row.clickTimestamp)}</td>
-          <td className="px-3 py-3">{text(row.orderId?.orderNumber || row.orderNumber)}</td>
+          <td className="px-3 py-3">{text(row.orderNumber || row.order?.orderNumber || row.orderId?.orderNumber)}</td>
           <td className="px-3 py-3"><StatusBadge value={row.conversionStatus || row.status} /></td>
           <td className="px-3 py-3">{dateValue(row.expiresAt || row.tokenExpiry)}</td>
           <td className="px-3 py-3"><StatusBadge value={row.fraudRisk || "low"} /></td>
@@ -728,51 +894,165 @@ function TrackingView({ items, pagination, setFilters }) {
 }
 
 function ContentView({ items, pagination, setFilters, runAction, busyId }) {
+  const [reviewItem, setReviewItem] = useState(null);
+  const [reviewNote, setReviewNote] = useState("");
+  const selectedId = idOf(reviewItem);
+
+  function openReview(row) {
+    setReviewItem(row);
+    setReviewNote(row.moderation?.notes || row.moderationNotes || "");
+  }
+
+  function submitReview(decision) {
+    const note = reviewNote.trim();
+    const payload = {
+      decision,
+      note,
+      requestedChanges: decision === "changes" ? note : "",
+    };
+    const message = decision === "approve" ? "Content approved." : decision === "changes" ? "Changes requested." : "Content rejected.";
+    runAction(`content-${decision}-${selectedId}`, () => moderateAdminInfluencerContent(selectedId, payload), message);
+    setReviewItem(null);
+    setReviewNote("");
+  }
+
   return (
     <Section title="Content Moderation Queue" icon={FileCheck2}>
-      <ResponsiveTable headers={["Creator", "Vendor", "Campaign", "Type", "Product", "Submitted", "Status", "Notes", "Actions"]} rows={items} renderRow={(row) => {
+      <ResponsiveTable headers={["Creator", "Vendor", "Campaign", "Type", "Content", "Submitted", "Status", "Notes", "Actions"]} rows={items} renderRow={(row) => {
         const id = idOf(row);
         return (
           <tr key={id}>
-            <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{pickUserName(row.influencerId || row.creator)}</td>
-            <td className="px-3 py-3">{pickVendorName(row.vendorId || row.vendor)}</td>
-            <td className="px-3 py-3">{text(row.campaignId?.title || row.campaign?.title)}</td>
+            <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{text(row.creatorName || pickUserName(row.influencerId || row.creator))}</td>
+            <td className="px-3 py-3">{text(row.vendorName || pickVendorName(row.vendorId || row.vendor))}</td>
+            <td className="px-3 py-3">{text(row.campaignTitle || row.campaignId?.title || row.campaign?.title)}</td>
             <td className="px-3 py-3">{text(row.type || row.contentType || "video")}</td>
-            <td className="px-3 py-3">{text(row.productId?.name || row.product?.name)}</td>
+            <td className="px-3 py-3" title={text(row.reviewTitle || row.title || row.caption)}>{shortText(row.reviewTitle || row.title || row.caption, 36)}</td>
             <td className="px-3 py-3">{dateValue(row.createdAt || row.submittedAt)}</td>
             <td className="px-3 py-3"><StatusBadge value={row.state || row.status} /></td>
             <td className="px-3 py-3">{text(row.moderation?.notes || row.moderationNotes)}</td>
             <td className="px-3 py-3">
               <div className="flex flex-wrap gap-2">
-                <ActionButton tone="green" disabled={busyId === `approve-${id}`} onClick={() => runAction(`approve-${id}`, () => moderateAdminInfluencerContent(id, { decision: "approve" }), "Content approved.")}>Approve</ActionButton>
-                <ActionButton tone="amber" disabled={busyId === `changes-${id}`} onClick={() => runAction(`changes-${id}`, () => moderateAdminInfluencerContent(id, { decision: "changes", requestedChanges: "Admin requested changes" }), "Changes requested.")}>Changes</ActionButton>
-                <ActionButton tone="red" disabled={busyId === `reject-${id}`} onClick={() => runAction(`reject-${id}`, () => moderateAdminInfluencerContent(id, { decision: "reject" }), "Content rejected.")}>Reject</ActionButton>
+                <ActionButton icon={Eye} tone="slate" onClick={() => openReview(row)}>View</ActionButton>
               </div>
             </td>
           </tr>
         );
       }} />
       <Pagination pagination={pagination} setFilters={setFilters} />
+      {reviewItem ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-semibold text-slate-950 dark:text-white">{text(reviewItem.reviewTitle || reviewItem.title || "Content review")}</h3>
+                <p className="mt-1 text-sm text-slate-500">{text(reviewItem.creatorName || pickUserName(reviewItem.influencerId))} / {text(reviewItem.vendorName || pickVendorName(reviewItem.vendorId))}</p>
+              </div>
+              <ActionButton tone="slate" onClick={() => setReviewItem(null)}>Close</ActionButton>
+            </div>
+            <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
+              <div className="space-y-3">
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-950 dark:border-slate-800">
+                  {reviewItem.videoUrl ? (
+                    <video className="max-h-[520px] w-full bg-black" controls poster={resolveApiAssetUrl(reviewItem.thumbnailUrl)} src={resolveApiAssetUrl(reviewItem.videoUrl)} />
+                  ) : reviewItem.thumbnailUrl ? (
+                    <img className="max-h-[520px] w-full object-contain" src={resolveApiAssetUrl(reviewItem.thumbnailUrl)} alt={text(reviewItem.reviewTitle || "Content preview")} />
+                  ) : (
+                    <div className="grid h-72 place-items-center text-sm text-slate-400">No preview available.</div>
+                  )}
+                </div>
+                <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-950 dark:text-slate-200">{text(reviewItem.reviewText || reviewItem.caption || reviewItem.description, "No caption provided.")}</p>
+              </div>
+              <div className="space-y-4">
+                <div className="grid gap-2 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-800">
+                  <div className="flex justify-between gap-3"><span className="text-slate-500">Campaign</span><span className="text-right font-medium">{text(reviewItem.campaignTitle || reviewItem.campaignId?.title)}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-slate-500">Type</span><span className="font-medium">{text(reviewItem.contentType || reviewItem.type)}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-slate-500">Products</span><span className="text-right font-medium">{text((reviewItem.productNames || reviewItem.products?.map((product) => product.name) || []).join(", "))}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-slate-500">Submitted</span><span className="font-medium">{dateValue(reviewItem.createdAt || reviewItem.submittedAt)}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-slate-500">Status</span><StatusBadge value={reviewItem.state || reviewItem.status} /></div>
+                </div>
+                <FieldShell label="Review note">
+                  <textarea
+                    value={reviewNote}
+                    onChange={(event) => setReviewNote(event.target.value)}
+                    rows={5}
+                    placeholder="Write the exact change request or rejection reason."
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm normal-case outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  />
+                </FieldShell>
+                <div className="flex flex-wrap gap-2">
+                  <ActionButton tone="green" disabled={busyId === `content-approve-${selectedId}`} onClick={() => submitReview("approve")}>Approve</ActionButton>
+                  <ActionButton tone="amber" disabled={!reviewNote.trim() || busyId === `content-changes-${selectedId}`} onClick={() => submitReview("changes")}>Request Changes</ActionButton>
+                  <ActionButton tone="red" disabled={!reviewNote.trim() || busyId === `content-reject-${selectedId}`} onClick={() => submitReview("reject")}>Reject</ActionButton>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </Section>
   );
 }
 
-function CommissionEngineView({ data, runAction }) {
+function CommissionEngineView({ data, runAction, busyId }) {
   const dashboard = data.dashboard || {};
   const rules = data.rules || [];
   const auditLogs = data.auditLogs || [];
+  const settlements = data.settlements || [];
+  const campaigns = data.campaigns || [];
+  const influencers = data.influencers || [];
+  const vendors = data.vendors || [];
+  const products = data.products || [];
+  const categories = data.categories || [];
+  const affiliateLinks = data.affiliateLinks || [];
   const [ruleForm, setRuleForm] = useState(defaultRuleForm);
   const [bonusForm, setBonusForm] = useState(defaultBonusForm);
   const [bonuses, setBonuses] = useState([]);
+  const [conditionForm, setConditionForm] = useState(defaultConditionForm);
+  const [conditions, setConditions] = useState([]);
   const [editingRuleId, setEditingRuleId] = useState("");
   const [simulatorForm, setSimulatorForm] = useState(defaultSimulatorForm);
   const [simulation, setSimulation] = useState(null);
+  const [simulationBusy, setSimulationBusy] = useState(false);
+  const [simulationError, setSimulationError] = useState("");
   const [settlementForm, setSettlementForm] = useState(defaultSettlementForm);
   const visibleTargetFields = ruleTargetFields[ruleForm.ruleType] || [];
   const visibleMethodFields = new Set(methodValueFields[ruleForm.commissionMethod] || ["commissionValue"]);
   const showTrafficSource = ruleForm.ruleType === "traffic_source";
   const showBonusBuilder = ruleForm.ruleType === "performance" || ruleForm.commissionMethod === "performance_bonus";
   const showCustomFormula = ruleForm.ruleType === "custom_formula" || visibleMethodFields.has("customFormula");
+  const trafficSources = ["reels", "posts", "stories", "livestream", "storefront", "collection", "affiliate_link", "campaign_landing_page", "creator_feed"];
+  const campaignOptions = campaigns.map((row) => ({ value: idOf(row), label: row.title || row.campaignTitle || row.name || idOf(row) })).filter((option) => option.value);
+  const influencerOptions = influencers.map((row) => ({ value: idOf(row), label: row.name || row.influencerName || pickUserName(row.userId || row.user || row) })).filter((option) => option.value);
+  const vendorOptions = vendors.map((row) => ({ value: idOf(row), label: row.vendorName || pickVendorName(row.vendor || row) })).filter((option) => option.value);
+  const productOptions = products.map((row) => {
+    const product = row.product || row.productId || row;
+    const label = product.name || row.productName || row.name || idOf(product) || idOf(row);
+    return { value: idOf(product) || idOf(row), label: shortText(label, 36) };
+  }).filter((option) => option.value);
+  const namedCategoryOptions = [...new Set([
+    ...products.map((row) => row.category || row.product?.category || row.productId?.category),
+    ...campaigns.map((row) => row.category),
+  ].filter(Boolean))].map((category) => ({ value: category, label: category }));
+  const categoryOptions = categories
+    .map((category) => ({
+      value: idOf(category),
+      label: category.name || category.title || category.label || category.key || idOf(category),
+    }))
+    .filter((option) => option.value);
+  const affiliateOptions = affiliateLinks
+    .map((row) => ({
+      value: idOf(row),
+      label: shortText(row.label || row.affiliateCode || idOf(row), 52),
+    }))
+    .filter((option) => option.value);
+  const simulatorCategoryOptions = categoryOptions.length ? categoryOptions : namedCategoryOptions;
+  const ruleTargetOptions = {
+    categoryId: categoryOptions,
+    productId: productOptions,
+    campaignId: campaignOptions,
+    influencerId: influencerOptions,
+    affiliateId: affiliateOptions,
+  };
 
   function setRuleField(key, value) {
     setRuleForm((current) => ({ ...current, [key]: value }));
@@ -789,10 +1069,19 @@ function CommissionEngineView({ data, runAction }) {
   function resetRuleForm() {
     setRuleForm(defaultRuleForm);
     setBonuses([]);
+    setConditions([]);
+    setBonusForm(defaultBonusForm);
+    setConditionForm(defaultConditionForm);
     setEditingRuleId("");
   }
 
   function startEditRule(rule) {
+    const cleanConditions = (Array.isArray(rule.conditions) ? rule.conditions : []).map((condition) => ({
+      field: condition.field || "eligibleRevenue",
+      operator: condition.operator || "eq",
+      value: condition.value ?? "",
+      ...(condition.valueTo != null ? { valueTo: condition.valueTo } : {}),
+    }));
     setEditingRuleId(idOf(rule));
     setRuleForm({
       ...defaultRuleForm,
@@ -808,15 +1097,16 @@ function CommissionEngineView({ data, runAction }) {
       expiryDate: rule.expiryDate ? String(rule.expiryDate).slice(0, 10) : "",
       status: rule.status || "pending_approval",
       description: rule.description || "",
-      categoryId: rule.categoryId || "",
-      productId: rule.productId || "",
-      campaignId: rule.campaignId || "",
-      influencerId: rule.influencerId || "",
-      affiliateId: rule.affiliateId || "",
+      categoryId: idOf(rule.categoryId) || "",
+      productId: idOf(rule.productId) || "",
+      campaignId: idOf(rule.campaignId) || "",
+      influencerId: idOf(rule.influencerId) || "",
+      affiliateId: idOf(rule.affiliateId) || "",
       trafficSource: rule.trafficSource || "affiliate_link",
       customFormula: rule.customFormula || "",
     });
     setBonuses(Array.isArray(rule.bonuses) ? rule.bonuses : []);
+    setConditions(cleanConditions);
   }
 
   function buildRulePayload() {
@@ -831,11 +1121,20 @@ function CommissionEngineView({ data, runAction }) {
       status: ruleForm.status,
       description: ruleForm.description,
     };
+    ["categoryId", "productId", "campaignId", "influencerId", "affiliateId", "trafficSource"].forEach((key) => {
+      payload[key] = null;
+    });
     if (visibleMethodFields.has("commissionValue")) payload.commissionValue = Number(ruleForm.commissionValue || 0);
     if (visibleMethodFields.has("fixedAmount")) payload.fixedAmount = Number(ruleForm.fixedAmount || 0);
     if (visibleMethodFields.has("revenueSharePercent")) payload.revenueSharePercent = Number(ruleForm.revenueSharePercent || 0);
-    if (showCustomFormula) payload.customFormula = ruleForm.customFormula;
-    if (showBonusBuilder) payload.bonuses = bonuses;
+    payload.customFormula = showCustomFormula ? ruleForm.customFormula : "";
+    payload.bonuses = showBonusBuilder ? bonuses : [];
+    payload.conditions = conditions.map((condition) => ({
+      field: condition.field,
+      operator: condition.operator,
+      value: condition.value,
+      ...(condition.valueTo != null && condition.valueTo !== "" ? { valueTo: condition.valueTo } : {}),
+    }));
     visibleTargetFields.forEach(([key]) => {
       if (ruleForm[key]) payload[key] = ruleForm[key];
     });
@@ -848,10 +1147,12 @@ function CommissionEngineView({ data, runAction }) {
     const payload = buildRulePayload();
     runAction(
       editingRuleId || "new-rule",
-      () => (editingRuleId ? updateCommissionEngineRule(editingRuleId, payload) : createCommissionEngineRule(payload)),
+      () => (editingRuleId ? updateCommissionEngineRule(editingRuleId, payload) : createCommissionEngineRule(payload)).then((response) => {
+        resetRuleForm();
+        return response;
+      }),
       editingRuleId ? "Commission rule updated." : "Commission rule created."
     );
-    resetRuleForm();
   }
 
   function addBonus() {
@@ -865,20 +1166,47 @@ function CommissionEngineView({ data, runAction }) {
         value: Number(bonusForm.value || 0),
       },
     ]);
+    setBonusForm(defaultBonusForm);
+  }
+
+  function addCondition() {
+    setConditions((current) => [
+      ...current,
+      {
+        field: conditionForm.field,
+        operator: conditionForm.operator,
+        value: conditionForm.operator === "between" ? Number(conditionForm.value || 0) : conditionForm.value,
+        ...(conditionForm.operator === "between" ? { valueTo: Number(conditionForm.valueTo || 0) } : {}),
+      },
+    ]);
+    setConditionForm(defaultConditionForm);
   }
 
   async function runSimulation(event) {
     event.preventDefault();
-    const response = await simulateCommissionEngine({
-      ...simulatorForm,
-      revenue: Number(simulatorForm.revenue || 0),
-      expectedOrders: Number(simulatorForm.expectedOrders || 0),
-      conversionRate: Number(simulatorForm.conversionRate || 0),
-      campaignCompletion: Number(simulatorForm.campaignCompletion || 0),
-      reelEngagement: Number(simulatorForm.reelEngagement || 0),
-      reelEngagementTarget: Number(simulatorForm.reelEngagementTarget || 0),
-    });
-    setSimulation(unwrap(response));
+    setSimulationBusy(true);
+    setSimulationError("");
+    try {
+      const payload = {
+        trafficSource: simulatorForm.trafficSource || "affiliate_link",
+        revenue: Number(simulatorForm.revenue || 0),
+        expectedOrders: Number(simulatorForm.expectedOrders || 0),
+        conversionRate: Number(simulatorForm.conversionRate || 0),
+        campaignCompletion: Number(simulatorForm.campaignCompletion || 0),
+        reelEngagement: Number(simulatorForm.reelEngagement || 0),
+        reelEngagementTarget: Number(simulatorForm.reelEngagementTarget || 0),
+      };
+      ["influencerId", "campaignId", "productId", "categoryId", "vendorId"].forEach((key) => {
+        if (simulatorForm[key]) payload[key] = simulatorForm[key];
+      });
+      const response = await simulateCommissionEngine(payload);
+      setSimulation(unwrap(response));
+    } catch (err) {
+      setSimulation(null);
+      setSimulationError(err?.response?.data?.message || err?.message || "Simulation failed.");
+    } finally {
+      setSimulationBusy(false);
+    }
   }
 
   function createSettlement(event) {
@@ -889,8 +1217,24 @@ function CommissionEngineView({ data, runAction }) {
         cycle: settlementForm.cycle,
         periodStart: settlementForm.periodStart,
         periodEnd: settlementForm.periodEnd,
+      }).then((response) => {
+        const settlement = unwrap(response);
+        const settlementId = idOf(settlement);
+        if (settlementId) setSettlementField("settlementId", settlementId);
+        return response;
       }),
       "Settlement batch created."
+    );
+  }
+
+  function renderSelectField(label, key, options, placeholder) {
+    return (
+      <FieldShell label={label}>
+        <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={simulatorForm[key]} onChange={(event) => setSimulatorField(key, event.target.value)}>
+          <option value="">{placeholder}</option>
+          {options.map((option) => <option key={`${key}-${option.value}`} value={option.value}>{option.label}</option>)}
+        </select>
+      </FieldShell>
     );
   }
 
@@ -902,6 +1246,10 @@ function CommissionEngineView({ data, runAction }) {
     ["Paid", dashboard.paidCommission],
     ["Reversed", dashboard.reversedCommission],
   ];
+  const settlementOptions = settlements.map((settlement) => ({
+    value: idOf(settlement),
+    label: `${dateValue(settlement.periodStart)} - ${dateValue(settlement.periodEnd)} / ${statusText(settlement.status)} / ${formatCurrency(settlement.totalAmount || 0)}`,
+  })).filter((option) => option.value);
 
   return (
     <div className="space-y-4">
@@ -911,9 +1259,9 @@ function CommissionEngineView({ data, runAction }) {
         ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+      <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(760px,1fr)_minmax(420px,520px)]">
         <Section title="Rules Engine" icon={Percent}>
-          <form onSubmit={saveRule} className="grid gap-3 md:grid-cols-3">
+          <form onSubmit={saveRule} className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <FieldShell label="Rule Name">
               <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Rule name" value={ruleForm.ruleName} onChange={(event) => setRuleField("ruleName", event.target.value)} required />
             </FieldShell>
@@ -962,13 +1310,20 @@ function CommissionEngineView({ data, runAction }) {
             {showTrafficSource ? (
               <FieldShell label="Traffic Source">
                 <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={ruleForm.trafficSource} onChange={(event) => setRuleField("trafficSource", event.target.value)}>
-                  {["reels", "posts", "stories", "livestream", "storefront", "collection", "affiliate_link", "campaign_landing_page", "creator_feed"].map((source) => <option key={source} value={source}>{statusText(source)}</option>)}
+                  {trafficSources.map((source) => <option key={source} value={source}>{statusText(source)}</option>)}
                 </select>
               </FieldShell>
             ) : null}
             {visibleTargetFields.map(([key, placeholder]) => (
               <FieldShell key={key} label={placeholder}>
-                <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder={placeholder} value={ruleForm[key]} onChange={(event) => setRuleField(key, event.target.value)} />
+                {ruleTargetOptions[key]?.length ? (
+                  <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={ruleForm[key]} onChange={(event) => setRuleField(key, event.target.value)} required>
+                    <option value="">Select {placeholder.replace(/\s*ID$/i, "").toLowerCase()}</option>
+                    {ruleTargetOptions[key].map((option) => <option key={`rule-${key}-${option.value}`} value={option.value}>{option.label}</option>)}
+                  </select>
+                ) : (
+                  <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder={placeholder} value={ruleForm[key]} onChange={(event) => setRuleField(key, event.target.value)} />
+                )}
               </FieldShell>
             ))}
             <FieldShell label="Description" className="md:col-span-2">
@@ -980,12 +1335,17 @@ function CommissionEngineView({ data, runAction }) {
               </FieldShell>
             ) : null}
             {showBonusBuilder ? (
-            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800 md:col-span-3">
+            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800 sm:col-span-2 xl:col-span-3">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Performance Bonus</p>
-              <div className="grid gap-2 md:grid-cols-5">
+              <div className="grid gap-2 md:grid-cols-6">
                 <FieldShell label="Metric">
                   <select className="h-10 rounded-lg border border-slate-200 px-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={bonusForm.metric} onChange={(event) => setBonusForm((current) => ({ ...current, metric: event.target.value }))}>
                     {["orders", "conversionRate", "campaignCompletion", "reelEngagement"].map((metric) => <option key={metric} value={metric}>{metric}</option>)}
+                  </select>
+                </FieldShell>
+                <FieldShell label="Bonus Type">
+                  <select className="h-10 rounded-lg border border-slate-200 px-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={bonusForm.type} onChange={(event) => setBonusForm((current) => ({ ...current, type: event.target.value }))}>
+                    {["percent", "fixed"].map((type) => <option key={type} value={type}>{statusText(type)}</option>)}
                   </select>
                 </FieldShell>
                 <FieldShell label="Operator">
@@ -1010,7 +1370,36 @@ function CommissionEngineView({ data, runAction }) {
               </div>
             </div>
             ) : null}
-            <div className="flex flex-wrap gap-2 md:col-span-3">
+            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800 sm:col-span-2 xl:col-span-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Rule Conditions</p>
+              <div className="grid gap-2 md:grid-cols-5">
+                <FieldShell label="Field">
+                  <select className="h-10 rounded-lg border border-slate-200 px-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={conditionForm.field} onChange={(event) => setConditionForm((current) => ({ ...current, field: event.target.value }))}>
+                    {["eligibleRevenue", "orders", "conversionRate", "campaignCompletion", "reelEngagement", "trafficSource"].map((field) => <option key={field} value={field}>{field}</option>)}
+                  </select>
+                </FieldShell>
+                <FieldShell label="Operator">
+                  <select className="h-10 rounded-lg border border-slate-200 px-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={conditionForm.operator} onChange={(event) => setConditionForm((current) => ({ ...current, operator: event.target.value }))}>
+                    {["gt", "gte", "lt", "lte", "eq", "ne", "between"].map((operator) => <option key={operator} value={operator}>{operator}</option>)}
+                  </select>
+                </FieldShell>
+                <FieldShell label="Value">
+                  <input className="h-10 rounded-lg border border-slate-200 px-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={conditionForm.value} onChange={(event) => setConditionForm((current) => ({ ...current, value: event.target.value }))} />
+                </FieldShell>
+                <FieldShell label="Value To">
+                  <input className="h-10 rounded-lg border border-slate-200 px-2 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" disabled={conditionForm.operator !== "between"} value={conditionForm.valueTo} onChange={(event) => setConditionForm((current) => ({ ...current, valueTo: event.target.value }))} />
+                </FieldShell>
+                <ActionButton tone="slate" onClick={addCondition}>Add Condition</ActionButton>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {conditions.map((condition, index) => (
+                  <button key={`${condition.field}-${index}`} type="button" onClick={() => setConditions((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                    {condition.field} {condition.operator} {String(condition.value)}{condition.valueTo ? `-${condition.valueTo}` : ""}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-3">
               <ActionButton type="submit" icon={CheckCircle2}>{editingRuleId ? "Update Rule" : "Create Rule"}</ActionButton>
               <ActionButton tone="slate" onClick={resetRuleForm}>Clear</ActionButton>
             </div>
@@ -1019,18 +1408,16 @@ function CommissionEngineView({ data, runAction }) {
 
         <Section title="Simulator" icon={Calculator}>
           <form onSubmit={runSimulation} className="grid gap-3">
-            {[
-              ["influencerId", "Influencer ID"],
-              ["campaignId", "Campaign ID"],
-              ["productId", "Product ID"],
-              ["categoryId", "Category ID"],
-              ["vendorId", "Vendor ID"],
-            ].map(([key, placeholder]) => (
-              <input key={key} className="h-11 rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder={placeholder} value={simulatorForm[key]} onChange={(event) => setSimulatorField(key, event.target.value)} />
-            ))}
-            <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={simulatorForm.trafficSource} onChange={(event) => setSimulatorField("trafficSource", event.target.value)}>
-              {["reels", "posts", "stories", "livestream", "storefront", "collection", "affiliate_link", "campaign_landing_page", "creator_feed"].map((source) => <option key={source} value={source}>{statusText(source)}</option>)}
-            </select>
+            {renderSelectField("Influencer", "influencerId", influencerOptions, "Select influencer")}
+            {renderSelectField("Campaign", "campaignId", campaignOptions, "Select campaign")}
+            {renderSelectField("Product", "productId", productOptions, "Select product")}
+            {renderSelectField("Category", "categoryId", simulatorCategoryOptions, "Select category")}
+            {renderSelectField("Vendor", "vendorId", vendorOptions, "Select vendor")}
+            <FieldShell label="Traffic Source">
+              <select className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={simulatorForm.trafficSource} onChange={(event) => setSimulatorField("trafficSource", event.target.value)}>
+                {trafficSources.map((source) => <option key={source} value={source}>{statusText(source)}</option>)}
+              </select>
+            </FieldShell>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
                 ["revenue", "Revenue"],
@@ -1038,10 +1425,17 @@ function CommissionEngineView({ data, runAction }) {
                 ["conversionRate", "Conversion %"],
                 ["campaignCompletion", "Completion %"],
               ].map(([key, label]) => (
-                <input key={key} className="h-11 rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="number" min="0" step="0.01" aria-label={label} value={simulatorForm[key]} onChange={(event) => setSimulatorField(key, event.target.value)} />
+                <FieldShell key={key} label={label}>
+                  <input className="h-11 rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="number" min="0" step="0.01" value={simulatorForm[key]} onChange={(event) => setSimulatorField(key, event.target.value)} />
+                </FieldShell>
               ))}
             </div>
-            <ActionButton type="submit" icon={Calculator}>Run Simulation</ActionButton>
+            {simulationError ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+                {simulationError}
+              </div>
+            ) : null}
+            <ActionButton type="submit" icon={Calculator} disabled={simulationBusy}>{simulationBusy ? "Running..." : "Run Simulation"}</ActionButton>
           </form>
           {simulation ? (
             <div className="mt-4 space-y-2 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-800">
@@ -1054,10 +1448,12 @@ function CommissionEngineView({ data, runAction }) {
         </Section>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]">
         <Section title="Configured Rules" icon={Percent}>
           <ResponsiveTable headers={["Rule", "Type", "Method", "Value", "Priority", "Version", "Status", "Actions"]} rows={rules} renderRow={(rule) => {
             const id = idOf(rule);
+            const isActive = rule.status === "active";
+            const isInactive = rule.status === "inactive";
             return (
               <tr key={id}>
                 <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{text(rule.ruleName)}<div className="font-mono text-xs text-slate-500">{text(rule.ruleCode)}</div></td>
@@ -1070,8 +1466,20 @@ function CommissionEngineView({ data, runAction }) {
                 <td className="px-3 py-3">
                   <div className="flex flex-wrap gap-2">
                     <ActionButton tone="slate" onClick={() => startEditRule(rule)}>Edit</ActionButton>
-                    <ActionButton tone="green" onClick={() => runAction(`approve-${id}`, () => approveCommissionEngineRule(id), "Rule approved.")}>Approve</ActionButton>
-                    <ActionButton tone="amber" onClick={() => runAction(`deactivate-${id}`, () => deactivateCommissionEngineRule(id, { reason: "Deactivated from admin panel" }), "Rule deactivated.")}>Deactivate</ActionButton>
+                    <ActionButton
+                      tone={isActive ? "slate" : "green"}
+                      disabled={isActive || busyId === `approve-rule-${id}`}
+                      onClick={() => runAction(`approve-rule-${id}`, () => approveCommissionEngineRule(id), isInactive ? "Rule activated." : "Rule approved.")}
+                    >
+                      {isActive ? "Approved" : isInactive ? "Activate" : "Approve"}
+                    </ActionButton>
+                    <ActionButton
+                      tone={isInactive ? "slate" : "amber"}
+                      disabled={isInactive || busyId === `deactivate-rule-${id}`}
+                      onClick={() => runAction(`deactivate-rule-${id}`, () => deactivateCommissionEngineRule(id, { reason: "Deactivated from admin panel" }), "Rule deactivated.")}
+                    >
+                      {isInactive ? "Deactivated" : "Deactivate"}
+                    </ActionButton>
                   </div>
                 </td>
               </tr>
@@ -1081,18 +1489,33 @@ function CommissionEngineView({ data, runAction }) {
 
         <Section title="Settlement" icon={WalletCards}>
           <form onSubmit={createSettlement} className="space-y-3">
-            <select className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={settlementForm.cycle} onChange={(event) => setSettlementField("cycle", event.target.value)}>
-              {["daily", "weekly", "bi_weekly", "monthly"].map((cycle) => <option key={cycle} value={cycle}>{statusText(cycle)}</option>)}
-            </select>
-            <input className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="date" value={settlementForm.periodStart} onChange={(event) => setSettlementField("periodStart", event.target.value)} />
-            <input className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="date" value={settlementForm.periodEnd} onChange={(event) => setSettlementField("periodEnd", event.target.value)} />
-            <ActionButton type="submit" icon={CheckCircle2}>Create Settlement</ActionButton>
+            <FieldShell label="Cycle">
+              <select className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={settlementForm.cycle} onChange={(event) => setSettlementField("cycle", event.target.value)}>
+                {["daily", "weekly", "bi_weekly", "monthly"].map((cycle) => <option key={cycle} value={cycle}>{statusText(cycle)}</option>)}
+              </select>
+            </FieldShell>
+            <FieldShell label="Period Start">
+              <input className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="date" value={settlementForm.periodStart} onChange={(event) => setSettlementField("periodStart", event.target.value)} />
+            </FieldShell>
+            <FieldShell label="Period End">
+              <input className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" type="date" value={settlementForm.periodEnd} onChange={(event) => setSettlementField("periodEnd", event.target.value)} />
+            </FieldShell>
+            <ActionButton type="submit" icon={CheckCircle2} disabled={busyId === "create-settlement"}>Create Settlement</ActionButton>
           </form>
           <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-            <input className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Settlement ID" value={settlementForm.settlementId} onChange={(event) => setSettlementField("settlementId", event.target.value)} />
+            <FieldShell label="Settlement ID">
+              {settlementOptions.length ? (
+                <select className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={settlementForm.settlementId} onChange={(event) => setSettlementField("settlementId", event.target.value)}>
+                  <option value="">Select settlement</option>
+                  {settlementOptions.map((option) => <option key={`settlement-${option.value}`} value={option.value}>{option.label}</option>)}
+                </select>
+              ) : (
+                <input className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm normal-case tracking-normal text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white" placeholder="Paste settlement ID" value={settlementForm.settlementId} onChange={(event) => setSettlementField("settlementId", event.target.value)} />
+              )}
+            </FieldShell>
             <div className="flex flex-wrap gap-2">
-              <ActionButton tone="green" disabled={!settlementForm.settlementId} onClick={() => runAction("approve-settlement", () => approveCommissionEngineSettlement(settlementForm.settlementId), "Settlement approved.")}>Approve</ActionButton>
-              <ActionButton tone="slate" disabled={!settlementForm.settlementId} onClick={() => runAction("prepare-payout", () => prepareCommissionEnginePayoutBatch(settlementForm.settlementId), "Payout batch prepared.")}>Prepare Payout</ActionButton>
+              <ActionButton tone="green" disabled={!settlementForm.settlementId || busyId === "approve-settlement"} onClick={() => runAction("approve-settlement", () => approveCommissionEngineSettlement(settlementForm.settlementId), "Settlement approved.")}>Approve</ActionButton>
+              <ActionButton tone="slate" disabled={!settlementForm.settlementId || busyId === "prepare-payout"} onClick={() => runAction("prepare-payout", () => prepareCommissionEnginePayoutBatch(settlementForm.settlementId), "Payout batch prepared.")}>Prepare Payout</ActionButton>
             </div>
           </div>
         </Section>
@@ -1112,10 +1535,10 @@ function CommissionEngineView({ data, runAction }) {
         <Section title="Audit Trail" icon={ShieldCheck}>
           <ResponsiveTable headers={["Action", "Entity", "User", "Reason", "Time"]} rows={auditLogs} renderRow={(row) => (
             <tr key={idOf(row)}>
-              <td className="px-3 py-3">{statusText(row.action)}</td>
-              <td className="px-3 py-3">{text(row.entityType)}</td>
+              <td className="px-3 py-3" title={text(row.action)}>{shortText(statusText(row.action), 34)}</td>
+              <td className="px-3 py-3" title={text(row.entityType)}>{shortText(row.entityType, 28)}</td>
               <td className="px-3 py-3">{text(row.userRole || row.userId)}</td>
-              <td className="px-3 py-3">{text(row.reason)}</td>
+              <td className="px-3 py-3" title={text(row.reason)}>{shortText(row.reason, 32)}</td>
               <td className="px-3 py-3">{dateValue(row.createdAt)}</td>
             </tr>
           )} />
@@ -1128,24 +1551,51 @@ function CommissionEngineView({ data, runAction }) {
 function CommissionsView({ items, pagination, setFilters, runAction, busyId }) {
   return (
     <Section title="Commission Management" icon={WalletCards}>
-      <ResponsiveTable headers={["Order", "Vendor", "Influencer", "Campaign", "State", "Gross", "Platform", "Influencer", "Vendor Net", "Actions"]} rows={items} renderRow={(row) => {
+      <ResponsiveTable headers={["Order", "Vendor", "Influencer", "Campaign", "State", "Hold Until", "Gross", "Platform", "Influencer", "Vendor Net", "Actions"]} rows={items} renderRow={(row) => {
         const id = idOf(row);
+        const state = String(row.state || row.status || "HOLD").toUpperCase();
+        const isHeld = state === "HOLD";
+        const isSettled = state === "SETTLED";
+        const isCancelled = state === "CANCELLED";
+        const isReversed = state === "REVERSED";
+        const canHold = isCancelled;
+        const canSettle = isHeld;
+        const canReverse = isHeld || isSettled || isCancelled;
         return (
           <tr key={id}>
             <td className="px-3 py-3">{text(row.orderId?.orderNumber || row.orderNumber)}</td>
             <td className="px-3 py-3">{pickVendorName(row.vendorId || row.vendor)}</td>
             <td className="px-3 py-3">{pickUserName(row.influencerId || row.influencer)}</td>
             <td className="px-3 py-3">{text(row.campaignId?.title || row.campaign?.title)}</td>
-            <td className="px-3 py-3"><StatusBadge value={row.state || row.status} /></td>
-            <td className="px-3 py-3">{formatCurrency(row.grossAmount || row.orderAmount || 0)}</td>
-            <td className="px-3 py-3">{formatCurrency(row.platformShare || 0)}</td>
+            <td className="px-3 py-3"><StatusBadge value={state} /></td>
+            <td className="px-3 py-3">{dateValue(row.holdUntil)}</td>
+            <td className="px-3 py-3">{formatCurrency(row.gross || row.grossAmount || row.orderAmount || 0)}</td>
+            <td className="px-3 py-3">{formatCurrency(row.platformFee || row.platformShare || 0)}</td>
             <td className="px-3 py-3">{formatCurrency(row.influencerShare || row.amount || 0)}</td>
             <td className="px-3 py-3">{formatCurrency(row.vendorNet || 0)}</td>
             <td className="px-3 py-3">
               <div className="flex flex-wrap gap-2">
-                <ActionButton tone="amber" disabled={busyId === `hold-${id}`} onClick={() => runAction(`hold-${id}`, () => updateAdminInfluencerCommission(id, { state: "HOLD" }), "Commission held.")}>Hold</ActionButton>
-                <ActionButton tone="green" disabled={busyId === `settle-${id}`} onClick={() => runAction(`settle-${id}`, () => updateAdminInfluencerCommission(id, { state: "SETTLED" }), "Commission settled.")}>Settle</ActionButton>
-                <ActionButton tone="red" disabled={busyId === `reverse-${id}`} onClick={() => runAction(`reverse-${id}`, () => updateAdminInfluencerCommission(id, { state: "REVERSED" }), "Commission reversed.")}>Reverse</ActionButton>
+                <ActionButton
+                  tone={canHold ? "amber" : "slate"}
+                  disabled={!canHold || busyId === `hold-${id}`}
+                  onClick={() => runAction(`hold-${id}`, () => updateAdminInfluencerCommission(id, { action: "hold", note: "Moved back to hold by platform admin" }), "Commission moved to hold.")}
+                >
+                  {isHeld ? "Held" : "Hold"}
+                </ActionButton>
+                <ActionButton
+                  tone={canSettle ? "green" : "slate"}
+                  disabled={!canSettle || busyId === `settle-${id}`}
+                  onClick={() => runAction(`settle-${id}`, () => updateAdminInfluencerCommission(id, { action: "settle", note: "Settled by platform admin" }), "Commission settled.")}
+                >
+                  {isSettled ? "Settled" : "Settle"}
+                </ActionButton>
+                <ActionButton
+                  tone={canReverse && !isReversed ? "red" : "slate"}
+                  disabled={!canReverse || isReversed || busyId === `reverse-${id}`}
+                  onClick={() => runAction(`reverse-${id}`, () => updateAdminInfluencerCommission(id, { action: "reverse", note: "Reversed by platform admin" }), "Commission reversed.")}
+                >
+                  {isReversed ? "Reversed" : "Reverse"}
+                </ActionButton>
               </div>
             </td>
           </tr>
@@ -1224,22 +1674,31 @@ function WithdrawalsView({ items, pagination, setFilters, runAction, busyId }) {
   );
 }
 
-function PerformanceView({ title, items, kind }) {
+function PerformanceView({ title, items, pagination, setFilters, kind }) {
   return (
     <Section title={title} icon={BarChart3}>
-      <ResponsiveTable headers={[kind === "vendor" ? "Vendor" : "Creator", "Revenue", "Orders", "Clicks", "Conversions", "CTR", "ROI", "Commission", "Score"]} rows={items || []} renderRow={(row, index) => (
-        <tr key={idOf(row) || index}>
-          <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{kind === "vendor" ? pickVendorName(row.vendor || row) : pickUserName(row.influencer || row)}</td>
-          <td className="px-3 py-3">{formatCurrency(row.revenue || row.campaignRevenue || 0)}</td>
-          <td className="px-3 py-3">{numberValue(row.orders)}</td>
-          <td className="px-3 py-3">{numberValue(row.clicks)}</td>
-          <td className="px-3 py-3">{numberValue(row.conversions)}</td>
-          <td className="px-3 py-3">{percentValue(row.ctr)}</td>
-          <td className="px-3 py-3">{percentValue(row.roi)}</td>
-          <td className="px-3 py-3">{formatCurrency(row.commission || row.commissionPaid || 0)}</td>
-          <td className="px-3 py-3">{numberValue(row.score || row.rank || index + 1)}</td>
-        </tr>
-      )} />
+      <ResponsiveTable headers={[kind === "vendor" ? "Vendor" : "Creator", "Status", "Category", "Revenue", "Orders", "Clicks", "Conversions", "CTR", "ROI", "Commission", "Score"]} rows={items || []} renderRow={(row, index) => {
+        const name = kind === "vendor" ? pickVendorName(row.vendor || row) : row.name || pickUserName(row.influencer || row);
+        return (
+          <tr key={idOf(row) || row.influencerId || row.vendorId || index}>
+            <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">
+              {name}
+              {row.followers ? <div className="text-xs font-normal text-slate-500">{numberValue(row.followers)} followers</div> : null}
+            </td>
+            <td className="px-3 py-3"><StatusBadge value={row.state || row.status || "active"} /></td>
+            <td className="px-3 py-3">{text(row.category || row.primaryCategory)}</td>
+            <td className="px-3 py-3">{formatCurrency(row.revenue || row.revenueGenerated || row.campaignRevenue || 0)}</td>
+            <td className="px-3 py-3">{numberValue(row.orders || row.ordersGenerated)}</td>
+            <td className="px-3 py-3">{numberValue(row.clicks)}</td>
+            <td className="px-3 py-3">{numberValue(row.conversions)}</td>
+            <td className="px-3 py-3">{percentValue(row.ctr)}</td>
+            <td className="px-3 py-3">{percentValue(row.roi)}</td>
+            <td className="px-3 py-3">{formatCurrency(row.commission || row.commissionEarned || row.commissionPaid || 0)}</td>
+            <td className="px-3 py-3">{numberValue(row.score || row.rank || index + 1)}</td>
+          </tr>
+        );
+      }} />
+      {pagination && setFilters ? <Pagination pagination={pagination} setFilters={setFilters} /> : null}
     </Section>
   );
 }

@@ -165,7 +165,7 @@ async function recomputeProductRatings(productId) {
           refreshedAt: new Date(),
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     ),
   ]);
 }
@@ -335,7 +335,7 @@ class UserService {
     const address = await UserAddress.findOneAndUpdate(
       { _id: addressId, userId },
       { $set: payload },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!address) throw new AppError("Address not found", 404, "NOT_FOUND");
@@ -565,7 +565,7 @@ class UserService {
         ...(variantId && { variantId }),
         ...(Object.keys(selectedAttributes).length > 0 && { selectedAttributes }),
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
 
     await logUserAction(userId, "user.wishlist.added", "Product", productId, null, meta);
@@ -747,7 +747,7 @@ class UserService {
     const review = await ProductReview.findOneAndUpdate(
       { _id: reviewId, customerId: userId, status: { $ne: "deleted" } },
       { $set: update },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     if (!review) throw new AppError("Review not found", 404, "NOT_FOUND");
 
@@ -761,7 +761,7 @@ class UserService {
     const review = await ProductReview.findOneAndUpdate(
       { _id: reviewId, customerId: userId, status: { $ne: "deleted" } },
       { $set: { status: "deleted" } },
-      { new: true }
+      { returnDocument: "after" }
     );
     if (!review) throw new AppError("Review not found", 404, "NOT_FOUND");
 
@@ -798,7 +798,7 @@ class UserService {
     const notification = await UserNotification.findOneAndUpdate(
       { _id: notificationId, userId },
       { $set: { isRead: true, readAt: new Date() } },
-      { new: true }
+      { returnDocument: "after" }
     );
     if (!notification) throw new AppError("Notification not found", 404, "NOT_FOUND");
     return notification;

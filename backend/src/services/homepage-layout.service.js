@@ -881,7 +881,7 @@ async function syncLayoutSidecars(layoutId, snapshot = {}, { status = "draft", a
         savedBy: actorId,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
 
   const assignments = (snapshot.layouts || []).filter((layout) => layout.assignedContainerId);
@@ -905,7 +905,7 @@ async function syncLayoutSidecars(layoutId, snapshot = {}, { status = "draft", a
             status,
           },
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
       )
     )
   );

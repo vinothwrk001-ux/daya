@@ -893,7 +893,7 @@ class CheckoutService {
                     fulfillmentError: 1,
                   },
                 },
-                { new: true, session }
+                { returnDocument: "after", session }
               )
             : await paymentRepo.updateById(paymentRecordId, {
                 $set: {
@@ -1407,7 +1407,7 @@ class CheckoutService {
                     fulfillmentError: 1,
                   },
                 },
-                { new: true, session }
+                { returnDocument: "after", session }
               )
             : await paymentRepo.updateById(paymentRecordId, {
                 $set: {

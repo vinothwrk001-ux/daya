@@ -24,7 +24,7 @@ const baseEventFields = {
   reason: { type: String, trim: true, default: "" },
   source: { type: String, trim: true, default: "" },
   metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
-  expiresAt: { type: Date, required: true, index: true },
+  expiresAt: { type: Date, required: true },
 };
 
 const trackingEventSchema = new mongoose.Schema(baseEventFields, {
@@ -44,13 +44,13 @@ const fraudEventSchema = new mongoose.Schema(baseEventFields, {
 
 const dedupEventSchema = new mongoose.Schema(
   {
-    dedupKey: { type: String, required: true, unique: true, index: true },
+    dedupKey: { type: String, required: true },
     eventType: { type: String, required: true, index: true },
     visitorId: { type: String, required: true, index: true },
     firstSeenAt: { type: Date, default: Date.now },
     lastSeenAt: { type: Date, default: Date.now },
     duplicateCount: { type: Number, default: 0, min: 0 },
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
   },
   { timestamps: true, collection: "dedup_events" }
 );
@@ -75,6 +75,7 @@ for (const schema of [trackingEventSchema, verifiedEventSchema, fraudEventSchema
   schema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 }
 
+dedupEventSchema.index({ dedupKey: 1 }, { unique: true });
 trackingEventSchema.index({ eventType: 1, visitorId: 1, createdAt: -1 });
 trackingEventSchema.index({ eventType: 1, ipHash: 1, createdAt: -1 });
 trackingEventSchema.index({ status: 1, fraudScore: -1, createdAt: -1 });

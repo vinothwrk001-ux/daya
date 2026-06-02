@@ -24,7 +24,7 @@ class WebhookEventRepository {
   }
 
   async updateById(id, updateData = {}) {
-    return await WebhookEvent.findByIdAndUpdate(id, asUpdateDocument(updateData), { new: true }).exec();
+    return await WebhookEvent.findByIdAndUpdate(id, asUpdateDocument(updateData), { returnDocument: "after" }).exec();
   }
 }
 

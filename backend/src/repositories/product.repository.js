@@ -461,14 +461,14 @@ class ProductRepository {
 
   // Update product
   async updateById(productId, updateData) {
-    return await Product.findByIdAndUpdate(productId, { $set: updateData }, { new: true, runValidators: true })
+    return await Product.findByIdAndUpdate(productId, { $set: updateData }, { returnDocument: "after", runValidators: true })
       .populate("sellerId", SELLER_PUBLIC_FIELDS)
       .populate("createdBy", "name email");
   }
 
   // Delete product (soft delete)
   async softDeleteById(productId) {
-    return await Product.findByIdAndUpdate(productId, { $set: { isActive: false } }, { new: true });
+    return await Product.findByIdAndUpdate(productId, { $set: { isActive: false } }, { returnDocument: "after" });
   }
 
   // Hard delete
@@ -514,7 +514,7 @@ class ProductRepository {
           approvedAt: new Date(),
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -531,7 +531,7 @@ class ProductRepository {
           approvedAt: new Date(),
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -564,7 +564,7 @@ class ProductRepository {
     return await Product.findByIdAndUpdate(
       productId,
       { $inc: { "analytics.views": 1 } },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -580,7 +580,7 @@ class ProductRepository {
             stock: -quantity,
           },
         },
-        { new: true }
+        { returnDocument: "after" }
       );
     }
 
@@ -610,7 +610,7 @@ class ProductRepository {
             stock: quantity,
           },
         },
-        { new: true }
+        { returnDocument: "after" }
       );
     }
 

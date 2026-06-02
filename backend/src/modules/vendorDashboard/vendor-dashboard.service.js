@@ -692,7 +692,7 @@ class VendorDashboardService {
     const notification = await VendorNotification.findOneAndUpdate(
       { _id: notificationId, vendorId: vendor._id },
       { $set: { isRead: true, readAt: new Date() } },
-      { new: true }
+      { returnDocument: "after" }
     );
     if (!notification) {
       throw new AppError("Notification not found", 404, "NOT_FOUND");
@@ -741,7 +741,7 @@ class VendorDashboardService {
           },
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!review) {
@@ -885,7 +885,7 @@ class VendorDashboardService {
     const offer = await Offer.findOneAndUpdate(
       { _id: offerId, vendorId: vendor._id },
       { $set: updatePayload },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     if (!offer) {
       throw new AppError("Offer not found", 404, "NOT_FOUND");

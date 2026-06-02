@@ -49,6 +49,7 @@ const FINAL_ORDER_STATUSES = ["Delivered"];
 const FINAL_PAYMENT_STATUSES = ["Paid"];
 const INELIGIBLE_ORDER_STATUSES = ["Pending", "Cancelled", "Returned"];
 const INELIGIBLE_PAYMENT_STATUSES = ["Pending", "Failed", "Refunded", "Partially Refunded"];
+const RULE_STATUSES = ["draft", "pending_approval", "active", "inactive", "expired", "rejected", "archived"];
 
 function buildCommissionRecordKey(orderId) {
   return `commission:${orderId}`;
@@ -421,7 +422,7 @@ async function getOrCreateWallet(influencerId, session = null) {
     { $setOnInsert: { influencerId } },
     {
       upsert: true,
-      new: true,
+      returnDocument: "after",
       setDefaultsOnInsert: true,
       session: session || undefined,
     }
@@ -457,6 +458,7 @@ class CommissionService {
     if (["campaign"].includes(ruleType) && !payload.campaignId) throw new AppError("campaignId is required", 400, "VALIDATION_ERROR");
     if (["influencer"].includes(ruleType) && !payload.influencerId) throw new AppError("influencerId is required", 400, "VALIDATION_ERROR");
     if (["category"].includes(ruleType) && !payload.categoryId) throw new AppError("categoryId is required", 400, "VALIDATION_ERROR");
+    if (["affiliate"].includes(ruleType) && !payload.affiliateId) throw new AppError("affiliateId is required", 400, "VALIDATION_ERROR");
     if (["traffic_source"].includes(ruleType) && !payload.trafficSource) throw new AppError("trafficSource is required", 400, "VALIDATION_ERROR");
   }
 
@@ -516,7 +518,7 @@ class CommissionService {
     const update = {
       ...payload,
       version: nextVersion,
-      trafficSource: payload.trafficSource ? normalizeTrafficSource(payload.trafficSource) : rule.trafficSource,
+      trafficSource: payload.trafficSource === null ? null : payload.trafficSource ? normalizeTrafficSource(payload.trafficSource) : rule.trafficSource,
       effectiveDate: payload.effectiveDate ? new Date(payload.effectiveDate) : rule.effectiveDate,
       expiryDate: payload.expiryDate === null ? null : payload.expiryDate ? new Date(payload.expiryDate) : rule.expiryDate,
     };
@@ -544,7 +546,7 @@ class CommissionService {
     const rule = await InfluencerCommissionRule.findByIdAndUpdate(
       ruleId,
       { $set: { status: "active", approvedBy: actor?._id || actor?.sub || undefined, approvedAt: new Date() } },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     if (!rule) throw new AppError("Commission rule not found", 404, "NOT_FOUND");
     await this.auditCommission("RULE_ACTIVATED", "InfluencerCommissionRule", rule._id, { actor, newValue: rule.toObject(), reason: "Approved", meta });
@@ -553,7 +555,7 @@ class CommissionService {
 
   async deactivateRule(ruleId, actor = {}, reason = "", meta = {}) {
     if (!mongoose.isValidObjectId(ruleId)) throw new AppError("Invalid rule id", 400, "VALIDATION_ERROR");
-    const rule = await InfluencerCommissionRule.findByIdAndUpdate(ruleId, { $set: { status: "inactive" } }, { new: true });
+    const rule = await InfluencerCommissionRule.findByIdAndUpdate(ruleId, { $set: { status: "inactive" } }, { returnDocument: "after" });
     if (!rule) throw new AppError("Commission rule not found", 404, "NOT_FOUND");
     await this.auditCommission("RULE_DEACTIVATED", "InfluencerCommissionRule", rule._id, { actor, newValue: rule.toObject(), reason, meta });
     return rule;
@@ -561,10 +563,14 @@ class CommissionService {
 
   async listRules(query = {}) {
     const filter = {};
-    if (query.status) filter.status = query.status;
+    if (query.status && RULE_STATUSES.includes(query.status)) filter.status = query.status;
     if (query.ruleType) filter.ruleType = query.ruleType;
     if (query.commissionMethod) filter.commissionMethod = query.commissionMethod;
-    ["productId", "campaignId", "influencerId", "categoryId"].forEach((key) => {
+    if (query.search) {
+      const re = new RegExp(String(query.search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [{ ruleName: re }, { ruleCode: re }, { description: re }];
+    }
+    ["productId", "campaignId", "influencerId", "categoryId", "affiliateId"].forEach((key) => {
       if (query[key] && mongoose.isValidObjectId(query[key])) filter[key] = query[key];
     });
     if (query.trafficSource) filter.trafficSource = normalizeTrafficSource(query.trafficSource);
@@ -574,7 +580,18 @@ class CommissionService {
       InfluencerCommissionRule.find(filter).sort({ priority: -1, updatedAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       InfluencerCommissionRule.countDocuments(filter),
     ]);
-    return { rules, pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 } };
+    const conditions = rules.length
+      ? await CommissionRuleCondition.find({ ruleId: { $in: rules.map((rule) => rule._id) } }).lean()
+      : [];
+    const conditionsByRule = conditions.reduce((acc, condition) => {
+      const key = String(condition.ruleId);
+      acc.set(key, [...(acc.get(key) || []), condition]);
+      return acc;
+    }, new Map());
+    return {
+      rules: rules.map((rule) => ({ ...rule, conditions: conditionsByRule.get(String(rule._id)) || [] })),
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 },
+    };
   }
 
   async resolveRule(context = {}) {
@@ -585,15 +602,15 @@ class CommissionService {
       $or: [{ expiryDate: null }, { expiryDate: { $exists: false } }, { expiryDate: { $gte: now } }],
     };
     const clauses = [{ ruleType: "global" }];
-    if (context.productId) clauses.push({ ruleType: "product", productId: context.productId });
-    if (context.campaignId) clauses.push({ ruleType: "campaign", campaignId: context.campaignId });
-    if (context.influencerId) clauses.push({ ruleType: "influencer", influencerId: context.influencerId });
-    if (context.categoryId) clauses.push({ ruleType: "category", categoryId: context.categoryId });
+    if (mongoose.isValidObjectId(context.productId)) clauses.push({ ruleType: "product", productId: context.productId });
+    if (mongoose.isValidObjectId(context.campaignId)) clauses.push({ ruleType: "campaign", campaignId: context.campaignId });
+    if (mongoose.isValidObjectId(context.influencerId)) clauses.push({ ruleType: "influencer", influencerId: context.influencerId });
+    if (mongoose.isValidObjectId(context.categoryId)) clauses.push({ ruleType: "category", categoryId: context.categoryId });
     if (context.trafficSource) clauses.push({ ruleType: "traffic_source", trafficSource: normalizeTrafficSource(context.trafficSource) });
-    if (context.affiliateId) clauses.push({ ruleType: "affiliate", affiliateId: context.affiliateId });
+    if (mongoose.isValidObjectId(context.affiliateId)) clauses.push({ ruleType: "affiliate", affiliateId: context.affiliateId });
     clauses.push({ ruleType: { $in: ["performance", "custom_formula"] } });
 
-    const candidates = await InfluencerCommissionRule.find({ ...base, $or: clauses }).lean();
+    const candidates = await InfluencerCommissionRule.find({ $and: [base, { $or: clauses }] }).lean();
     if (!candidates.length) return null;
     const conditions = await CommissionRuleCondition.find({ ruleId: { $in: candidates.map((rule) => rule._id) } }).lean();
     const byRule = conditions.reduce((acc, condition) => {
@@ -827,7 +844,7 @@ class CommissionService {
       { $setOnInsert: payload },
       {
         upsert: true,
-        new: true,
+        returnDocument: "after",
         setDefaultsOnInsert: true,
         session: session || undefined,
       }
@@ -874,7 +891,7 @@ class CommissionService {
           },
         },
         {
-          new: true,
+          returnDocument: "after",
           session: session || undefined,
         }
       );
@@ -897,7 +914,7 @@ class CommissionService {
           },
         },
         {
-          new: true,
+          returnDocument: "after",
           runValidators: true,
           session: session || undefined,
         }
@@ -980,7 +997,7 @@ class CommissionService {
       const updatedRecord = await CommissionRecord.findOneAndUpdate(
         { _id: record._id, state: "SETTLED" },
         { $set: { state: "REVERSED", reversedAt: new Date() } },
-        { new: true, session: session || undefined }
+        { returnDocument: "after", session: session || undefined }
       );
 
       if (!updatedRecord) return { skipped: true, reason: "STATE_CHANGED" };
@@ -999,7 +1016,7 @@ class CommissionService {
           },
         },
         {
-          new: true,
+          returnDocument: "after",
           runValidators: true,
           session: session || undefined,
         }
@@ -1788,7 +1805,7 @@ class CommissionService {
             pendingBalance: roundMoney(wallet.pendingBalance || 0) + amount,
           },
         },
-        { new: true, session: session || undefined, runValidators: true }
+        { returnDocument: "after", session: session || undefined, runValidators: true }
       );
 
       const [request] = await InfluencerWithdrawalRequest.create(
@@ -1857,7 +1874,7 @@ class CommissionService {
             pendingBalance: Math.max(0, roundMoney(wallet.pendingBalance || 0) - roundMoney(request.amount || 0)),
           },
         },
-        { new: true, session: session || undefined, runValidators: true }
+        { returnDocument: "after", session: session || undefined, runValidators: true }
       );
       request.status = "CANCELLED";
       request.rejectedAt = new Date();
@@ -1944,31 +1961,42 @@ class CommissionService {
   }
 
   async simulateCommission(payload = {}) {
+    const optionalText = (value) => {
+      const normalized = String(value ?? "").trim();
+      return normalized || undefined;
+    };
+    const influencerId = optionalText(payload.influencerId);
+    const campaignId = optionalText(payload.campaignId);
+    const productId = optionalText(payload.productId);
+    const categoryId = optionalText(payload.categoryId);
+    const vendorId = optionalText(payload.vendorId);
+    const trafficSource = optionalText(payload.trafficSource) || "affiliate_link";
+    const revenue = Number(payload.revenue || 0);
     const result = await this.calculateCommission({
-      influencerId: payload.influencerId,
-      campaignId: payload.campaignId,
-      productId: payload.productId,
-      categoryId: payload.categoryId,
-      trafficSource: payload.trafficSource,
-      revenue: payload.revenue,
+      influencerId,
+      campaignId,
+      productId,
+      categoryId,
+      trafficSource,
+      revenue,
       expectedOrders: payload.expectedOrders,
       conversionRate: payload.conversionRate,
       campaignCompletion: payload.campaignCompletion,
       reelEngagement: payload.reelEngagement,
       reelEngagementTarget: payload.reelEngagementTarget,
       order: {
-        subtotal: payload.revenue,
-        totalAmount: payload.revenue,
+        subtotal: revenue,
+        totalAmount: revenue,
         discountAmount: payload.discounts || 0,
         platformFee: payload.platformAdjustments || 0,
-        sellerId: payload.vendorId,
+        sellerId: vendorId,
         attribution: {
-          influencerId: payload.influencerId,
-          campaignId: payload.campaignId,
-          productId: payload.productId,
-          surface: payload.trafficSource,
+          influencerId,
+          campaignId,
+          productId,
+          surface: trafficSource,
         },
-        items: [{ productId: payload.productId }],
+        items: productId ? [{ productId }] : [],
       },
     });
     if (result.skipped) {
@@ -2074,11 +2102,25 @@ class CommissionService {
     return settlement;
   }
 
+  async listSettlements(query = {}) {
+    const filter = {};
+    if (query.status) filter.status = String(query.status).toUpperCase();
+    if (query.startDate || query.from) filter.periodStart = { $gte: new Date(query.startDate || query.from) };
+    if (query.endDate || query.to) filter.periodEnd = { ...(filter.periodEnd || {}), $lte: new Date(query.endDate || query.to) };
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 25));
+    const [items, total] = await Promise.all([
+      CommissionSettlement.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      CommissionSettlement.countDocuments(filter),
+    ]);
+    return { items, pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 } };
+  }
+
   async approveSettlement(settlementId, actor = {}, meta = {}) {
     const settlement = await CommissionSettlement.findByIdAndUpdate(
       settlementId,
       { $set: { status: "APPROVED", approvedBy: actor?._id || actor?.sub || undefined, approvedAt: new Date() } },
-      { new: true }
+      { returnDocument: "after" }
     );
     if (!settlement) throw new AppError("Settlement not found", 404, "NOT_FOUND");
     await this.auditCommission("SETTLEMENT_APPROVED", "CommissionSettlement", settlement._id, { actor, newValue: settlement.toObject(), meta });
@@ -2136,6 +2178,10 @@ class CommissionService {
     const filter = {};
     if (query.action) filter.action = query.action;
     if (query.entityType) filter.entityType = query.entityType;
+    if (query.search) {
+      const re = new RegExp(String(query.search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [{ action: re }, { entityType: re }, { userRole: re }, { reason: re }];
+    }
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 25));
     const [logs, total] = await Promise.all([

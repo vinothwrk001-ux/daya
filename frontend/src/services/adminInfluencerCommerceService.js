@@ -42,8 +42,18 @@ export async function getAdminInfluencerVendorMatching(params = {}) {
   return data;
 }
 
+export async function recommendAdminInfluencerVendorMatch(payload = {}) {
+  const { data } = await api.post(`${base}/matching/recommend`, payload);
+  return data;
+}
+
 export async function listAdminAffiliateProducts(params = {}) {
   const { data } = await api.get(`${base}/affiliate-products`, { params });
+  return data;
+}
+
+export async function listAdminAffiliateLinks(params = {}) {
+  const { data } = await api.get(`${base}/affiliate-links`, { params });
   return data;
 }
 
@@ -191,6 +201,11 @@ export async function simulateCommissionEngine(payload = {}) {
 
 export async function createCommissionEngineSettlement(payload = {}) {
   const { data } = await api.post(`${commissionEngineBase}/settlements`, payload);
+  return data;
+}
+
+export async function listCommissionEngineSettlements(params = {}) {
+  const { data } = await api.get(`${commissionEngineBase}/settlements`, { params });
   return data;
 }
 

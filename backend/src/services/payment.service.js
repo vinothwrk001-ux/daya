@@ -647,7 +647,7 @@ class PaymentService {
           fulfillmentError: 1,
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     ).exec();
   }
 
@@ -780,7 +780,7 @@ class PaymentService {
             orderCreatedAt: new Date(),
           },
         },
-        { new: true }
+        { returnDocument: "after" }
       );
 
       const resolvedOrders =

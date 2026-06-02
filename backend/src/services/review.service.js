@@ -229,7 +229,7 @@ async function refreshProductSummary(productId) {
         refreshedAt: new Date(),
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     ),
     Product.findByIdAndUpdate(productId, {
       $set: {
@@ -458,7 +458,7 @@ class ReviewService {
     const review = await ProductReview.findOneAndUpdate(
       filter,
       { $set: { status: "deleted", moderatedBy: actor.sub, moderatedAt: new Date() } },
-      { new: true }
+      { returnDocument: "after" }
     );
     if (!review) throw new AppError("Review not found", 404, "NOT_FOUND");
 
@@ -486,7 +486,7 @@ class ReviewService {
     const review = await ProductReview.findOneAndUpdate(
       { _id: reviewId, vendorId: vendor._id, status: { $ne: "deleted" } },
       { $set: { vendorReply: message, vendorReplyDate: new Date() } },
-      { new: true }
+      { returnDocument: "after" }
     );
     if (!review) throw new AppError("Review not found", 404, "NOT_FOUND");
 

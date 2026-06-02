@@ -90,6 +90,7 @@ const createSettlement = asyncHandler(async (req, res) =>
     "Settlement batch created"
   )
 );
+const listSettlements = asyncHandler(async (req, res) => ok(res, await commissionService.listSettlements(req.query), "Commission settlements loaded"));
 const approveSettlement = asyncHandler(async (req, res) =>
   ok(
     res,
@@ -129,6 +130,7 @@ module.exports = {
   simulate,
   dashboard,
   createSettlement,
+  listSettlements,
   approveSettlement,
   preparePayoutBatch,
   auditLogs,

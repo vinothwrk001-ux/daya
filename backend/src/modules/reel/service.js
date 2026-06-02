@@ -344,7 +344,7 @@ class ReelService {
       update.visibility = "archived";
       update.state = "rejected";
     }
-    const reel = await Reel.findOneAndUpdate({ _id: reelId, influencerId: profile._id }, { $set: update }, { new: true, runValidators: true }).lean();
+    const reel = await Reel.findOneAndUpdate({ _id: reelId, influencerId: profile._id }, { $set: update }, { returnDocument: "after", runValidators: true }).lean();
     if (!reel) throw new AppError("Content not found", 404, "NOT_FOUND");
     return contentSummary(reel);
   }
@@ -486,7 +486,7 @@ class ReelService {
           "moderation.notes": payload.notes || "",
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (nextState === "published") {

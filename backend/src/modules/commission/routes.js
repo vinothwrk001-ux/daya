@@ -160,6 +160,7 @@ router.post(
   ),
   controller.createSettlement
 );
+router.get("/admin/engine/settlements", authRequired, requireRole(...adminRoles, "read_only_admin"), controller.listSettlements);
 router.post("/admin/engine/settlements/:settlementId/approve", authRequired, requireRole("admin", "super_admin", "finance_admin"), controller.approveSettlement);
 router.post("/admin/engine/settlements/:settlementId/payout-batch", authRequired, requireRole("admin", "super_admin", "finance_admin"), controller.preparePayoutBatch);
 router.get("/admin/engine/audit-logs", authRequired, requireRole(...adminRoles, "read_only_admin"), controller.auditLogs);

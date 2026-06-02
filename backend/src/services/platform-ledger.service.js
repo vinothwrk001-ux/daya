@@ -31,7 +31,7 @@ class PlatformLedgerService {
           },
         },
       },
-      { upsert: true, new: true, session: session || undefined, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", session: session || undefined, setDefaultsOnInsert: true }
     );
   }
 
@@ -60,7 +60,7 @@ class PlatformLedgerService {
           },
         },
       },
-      { upsert: true, new: true, session: session || undefined, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", session: session || undefined, setDefaultsOnInsert: true }
     );
   }
 }

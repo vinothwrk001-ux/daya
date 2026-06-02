@@ -514,7 +514,7 @@ class CancellationRefundService {
     }
 
     const updatedRefund = await Refund.findByIdAndUpdate(refund._id, update, {
-      new: true,
+      returnDocument: "after",
       session: session || undefined,
     });
 
@@ -593,7 +593,7 @@ class CancellationRefundService {
           "refundSummary.pendingSince": preview.refundAmount > 0 ? new Date() : null,
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     ).exec();
 
     if (!claim) {
@@ -887,7 +887,7 @@ class CancellationRefundService {
             "approval.rejectionReason": String(payload.notes || payload.reason || "Rejected by admin"),
           },
         },
-        { new: true }
+        { returnDocument: "after" }
       );
       await Order.updateOne(
         { _id: order._id },
@@ -1005,7 +1005,7 @@ class CancellationRefundService {
           },
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     const order = await orderRepo.findById(refund.orderId?._id || refund.orderId);

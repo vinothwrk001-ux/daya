@@ -607,7 +607,7 @@ class VendorStorefrontService {
         showDirectContact: false,
       },
     };
-    const vendor = await Vendor.findOneAndUpdate({ userId: vendorUserId }, { $set: patch }, { new: true }).lean();
+    const vendor = await Vendor.findOneAndUpdate({ userId: vendorUserId }, { $set: patch }, { returnDocument: "after" }).lean();
     if (!vendor) throw new AppError("Vendor not found", 404, "VENDOR_NOT_FOUND");
     clearVendorCache(vendor._id);
     clearVendorCache(vendor.storeSlug);
@@ -630,7 +630,7 @@ class VendorStorefrontService {
     if (payload.reason !== undefined) patch.storeHiddenReason = String(payload.reason || "").slice(0, 500);
     if (!Object.keys(patch).length) throw new AppError("Unsupported store moderation action", 400, "VALIDATION_ERROR");
 
-    const vendor = await Vendor.findByIdAndUpdate(vendorId, { $set: patch }, { new: true }).lean();
+    const vendor = await Vendor.findByIdAndUpdate(vendorId, { $set: patch }, { returnDocument: "after" }).lean();
     if (!vendor) throw new AppError("Vendor not found", 404, "VENDOR_NOT_FOUND");
     clearVendorCache(vendor._id);
     clearVendorCache(vendor.storeSlug);

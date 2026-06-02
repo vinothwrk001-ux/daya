@@ -196,7 +196,7 @@ class CODService {
     return await Shipment.findOneAndUpdate(
       { orderId: order._id },
       { $set: changes },
-      { new: true, session: session || undefined }
+      { returnDocument: "after", session: session || undefined }
     );
   }
 

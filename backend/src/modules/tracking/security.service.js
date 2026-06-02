@@ -210,7 +210,7 @@ async function evaluateEvent(req, eventType) {
     VisitorProfile.findOneAndUpdate(
       { visitorId: identity.visitorId },
       { $set: { ...identity, fraudScore: fraud.score, lastSeenAt: new Date() }, $inc: { eventCount: 1 } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     ),
     status === "verified" ? VerifiedEvent.create(payload) : Promise.resolve(),
     status === "fraud" || status === "rate_limited" ? FraudEvent.create(payload) : Promise.resolve(),

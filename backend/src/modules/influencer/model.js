@@ -68,7 +68,7 @@ const influencerProfileSchema = new mongoose.Schema(
     contentNiche: { type: [String], default: [] },
     contentStyle: { type: [String], default: [] },
     storeName: { type: String, trim: true, maxlength: 120, default: "" },
-    storeSlug: { type: String, trim: true, lowercase: true, index: true, sparse: true },
+    storeSlug: { type: String, trim: true, lowercase: true },
     seo: {
       metaTitle: { type: String, trim: true, maxlength: 160, default: "" },
       metaDescription: { type: String, trim: true, maxlength: 300, default: "" },
@@ -335,7 +335,7 @@ const influencerSocialVerificationSchema = new mongoose.Schema(
 
 const influencerBusinessProfileSchema = new mongoose.Schema(
   {
-    applicationId: { type: String, trim: true, index: true },
+    applicationId: { type: String, trim: true },
     influencerId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerProfile", index: true },
     country: { type: String, trim: true, required: true },
     state: { type: String, trim: true, required: true },
@@ -366,7 +366,7 @@ const influencerBusinessProfileSchema = new mongoose.Schema(
 
 const influencerPaymentProfileSchema = new mongoose.Schema(
   {
-    applicationId: { type: String, trim: true, index: true },
+    applicationId: { type: String, trim: true },
     influencerId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerProfile", index: true },
     payoutMethod: {
       type: String,

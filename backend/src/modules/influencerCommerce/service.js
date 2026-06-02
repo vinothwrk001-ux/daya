@@ -43,7 +43,7 @@ async function upsertProductAssignments({ campaign, influencerId, status = "appr
       },
       $setOnInsert: { assignedAt: now },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   )));
 }
 
@@ -177,7 +177,7 @@ class InfluencerCommerceVendorService {
     return VendorInfluencerRelationship.findOneAndUpdate(
       { vendorId, influencerId },
       update,
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
   }
 
@@ -186,6 +186,7 @@ class InfluencerCommerceVendorService {
     const match = { vendorId: objectId(vendorId), createdAt: { $gte: start, $lte: end } };
     if (objectId(query.campaignId)) match.campaignId = objectId(query.campaignId);
     if (objectId(query.influencerId)) match.influencerId = objectId(query.influencerId);
+    if (objectId(query.productId)) match["metadata.productId"] = objectId(query.productId);
 
     const [summary, byInfluencer, byCampaign, trendRows] = await Promise.all([
       CommissionRecord.aggregate([
@@ -250,7 +251,20 @@ class InfluencerCommerceVendorService {
     const { summary, byInfluencer, trend } = await this.aggregateVendorCommissions(vendor._id, query);
     const campaignFilter = { vendorId: vendor._id };
     if (objectId(query.campaignId)) campaignFilter._id = objectId(query.campaignId);
+    if (objectId(query.productId)) campaignFilter.productIds = objectId(query.productId);
+    if (query.category) campaignFilter.category = query.category;
+    if (query.status) campaignFilter.state = query.status;
+    if (query.search) {
+      const re = new RegExp(escapeRegex(query.search), "i");
+      campaignFilter.$or = [{ title: re }, { description: re }, { category: re }];
+    }
     const campaignIds = await campaignIdsForFilter(campaignFilter);
+    const commissionProductMatch = {
+      vendorId: vendor._id,
+      createdAt: { $gte: parseRange(query).start, $lte: parseRange(query).end },
+      campaignId: { $in: campaignIds },
+    };
+    if (objectId(query.productId)) commissionProductMatch["metadata.productId"] = objectId(query.productId);
 
     const [campaigns, relationshipsTotal, activeInfluencers, pendingApplications, pendingContent, campaignSpend, clicksAgg, topProducts] = await Promise.all([
       Campaign.find(campaignFilter).select("title campaignType state fixedFee applications productIds analytics").lean(),
@@ -266,7 +280,7 @@ class InfluencerCommerceVendorService {
       Campaign.aggregate([{ $match: campaignFilter }, { $group: { _id: null, total: { $sum: "$fixedFee" } } }]),
       TrackingSession.countDocuments({ campaignId: { $in: campaignIds } }),
       CommissionRecord.aggregate([
-        { $match: { vendorId: vendor._id } },
+        { $match: commissionProductMatch },
         { $group: { _id: "$metadata.productId", revenue: { $sum: "$gross" }, commission: { $sum: "$influencerShare" }, orders: { $sum: 1 } } },
         { $sort: { revenue: -1 } },
         { $limit: 5 },
@@ -324,11 +338,36 @@ class InfluencerCommerceVendorService {
   async discover(userId, query = {}) {
     const vendor = await this.getVendor(userId);
     const { page, limit, skip } = pageOptions(query, 24);
+    const requiredIdSets = [];
     const filter = {
       state: { $in: ["verified", "active"] },
       "privacy.searchVisibility": { $ne: false },
       "privacy.profileVisibility": { $ne: "private" },
     };
+    if (query.status && ["saved", "invited", "applied", "approved", "active", "paused", "blacklisted"].includes(String(query.status))) {
+      const relationshipRows = await VendorInfluencerRelationship.find({ vendorId: vendor._id, status: query.status }).select("influencerId").lean();
+      requiredIdSets.push(new Set(relationshipRows.map((row) => String(row.influencerId))));
+    }
+    if (query.campaignId && objectId(query.campaignId)) {
+      const campaign = await Campaign.findOne({ _id: objectId(query.campaignId), vendorId: vendor._id }).select("influencerId applications category productIds").lean();
+      if (campaign) {
+        const campaignInfluencerIds = [
+          campaign.influencerId,
+          ...(campaign.applications || []).map((application) => application.influencerId),
+        ].filter(Boolean).map(String);
+        if (campaignInfluencerIds.length) requiredIdSets.push(new Set(campaignInfluencerIds));
+        if (!query.category && campaign.category) filter.$or = [{ categories: campaign.category }, { primaryCategory: campaign.category }, { secondaryCategories: campaign.category }];
+      }
+    }
+    if (query.productId && objectId(query.productId)) {
+      const assignments = await InfluencerProductAssignment.find({ vendorId: vendor._id, productId: objectId(query.productId), status: { $ne: "rejected" } }).select("influencerId").lean();
+      requiredIdSets.push(new Set(assignments.map((row) => String(row.influencerId))));
+    }
+    if (requiredIdSets.length) {
+      const [firstSet, ...restSets] = requiredIdSets;
+      const ids = [...firstSet].filter((id) => restSets.every((set) => set.has(id))).map((id) => objectId(id)).filter(Boolean);
+      filter._id = { $in: ids };
+    }
     if (query.category) filter.$or = [{ categories: query.category }, { primaryCategory: query.category }, { secondaryCategories: query.category }];
     if (query.country) filter["location.country"] = query.country;
     if (query.language) filter.languages = query.language;
@@ -379,6 +418,7 @@ class InfluencerCommerceVendorService {
           profilePicture: profile.profilePicture,
           name: profileName(profile),
           username: profileUsername(profile),
+          email: profile.userId?.email || "",
           category: profile.primaryCategory || profile.categories?.[0] || "",
           categories: profile.categories || [],
           followers: Number(profile.followers || 0),
@@ -402,7 +442,44 @@ class InfluencerCommerceVendorService {
     const { page, limit, skip } = pageOptions(query, 20);
     const filter = { vendorId: vendor._id };
     if (query.status) filter.status = query.status;
-    const [items, total] = await Promise.all([
+    const requiredIdSets = [];
+    if (query.campaignId && objectId(query.campaignId)) {
+      const campaign = await Campaign.findOne({ _id: objectId(query.campaignId), vendorId: vendor._id }).select("influencerId applications").lean();
+      const ids = campaign
+        ? [campaign.influencerId, ...(campaign.applications || []).map((application) => application.influencerId)].filter(Boolean).map(String)
+        : [];
+      requiredIdSets.push(new Set(ids));
+    }
+    if (query.productId && objectId(query.productId)) {
+      const assignments = await InfluencerProductAssignment.find({ vendorId: vendor._id, productId: objectId(query.productId), status: { $ne: "rejected" } }).select("influencerId").lean();
+      requiredIdSets.push(new Set(assignments.map((row) => String(row.influencerId))));
+    }
+    if (query.category || query.search) {
+      const profileFilter = {};
+      const clauses = [];
+      if (query.category) clauses.push({ $or: [{ categories: query.category }, { primaryCategory: query.category }, { secondaryCategories: query.category }] });
+      if (query.search) {
+        const re = new RegExp(escapeRegex(query.search), "i");
+        clauses.push({ $or: [{ displayName: re }, { influencerCode: re }, { primaryCategory: re }, { categories: re }] });
+      }
+      if (clauses.length === 1) Object.assign(profileFilter, clauses[0]);
+      if (clauses.length > 1) profileFilter.$and = clauses;
+      const profiles = await InfluencerProfile.find(profileFilter).select("_id").lean();
+      requiredIdSets.push(new Set(profiles.map((profile) => String(profile._id))));
+    }
+    if (requiredIdSets.length) {
+      const [firstSet, ...restSets] = requiredIdSets;
+      const ids = [...firstSet].filter((id) => restSets.every((set) => set.has(id))).map((id) => objectId(id)).filter(Boolean);
+      filter.influencerId = { $in: ids };
+    }
+    const metricMatch = { vendorId: vendor._id };
+    if (query.campaignId && objectId(query.campaignId)) metricMatch.campaignId = objectId(query.campaignId);
+    if (query.productId && objectId(query.productId)) metricMatch["metadata.productId"] = objectId(query.productId);
+    if (query.startDate || query.endDate) {
+      const { start, end } = parseRange(query);
+      metricMatch.createdAt = { $gte: start, $lte: end };
+    }
+    const [items, total, commissionRows, campaignRows] = await Promise.all([
       VendorInfluencerRelationship.find(filter)
         .populate({ path: "influencerId", populate: { path: "userId", select: "name email username" } })
         .sort({ lastActivityAt: -1 })
@@ -410,21 +487,56 @@ class InfluencerCommerceVendorService {
         .limit(limit)
         .lean(),
       VendorInfluencerRelationship.countDocuments(filter),
+      CommissionRecord.aggregate([
+        { $match: metricMatch },
+        { $group: { _id: "$influencerId", revenue: { $sum: "$gross" }, commission: { $sum: "$influencerShare" }, orders: { $sum: 1 } } },
+      ]),
+      Campaign.aggregate([
+        {
+          $match: {
+            vendorId: vendor._id,
+            state: { $in: ["active", "accepted", "proposed"] },
+            ...(query.campaignId && objectId(query.campaignId) ? { _id: objectId(query.campaignId) } : {}),
+            ...(query.productId && objectId(query.productId) ? { productIds: objectId(query.productId) } : {}),
+          },
+        },
+        { $unwind: { path: "$applications", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            influencerId: { $ifNull: ["$applications.influencerId", "$influencerId"] },
+            applicationStatus: "$applications.status",
+          },
+        },
+        { $match: { influencerId: { $ne: null }, $or: [{ applicationStatus: "approved" }, { applicationStatus: null }] } },
+        { $group: { _id: "$influencerId", count: { $sum: 1 } } },
+      ]),
     ]);
+    const commissionMap = new Map(commissionRows.map((row) => [String(row._id), row]));
+    const campaignMap = new Map(campaignRows.map((row) => [String(row._id), Number(row.count || 0)]));
     return {
-      items: items.map((relationship) => ({
-        id: relationship._id,
-        influencer: relationship.influencerId,
-        influencerId: relationship.influencerId?._id,
-        name: profileName(relationship.influencerId),
-        username: profileUsername(relationship.influencerId),
-        status: relationship.status,
-        activeCampaigns: relationship.metricsSnapshot?.activeCampaigns || relationship.activeCampaignIds?.length || 0,
-        revenueGenerated: money(relationship.metricsSnapshot?.revenue || 0),
-        commissionPaid: money(relationship.metricsSnapshot?.commission || 0),
-        conversionRate: money(relationship.metricsSnapshot?.conversionRate || 0),
-        lastActivity: relationship.lastActivityAt || relationship.updatedAt,
-      })),
+      items: items.map((relationship) => {
+        const influencerId = relationship.influencerId?._id;
+        const metrics = commissionMap.get(String(influencerId)) || {};
+        const activeCampaigns = campaignMap.get(String(influencerId)) || relationship.activeCampaignIds?.length || 0;
+        const clicks = Number(relationship.metricsSnapshot?.clicks || 0);
+        const orders = Number(metrics.orders || 0);
+        return {
+          id: relationship._id,
+          influencer: relationship.influencerId,
+          influencerId,
+          name: profileName(relationship.influencerId),
+          username: profileUsername(relationship.influencerId),
+          email: relationship.influencerId?.userId?.email || "",
+          category: relationship.influencerId?.primaryCategory || relationship.influencerId?.categories?.[0] || "",
+          status: relationship.status,
+          activeCampaigns,
+          revenueGenerated: money(metrics.revenue || 0),
+          commissionPaid: money(metrics.commission || 0),
+          conversionRate: clicks ? money((orders / clicks) * 100) : money(relationship.metricsSnapshot?.conversionRate || 0),
+          orders,
+          lastActivity: relationship.lastActivityAt || relationship.updatedAt,
+        };
+      }),
       pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 },
     };
   }
@@ -509,8 +621,15 @@ class InfluencerCommerceVendorService {
   async campaigns(userId, query = {}) {
     const vendor = await this.getVendor(userId);
     const filter = { vendorId: vendor._id };
-    if (query.state) filter.state = query.state;
+    if (query.campaignId && objectId(query.campaignId)) filter._id = objectId(query.campaignId);
+    if (query.state || query.status) filter.state = query.state || query.status;
     if (query.campaignType) filter.campaignType = query.campaignType;
+    if (query.category) filter.category = query.category;
+    if (query.productId && objectId(query.productId)) filter.productIds = objectId(query.productId);
+    if (query.startDate || query.endDate) {
+      const { start, end } = parseRange(query);
+      filter.createdAt = { $gte: start, $lte: end };
+    }
     if (query.search) {
       const re = new RegExp(escapeRegex(query.search), "i");
       filter.$or = [{ title: re }, { description: re }, { category: re }];
@@ -526,14 +645,55 @@ class InfluencerCommerceVendorService {
         .lean(),
       Campaign.countDocuments(filter),
     ]);
+    const campaignIds = items.map((campaign) => campaign._id);
+    const [contentCounts, commissionCounts, orderCounts] = campaignIds.length
+      ? await Promise.all([
+        Reel.aggregate([
+          { $match: { campaignId: { $in: campaignIds } } },
+          { $group: { _id: "$campaignId", count: { $sum: 1 } } },
+        ]),
+        CommissionRecord.aggregate([
+          { $match: { campaignId: { $in: campaignIds } } },
+          { $group: { _id: "$campaignId", count: { $sum: 1 }, revenue: { $sum: "$gross" }, commission: { $sum: "$influencerShare" }, orders: { $sum: 1 } } },
+        ]),
+        Order.aggregate([
+          { $match: { "attribution.campaignId": { $in: campaignIds } } },
+          { $group: { _id: "$attribution.campaignId", count: { $sum: 1 } } },
+        ]),
+      ])
+      : [[], [], []];
+    const contentCountMap = new Map(contentCounts.map((row) => [String(row._id), Number(row.count || 0)]));
+    const commissionCountMap = new Map(commissionCounts.map((row) => [String(row._id), row]));
+    const orderCountMap = new Map(orderCounts.map((row) => [String(row._id), Number(row.count || 0)]));
     return {
-      items: items.map((campaign) => ({
-        ...campaign,
-        budget: Number(campaign.fixedFee || 0),
-        revenue: Number(campaign.analytics?.revenue || 0),
-        applicationsCount: campaign.applications?.length || 0,
-        approvedCreators: (campaign.applications || []).filter((app) => app.status === "approved").length + (campaign.influencerId ? 1 : 0),
-      })),
+      items: items.map((campaign) => {
+        const applicationsCount = campaign.applications?.length || 0;
+        const contentCount = contentCountMap.get(String(campaign._id)) || 0;
+        const commissionStats = commissionCountMap.get(String(campaign._id)) || {};
+        const commissionCount = Number(commissionStats.count || 0);
+        const orderAttributionCount = orderCountMap.get(String(campaign._id)) || 0;
+        const deleteBlockers = [
+          applicationsCount ? "creator applications" : "",
+          contentCount ? "uploaded content" : "",
+          commissionCount ? "commission records" : "",
+          orderAttributionCount ? "sales/order attribution" : "",
+        ].filter(Boolean);
+        return {
+          ...campaign,
+          budget: Number(campaign.fixedFee || 0),
+          revenue: money(commissionStats.revenue || campaign.analytics?.revenue || 0),
+          commission: money(commissionStats.commission || 0),
+          orders: Number(commissionStats.orders || campaign.analytics?.orders || 0),
+          applicationsCount,
+          approvedCreators: (campaign.applications || []).filter((app) => app.status === "approved").length + (campaign.influencerId ? 1 : 0),
+          contentCount,
+          commissionCount,
+          orderAttributionCount,
+          canDelete: deleteBlockers.length === 0,
+          deleteBlockers,
+          deleteDisabledReason: deleteBlockers.length ? `Cannot delete: ${deleteBlockers.join(", ")} exist.` : "",
+        };
+      }),
       pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 },
     };
   }
@@ -547,6 +707,9 @@ class InfluencerCommerceVendorService {
     }
     const campaign = await Campaign.findOne({ _id: campaignObjectId, vendorId: vendor._id });
     if (!campaign) throw new AppError("Campaign not found", 404, "NOT_FOUND");
+    if (["completed", "cancelled"].includes(campaign.state)) {
+      throw new AppError("Applications cannot be reviewed after a campaign is closed or cancelled", 409, "CAMPAIGN_REVIEW_LOCKED");
+    }
     const application = campaign.applications.find((item) => String(item.influencerId?._id || item.influencerId) === String(influencerId));
     if (!application) throw new AppError("Application not found", 404, "NOT_FOUND");
     const decision = payload.decision === "approve" ? "approved" : "rejected";
@@ -600,12 +763,17 @@ class InfluencerCommerceVendorService {
     if (!["draft", "proposed", "accepted", "active", "completed", "cancelled"].includes(state)) {
       throw new AppError("Invalid campaign state", 400, "INVALID_STATE");
     }
+    const current = await Campaign.findOne({ _id: campaignId, vendorId: vendor._id }).select("state").lean();
+    if (!current) throw new AppError("Campaign not found", 404, "NOT_FOUND");
+    if (current.state === state) return current;
+    if (current.state === "completed" && state !== "completed") {
+      throw new AppError("Completed campaigns cannot be reopened. Create a new campaign instead.", 409, "CAMPAIGN_COMPLETED_LOCKED");
+    }
     const campaign = await Campaign.findOneAndUpdate(
       { _id: campaignId, vendorId: vendor._id },
       { $set: { state }, $push: { history: { state, actorId: userId, note: payload.note || `Campaign ${state}`, changedAt: new Date() } } },
-      { new: true }
+      { returnDocument: "after" }
     );
-    if (!campaign) throw new AppError("Campaign not found", 404, "NOT_FOUND");
     await auditService.log({ actor: { _id: userId, role: "vendor" }, action: "campaign.status.update", entityType: "Campaign", entityId: campaign._id, metadata: { state } }).catch(() => {});
     return campaign;
   }
@@ -615,13 +783,21 @@ class InfluencerCommerceVendorService {
     const campaign = await Campaign.findOne({ _id: campaignId, vendorId: vendor._id });
     if (!campaign) throw new AppError("Campaign not found", 404, "NOT_FOUND");
 
-    const [commissionCount, contentCount] = await Promise.all([
+    const [commissionCount, contentCount, orderAttributionCount] = await Promise.all([
       CommissionRecord.countDocuments({ campaignId: campaign._id }),
       Reel.countDocuments({ campaignId: campaign._id }),
+      Order.countDocuments({ "attribution.campaignId": campaign._id }),
     ]);
-    if ((campaign.applications || []).length || commissionCount || contentCount) {
+    const applicationsCount = (campaign.applications || []).length;
+    const deleteBlockers = [
+      applicationsCount ? "creator applications" : "",
+      contentCount ? "uploaded content" : "",
+      commissionCount ? "commission records" : "",
+      orderAttributionCount ? "sales/order attribution" : "",
+    ].filter(Boolean);
+    if (deleteBlockers.length) {
       throw new AppError(
-        "Campaign has applications, content, or commission records. Close the campaign instead of deleting it.",
+        `Campaign has ${deleteBlockers.join(", ")}. Close the campaign instead of deleting it.`,
         409,
         "CAMPAIGN_DELETE_LOCKED"
       );
@@ -646,23 +822,79 @@ class InfluencerCommerceVendorService {
     const vendor = await this.getVendor(userId);
     const { page, limit, skip } = pageOptions(query, 20);
     const filter = { sellerId: vendor._id };
+    if (query.productId && objectId(query.productId)) filter._id = objectId(query.productId);
     if (query.category) filter.category = query.category;
+    if (query.status) {
+      let productStatus = String(query.status).toUpperCase();
+      if (productStatus === "ACTIVE") productStatus = "APPROVED";
+      if (["APPROVED", "PENDING", "REJECTED", "DRAFT", "ACTIVE", "INACTIVE"].includes(productStatus)) {
+        filter.status = productStatus;
+      }
+    }
     if (query.search) filter.name = new RegExp(escapeRegex(query.search), "i");
-    const [products, total, campaignProducts, productStats] = await Promise.all([
+    const campaignFilter = {
+      vendorId: vendor._id,
+      ...(query.campaignId && objectId(query.campaignId) ? { _id: objectId(query.campaignId) } : {}),
+    };
+    const campaignProducts = await Campaign.find(campaignFilter).select("productIds state").lean();
+    const promotedProductIds = [...new Set(campaignProducts.flatMap((campaign) => (campaign.productIds || []).map(String)))];
+    if (query.promotedOnly) {
+      filter._id = { $in: promotedProductIds.map((id) => objectId(id)).filter(Boolean) };
+      if (query.productId && objectId(query.productId)) {
+        filter._id = promotedProductIds.includes(String(query.productId)) ? objectId(query.productId) : { $in: [] };
+      }
+    }
+    const commissionMatch = { vendorId: vendor._id };
+    if (query.campaignId && objectId(query.campaignId)) commissionMatch.campaignId = objectId(query.campaignId);
+    if (query.productId && objectId(query.productId)) commissionMatch["metadata.productId"] = objectId(query.productId);
+    if (query.influencerId && objectId(query.influencerId)) commissionMatch.influencerId = objectId(query.influencerId);
+    if (query.startDate || query.endDate) {
+      const { start, end } = parseRange(query);
+      commissionMatch.createdAt = { $gte: start, $lte: end };
+    }
+    const trackingMatch = { productId: { $exists: true, $ne: null } };
+    if (query.campaignId && objectId(query.campaignId)) trackingMatch.campaignId = objectId(query.campaignId);
+    if (query.productId && objectId(query.productId)) trackingMatch.productId = objectId(query.productId);
+    if (query.influencerId && objectId(query.influencerId)) trackingMatch.influencerId = objectId(query.influencerId);
+    if (query.startDate || query.endDate) {
+      const { start, end } = parseRange(query);
+      trackingMatch.createdAt = { $gte: start, $lte: end };
+    }
+    const [products, total, productStats, clickStats] = await Promise.all([
       Product.find(filter).select("name images thumbnail category price discountPrice stock status analytics").sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       Product.countDocuments(filter),
-      Campaign.find({ vendorId: vendor._id }).select("productIds state").lean(),
       CommissionRecord.aggregate([
-        { $match: { vendorId: vendor._id } },
+        { $match: commissionMatch },
         { $group: { _id: "$metadata.productId", revenue: { $sum: "$gross" }, commission: { $sum: "$influencerShare" }, orders: { $sum: 1 } } },
+      ]),
+      TrackingSession.aggregate([
+        { $match: trackingMatch },
+        { $group: { _id: "$productId", clicks: { $sum: 1 }, influencers: { $addToSet: "$influencerId" } } },
       ]),
     ]);
     const campaignProductSet = new Set(campaignProducts.flatMap((campaign) => (campaign.productIds || []).map(String)));
+    const campaignCountMap = campaignProducts.reduce((map, campaign) => {
+      (campaign.productIds || []).forEach((productId) => {
+        const key = String(productId);
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+      return map;
+    }, new Map());
+    const activeCampaignMap = campaignProducts.reduce((map, campaign) => {
+      if (!["active", "accepted", "proposed"].includes(campaign.state)) return map;
+      (campaign.productIds || []).forEach((productId) => {
+        const key = String(productId);
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+      return map;
+    }, new Map());
     const statMap = new Map(productStats.map((row) => [String(row._id), row]));
+    const clickMap = new Map(clickStats.map((row) => [String(row._id), row]));
     return {
       items: products.map((product) => {
         const stat = statMap.get(String(product._id)) || {};
-        const clicks = Number(product.analytics?.views || 0);
+        const clickStat = clickMap.get(String(product._id)) || {};
+        const clicks = Number(clickStat.clicks || product.analytics?.views || 0);
         const orders = Number(stat.orders || 0);
         return {
           id: product._id,
@@ -672,6 +904,12 @@ class InfluencerCommerceVendorService {
           category: product.category,
           available: product.status === "APPROVED" && product.stock > 0,
           promoted: campaignProductSet.has(String(product._id)),
+          activeCampaigns: activeCampaignMap.get(String(product._id)) || 0,
+          campaignCount: campaignCountMap.get(String(product._id)) || 0,
+          status: product.status,
+          stock: Number(product.stock || 0),
+          price: Number(product.discountPrice || product.price || 0),
+          influencers: Array.isArray(clickStat.influencers) ? clickStat.influencers.filter(Boolean).length : 0,
           clicks,
           orders,
           revenue: money(stat.revenue || 0),
@@ -685,21 +923,48 @@ class InfluencerCommerceVendorService {
   }
 
   async affiliateProducts(userId, query = {}) {
-    return this.products(userId, query);
+    return this.products(userId, { ...query, promotedOnly: true });
   }
 
   async contentApprovals(userId, query = {}) {
     const vendor = await this.getVendor(userId);
-    const campaignIds = await campaignIdsForFilter({ vendorId: vendor._id });
+    const campaignFilter = { vendorId: vendor._id };
+    if (query.campaignId && objectId(query.campaignId)) campaignFilter._id = objectId(query.campaignId);
+    if (query.category) campaignFilter.category = query.category;
+    if (query.productId && objectId(query.productId)) campaignFilter.productIds = objectId(query.productId);
+    const campaignIds = await campaignIdsForFilter(campaignFilter);
     const { page, limit, skip } = pageOptions(query, 20);
     const filter = { campaignId: { $in: campaignIds } };
-    if (query.status) filter.state = query.status;
+    if (query.startDate || query.endDate) {
+      const { start, end } = parseRange(query);
+      filter.createdAt = { $gte: start, $lte: end };
+    }
+    if (query.status) {
+      const statusMap = {
+        active: "published",
+        approved: "published",
+        pending: "pending_review",
+      };
+      filter.state = statusMap[String(query.status).toLowerCase()] || query.status;
+    }
     if (!query.status && query.queue === "pending") filter.state = { $in: ["uploaded", "pending_review"] };
+    if (query.search) {
+      const re = new RegExp(escapeRegex(query.search), "i");
+      const matchingProfiles = await InfluencerProfile.find({
+        $or: [{ displayName: re }, { influencerCode: re }, { primaryCategory: re }, { categories: re }],
+      }).select("_id").limit(100).lean();
+      filter.$or = [
+        { title: re },
+        { caption: re },
+        { contentType: re },
+        ...(matchingProfiles.length ? [{ influencerId: { $in: matchingProfiles.map((profile) => profile._id) } }] : []),
+      ];
+    }
     const [items, total] = await Promise.all([
       Reel.find(filter)
         .populate({ path: "influencerId", populate: { path: "userId", select: "name email username" } })
         .populate("campaignId", "title campaignType state")
-        .populate("productIds", "name images thumbnail")
+        .populate("productIds", "name images thumbnail category")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -711,7 +976,15 @@ class InfluencerCommerceVendorService {
         id: item._id,
         creator: item.influencerId,
         creatorName: profileName(item.influencerId),
+        creatorUsername: profileUsername(item.influencerId),
+        creatorEmail: item.influencerId?.userId?.email || "",
         campaign: item.campaignId,
+        products: (item.productIds || []).map((product) => ({
+          id: product._id,
+          name: product.name,
+          category: product.category || "",
+          image: productImage(product),
+        })),
         contentType: item.contentType,
         submittedDate: item.createdAt,
         status: item.state,
@@ -750,71 +1023,245 @@ class InfluencerCommerceVendorService {
 
   async performance(userId, query = {}) {
     const vendor = await this.getVendor(userId);
-    const { byInfluencer } = await this.aggregateVendorCommissions(vendor._id, query);
-    const influencerIds = byInfluencer.map((row) => row._id).filter(Boolean);
-    const [profiles, reels] = await Promise.all([
-      InfluencerProfile.find({ _id: { $in: influencerIds } }).populate("userId", "name email username").lean(),
-      Reel.aggregate([
-        { $match: { influencerId: { $in: influencerIds } } },
-        { $group: { _id: "$influencerId", clicks: { $sum: "$metrics.clicks" }, engagement: { $sum: { $add: ["$metrics.likes", "$metrics.comments", "$metrics.shares"] } } } },
+    const { page, limit, skip } = pageOptions(query, 20);
+    const campaignFilter = { vendorId: vendor._id };
+    if (query.campaignId && objectId(query.campaignId)) campaignFilter._id = objectId(query.campaignId);
+    if (query.productId && objectId(query.productId)) campaignFilter.productIds = objectId(query.productId);
+    if (query.category) campaignFilter.category = query.category;
+    const campaignIds = await campaignIdsForFilter(campaignFilter);
+
+    const commissionMatch = { vendorId: vendor._id, campaignId: { $in: campaignIds } };
+    const trackingMatch = { campaignId: { $in: campaignIds } };
+    const reelMatch = { campaignId: { $in: campaignIds } };
+    if (query.productId && objectId(query.productId)) {
+      commissionMatch["metadata.productId"] = objectId(query.productId);
+      trackingMatch.productId = objectId(query.productId);
+    }
+    if (query.influencerId && objectId(query.influencerId)) {
+      commissionMatch.influencerId = objectId(query.influencerId);
+      trackingMatch.influencerId = objectId(query.influencerId);
+      reelMatch.influencerId = objectId(query.influencerId);
+    }
+    if (query.startDate || query.endDate) {
+      const { start, end } = parseRange(query);
+      commissionMatch.createdAt = { $gte: start, $lte: end };
+      trackingMatch.createdAt = { $gte: start, $lte: end };
+      reelMatch.createdAt = { $gte: start, $lte: end };
+    }
+
+    const relationshipFilter = { vendorId: vendor._id };
+    if (query.status && ["saved", "invited", "applied", "approved", "active", "paused", "blacklisted"].includes(String(query.status))) {
+      relationshipFilter.status = query.status;
+    }
+    if (query.influencerId && objectId(query.influencerId)) {
+      relationshipFilter.influencerId = objectId(query.influencerId);
+    }
+
+    const profileClauses = [];
+    if (query.category) profileClauses.push({ $or: [{ categories: query.category }, { primaryCategory: query.category }, { secondaryCategories: query.category }] });
+    if (query.search) {
+      const re = new RegExp(escapeRegex(query.search), "i");
+      profileClauses.push({ $or: [{ displayName: re }, { influencerCode: re }, { primaryCategory: re }, { categories: re }] });
+    }
+    let profileIdFilter = null;
+    if (profileClauses.length) {
+      const profileFilter = profileClauses.length === 1 ? profileClauses[0] : { $and: profileClauses };
+      const profiles = await InfluencerProfile.find(profileFilter).select("_id").lean();
+      profileIdFilter = new Set(profiles.map((profile) => String(profile._id)));
+      const profileIds = profiles.map((profile) => profile._id);
+      commissionMatch.influencerId = commissionMatch.influencerId || { $in: profileIds };
+      trackingMatch.influencerId = trackingMatch.influencerId || { $in: profileIds };
+      reelMatch.influencerId = reelMatch.influencerId || { $in: profileIds };
+      relationshipFilter.influencerId = { $in: profileIds };
+    }
+    if (relationshipFilter.status) {
+      const scopedRelationships = await VendorInfluencerRelationship.find(relationshipFilter).select("influencerId").lean();
+      const scopedInfluencerIds = scopedRelationships.map((relationship) => relationship.influencerId).filter(Boolean);
+      commissionMatch.influencerId = commissionMatch.influencerId || { $in: scopedInfluencerIds };
+      trackingMatch.influencerId = trackingMatch.influencerId || { $in: scopedInfluencerIds };
+      reelMatch.influencerId = reelMatch.influencerId || { $in: scopedInfluencerIds };
+    }
+
+    const [commissionRows, trackingRows, reelRows, relationships] = await Promise.all([
+      CommissionRecord.aggregate([
+        { $match: commissionMatch },
+        { $group: { _id: "$influencerId", revenue: { $sum: "$gross" }, commission: { $sum: "$influencerShare" }, orders: { $sum: 1 }, platformShare: { $sum: "$platformShare" } } },
       ]),
+      TrackingSession.aggregate([
+        { $match: trackingMatch },
+        { $group: { _id: "$influencerId", clicks: { $sum: 1 } } },
+      ]),
+      Reel.aggregate([
+        { $match: reelMatch },
+        {
+          $group: {
+            _id: "$influencerId",
+            reelClicks: { $sum: "$metrics.clicks" },
+            views: { $sum: "$metrics.views" },
+            contentCount: { $sum: 1 },
+            engagement: { $sum: { $add: ["$metrics.likes", "$metrics.comments", "$metrics.shares", "$metrics.saves"] } },
+          },
+        },
+      ]),
+      VendorInfluencerRelationship.find(relationshipFilter).lean(),
     ]);
-    const profileMap = new Map(profiles.map((profile) => [String(profile._id), profile]));
-    const reelMap = new Map(reels.map((row) => [String(row._id), row]));
-    return {
-      items: byInfluencer.map((row) => {
-        const profile = profileMap.get(String(row._id));
-        const reel = reelMap.get(String(row._id)) || {};
+
+    const performanceMap = new Map();
+    function ensure(id) {
+      if (!id) return null;
+      const key = String(id);
+      if (profileIdFilter && !profileIdFilter.has(key)) return null;
+      if (!performanceMap.has(key)) performanceMap.set(key, { influencerId: id });
+      return performanceMap.get(key);
+    }
+    commissionRows.forEach((row) => Object.assign(ensure(row._id) || {}, {
+      revenueGenerated: money(row.revenue),
+      commissionPaid: money(row.commission),
+      platformShare: money(row.platformShare),
+      ordersGenerated: Number(row.orders || 0),
+      conversions: Number(row.orders || 0),
+    }));
+    trackingRows.forEach((row) => {
+      const item = ensure(row._id);
+      if (item) item.trackingClicks = Number(row.clicks || 0);
+    });
+    reelRows.forEach((row) => Object.assign(ensure(row._id) || {}, {
+      reelClicks: Number(row.reelClicks || 0),
+      views: Number(row.views || 0),
+      engagement: Number(row.engagement || 0),
+      contentCount: Number(row.contentCount || 0),
+    }));
+    relationships.forEach((relationship) => Object.assign(ensure(relationship.influencerId) || {}, {
+      relationshipId: relationship._id,
+      status: relationship.status,
+      lastActivity: relationship.lastActivityAt || relationship.updatedAt,
+    }));
+
+    const merged = [...performanceMap.values()]
+      .map((row) => {
+        const clicks = Number(row.trackingClicks || row.reelClicks || 0);
+        const orders = Number(row.ordersGenerated || 0);
+        const revenue = Number(row.revenueGenerated || 0);
+        const commission = Number(row.commissionPaid || 0);
         return {
-          influencerId: row._id,
+          ...row,
+          clicks,
+          ordersGenerated: orders,
+          conversions: Number(row.conversions || orders),
+          revenueGenerated: money(revenue),
+          commissionPaid: money(commission),
+          ctr: clicks ? money((orders / clicks) * 100) : 0,
+          roi: commission ? money(((revenue - commission) / commission) * 100) : 0,
+          averageOrderValue: orders ? money(revenue / orders) : 0,
+          score: money(revenue * 0.45 + orders * 25 + Number(row.engagement || 0) * 0.1 + clicks),
+        };
+      })
+      .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+
+    const pagedRows = merged.slice(skip, skip + limit);
+    const profiles = pagedRows.length
+      ? await InfluencerProfile.find({ _id: { $in: pagedRows.map((row) => row.influencerId).filter(Boolean) } }).populate("userId", "name email username").lean()
+      : [];
+    const profileMap = new Map(profiles.map((profile) => [String(profile._id), profile]));
+    return {
+      items: pagedRows.map((row, index) => {
+        const profile = profileMap.get(String(row.influencerId));
+        return {
+          ...row,
+          rank: skip + index + 1,
           name: profileName(profile),
           username: profileUsername(profile),
-          revenueGenerated: money(row.revenue),
-          ordersGenerated: Number(row.orders || 0),
-          clicks: Number(reel.clicks || 0),
-          conversions: Number(row.orders || 0),
-          ctr: reel.clicks ? money((row.orders / reel.clicks) * 100) : 0,
-          roi: row.commission ? money(((row.revenue - row.commission) / row.commission) * 100) : 0,
-          engagement: Number(reel.engagement || 0),
-          averageOrderValue: row.orders ? money(row.revenue / row.orders) : 0,
-          commissionPaid: money(row.commission),
+          email: profile?.userId?.email || "",
+          category: profile?.primaryCategory || profile?.categories?.[0] || "",
         };
       }),
+      summary: {
+        creators: merged.length,
+        revenue: money(merged.reduce((sum, row) => sum + Number(row.revenueGenerated || 0), 0)),
+        commission: money(merged.reduce((sum, row) => sum + Number(row.commissionPaid || 0), 0)),
+        clicks: merged.reduce((sum, row) => sum + Number(row.clicks || 0), 0),
+        orders: merged.reduce((sum, row) => sum + Number(row.ordersGenerated || 0), 0),
+      },
+      pagination: { total: merged.length, page, limit, pages: Math.ceil(merged.length / limit) || 1 },
     };
   }
 
   async analytics(userId, query = {}) {
     const vendor = await this.getVendor(userId);
-    const [commission, campaigns] = await Promise.all([
+    const [commission, campaigns, products, performance] = await Promise.all([
       this.aggregateVendorCommissions(vendor._id, query),
       this.campaigns(userId, { ...query, limit: 100 }),
+      this.products(userId, { ...query, limit: 10 }),
+      this.performance(userId, { ...query, limit: 10 }),
     ]);
-    const clicks = await TrackingSession.countDocuments({ campaignId: { $in: campaigns.items.map((item) => item._id) } });
+    const campaignIds = campaigns.items.map((item) => item._id).filter(Boolean);
+    const { start, end } = parseRange(query);
+    const trackingMatch = { campaignId: { $in: campaignIds }, createdAt: { $gte: start, $lte: end } };
+    if (query.productId && objectId(query.productId)) trackingMatch.productId = objectId(query.productId);
+    if (query.influencerId && objectId(query.influencerId)) trackingMatch.influencerId = objectId(query.influencerId);
+    const [clicks, clickTrend, campaignClicks, surfaceRows] = await Promise.all([
+      TrackingSession.countDocuments(trackingMatch),
+      TrackingSession.aggregate([
+        { $match: trackingMatch },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            clicks: { $sum: 1 },
+          },
+        },
+      ]),
+      TrackingSession.aggregate([
+        { $match: trackingMatch },
+        { $group: { _id: "$campaignId", clicks: { $sum: 1 } } },
+      ]),
+      TrackingSession.aggregate([
+        { $match: trackingMatch },
+        { $group: { _id: "$surface", clicks: { $sum: 1 } } },
+        { $sort: { clicks: -1 } },
+      ]),
+    ]);
+    const clickBucketMap = new Map(buildBuckets(start, end).map((bucket) => [bucket.date, { date: bucket.date, clicks: 0 }]));
+    clickTrend.forEach((row) => {
+      const bucket = clickBucketMap.get(row._id);
+      if (bucket) bucket.clicks = Number(row.clicks || 0);
+    });
+    const campaignClickMap = new Map(campaignClicks.map((row) => [String(row._id), Number(row.clicks || 0)]));
+    const totalRevenue = money(commission.summary.revenue);
+    const commissionPaid = money(commission.summary.paid);
+    const campaignSpend = money((commission.summary.commission || 0) + campaigns.items.reduce((sum, item) => sum + Number(item.fixedFee || item.budget || 0), 0));
     return {
       kpis: {
-        campaignRevenue: money(commission.summary.revenue),
-        campaignSpend: money((commission.summary.commission || 0) + campaigns.items.reduce((sum, item) => sum + Number(item.fixedFee || 0), 0)),
-        roi: commission.summary.commission ? money(((commission.summary.revenue - commission.summary.commission) / commission.summary.commission) * 100) : 0,
-        commissionPaid: money(commission.summary.paid),
+        campaignRevenue: totalRevenue,
+        campaignSpend,
+        roi: campaignSpend ? money(((totalRevenue - campaignSpend) / campaignSpend) * 100) : 0,
+        commissionPaid,
         conversions: Number(commission.summary.orders || 0),
         orders: Number(commission.summary.orders || 0),
         clicks,
+        conversionRate: clicks ? money((Number(commission.summary.orders || 0) / clicks) * 100) : 0,
+        averageOrderValue: commission.summary.orders ? money(totalRevenue / Number(commission.summary.orders || 0)) : 0,
       },
       charts: {
         revenueTrend: commission.trend,
-        creatorPerformance: commission.byInfluencer,
-        productPerformance: await this.products(userId, { limit: 10 }),
+        commissionTrend: commission.trend.map((row) => ({ date: row.date, commission: row.commission })),
+        clickTrend: [...clickBucketMap.values()],
+        creatorPerformance: performance.items,
+        productPerformance: products.items,
         conversionFunnel: [
           { label: "Clicks", value: clicks },
           { label: "Orders", value: Number(commission.summary.orders || 0) },
-          { label: "Paid Commission", value: money(commission.summary.paid) },
+          { label: "Paid Commission", value: commissionPaid },
         ],
+        trafficSources: surfaceRows.map((row) => ({ source: row._id || "unknown", clicks: Number(row.clicks || 0) })),
         campaignComparison: campaigns.items.map((campaign) => ({
           id: campaign._id,
           title: campaign.title,
-          revenue: Number(campaign.analytics?.revenue || 0),
-          orders: Number(campaign.analytics?.orders || 0),
-          clicks: Number(campaign.analytics?.clicks || 0),
+          state: campaign.state,
+          revenue: Number(campaign.revenue || campaign.analytics?.revenue || 0),
+          orders: Number(campaign.orders || campaign.analytics?.orders || 0),
+          commission: Number(campaign.commission || 0),
+          clicks: campaignClickMap.get(String(campaign._id)) || Number(campaign.analytics?.clicks || 0),
+          conversionRate: (campaignClickMap.get(String(campaign._id)) || 0) ? money((Number(campaign.orders || 0) / campaignClickMap.get(String(campaign._id))) * 100) : 0,
         })),
       },
     };
@@ -823,13 +1270,9 @@ class InfluencerCommerceVendorService {
   async leaderboard(userId, query = {}) {
     const performance = await this.performance(userId, query);
     return {
-      items: performance.items
-        .map((row) => ({
-          ...row,
-          score: money(Number(row.revenueGenerated || 0) * 0.45 + Number(row.conversions || 0) * 25 + Number(row.engagement || 0) * 0.1),
-        }))
-        .sort((a, b) => b.score - a.score)
-        .map((row, index) => ({ rank: index + 1, creator: row.name, ...row })),
+      items: performance.items.map((row) => ({ ...row, creator: row.name })),
+      summary: performance.summary,
+      pagination: performance.pagination,
     };
   }
 

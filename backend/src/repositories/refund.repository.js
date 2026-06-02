@@ -65,7 +65,7 @@ class RefundRepository {
   }
 
   async updateById(id, updateData = {}) {
-    return await Refund.findByIdAndUpdate(id, asUpdateDocument(updateData), { new: true })
+    return await Refund.findByIdAndUpdate(id, asUpdateDocument(updateData), { returnDocument: "after" })
       .populate({
         path: "orderId",
         select: "orderNumber totalAmount paymentStatus paymentMethod status createdAt userId sellerId items cancellation refundSummary shippingAddress billingAddress",

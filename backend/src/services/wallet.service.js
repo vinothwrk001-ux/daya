@@ -58,7 +58,7 @@ class WalletService {
       { vendorId },
       { $setOnInsert: { vendorId } },
       {
-        new: true,
+        returnDocument: "after",
         upsert: true,
         setDefaultsOnInsert: true,
         session: session || undefined,
@@ -121,7 +121,7 @@ class WalletService {
       const updatedWallet = await VendorWallet.findOneAndUpdate(
         { _id: wallet._id },
         { $set: walletSnapshot },
-        { new: true, session: session || undefined, runValidators: true }
+        { returnDocument: "after", session: session || undefined, runValidators: true }
       );
 
       await Order.updateOne(

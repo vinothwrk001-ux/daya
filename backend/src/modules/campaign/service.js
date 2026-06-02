@@ -46,7 +46,7 @@ async function upsertProductAssignments({ campaign, influencerId, status = "appr
       },
       $setOnInsert: { assignedAt: now },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   )));
 }
 
@@ -262,7 +262,7 @@ class CampaignService {
           },
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     await upsertProductAssignments({ campaign: updated, influencerId: updated.influencerId, status: "accepted", source: "influencer_acceptance", actorId: userId });
@@ -297,7 +297,7 @@ class CampaignService {
           },
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -389,7 +389,7 @@ class CampaignService {
     const update = saved
       ? { $addToSet: { "marketplace.savedBy": profile._id } }
       : { $pull: { "marketplace.savedBy": profile._id } };
-    const campaign = await Campaign.findByIdAndUpdate(campaignId, update, { new: true })
+    const campaign = await Campaign.findByIdAndUpdate(campaignId, update, { returnDocument: "after" })
       .populate("productIds", "name category price discountPrice images thumbnail")
       .populate("vendorId", "shopName companyName logoUrl")
       .lean();

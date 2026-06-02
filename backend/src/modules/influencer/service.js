@@ -517,7 +517,7 @@ async function upsertCampaignProductAssignments({ influencerId, vendorId, campai
       },
       $setOnInsert: { assignedAt: now },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   )));
 }
 
@@ -1081,7 +1081,7 @@ class InfluencerService {
       },
       {
         upsert: true,
-        new: true,
+        returnDocument: "after",
         setDefaultsOnInsert: true,
         runValidators: true,
       }
@@ -1138,7 +1138,7 @@ class InfluencerService {
             verificationStatus,
           },
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
+        { upsert: true, returnDocument: "after", setDefaultsOnInsert: true, runValidators: true }
       );
       savedAccounts.push(saved);
 
@@ -1154,7 +1154,7 @@ class InfluencerService {
               status: account.manualProofSubmitted ? "under_review" : "pending",
             },
           },
-          { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
+          { upsert: true, returnDocument: "after", setDefaultsOnInsert: true, runValidators: true }
         );
       }
     }
@@ -1348,7 +1348,7 @@ class InfluencerService {
           "draftMeta.lastSavedAt": new Date(),
         },
       },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).lean();
 
     return {
@@ -1405,7 +1405,7 @@ class InfluencerService {
           status: submit ? "pending" : "draft",
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: submit }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true, runValidators: submit }
     ).lean();
     await InfluencerApplication.updateOne({ applicationId }, { $set: { currentStep: Math.max(Number(application.currentStep || 1), 4), "draftMeta.lastSavedAt": new Date() } });
     return { applicationId, business: saved, nextStep: 5, nextPath: "/influencer/register/payment-commission" };
@@ -1456,7 +1456,7 @@ class InfluencerService {
           status: submit ? "pending" : "draft",
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: submit }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true, runValidators: submit }
     ).lean();
     await InfluencerApplication.updateOne({ applicationId }, { $set: { currentStep: Math.max(Number(application.currentStep || 1), 5), "draftMeta.lastSavedAt": new Date() } });
     return { applicationId, payment: saved, commission: DEFAULT_COMMISSION_SETTINGS, nextStep: 6, nextPath: "/influencer/register/content-review" };
@@ -1554,7 +1554,7 @@ class InfluencerService {
       update.submittedAt = new Date();
       update.applicationNumber = application.applicationNumber || generateApplicationNumber();
     }
-    const saved = await InfluencerApplication.findOneAndUpdate({ applicationId }, { $set: update }, { new: true }).lean();
+    const saved = await InfluencerApplication.findOneAndUpdate({ applicationId }, { $set: update }, { returnDocument: "after" }).lean();
     if (submit) {
       await InfluencerApplicationReview.create({
         applicationId,
@@ -1701,7 +1701,7 @@ class InfluencerService {
     if (decision === "approve") update.approvedAt = new Date();
     if (decision === "reject") update.rejectedAt = new Date();
 
-    const updated = await InfluencerApplication.findOneAndUpdate({ applicationId: id }, { $set: update }, { new: true });
+    const updated = await InfluencerApplication.findOneAndUpdate({ applicationId: id }, { $set: update }, { returnDocument: "after" });
     await InfluencerApplicationReview.create({
       applicationId: id,
       reviewerId,
@@ -1846,7 +1846,7 @@ class InfluencerService {
           "moderation.notes": comments,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
     await writeActivationAudit({ applicationId, influencerId: profile._id, actorId: reviewerId, action: "PROFILE_ACTIVATED", status: "success", metadata: { influencerCode } });
 
@@ -1854,7 +1854,7 @@ class InfluencerService {
     await InfluencerBadge.findOneAndUpdate(
       { influencerId: profile._id, status: "active" },
       { $setOnInsert: { influencerId: profile._id, badgeType, label: badgeType === "gold_verified" ? "Gold Verified Creator" : "Verified Influencer", issuedAt: now } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
     await writeActivationAudit({ applicationId, influencerId: profile._id, actorId: reviewerId, action: "BADGE_ISSUED", status: "success", metadata: { badgeType } });
 
@@ -1873,7 +1873,7 @@ class InfluencerService {
           status: "active",
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
     await writeActivationAudit({ applicationId, influencerId: profile._id, actorId: reviewerId, action: "STOREFRONT_CREATED", status: "success", metadata: { slug: storeSlug } });
 
@@ -1890,16 +1890,16 @@ class InfluencerService {
           status: "active",
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
     await writeActivationAudit({ applicationId, influencerId: profile._id, actorId: reviewerId, action: "AFFILIATE_ENABLED", status: "success", metadata: { trackingCode } });
 
     await InfluencerCollection.findOneAndUpdate(
       { influencerId: profile._id, slug: "creator-favorites" },
       { $setOnInsert: { influencerId: profile._id, title: "Creator Favorites", slug: "creator-favorites", type: "creator_favorites", featured: true, status: "active" } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
-    await InfluencerWallet.findOneAndUpdate({ influencerId: profile._id }, { $setOnInsert: { influencerId: profile._id, status: "active" }, $set: { status: "active" } }, { upsert: true, new: true, setDefaultsOnInsert: true });
+    await InfluencerWallet.findOneAndUpdate({ influencerId: profile._id }, { $setOnInsert: { influencerId: profile._id, status: "active" }, $set: { status: "active" } }, { upsert: true, returnDocument: "after", setDefaultsOnInsert: true });
     await writeActivationAudit({ applicationId, influencerId: profile._id, actorId: reviewerId, action: "WALLET_ACTIVATED", status: "success" });
 
     await InfluencerApplication.updateOne({ applicationId }, { $set: { approvedAt: application.approvedAt || now, reviewStage: "final_decision" } });
@@ -1967,7 +1967,7 @@ class InfluencerService {
       },
       {
         upsert: true,
-        new: true,
+        returnDocument: "after",
         setDefaultsOnInsert: true,
         runValidators: true,
       }
@@ -2060,7 +2060,7 @@ class InfluencerService {
     const storefront = await InfluencerStorefront.findOneAndUpdate(
       { influencerId: profile._id },
       { $set: next, $setOnInsert: { influencerId: profile._id } },
-      { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true, runValidators: true }
     );
     await InfluencerProfile.updateOne(
       { _id: profile._id },
@@ -2114,7 +2114,7 @@ class InfluencerService {
           visibility: { audience: "private", locations: [] },
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
   }
 
@@ -2282,7 +2282,7 @@ class InfluencerService {
             generatedAt: new Date(),
           },
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
       );
       links.push({ productId, campaignId: promotion.campaignId || "", originalUrl: targetPath, affiliateUrl, shortLink: affiliateUrl, qrValue: affiliateUrl });
     }
@@ -2517,7 +2517,7 @@ class InfluencerService {
       },
     };
     const collection = collectionId
-      ? await InfluencerCollection.findOneAndUpdate({ _id: collectionId, influencerId: profile._id }, { $set: update }, { new: true, runValidators: true })
+      ? await InfluencerCollection.findOneAndUpdate({ _id: collectionId, influencerId: profile._id }, { $set: update }, { returnDocument: "after", runValidators: true })
       : await InfluencerCollection.create(update);
     if (!collection) throw new AppError("Collection not found", 404, "NOT_FOUND");
     await InfluencerProfile.updateOne({ _id: profile._id }, { $set: { "activation.checklist.firstCollectionCreated": true } });
@@ -2538,7 +2538,7 @@ class InfluencerService {
     if (payload.featured !== undefined) update.featured = Boolean(payload.featured);
     if (payload.priority !== undefined) update["display.priority"] = Number(payload.priority || 0);
     if (payload.visibility) Object.keys(payload.visibility).forEach((key) => { update[`visibility.${key}`] = payload.visibility[key]; });
-    const collection = await InfluencerCollection.findOneAndUpdate({ _id: collectionId, influencerId: profile._id }, { $set: update }, { new: true, runValidators: true });
+    const collection = await InfluencerCollection.findOneAndUpdate({ _id: collectionId, influencerId: profile._id }, { $set: update }, { returnDocument: "after", runValidators: true });
     if (!collection) throw new AppError("Collection not found", 404, "NOT_FOUND");
     await writeActivationAudit({ influencerId: profile._id, actorId: profile.userId, action: "COLLECTION_VISIBILITY_UPDATED", status: "success", metadata: { collectionId, update } });
     return collection;
@@ -2848,7 +2848,7 @@ class InfluencerService {
     await InfluencerNewsletterSubscription.findOneAndUpdate(
       { influencerId: data.storefront.influencerId, email },
       { $set: { status: "active", source: payload.source || "storefront", subscribedAt: new Date() } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
     await InfluencerStorefrontEvent.create({
       influencerId: data.storefront.influencerId,
@@ -3102,7 +3102,7 @@ class InfluencerService {
               verificationStatus: account.verificationStatus || "pending",
             },
           },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
+          { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
         );
       }
     }
@@ -3398,7 +3398,7 @@ class InfluencerService {
     const saved = await InfluencerBusinessProfile.findOneAndUpdate(
       { $or: [{ influencerId: profile._id }, { applicationId }] },
       { $set: update },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     ).lean();
     await writeActivationAudit({ applicationId, influencerId: profile._id, actorId: profile.userId?._id || profile.userId, action: "TAX_INFORMATION_SUBMITTED", status: "success", metadata: { country: saved.country } });
     return { taxInformation: saved, verification: await this.getVerificationCenter(userId) };
@@ -3427,7 +3427,7 @@ class InfluencerService {
           ...(payload.submit ? { state: "submitted", "moderation.submittedAt": new Date() } : {}),
         },
       },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).populate("userId", "name email phone role");
   }
 
@@ -3482,7 +3482,7 @@ class InfluencerService {
       update["moderation.suspendedAt"] = new Date();
     }
 
-    const updated = await InfluencerProfile.findByIdAndUpdate(profileId, { $set: update }, { new: true }).populate(
+    const updated = await InfluencerProfile.findByIdAndUpdate(profileId, { $set: update }, { returnDocument: "after" }).populate(
       "userId",
       "name email phone role"
     );

@@ -827,7 +827,7 @@ class ProductAnalyticsService {
           lastComputedAt: new Date(),
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     ).lean();
   }
 

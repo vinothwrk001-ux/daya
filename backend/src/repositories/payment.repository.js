@@ -88,7 +88,7 @@ class PaymentRepository {
   async updateStatus(orderId, status, paymentId = null, extra = {}) {
     const update = { status, ...extra };
     if (paymentId) update.razorpayPaymentId = paymentId;
-    return await Payment.findOneAndUpdate({ razorpayOrderId: orderId }, asUpdateDocument(update), { new: true })
+    return await Payment.findOneAndUpdate({ razorpayOrderId: orderId }, asUpdateDocument(update), { returnDocument: "after" })
       .populate("userId", "name email phone")
       .populate("paymentSessionId")
       .populate("orderIds", "orderNumber totalAmount paymentStatus paymentMethod status createdAt")
@@ -96,7 +96,7 @@ class PaymentRepository {
   }
 
   async updateById(id, updateData = {}) {
-    return await Payment.findByIdAndUpdate(id, asUpdateDocument(updateData), { new: true })
+    return await Payment.findByIdAndUpdate(id, asUpdateDocument(updateData), { returnDocument: "after" })
       .populate("userId", "name email phone")
       .populate("paymentSessionId")
       .populate("orderIds", "orderNumber totalAmount paymentStatus paymentMethod status createdAt")
