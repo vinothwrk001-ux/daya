@@ -1,10 +1,13 @@
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 const vendorRepo = require("../../repositories/vendor.repository");
 const productRepo = require("../../repositories/product.repository");
 const campaignService = require("../campaign/service");
 const reelService = require("../reel/service");
 const auditService = require("../../services/audit.service");
 const notificationService = require("../../services/notification.service");
+const paymentService = require("../../services/payment.service");
+const influencerCommerceEngine = require("../../services/influencer-commerce-engine.service");
 const { AppError } = require("../../utils/AppError");
 const { Campaign } = require("../campaign/model");
 const { CommissionRecord } = require("../commission/models");
@@ -15,6 +18,14 @@ const { Product } = require("../../models/Product");
 const { Order } = require("../../models/Order");
 const { emitDomainEvent } = require("../events/event-bus");
 const { VendorInfluencerRelationship } = require("./model");
+const {
+  VendorSubscriptionPlan,
+  VendorSubscription,
+  SubscriptionPayment,
+  SubscriptionRevenue,
+  VendorSubscriptionChange,
+  SubscriptionCreditWallet,
+} = require("../../models/InfluencerCommerceConfig");
 
 const SYNC_EVENTS = {
   CAMPAIGN_INVITED: "CAMPAIGN_INVITED",
@@ -105,6 +116,79 @@ function money(value) {
   return Number(number.toFixed(2));
 }
 
+function safeEqual(left, right) {
+  const a = Buffer.from(String(left || ""));
+  const b = Buffer.from(String(right || ""));
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+function subscriptionAmount(plan = {}, billingCycle = "monthly") {
+  if (billingCycle === "yearly") return money(plan.yearlyPrice ?? plan.monthlyPrice ?? 0);
+  if (billingCycle === "quarterly") return money(plan.quarterlyPrice ?? Number(plan.monthlyPrice || 0) * 3);
+  if (billingCycle === "half_yearly") return money(plan.halfYearlyPrice ?? Number(plan.monthlyPrice || 0) * 6);
+  if (billingCycle === "custom") return money(plan.metadata?.customPrice ?? plan.monthlyPrice ?? 0);
+  return money(plan.monthlyPrice || 0);
+}
+
+function subscriptionDurationDays(plan = {}, billingCycle = "monthly") {
+  const metadata = plan.metadata || {};
+  const configured = {
+    monthly: plan.monthlyDurationDays ?? metadata.monthlyDurationDays ?? plan.durationDays,
+    quarterly: plan.quarterlyDurationDays ?? metadata.quarterlyDurationDays,
+    half_yearly: plan.halfYearlyDurationDays ?? metadata.halfYearlyDurationDays,
+    yearly: plan.yearlyDurationDays ?? metadata.yearlyDurationDays,
+    custom: plan.customDurationDays ?? metadata.customDurationDays ?? plan.durationDays,
+  }[billingCycle];
+  return Math.max(1, Number(configured || plan.durationDays || 30));
+}
+
+function subscriptionEndDate(startDate, plan = {}, billingCycle = "monthly") {
+  const endDate = addDays(startDate, subscriptionDurationDays(plan, billingCycle));
+  endDate.setMilliseconds(endDate.getMilliseconds() - 1);
+  return endDate;
+}
+
+function subscriptionTotalDays(subscription = {}, plan = {}) {
+  if (subscription.startDate && subscription.endDate) {
+    const ms = new Date(subscription.endDate).getTime() - new Date(subscription.startDate).getTime();
+    const days = Math.ceil(ms / 86400000);
+    if (days > 0) return days;
+  }
+  return subscriptionDurationDays(plan, subscription.billingCycle || "monthly");
+}
+
+function subscriptionRemainingDays(subscription = {}) {
+  if (!subscription?.endDate) return 0;
+  return Math.max(0, Math.ceil((new Date(subscription.endDate).getTime() - Date.now()) / 86400000));
+}
+
+function changeTypeFor(currentPlan = {}, targetPlan = {}, currentCycle = "monthly", targetCycle = "monthly") {
+  const currentRank = Number(currentPlan.displayOrder ?? currentPlan.priority ?? currentPlan.monthlyPrice ?? 0);
+  const targetRank = Number(targetPlan.displayOrder ?? targetPlan.priority ?? targetPlan.monthlyPrice ?? 0);
+  if (String(currentPlan._id || "") === String(targetPlan._id || "") && currentCycle !== targetCycle) return "cycle_change";
+  if (targetRank > currentRank || subscriptionAmount(targetPlan, targetCycle) > subscriptionAmount(currentPlan, currentCycle)) return "upgrade";
+  if (targetRank < currentRank || subscriptionAmount(targetPlan, targetCycle) < subscriptionAmount(currentPlan, currentCycle)) return "downgrade";
+  return "cycle_change";
+}
+
+function planEntitlements(plan = {}) {
+  const allowedTiers = plan.linkedTierId ? [plan.linkedTierId] : (plan.allowedTiers || []);
+  return {
+    campaignLimit: Number(plan.campaignLimit ?? 1),
+    visibilityLimit: Number(plan.influencerVisibilityLimit ?? 20),
+    allowedTiers,
+    allowAllTiers: Boolean(plan.allowAllTiers),
+    features: {
+      prioritySupport: Boolean(plan.prioritySupport),
+      featuredCampaigns: Boolean(plan.featuredCampaigns),
+      advancedAnalytics: Boolean(plan.advancedAnalytics),
+      dedicatedManager: Boolean(plan.dedicatedManager),
+      campaignBoost: Boolean(plan.metadata?.campaignBoost),
+    },
+  };
+}
+
 async function campaignIdsForFilter(filter) {
   const campaigns = await Campaign.find(filter).select("_id").lean();
   return campaigns.map((campaign) => campaign._id);
@@ -124,7 +208,7 @@ function profileUsername(profile = {}) {
 
 function normalizeStatus(status = "") {
   const value = String(status || "").toLowerCase();
-  if (["saved", "invited", "applied", "approved", "active", "paused", "blacklisted"].includes(value)) return value;
+  if (["viewed", "saved", "invited", "applied", "approved", "active", "paused", "blacklisted"].includes(value)) return value;
   return "saved";
 }
 
@@ -335,16 +419,456 @@ class InfluencerCommerceVendorService {
     };
   }
 
+  async subscriptionPlans(userId) {
+    const vendor = await this.getVendor(userId);
+    const [subscription, plans, activeCampaigns, visitedInfluencers, payments] = await Promise.all([
+      influencerCommerceEngine.getVendorSubscription(vendor._id),
+      VendorSubscriptionPlan.find({ "approval.status": "active" }).sort({ displayOrder: 1, monthlyPrice: 1 }).lean(),
+      Campaign.countDocuments({ vendorId: vendor._id, state: { $in: ["draft", "proposed", "accepted", "active"] } }),
+      VendorInfluencerRelationship.countDocuments({ vendorId: vendor._id, visited: true }),
+      SubscriptionPayment.find({ vendorId: vendor._id }).sort({ createdAt: -1 }).limit(20).lean(),
+    ]);
+    const plan = subscription?.planId || null;
+    const visibilityLimit = subscription ? Number(subscription.visibilityLimit ?? plan?.influencerVisibilityLimit ?? 0) : 0;
+    const campaignLimit = subscription ? Number(subscription.campaignLimit ?? plan?.campaignLimit ?? 0) : 0;
+    return {
+      currentSubscription: subscription,
+      subscriptionStatus: subscription?.status || "not_subscribed",
+      usage: {
+        activeCampaigns: subscription ? activeCampaigns : 0,
+        campaignLimit,
+        influencersVisible: visibilityLimit < 0 ? visitedInfluencers : Math.min(visibilityLimit, visitedInfluencers),
+        visibilityLimit,
+      },
+      plans,
+      payments,
+      invoices: payments.filter((payment) => payment.invoiceId).map((payment) => ({
+        invoiceId: payment.invoiceId,
+        amount: payment.amount,
+        currency: payment.currency,
+        status: payment.status,
+        createdAt: payment.createdAt,
+      })),
+    };
+  }
+
+  async activateSubscription({ userId, vendor, plan, billingCycle = "monthly", paymentReference = "", paymentId = null, metadata = {}, autoRenew = false }) {
+    const entitlements = planEntitlements(plan);
+    await VendorSubscription.updateMany({ vendorId: vendor._id, status: { $in: ["trialing", "active", "grace_period"] } }, { $set: { status: "cancelled", updatedBy: userId } });
+    const now = new Date();
+    const endDate = subscriptionEndDate(now, plan, billingCycle);
+    const subscription = await VendorSubscription.create({
+      vendorId: vendor._id,
+      planId: plan._id,
+      billingCycle,
+      startDate: now,
+      endDate,
+      status: "active",
+      autoRenew: Boolean(autoRenew && plan.autoRenewAllowed),
+      paymentReference,
+      campaignLimit: entitlements.campaignLimit,
+      visibilityLimit: entitlements.visibilityLimit,
+      allowedTiers: entitlements.allowedTiers,
+      entitlementsSnapshot: { planName: plan.planName, ...entitlements },
+      metadata: {
+        ...metadata,
+        durationDays: subscriptionDurationDays(plan, billingCycle),
+      },
+      createdBy: userId,
+      updatedBy: userId,
+    });
+    if (paymentId) await SubscriptionPayment.updateOne({ _id: paymentId }, { $set: { subscriptionId: subscription._id } });
+    await auditService.log({ actor: { _id: userId, role: "vendor" }, action: "vendor.subscription.activated", entityType: "VendorSubscription", entityId: subscription._id, metadata: { planId: plan._id, planName: plan.planName, paymentReference, entitlements } }).catch(() => {});
+    await notifyVendor(vendor._id, {
+      title: "Subscription activated",
+      message: `${plan.planName} is active until ${endDate.toLocaleDateString()}.`,
+      severity: "success",
+      metadata: { planId: String(plan._id), subscriptionId: String(subscription._id) },
+    });
+    return subscription.populate("planId");
+  }
+
+  async subscribe(userId, payload = {}) {
+    const vendor = await this.getVendor(userId);
+    const plan = await VendorSubscriptionPlan.findOne({ _id: objectId(payload.planId), "approval.status": "active" });
+    if (!plan) throw new AppError("Subscription plan not found", 404, "PLAN_NOT_FOUND");
+    const amount = subscriptionAmount(plan, payload.billingCycle || "monthly");
+    if (amount > 0 && !payload.paymentReference) {
+      throw new AppError("Paid subscriptions must be activated through verified Razorpay payment", 402, "PAYMENT_REQUIRED");
+    }
+    return this.activateSubscription({ userId, vendor, plan, billingCycle: payload.billingCycle || "monthly", paymentReference: payload.paymentReference || "free_plan", metadata: payload.metadata || {}, autoRenew: payload.autoRenew });
+  }
+
+  async createSubscriptionOrder(userId, payload = {}) {
+    const vendor = await this.getVendor(userId);
+    const plan = await VendorSubscriptionPlan.findOne({ _id: objectId(payload.planId), "approval.status": "active" }).lean();
+    if (!plan) throw new AppError("Subscription plan not found", 404, "PLAN_NOT_FOUND");
+    const billingCycle = payload.billingCycle || "monthly";
+    const amount = subscriptionAmount(plan, billingCycle);
+    const currency = plan.currency || "INR";
+    if (amount <= 0) {
+      const subscription = await this.activateSubscription({ userId, vendor, plan, billingCycle, paymentReference: "free_plan", metadata: { source: "zero_amount_plan" }, autoRenew: payload.autoRenew });
+      return { requiresPayment: false, subscription };
+    }
+    await paymentService.assertGatewayEnabled();
+    const receipt = `sub_${String(vendor._id).slice(-6)}_${Date.now()}`;
+    const razorpay = paymentService.getRazorpayClient();
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100),
+      currency,
+      receipt,
+      notes: {
+        purpose: "subscription_payment",
+        vendorId: String(vendor._id),
+        planId: String(plan._id),
+        billingCycle,
+      },
+    });
+    if (!order?.id || Number(order.amount) !== Math.round(amount * 100)) {
+      throw new AppError("Invalid Razorpay subscription order", 502, "RAZORPAY_ORDER_VALIDATION_FAILED");
+    }
+    const payment = await SubscriptionPayment.create({
+      vendorId: vendor._id,
+      planId: plan._id,
+      billingCycle,
+      amount,
+      currency,
+      razorpayOrderId: order.id,
+      receipt,
+      status: "pending",
+      gatewayResponse: { order },
+      metadata: { planName: plan.planName, autoRenew: Boolean(payload.autoRenew && plan.autoRenewAllowed), durationDays: subscriptionDurationDays(plan, billingCycle) },
+    });
+    await auditService.log({ actor: { _id: userId, role: "vendor" }, action: "vendor.subscription.order_created", entityType: "SubscriptionPayment", entityId: payment._id, metadata: { planId: plan._id, planName: plan.planName, amount, razorpayOrderId: order.id } }).catch(() => {});
+    return {
+      requiresPayment: true,
+      paymentId: payment._id,
+      razorpayOrderId: order.id,
+      orderId: order.id,
+      amount: order.amount,
+      currency,
+      key: process.env.RAZORPAY_KEY_ID,
+      plan,
+      billingCycle,
+      receipt,
+    };
+  }
+
+  async verifySubscriptionPayment(userId, payload = {}) {
+    const vendor = await this.getVendor(userId);
+    const payment = await SubscriptionPayment.findOne({ razorpayOrderId: payload.razorpay_order_id });
+    if (!payment) throw new AppError("Subscription payment not found", 404, "SUBSCRIPTION_PAYMENT_NOT_FOUND");
+    if (String(payment.vendorId) !== String(vendor._id)) throw new AppError("Forbidden", 403, "FORBIDDEN");
+    if (payment.status === "paid" && payment.subscriptionId) {
+      const subscription = await VendorSubscription.findById(payment.subscriptionId).populate("planId").lean();
+      return { payment, subscription };
+    }
+    const secret = String(process.env.RAZORPAY_KEY_SECRET || "").trim();
+    if (!secret) throw new AppError("Razorpay key secret is required", 500, "RAZORPAY_NOT_CONFIGURED");
+    const expectedSignature = crypto.createHmac("sha256", secret).update(`${payload.razorpay_order_id}|${payload.razorpay_payment_id}`).digest("hex");
+    if (!safeEqual(expectedSignature, payload.razorpay_signature)) {
+      payment.status = "failed";
+      payment.failureReason = "Invalid Razorpay signature";
+      payment.razorpayPaymentId = payload.razorpay_payment_id;
+      payment.signature = payload.razorpay_signature;
+      await payment.save();
+      await auditService.log({ actor: { _id: userId, role: "vendor" }, action: "vendor.subscription.payment_failed", entityType: "SubscriptionPayment", entityId: payment._id, metadata: { reason: "invalid_signature" } }).catch(() => {});
+      throw new AppError("Payment verification failed", 400, "PAYMENT_VERIFICATION_FAILED");
+    }
+    const gatewayPayment = await paymentService.fetchGatewayPayment(payload.razorpay_payment_id);
+    if (String(gatewayPayment.order_id) !== String(payload.razorpay_order_id)) throw new AppError("Gateway payment order mismatch", 409, "PAYMENT_ORDER_MISMATCH");
+    if (String(gatewayPayment.status || "").toLowerCase() !== "captured") throw new AppError("Payment is not captured by Razorpay", 409, "PAYMENT_NOT_CAPTURED");
+    if (Number(gatewayPayment.amount) !== Math.round(Number(payment.amount) * 100)) throw new AppError("Payment amount mismatch", 409, "PAYMENT_AMOUNT_MISMATCH");
+    const plan = await VendorSubscriptionPlan.findOne({ _id: payment.planId, "approval.status": "active" });
+    if (!plan) throw new AppError("Subscription plan not found", 404, "PLAN_NOT_FOUND");
+    const invoiceId = `SUB-INV-${String(payment._id).slice(-8).toUpperCase()}`;
+    payment.status = "paid";
+    payment.razorpayPaymentId = payload.razorpay_payment_id;
+    payment.signature = payload.razorpay_signature;
+    payment.invoiceId = invoiceId;
+    payment.gatewayResponse = { ...(payment.gatewayResponse || {}), payment: gatewayPayment };
+    await payment.save();
+    const subscription = await this.activateSubscription({ userId, vendor, plan, billingCycle: payment.billingCycle, paymentReference: payload.razorpay_payment_id, paymentId: payment._id, metadata: { invoiceId }, autoRenew: payment.metadata?.autoRenew });
+    const gatewayFee = money(Number(gatewayPayment.fee || 0) / 100);
+    const tax = money(Number(gatewayPayment.tax || 0) / 100);
+    const revenue = await SubscriptionRevenue.create({
+      vendorId: vendor._id,
+      planId: plan._id,
+      subscriptionId: subscription._id,
+      paymentId: payment._id,
+      grossAmount: payment.amount,
+      tax,
+      gatewayFee,
+      netAmount: money(payment.amount - gatewayFee),
+      currency: payment.currency,
+      invoiceId,
+      status: "recognized",
+      metadata: { planName: plan.planName, billingCycle: payment.billingCycle },
+    });
+    await auditService.log({ actor: { _id: userId, role: "vendor" }, action: "vendor.subscription.purchased", entityType: "SubscriptionRevenue", entityId: revenue._id, metadata: { planId: plan._id, planName: plan.planName, amount: payment.amount, invoiceId } }).catch(() => {});
+    return { payment, subscription, revenue, invoice: { invoiceId, amount: payment.amount, currency: payment.currency } };
+  }
+
+  async prorationPreview(userId, payload = {}) {
+    const vendor = await this.getVendor(userId);
+    const subscription = await influencerCommerceEngine.getVendorSubscription(vendor._id);
+    if (!subscription?.planId) throw new AppError("An active subscription is required to change plans", 403, "SUBSCRIPTION_REQUIRED");
+    const targetPlan = await VendorSubscriptionPlan.findOne({ _id: objectId(payload.planId), "approval.status": "active" }).lean();
+    if (!targetPlan) throw new AppError("Target subscription plan not found", 404, "PLAN_NOT_FOUND");
+    const currentPlan = subscription.planId;
+    const currentCycle = subscription.billingCycle || "monthly";
+    const targetCycle = payload.billingCycle || currentCycle;
+    const currentPaid = await SubscriptionPayment.findOne({ subscriptionId: subscription._id, status: "paid" }).sort({ createdAt: -1 }).lean();
+    const paidAmount = money(currentPaid?.amount ?? subscriptionAmount(currentPlan, currentCycle));
+    const totalDays = subscriptionTotalDays(subscription, currentPlan);
+    const remainingDays = subscriptionRemainingDays(subscription);
+    const dailyRate = totalDays ? paidAmount / totalDays : 0;
+    const remainingCredit = money(dailyRate * remainingDays);
+    const targetPrice = subscriptionAmount(targetPlan, targetCycle);
+    const creditApplied = money(Math.min(remainingCredit, targetPrice));
+    const amountPayable = money(Math.max(0, targetPrice - creditApplied));
+    const creditToWallet = money(Math.max(0, remainingCredit - targetPrice));
+    return {
+      currentSubscriptionId: subscription._id,
+      currentPlan,
+      currentBillingCycle: currentCycle,
+      paidAmount,
+      totalDays,
+      remainingDays,
+      remainingCredit,
+      targetPlan,
+      targetBillingCycle: targetCycle,
+      targetPrice,
+      creditApplied,
+      amountPayable,
+      creditToWallet,
+      changeType: changeTypeFor(currentPlan, targetPlan, currentCycle, targetCycle),
+      currency: targetPlan.currency || currentPlan.currency || "INR",
+    };
+  }
+
+  async createPlanChangeOrder(userId, payload = {}) {
+    const vendor = await this.getVendor(userId);
+    const preview = await this.prorationPreview(userId, payload);
+    const targetPlan = preview.targetPlan;
+    const change = await VendorSubscriptionChange.create({
+      vendorId: vendor._id,
+      oldSubscriptionId: preview.currentSubscriptionId,
+      oldPlanId: preview.currentPlan._id,
+      newPlanId: targetPlan._id,
+      oldCycle: preview.currentBillingCycle,
+      newCycle: preview.targetBillingCycle,
+      remainingDays: preview.remainingDays,
+      remainingCredit: preview.remainingCredit,
+      newPlanPrice: preview.targetPrice,
+      creditApplied: preview.creditApplied,
+      finalAmountPaid: preview.amountPayable,
+      changeType: preview.changeType,
+      status: preview.amountPayable > 0 ? "pending_payment" : "completed",
+      reason: payload.reason || "",
+      metadata: {
+        creditToWallet: preview.creditToWallet,
+        autoRenew: Boolean(payload.autoRenew && targetPlan.autoRenewAllowed),
+      },
+      createdBy: userId,
+    });
+    if (preview.amountPayable <= 0) {
+      const subscription = await this.completePlanChange({ userId, vendor, change, payment: null, paymentReference: "credit_change" });
+      return { requiresPayment: false, preview, change, subscription };
+    }
+    await paymentService.assertGatewayEnabled();
+    const receipt = `subchg_${String(vendor._id).slice(-6)}_${Date.now()}`;
+    const razorpay = paymentService.getRazorpayClient();
+    const order = await razorpay.orders.create({
+      amount: Math.round(preview.amountPayable * 100),
+      currency: preview.currency,
+      receipt,
+      notes: {
+        purpose: "subscription_change",
+        vendorId: String(vendor._id),
+        changeId: String(change._id),
+        planId: String(targetPlan._id),
+        billingCycle: preview.targetBillingCycle,
+      },
+    });
+    if (!order?.id || Number(order.amount) !== Math.round(preview.amountPayable * 100)) {
+      throw new AppError("Invalid Razorpay subscription change order", 502, "RAZORPAY_ORDER_VALIDATION_FAILED");
+    }
+    const payment = await SubscriptionPayment.create({
+      vendorId: vendor._id,
+      planId: targetPlan._id,
+      billingCycle: preview.targetBillingCycle,
+      amount: preview.amountPayable,
+      currency: preview.currency,
+      razorpayOrderId: order.id,
+      receipt,
+      status: "pending",
+      gatewayResponse: { order },
+      metadata: { planName: targetPlan.planName, changeId: String(change._id), purpose: "subscription_change", creditApplied: preview.creditApplied, autoRenew: Boolean(payload.autoRenew && targetPlan.autoRenewAllowed) },
+    });
+    change.paymentId = payment._id;
+    await change.save();
+    await auditService.log({ actor: { _id: userId, role: "vendor" }, action: "vendor.subscription.change_order_created", entityType: "VendorSubscriptionChange", entityId: change._id, metadata: { amount: preview.amountPayable, creditApplied: preview.creditApplied } }).catch(() => {});
+    return { requiresPayment: true, preview, changeId: change._id, paymentId: payment._id, razorpayOrderId: order.id, orderId: order.id, amount: order.amount, currency: preview.currency, key: process.env.RAZORPAY_KEY_ID, receipt };
+  }
+
+  async completePlanChange({ userId, vendor, change, payment = null, paymentReference = "" }) {
+    const targetPlan = await VendorSubscriptionPlan.findOne({ _id: change.newPlanId, "approval.status": "active" });
+    if (!targetPlan) throw new AppError("Target subscription plan not found", 404, "PLAN_NOT_FOUND");
+    await VendorSubscription.updateOne({ _id: change.oldSubscriptionId, vendorId: vendor._id }, { $set: { status: "cancelled", updatedBy: userId } });
+    const subscription = await this.activateSubscription({
+      userId,
+      vendor,
+      plan: targetPlan,
+      billingCycle: change.newCycle,
+      paymentReference,
+      paymentId: payment?._id,
+      metadata: { changeId: String(change._id), creditApplied: change.creditApplied },
+      autoRenew: Boolean(change.metadata?.autoRenew),
+    });
+    change.newSubscriptionId = subscription._id;
+    change.status = "completed";
+    if (payment) change.finalAmountPaid = payment.amount;
+    await change.save();
+    const creditToWallet = money(change.metadata?.creditToWallet || Math.max(0, change.remainingCredit - change.newPlanPrice));
+    if (creditToWallet > 0) {
+      await SubscriptionCreditWallet.create({
+        vendorId: vendor._id,
+        creditAmount: creditToWallet,
+        remainingAmount: creditToWallet,
+        currency: targetPlan.currency || "INR",
+        sourcePlanId: change.oldPlanId,
+        targetPlanId: change.newPlanId,
+        changeId: change._id,
+        expiresAt: addDays(new Date(), 365),
+        metadata: { reason: "downgrade_credit" },
+      });
+    }
+    await auditService.log({ actor: { _id: userId, role: "vendor" }, action: `vendor.subscription.${change.changeType}`, entityType: "VendorSubscriptionChange", entityId: change._id, metadata: { creditApplied: change.creditApplied, paid: change.finalAmountPaid } }).catch(() => {});
+    await notifyVendor(vendor._id, { title: "Subscription changed", message: `${targetPlan.planName} is now active.`, severity: "success", metadata: { changeId: String(change._id), subscriptionId: String(subscription._id) } });
+    return subscription;
+  }
+
+  async confirmPlanChange(userId, payload = {}) {
+    const vendor = await this.getVendor(userId);
+    const payment = await SubscriptionPayment.findOne({ razorpayOrderId: payload.razorpay_order_id });
+    if (!payment) throw new AppError("Subscription change payment not found", 404, "SUBSCRIPTION_PAYMENT_NOT_FOUND");
+    if (String(payment.vendorId) !== String(vendor._id)) throw new AppError("Forbidden", 403, "FORBIDDEN");
+    const change = await VendorSubscriptionChange.findOne({ _id: objectId(payment.metadata?.changeId), vendorId: vendor._id });
+    if (!change) throw new AppError("Subscription change not found", 404, "SUBSCRIPTION_CHANGE_NOT_FOUND");
+    if (change.status === "completed" && change.newSubscriptionId) {
+      const subscription = await VendorSubscription.findById(change.newSubscriptionId).populate("planId").lean();
+      return { payment, change, subscription };
+    }
+    const secret = String(process.env.RAZORPAY_KEY_SECRET || "").trim();
+    if (!secret) throw new AppError("Razorpay key secret is required", 500, "RAZORPAY_NOT_CONFIGURED");
+    const expectedSignature = crypto.createHmac("sha256", secret).update(`${payload.razorpay_order_id}|${payload.razorpay_payment_id}`).digest("hex");
+    if (!safeEqual(expectedSignature, payload.razorpay_signature)) {
+      payment.status = "failed";
+      payment.failureReason = "Invalid Razorpay signature";
+      payment.razorpayPaymentId = payload.razorpay_payment_id;
+      payment.signature = payload.razorpay_signature;
+      change.status = "failed";
+      await Promise.all([payment.save(), change.save()]);
+      throw new AppError("Payment verification failed", 400, "PAYMENT_VERIFICATION_FAILED");
+    }
+    const gatewayPayment = await paymentService.fetchGatewayPayment(payload.razorpay_payment_id);
+    if (String(gatewayPayment.order_id) !== String(payload.razorpay_order_id)) throw new AppError("Gateway payment order mismatch", 409, "PAYMENT_ORDER_MISMATCH");
+    if (String(gatewayPayment.status || "").toLowerCase() !== "captured") throw new AppError("Payment is not captured by Razorpay", 409, "PAYMENT_NOT_CAPTURED");
+    if (Number(gatewayPayment.amount) !== Math.round(Number(payment.amount) * 100)) throw new AppError("Payment amount mismatch", 409, "PAYMENT_AMOUNT_MISMATCH");
+    const invoiceId = `SUB-CHG-${String(payment._id).slice(-8).toUpperCase()}`;
+    payment.status = "paid";
+    payment.razorpayPaymentId = payload.razorpay_payment_id;
+    payment.signature = payload.razorpay_signature;
+    payment.invoiceId = invoiceId;
+    payment.gatewayResponse = { ...(payment.gatewayResponse || {}), payment: gatewayPayment };
+    await payment.save();
+    const subscription = await this.completePlanChange({ userId, vendor, change, payment, paymentReference: payload.razorpay_payment_id });
+    const gatewayFee = money(Number(gatewayPayment.fee || 0) / 100);
+    const tax = money(Number(gatewayPayment.tax || 0) / 100);
+    const revenue = await SubscriptionRevenue.create({
+      vendorId: vendor._id,
+      planId: change.newPlanId,
+      subscriptionId: subscription._id,
+      paymentId: payment._id,
+      grossAmount: payment.amount,
+      tax,
+      gatewayFee,
+      netAmount: money(payment.amount - gatewayFee),
+      currency: payment.currency,
+      invoiceId,
+      status: "recognized",
+      metadata: { changeId: String(change._id), changeType: change.changeType },
+    });
+    return { payment, change, subscription, revenue, invoice: { invoiceId, amount: payment.amount, currency: payment.currency } };
+  }
+
+  async cancelSubscription(userId) {
+    const vendor = await this.getVendor(userId);
+    const subscription = await VendorSubscription.findOneAndUpdate(
+      { vendorId: vendor._id, status: { $in: ["trialing", "active", "grace_period"] } },
+      { $set: { status: "cancelled", updatedBy: userId } },
+      { returnDocument: "after" }
+    ).populate("planId");
+    if (!subscription) throw new AppError("Active subscription not found", 404, "SUBSCRIPTION_NOT_FOUND");
+    await auditService.log({ actor: { _id: userId, role: "vendor" }, action: "vendor.subscription.cancelled", entityType: "VendorSubscription", entityId: subscription._id, metadata: { planId: subscription.planId?._id, planName: subscription.planId?.planName } }).catch(() => {});
+    return subscription;
+  }
+
+  async expireSubscriptions({ now = new Date(), notify = true } = {}) {
+    const expired = await VendorSubscription.find({
+      status: { $in: ["trialing", "active", "grace_period", "past_due"] },
+      endDate: { $ne: null, $lt: now },
+    }).populate("planId");
+    for (const subscription of expired) {
+      subscription.status = "expired";
+      subscription.expiredAt = now;
+      subscription.updatedBy = subscription.updatedBy || subscription.createdBy;
+      await subscription.save();
+      await auditService.log({
+        actor: { role: "system" },
+        action: "vendor.subscription.expired",
+        entityType: "VendorSubscription",
+        entityId: subscription._id,
+        metadata: { vendorId: String(subscription.vendorId), planId: String(subscription.planId?._id || subscription.planId), planName: subscription.planId?.planName || "" },
+      }).catch(() => {});
+      if (notify) {
+        await notifyVendor(subscription.vendorId, {
+          title: "Subscription expired",
+          message: `${subscription.planId?.planName || "Your subscription"} has expired. Choose a plan to continue influencer commerce.`,
+          severity: "warning",
+          metadata: { subscriptionId: String(subscription._id) },
+        });
+      }
+    }
+    return { expiredCount: expired.length };
+  }
+
   async discover(userId, query = {}) {
     const vendor = await this.getVendor(userId);
-    const { page, limit, skip } = pageOptions(query, 24);
+    const { page, limit: requestedLimit } = pageOptions(query, 24);
+    const discoveryPlan = await influencerCommerceEngine.discoveryLimit(vendor._id, requestedLimit);
+    const limit = discoveryPlan.limit;
+    if (!limit || !discoveryPlan.subscription) {
+      return {
+        items: [],
+        subscription: {
+          status: "not_subscribed",
+          planName: null,
+          influencerVisibilityLimit: 0,
+          limit: 0,
+        },
+        pagination: { total: 0, page, limit: 0, pages: 1 },
+      };
+    }
+    const skip = discoveryPlan.visibilityLimit < 0 ? (page - 1) * limit : Math.min((page - 1) * limit, Math.max(discoveryPlan.visibilityLimit - limit, 0));
     const requiredIdSets = [];
     const filter = {
       state: { $in: ["verified", "active"] },
       "privacy.searchVisibility": { $ne: false },
       "privacy.profileVisibility": { $ne: "private" },
     };
-    if (query.status && ["saved", "invited", "applied", "approved", "active", "paused", "blacklisted"].includes(String(query.status))) {
+    if (query.status && ["viewed", "saved", "invited", "applied", "approved", "active", "paused", "blacklisted"].includes(String(query.status))) {
       const relationshipRows = await VendorInfluencerRelationship.find({ vendorId: vendor._id, status: query.status }).select("influencerId").lean();
       requiredIdSets.push(new Set(relationshipRows.map((row) => String(row.influencerId))));
     }
@@ -381,6 +905,11 @@ class InfluencerCommerceVendorService {
       filter.$and = [{ $or: [{ displayName: re }, { influencerCode: re }, { primaryCategory: re }, { categories: re }] }];
     }
 
+    const tierFilter = await influencerCommerceEngine.allowedInfluencerFilter(vendor._id);
+    if (Object.keys(tierFilter).length) {
+      filter.$and = [...(filter.$and || []), tierFilter];
+    }
+
     const sortMap = {
       highest_revenue: { "stats.revenue": -1 },
       highest_conversion: { "stats.sales": -1, "stats.clicks": 1 },
@@ -404,14 +933,16 @@ class InfluencerCommerceVendorService {
       return map;
     }, new Map());
 
-    return {
-      items: items.map((profile) => {
+    const scoredRows = await influencerCommerceEngine.rankInfluencerRows(await influencerCommerceEngine.scoreProfiles(items));
+    const scoredMap = new Map(scoredRows.map((row) => [String(row.profile._id), row]));
+    const mappedItems = items.map((profile) => {
         const socials = socialMap.get(String(profile._id)) || [];
         const engagementRate = socials.length
           ? money(socials.reduce((sum, account) => sum + Number(account.engagementRate || 0), 0) / socials.length)
           : 0;
         const clicks = Number(profile.stats?.clicks || 0);
         const sales = Number(profile.stats?.sales || 0);
+        const scored = scoredMap.get(String(profile._id));
         return {
           id: profile._id,
           _id: profile._id,
@@ -426,14 +957,38 @@ class InfluencerCommerceVendorService {
           conversionRate: clicks ? money((sales / clicks) * 100) : 0,
           averageRevenue: sales ? money(Number(profile.stats?.revenue || 0) / sales) : 0,
           revenueGenerated: Number(profile.stats?.revenue || 0),
+          influencerScore: scored?.score?.score || 0,
+          scoreComponents: scored?.score?.components || {},
+          scoreConfigVersion: scored?.score?.configVersion || 1,
+          tier: scored?.tier ? {
+            id: scored.tier._id,
+            name: scored.tier.tierName,
+            badge: scored.tier.badge,
+            color: scored.tier.color,
+            priority: scored.tier.priority,
+          } : null,
+          rankingScore: scored?.rankingScore || 0,
+          rankingRuleVersion: scored?.rankingRuleVersion || 1,
           location: profile.location,
           languages: profile.languages || [],
           verified: Boolean(profile.verified),
           status: relationshipMap.get(String(profile._id))?.status || "",
           saved: Boolean(relationshipMap.get(String(profile._id))?.saved),
+          visited: Boolean(relationshipMap.get(String(profile._id))?.visited),
+          visitCount: Number(relationshipMap.get(String(profile._id))?.visitCount || 0),
+          lastVisitedAt: relationshipMap.get(String(profile._id))?.lastVisitedAt,
         };
-      }),
-      pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 },
+      });
+    const sortedItems = query.sort ? mappedItems : mappedItems.sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0));
+    const visibleTotal = discoveryPlan.visibilityLimit < 0 ? total : Math.min(total, discoveryPlan.visibilityLimit);
+    return {
+      items: sortedItems,
+      subscription: {
+        planName: discoveryPlan.plan?.planName || "Free",
+        influencerVisibilityLimit: discoveryPlan.visibilityLimit,
+        resultLimit: limit,
+      },
+      pagination: { total: visibleTotal, page, limit, pages: Math.ceil(visibleTotal / limit) || 1 },
     };
   }
 
@@ -554,6 +1109,45 @@ class InfluencerCommerceVendorService {
     return relationship;
   }
 
+  async visitInfluencer(userId, influencerId) {
+    const vendor = await this.getVendor(userId);
+    const profile = await InfluencerProfile.findById(influencerId).lean();
+    if (!profile) throw new AppError("Influencer not found", 404, "NOT_FOUND");
+    const current = await VendorInfluencerRelationship.findOne({ vendorId: vendor._id, influencerId }).lean();
+    const firstVisit = !current?.visited;
+    if (firstVisit) {
+      const discoveryPlan = await influencerCommerceEngine.discoveryLimit(vendor._id, 1);
+      const visibilityLimit = Number(discoveryPlan.visibilityLimit ?? 0);
+      if (visibilityLimit >= 0) {
+        const visitedCount = await VendorInfluencerRelationship.countDocuments({ vendorId: vendor._id, visited: true });
+        if (visitedCount >= visibilityLimit) {
+          throw new AppError(`Influencer visibility limit reached for ${discoveryPlan.plan?.planName || "your plan"}. Upgrade your plan to view more influencers.`, 403, "INFLUENCER_VISIBILITY_LIMIT_REACHED", {
+            visitedCount,
+            visibilityLimit,
+          });
+        }
+      }
+    }
+    const now = new Date();
+    const relationship = await VendorInfluencerRelationship.findOneAndUpdate(
+      { vendorId: vendor._id, influencerId },
+      {
+        $set: {
+          status: current?.status && current.status !== "viewed" ? current.status : "viewed",
+          source: current?.source || "discovery",
+          visited: true,
+          ...(firstVisit ? { firstVisitedAt: now } : {}),
+          lastVisitedAt: now,
+          lastActivityAt: now,
+        },
+        $inc: { visitCount: 1 },
+      },
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
+    );
+    await auditService.log({ actor: { _id: userId, role: "vendor" }, action: firstVisit ? "influencer.viewed.first" : "influencer.viewed.repeat", entityType: "VendorInfluencerRelationship", entityId: relationship._id, metadata: { vendorId: String(vendor._id), influencerId } }).catch(() => {});
+    return relationship;
+  }
+
   async updateRelationship(userId, influencerId, payload = {}) {
     const vendor = await this.getVendor(userId);
     const relationship = await this.upsertRelationship(vendor._id, influencerId, {
@@ -568,6 +1162,7 @@ class InfluencerCommerceVendorService {
 
   async createCampaign(userId, payload = {}) {
     const vendor = await this.getVendor(userId);
+    await influencerCommerceEngine.enforceCampaignLimit(vendor._id);
     let campaign;
     if (payload.influencerId) {
       campaign = await campaignService.create(userId, payload);
@@ -614,6 +1209,7 @@ class InfluencerCommerceVendorService {
         history: [{ state: "draft", actorId: userId, note: "Marketplace campaign created by vendor", changedAt: new Date() }],
       });
     }
+    await influencerCommerceEngine.ensureCampaignBudgetControl(campaign, payload.budget || payload.fixedFee || 0);
     await auditService.log({ actor: { _id: userId, role: "vendor" }, action: payload.influencerId ? "campaign.invite" : "campaign.create", entityType: "Campaign", entityId: campaign._id, metadata: { influencerId: payload.influencerId || null } }).catch(() => {});
     return campaign;
   }

@@ -12,6 +12,7 @@ import { useCart } from "../hooks/useCart";
 import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
 import { getCartErrorMessage } from "../utils/cartErrors";
+import { SellerNameLink } from "../components/seller/SellerNavigation";
 
 
 const RESERVED_QUERY_KEYS = new Set([

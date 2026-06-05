@@ -1,6 +1,7 @@
-import { createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { confirmAction } from "../services/notificationService";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { ProductCard } from "../components/ProductCard";
 import {
   BadgeCheck,
   Bookmark,
@@ -10,11 +11,16 @@ import {
   Copy,
   ExternalLink,
   Flag,
+  Grid2X2,
   Heart,
   Eye,
+  LayoutGrid,
+  ListFilter,
   Mail,
   MapPin,
   MoreHorizontal,
+  Package,
+  Percent,
   Play,
   Search,
   Send,
@@ -23,15 +29,13 @@ import {
   ShoppingBag,
   ShoppingCart,
   Star,
+  TrendingUp,
   Truck,
   UserMinus,
   UserPlus,
   X,
 } from "lucide-react";
-import { CartDrawerContext } from "../context/CartDrawerContext";
 import { useAuthStore } from "../context/authStore";
-import { useCart } from "../hooks/useCart";
-import { useWishlist } from "../hooks/useWishlist";
 import {
   clickTracking,
   followPublicInfluencer,
@@ -69,12 +73,84 @@ function activeTabFromRoute(tab = "") {
   return TABS.some(([key]) => key === tab) ? tab : "storefront";
 }
 
-function imageOf(product = {}) {
-  return resolveApiAssetUrl(product.thumbnail || product.images?.find?.((item) => item?.isPrimary)?.url || product.images?.[0]?.url || "");
-}
-
 function mediaOf(item = {}) {
   return resolveApiAssetUrl(item.media?.coverImage || item.media?.thumbnail || item.media?.bannerImage || item.media?.[0]?.url || item.thumbnailUrl || item.videoUrl || "");
+}
+
+function productsOfCollection(collection = {}) {
+  return Array.isArray(collection.productIds) ? collection.productIds.filter((product) => product && typeof product === "object") : [];
+}
+
+function productCountOf(collection = {}) {
+  return collection.productsCount || productsOfCollection(collection).length || collection.productIds?.length || 0;
+}
+
+function analyticsOf(item = {}) {
+  return item.analyticsSummary || item.analytics || item.metrics || {};
+}
+
+function categoryOf(product = {}) {
+  if (typeof product.category === "string") return product.category;
+  return product.category?.name || product.category?.title || "Creator Pick";
+}
+
+function sellerNameOf(product = {}) {
+  return product.sellerId?.shopName || product.sellerId?.companyName || product.vendorName || product.brand || "Marketplace";
+}
+
+function collectionTitle(collection = {}) {
+  return collection.title || collection.name || "Collection";
+}
+
+function uniqueCategories(data = {}) {
+  const values = [
+    ...(data.storefront?.categories || []),
+    ...(data.profile?.categories || []),
+    ...(data.collections || []).flatMap((collection) => productsOfCollection(collection).map(categoryOf)),
+    ...(data.featuredProducts || []).map(categoryOf),
+  ].map((value) => String(value || "").trim()).filter((value) => value && value.length <= 40 && !/^[a-f\d]{16,}$/i.test(value));
+  return [...new Set(values)].slice(0, 10);
+}
+
+function topCategories(data = {}) {
+  const counts = new Map();
+  allStorefrontProducts(data).forEach((product) => {
+    const category = categoryOf(product);
+    if (!category || category === "Creator Pick" || /^[a-f\d]{16,}$/i.test(String(category))) return;
+    counts.set(category, (counts.get(category) || 0) + 1);
+  });
+  uniqueCategories(data).forEach((category) => {
+    if (!counts.has(category)) counts.set(category, 0);
+  });
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 6)
+    .map(([name, count]) => ({ name, count }));
+}
+
+function allStorefrontProducts(data = {}) {
+  const byId = new Map();
+  [...(data.featuredProducts || []), ...(data.collections || []).flatMap(productsOfCollection)].forEach((product) => {
+    const id = product?._id || product?.id;
+    if (id && !byId.has(String(id))) byId.set(String(id), product);
+  });
+  return [...byId.values()];
+}
+
+function productForSharedCard(product = {}) {
+  const existingImages = Array.isArray(product.images) ? product.images.filter((image) => image?.url) : [];
+  const fallbackImage = product.thumbnail ? [{ url: product.thumbnail, isPrimary: true }] : [];
+  const stock = Number(product.stock ?? product.inventory?.stock ?? product.inventory?.available ?? product.quantity ?? 1);
+  return {
+    ...product,
+    _id: product._id || product.id,
+    images: existingImages.length ? existingImages : fallbackImage,
+    category: categoryOf(product),
+    stock,
+    variants: Array.isArray(product.variants) && product.variants.length
+      ? product.variants
+      : [{ variantId: "", title: "Default", stock, isActive: true }],
+  };
 }
 
 function currentRelativeUrl() {
@@ -123,19 +199,8 @@ async function shareStorefrontResource({ username, eventType = "share", surface,
 }
 
 function CreatorProductCard({ product, data, surface = "storefront", collectionId = "", postId = "" }) {
-  const navigate = useNavigate();
-  const cartDrawer = useContext(CartDrawerContext);
-  const { addItem } = useCart();
-  const { addItem: addWishlistItem, removeItem: removeWishlistItem, isInWishlist } = useWishlist();
-  const [saved, setSaved] = useState(false);
-  const [busy, setBusy] = useState(false);
   const productId = product?._id || product?.id;
-
-  useEffect(() => {
-    let active = true;
-    if (productId) isInWishlist(productId).then((value) => active && setSaved(Boolean(value))).catch(() => {});
-    return () => { active = false; };
-  }, [isInWishlist, productId]);
+  const sharedProduct = useMemo(() => productForSharedCard(product), [product]);
 
   const attribute = useCallback(async (eventType = "product_click") => {
     if (!productId) return null;
@@ -161,93 +226,16 @@ function CreatorProductCard({ product, data, surface = "storefront", collectionI
     return payload;
   }, [collectionId, data.profile._id, data.profile.username, data.storefront._id, postId, productId, surface]);
 
-  async function openProduct() {
-    setBusy(true);
-    try {
-      const tracking = await attribute("product_click");
-      const params = new URLSearchParams();
-      if (tracking?.trackingToken) params.set("trackingToken", tracking.trackingToken);
-      if (tracking?.anonymousId) params.set("anonymousId", tracking.anonymousId);
-      navigate(`/product/${productId}${params.toString() ? `?${params}` : ""}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function addToCart(buyNow = false) {
-    setBusy(true);
-    try {
-      await attribute("add_to_cart");
-      const added = await addItem(productId, 1);
-      cartDrawer?.openDrawer(added || product, added?.variant || null, 1);
-      if (buyNow) navigate("/checkout");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function toggleWishlist(event) {
-    event.stopPropagation();
-    if (!productId) return;
-    setBusy(true);
-    try {
-      if (saved) await removeWishlistItem(productId);
-      else await addWishlistItem(productId);
-      setSaved((value) => !value);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
-    <article className="group flex min-w-[220px] max-w-[240px] flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={openProduct}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            openProduct();
-          }
+    <div className="w-[182px] shrink-0 sm:w-[190px]">
+      <ProductCard
+        product={sharedProduct}
+        imageAspectClass="aspect-[4/5]"
+        onProductClick={() => {
+          attribute("product_click").catch(() => null);
         }}
-        className="relative aspect-[4/5] cursor-pointer bg-slate-100 text-left dark:bg-slate-800"
-      >
-        {imageOf(product) ? <img src={imageOf(product)} alt={product.name} className="h-full w-full object-cover transition group-hover:scale-105" loading="lazy" /> : null}
-        <button
-          type="button"
-          onClick={toggleWishlist}
-          disabled={busy}
-          className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-700 shadow-sm transition hover:text-rose-600 dark:bg-slate-950/90 dark:text-slate-200"
-          aria-label={saved ? "Remove from wishlist" : "Add to wishlist"}
-        >
-          <Heart className={`h-5 w-5 ${saved ? "fill-rose-500 text-rose-500" : ""}`} />
-        </button>
-      </div>
-      <div className="flex flex-1 flex-col gap-2 p-3">
-        <p className="line-clamp-1 text-[11px] font-bold uppercase text-slate-500">{product.category || "Creator Pick"}</p>
-        <button type="button" onClick={openProduct} className="line-clamp-2 min-h-10 text-left text-sm font-bold text-slate-950 hover:text-indigo-600 dark:text-white">
-          {product.name}
-        </button>
-        <div className="mt-auto flex items-center gap-1 text-xs text-amber-600">
-          <Star className="h-3.5 w-3.5 fill-amber-500" />
-          <span>{Number(product.ratings?.averageRating || 0).toFixed(1)}</span>
-          <span className="text-slate-400">({compact(product.ratings?.totalReviews || 0)})</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-black text-slate-950 dark:text-white">{formatCurrency(product.discountPrice || product.price || 0)}</span>
-          {product.discountPrice ? <span className="text-xs text-slate-400 line-through">{formatCurrency(product.price || 0)}</span> : null}
-        </div>
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <button type="button" disabled={busy} onClick={() => addToCart(false)} className="inline-flex items-center justify-center gap-1 rounded-md border border-slate-200 px-2 py-2 text-xs font-bold text-slate-700 hover:border-slate-400 dark:border-slate-700 dark:text-slate-200">
-            <ShoppingCart className="h-3.5 w-3.5" /> Cart
-          </button>
-          <button type="button" disabled={busy} onClick={() => addToCart(true)} className="rounded-md bg-slate-950 px-2 py-2 text-xs font-bold text-white hover:bg-indigo-600 dark:bg-white dark:text-slate-950">
-            Buy Now
-          </button>
-        </div>
-      </div>
-    </article>
+      />
+    </div>
   );
 }
 
@@ -279,21 +267,40 @@ function SectionHeader({ title, to }) {
   );
 }
 
-function CollectionsRail({ data, collections = [] }) {
+function CollectionsRail({ data, collections = [], selectedId = "", onSelect }) {
+  const railRef = useRef(null);
+  function move(direction) {
+    railRef.current?.scrollBy({ left: direction * 360, behavior: "smooth" });
+  }
   return (
-    <section>
-      <SectionHeader title="Shop By Collections" to={`/influencer/${data.profile.username}/collections`} />
-      <div className="flex gap-4 overflow-x-auto pb-2">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-black text-slate-950 dark:text-white">Collections</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-500">Curated picks by {data.profile.name}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link to={`/influencer/${data.profile.username}/collections`} className="hidden rounded-md border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-200 sm:inline-flex">View all</Link>
+          <button type="button" onClick={() => move(-1)} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200" aria-label="Previous collection"><ChevronLeft className="h-4 w-4" /></button>
+          <button type="button" onClick={() => move(1)} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200" aria-label="Next collection"><ChevronRight className="h-4 w-4" /></button>
+        </div>
+      </div>
+      <div ref={railRef} className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
         {collections.map((collection) => (
-          <Link key={collection._id} to={`/influencer/${data.profile.username}/collections#${collection.slug}`} onClick={() => trackPublicInfluencerEvent(data.profile.username, { eventType: "collection_view", collectionId: collection._id })} className="group min-w-[250px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="aspect-[16/9] bg-slate-100 dark:bg-slate-800">
-              {mediaOf(collection) ? <img src={mediaOf(collection)} alt={collection.title} className="h-full w-full object-cover transition group-hover:scale-105" loading="lazy" /> : null}
+          <button key={collection._id} type="button" onClick={() => onSelect?.(collection)} className={`group flex h-[238px] w-[220px] shrink-0 snap-start flex-col overflow-hidden rounded-lg border bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-slate-950 sm:h-[252px] sm:w-[240px] ${selectedId === collection._id ? "border-indigo-500 ring-2 ring-indigo-100 dark:ring-indigo-950" : "border-slate-200 dark:border-slate-800"}`}>
+            <div className="relative h-[132px] shrink-0 bg-slate-100 dark:bg-slate-800 sm:h-[144px]">
+              {mediaOf(collection) ? <img src={mediaOf(collection)} alt={collectionTitle(collection)} className="h-full w-full object-cover transition group-hover:scale-105" loading="lazy" /> : null}
+              <span className="absolute bottom-2 left-2 rounded-full bg-slate-950/80 px-2.5 py-1 text-[11px] font-black text-white">{productCountOf(collection)} Products</span>
             </div>
-            <div className="p-4">
-              <h3 className="line-clamp-1 font-black text-slate-950 dark:text-white">{collection.title}</h3>
-              <p className="mt-1 text-sm text-slate-500">{collection.productIds?.length || collection.productsCount || 0} products</p>
+            <div className="flex min-h-0 flex-1 flex-col p-3">
+              <h3 className="line-clamp-1 font-black text-slate-950 dark:text-white">{collectionTitle(collection)}</h3>
+              <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">{collection.description || collection.type || "Creator curated collection"}</p>
+              <div className="mt-auto flex flex-wrap gap-1 pt-3">
+                {collection.type ? <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-black uppercase text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">{collection.type}</span> : null}
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">{collection.status || "active"}</span>
+              </div>
             </div>
-          </Link>
+          </button>
         ))}
         {!collections.length ? <EmptyState label="No public collections yet." /> : null}
       </div>
@@ -505,12 +512,15 @@ function PostsGrid({ data, posts = [], compactMode = false, onRequireAuth }) {
   );
 }
 
-function Sidebar({ data }) {
+function Sidebar({ data, following, followBusy = false, onFollow, onShare, canEdit }) {
   const [expanded, setExpanded] = useState(false);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
   const bio = data.profile.longBio || data.profile.bio || data.storefront.description || data.profile.shortBio || "";
   const visibleBio = expanded ? bio : bio.slice(0, 180);
+  const categories = uniqueCategories(data);
+  const categoryRows = topCategories(data);
+  const location = [data.profile.location?.city, data.profile.location?.state, data.profile.location?.country].filter(Boolean).join(", ");
 
   async function subscribe(event) {
     event.preventDefault();
@@ -525,38 +535,80 @@ function Sidebar({ data }) {
   }
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-32 lg:w-[280px] lg:shrink-0">
-      <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="font-black text-slate-950 dark:text-white">About Me</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{visibleBio}{!expanded && bio.length > 180 ? "..." : ""}</p>
+    <aside className="space-y-4 lg:sticky lg:top-24 lg:w-[290px] lg:shrink-0">
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white p-5 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="mx-auto h-28 w-28 overflow-hidden rounded-full bg-slate-100 shadow-inner dark:bg-slate-800">
+          {resolveApiAssetUrl(data.profile.avatarUrl) ? <img src={resolveApiAssetUrl(data.profile.avatarUrl)} alt={data.profile.name} className="h-full w-full object-cover" /> : null}
+        </div>
+        <div className="mt-4 flex items-center justify-center gap-1">
+          <h1 className="text-xl font-black text-slate-950 dark:text-white">{data.profile.name}</h1>
+          {data.badge || data.profile.verified ? <BadgeCheck className="h-5 w-5 fill-indigo-600 text-white" aria-label="Verified creator" /> : null}
+        </div>
+        <p className="mt-1 text-sm font-semibold text-slate-500">@{data.profile.username}</p>
+        <p className="mt-1 text-xs font-bold text-indigo-600">{data.profile.primaryCategory || categories.slice(0, 3).join(" | ") || "Creator Store"}</p>
+        {location ? <p className="mt-2 inline-flex items-center justify-center gap-1 text-xs font-semibold text-slate-500"><MapPin className="h-3.5 w-3.5" /> {location}</p> : null}
+
+        <div className="mt-5 grid grid-cols-3 gap-2 border-y border-slate-100 py-4 dark:border-slate-800">
+          <Metric label="Followers" value={compact(data.stats.followers)} />
+          <Metric label="Orders" value={compact(data.stats.ordersGenerated)} />
+          <Metric label="Sales" value={formatCurrency(data.stats.revenue || 0)} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+          {canEdit ? (
+            <Link to="/influencer/storefront-builder" className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-black text-white">Edit Store</Link>
+          ) : (
+            <button onClick={onFollow} disabled={followBusy} className={`inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-black ${following ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950" : "bg-indigo-600 text-white"}`}>
+              {following ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+              {followBusy ? (following ? "Unfollowing..." : "Following...") : following ? "Following" : "Follow"}
+            </button>
+          )}
+          <button onClick={onShare} className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 text-indigo-600 hover:bg-indigo-50 dark:border-slate-700 dark:hover:bg-slate-800" aria-label="Share store" title="Share store">
+            <Share2 className="h-4 w-4" />
+          </button>
+        </div>
+
+        <p className="mt-4 text-left text-sm leading-6 text-slate-600 dark:text-slate-300">{visibleBio}{!expanded && bio.length > 180 ? "..." : ""}</p>
         {bio.length > 180 ? <button onClick={() => setExpanded((value) => !value)} className="mt-2 text-sm font-bold text-indigo-600">{expanded ? "Show Less" : "Show More"}</button> : null}
-        <div className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-          <p><span className="font-bold text-slate-900 dark:text-white">Experience:</span> {data.profile.moderation?.verifiedAt ? "Verified creator" : "Creator"}</p>
-          <p><span className="font-bold text-slate-900 dark:text-white">Specialization:</span> {(data.storefront.categories || data.profile.categories || []).slice(0, 3).join(", ") || data.profile.primaryCategory || "Lifestyle commerce"}</p>
+        <div className="mt-4 flex justify-center gap-2 text-slate-500">
+          {(data.socialLinks || []).slice(0, 5).map((link) => (
+            <a key={`${link.platform}-${link.url}`} href={link.url} target="_blank" rel="noreferrer" onClick={() => trackPublicInfluencerEvent(data.profile.username, { eventType: "social_click", metadata: { platform: link.platform } })} className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-xs font-black uppercase hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700">
+              {link.platform?.slice(0, 1) || "S"}
+            </a>
+          ))}
         </div>
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="font-black text-slate-950 dark:text-white">Categories</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(data.storefront.categories || data.profile.categories || ["Fashion", "Beauty", "Accessories", "Lifestyle", "Home & Living", "Tech"]).map((category) => (
-            <Link key={category} to={`/influencer/${data.profile.username}/storefront?search=${encodeURIComponent(category)}`} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-indigo-300 hover:text-indigo-700 dark:border-slate-700 dark:text-slate-200">
-              {category}
+        <h2 className="font-black text-slate-950 dark:text-white">Store Features</h2>
+        <div className="mt-3 space-y-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
+          {[
+            [ShieldCheck, "100% Authentic Products"],
+            [ShoppingBag, "Influencer Curated"],
+            [Truck, "Fast Delivery"],
+            [BadgeCheck, "Secure Payments"],
+          ].map(([Icon, label]) => (
+            <div key={label} className="flex items-center gap-2"><Icon className="h-4 w-4 text-indigo-600" /> {label}</div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="font-black text-slate-950 dark:text-white">Top Categories</h2>
+        <div className="mt-3 space-y-3">
+          {(categoryRows.length ? categoryRows : ["Fashion", "Footwear", "Accessories", "Lifestyle", "Grooming"].map((name) => ({ name, count: 0 }))).map((category) => (
+            <Link key={category.name} to={`/influencer/${data.profile.username}/storefront?search=${encodeURIComponent(category.name)}`} className="flex items-center justify-between gap-3 rounded-md px-1 py-1 text-sm font-semibold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 dark:text-slate-300 dark:hover:bg-slate-800">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="h-1 w-1 shrink-0 rounded-full bg-slate-400" />
+                <span className="truncate">{category.name}</span>
+              </span>
+              <span className="shrink-0 text-slate-500">{category.count}</span>
             </Link>
           ))}
         </div>
-      </section>
-
-      <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="font-black text-slate-950 dark:text-white">Social Links</h2>
-        <div className="mt-3 space-y-2">
-          {(data.socialLinks || []).map((link) => (
-            <a key={`${link.platform}-${link.url}`} href={link.url} target="_blank" rel="noreferrer" onClick={() => trackPublicInfluencerEvent(data.profile.username, { eventType: "social_click", metadata: { platform: link.platform } })} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-sm font-bold capitalize text-slate-700 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-200">
-              {link.platform}<ExternalLink className="h-4 w-4" />
-            </a>
-          ))}
-          {!data.socialLinks?.length ? <p className="text-sm text-slate-500">No social profiles connected.</p> : null}
-        </div>
+        <Link to={`/influencer/${data.profile.username}/storefront`} className="mt-5 inline-flex w-full items-center justify-center gap-2 text-sm font-black text-indigo-600 hover:text-indigo-700">
+          View all categories <ChevronRight className="h-4 w-4" />
+        </Link>
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -635,57 +687,188 @@ function Metric({ label, value }) {
 
 function Tabs({ username, active }) {
   return (
-    <nav className="sticky top-0 z-20 -mx-3 overflow-x-auto border-y border-slate-200 bg-white/95 px-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:mx-0 sm:rounded-lg sm:border">
-      <div className="flex min-w-max gap-1">
+    <nav className="overflow-x-auto rounded-lg border border-slate-200 bg-white px-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex min-w-max items-center justify-between gap-3">
         {TABS.map(([key, label]) => {
           const href = key === "storefront" ? `/influencer/${username}/storefront` : `/influencer/${username}/${key}`;
-          return <Link key={key} to={href} className={`border-b-2 px-5 py-3 text-sm font-black transition ${active === key ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-950 dark:hover:text-white"}`}>{label}</Link>;
+          return <Link key={key} to={href} className={`border-b-2 px-5 py-4 text-sm font-black transition ${active === key ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-950 dark:hover:text-white"}`}>{label}</Link>;
         })}
       </div>
     </nav>
   );
 }
 
-function StorefrontTab({ data }) {
-  const products = data.featuredProducts?.length ? data.featuredProducts : data.collections?.flatMap((collection) => collection.productIds || []).slice(0, 12);
+function ProductToolbar({ categories = [], category, setCategory, sort, setSort, view, setView, search, setSearch }) {
   return (
-    <div className="space-y-8">
-      <BenefitsBar />
-      <section>
-        <SectionHeader title="Featured Products" />
+    <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 md:flex-row md:items-center">
+      <div className="relative min-w-0 flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products..." className="w-full rounded-md border border-slate-200 bg-white px-9 py-2.5 text-sm outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+      </div>
+      <select value={category} onChange={(event) => setCategory(event.target.value)} className="rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Filter category">
+        <option value="">All Categories</option>
+        {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+      </select>
+      <select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Sort products">
+        <option value="popular">Sort by: Popular</option>
+        <option value="price-low">Price: Low to High</option>
+        <option value="price-high">Price: High to Low</option>
+        <option value="rating">Rating</option>
+      </select>
+      <div className="flex rounded-md border border-slate-200 p-1 dark:border-slate-700">
+        <button type="button" onClick={() => setView("grid")} className={`inline-flex h-9 w-9 items-center justify-center rounded ${view === "grid" ? "bg-indigo-600 text-white" : "text-slate-500"}`} aria-label="Grid view"><LayoutGrid className="h-4 w-4" /></button>
+        <button type="button" onClick={() => setView("list")} className={`inline-flex h-9 w-9 items-center justify-center rounded ${view === "list" ? "bg-indigo-600 text-white" : "text-slate-500"}`} aria-label="Compact view"><ListFilter className="h-4 w-4" /></button>
+      </div>
+    </div>
+  );
+}
+
+function CollectionDetail({ data, collection, showSearch = true }) {
+  const [category, setCategory] = useState("");
+  const [sort, setSort] = useState("popular");
+  const [view, setView] = useState("grid");
+  const [search, setSearch] = useState("");
+  const products = useMemo(() => {
+    const text = search.trim().toLowerCase();
+    let rows = productsOfCollection(collection);
+    if (category) rows = rows.filter((product) => categoryOf(product) === category);
+    if (text) rows = rows.filter((product) => [product.name, categoryOf(product), sellerNameOf(product), product.brand].filter(Boolean).join(" ").toLowerCase().includes(text));
+    if (sort === "price-low") rows = [...rows].sort((a, b) => Number(a.discountPrice || a.price || 0) - Number(b.discountPrice || b.price || 0));
+    else if (sort === "price-high") rows = [...rows].sort((a, b) => Number(b.discountPrice || b.price || 0) - Number(a.discountPrice || a.price || 0));
+    else if (sort === "rating") rows = [...rows].sort((a, b) => Number(b.ratings?.averageRating || 0) - Number(a.ratings?.averageRating || 0));
+    else rows = [...rows].sort((a, b) => Number(b.analytics?.views || b.analytics?.sales || 0) - Number(a.analytics?.views || a.analytics?.sales || 0));
+    return rows;
+  }, [category, collection, search, sort]);
+  const categories = useMemo(() => [...new Set(productsOfCollection(collection).map(categoryOf).filter(Boolean))], [collection]);
+  const analytics = analyticsOf(collection);
+
+  if (!collection) return null;
+  return (
+    <section id={collection.slug} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+        <div className="min-w-0 flex-1">
+          <div className="relative overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
+            <div className="aspect-[21/7] min-h-36">
+              {mediaOf(collection) ? <img src={mediaOf(collection)} alt={collectionTitle(collection)} className="h-full w-full object-cover" /> : null}
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" />
+            <div className="absolute bottom-4 left-4 right-4 text-white">
+              <p className="text-xs font-black uppercase tracking-wide text-white/80">{collection.type || "Creator Collection"}</p>
+              <h2 className="mt-1 text-2xl font-black">{collectionTitle(collection)}</h2>
+              <p className="mt-1 line-clamp-2 text-sm font-semibold text-white/90">{collection.description || "Creator curated products for this storefront."}</p>
+            </div>
+          </div>
+        </div>
+        <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 lg:w-[420px]">
+          <Metric label="Products" value={compact(productCountOf(collection))} />
+          <Metric label="Orders" value={compact(analytics.orders || analytics.ordersGenerated || 0)} />
+          <Metric label="Revenue" value={formatCurrency(analytics.revenue || analytics.revenueGenerated || 0)} />
+          <Metric label="Clicks" value={compact(analytics.clicks || analytics.productClicks || 0)} />
+        </div>
+      </div>
+      <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h3 className="text-lg font-black text-slate-950 dark:text-white">{collectionTitle(collection)} Products</h3>
+          <p className="mt-1 text-sm font-semibold text-slate-500">{productCountOf(collection)} selected products for this collection</p>
+        </div>
+        <button type="button" onClick={() => shareStorefrontResource({ username: data.profile.username, eventType: "share", surface: "collection-detail", title: collectionTitle(collection), url: `${window.location.origin}/influencer/${data.profile.username}/collections#${collection.slug}`, payload: { collectionId: collection._id } })} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-200"><Share2 className="h-4 w-4" /> Share Collection</button>
+      </div>
+      {showSearch ? <div className="mt-4"><ProductToolbar categories={categories} category={category} setCategory={setCategory} sort={sort} setSort={setSort} view={view} setView={setView} search={search} setSearch={setSearch} /></div> : null}
+      <div className={`mt-5 ${view === "grid" ? "flex gap-4 overflow-x-auto pb-2" : "grid gap-3 sm:grid-cols-2 xl:grid-cols-3"}`}>
+        {products.map((product) => <CreatorProductCard key={product._id} product={product} data={data} surface="collection" collectionId={collection._id} />)}
+        {!products.length ? <EmptyState label="No products found in this collection." /> : null}
+      </div>
+    </section>
+  );
+}
+
+function StorefrontTab({ data, initialCollectionSlug = "" }) {
+  const collections = data.collections || [];
+  const initialCollection = collections.find((collection) => collection.slug === initialCollectionSlug);
+  const [selectedId, setSelectedId] = useState(initialCollection?._id || collections[0]?._id || "");
+  useEffect(() => {
+    if (initialCollection?._id && selectedId !== initialCollection._id) setSelectedId(initialCollection._id);
+    else if (!selectedId && collections[0]?._id) setSelectedId(collections[0]._id);
+  }, [collections, initialCollection?._id, selectedId]);
+  const selectedCollection = collections.find((collection) => collection._id === selectedId) || collections[0];
+  const products = data.featuredProducts?.length ? data.featuredProducts : allStorefrontProducts(data).slice(0, 12);
+  return (
+    <div className="space-y-5">
+      <CollectionsRail data={data} collections={collections} selectedId={selectedCollection?._id} onSelect={(collection) => {
+        setSelectedId(collection._id);
+        trackPublicInfluencerEvent(data.profile.username, { eventType: "collection_view", surface: "storefront-collections", collectionId: collection._id }).catch(() => null);
+      }} />
+      {selectedCollection ? <CollectionDetail data={data} collection={selectedCollection} /> : null}
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <SectionHeader title="Featured Products" to={`/influencer/${data.profile.username}/collections`} />
         <div className="flex gap-4 overflow-x-auto pb-2">
           {products.map((product) => <CreatorProductCard key={product._id} product={product} data={data} surface="storefront" />)}
           {!products.length ? <EmptyState label="No featured products yet." /> : null}
         </div>
       </section>
-      <CollectionsRail data={data} collections={data.collections || []} />
       <ReelsRail data={data} reels={data.reels || []} />
       <PostsGrid data={data} posts={data.posts || []} compactMode />
+      <BenefitsBar />
     </div>
   );
 }
 
-function CollectionsTab({ data }) {
+function CollectionsTab({ data, initialCollectionSlug = "" }) {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [type, setType] = useState("");
+  const [sort, setSort] = useState("popular");
+  const initialCollection = (data.collections || []).find((collection) => collection.slug === initialCollectionSlug);
+  const [selectedId, setSelectedId] = useState(initialCollection?._id || data.collections?.[0]?._id || "");
+  const collections = useMemo(() => {
+    const text = query.trim().toLowerCase();
+    let rows = [...(data.collections || [])];
+    if (type) rows = rows.filter((collection) => collection.type === type);
+    if (text) rows = rows.filter((collection) => [collectionTitle(collection), collection.description, collection.type, ...(collection.tags || []), ...productsOfCollection(collection).map((product) => product.name)].filter(Boolean).join(" ").toLowerCase().includes(text));
+    if (sort === "newest") rows.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+    else if (sort === "revenue") rows.sort((a, b) => Number(analyticsOf(b).revenue || 0) - Number(analyticsOf(a).revenue || 0));
+    else if (sort === "commission") rows.sort((a, b) => Number(analyticsOf(b).commission || 0) - Number(analyticsOf(a).commission || 0));
+    else rows.sort((a, b) => Number(analyticsOf(b).views || productCountOf(b)) - Number(analyticsOf(a).views || productCountOf(a)));
+    return rows;
+  }, [data.collections, query, sort, type]);
+  useEffect(() => {
+    if (initialCollection?._id && selectedId !== initialCollection._id) setSelectedId(initialCollection._id);
+    else if (!collections.some((collection) => collection._id === selectedId)) setSelectedId(collections[0]?._id || "");
+  }, [collections, initialCollection?._id, selectedId]);
+  const selected = collections.find((collection) => collection._id === selectedId) || collections[0];
+  const types = [...new Set((data.collections || []).map((collection) => collection.type).filter(Boolean))];
   return (
-    <div className="grid gap-5">
-      {(data.collections || []).map((collection) => (
-        <section key={collection._id} id={collection.slug} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-col gap-4 md:flex-row">
-            <div className="h-36 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800 md:w-56">
-              {mediaOf(collection) ? <img src={mediaOf(collection)} alt={collection.title} className="h-full w-full object-cover" /> : null}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xl font-black text-slate-950 dark:text-white">{collection.title}</h2>
-              <p className="mt-1 text-sm text-slate-500">{collection.productIds?.length || 0} products</p>
-              <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{collection.description}</p>
-              <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-                {(collection.productIds || []).slice(0, 8).map((product) => <CreatorProductCard key={product._id} product={product} data={data} surface="collection" collectionId={collection._id} />)}
-              </div>
-            </div>
+    <div className="space-y-5">
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-black text-slate-950 dark:text-white">Collections</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">Curated picks by {data.profile.name}</p>
           </div>
-        </section>
-      ))}
-      {!data.collections?.length ? <EmptyState label="No public collections yet." /> : null}
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search collections..." className="w-full rounded-md border border-slate-200 bg-white px-9 py-2.5 text-sm outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+            </div>
+            <select value={type} onChange={(event) => setType(event.target.value)} className="rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Filter collections">
+              <option value="">All types</option>
+              {types.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+            <select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Sort collections">
+              <option value="popular">Popular</option>
+              <option value="newest">Newest</option>
+              <option value="revenue">Highest Revenue</option>
+              <option value="commission">Highest Commission</option>
+            </select>
+          </div>
+        </div>
+      </section>
+      <CollectionsRail data={data} collections={collections} selectedId={selected?._id} onSelect={(collection) => {
+        setSelectedId(collection._id);
+        if (collection.slug) navigate(`/influencer/${data.profile.username}/collections/${collection.slug}`, { replace: false });
+        trackPublicInfluencerEvent(data.profile.username, { eventType: "collection_view", surface: "collections-tab", collectionId: collection._id }).catch(() => null);
+      }} />
+      {selected ? <CollectionDetail data={data} collection={selected} /> : <EmptyState label="No public collections found." />}
     </div>
   );
 }
@@ -778,8 +961,32 @@ function LoginPromptModal({ onClose }) {
   );
 }
 
+function PublicStoreNav({ data, search, setSearch }) {
+  return (
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+      <div className="mx-auto flex max-w-[1440px] items-center gap-4 px-4 py-3">
+        <Link to="/" className="flex shrink-0 items-center gap-2 text-xl font-black text-slate-950 dark:text-white">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white">U</span>
+          <span className="hidden sm:inline">UchooseMe</span>
+        </Link>
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products, collections, influencers..." className="w-full rounded-lg border border-slate-200 bg-white px-9 py-2.5 text-sm outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+          {search ? <button type="button" onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Clear search"><X className="h-4 w-4" /></button> : null}
+        </div>
+        <nav className="hidden items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200 lg:flex">
+          <Link to="/categories" className="inline-flex items-center gap-2 rounded-md px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800"><Grid2X2 className="h-4 w-4" /> Categories</Link>
+          <Link to="/influencers" className="inline-flex items-center gap-2 rounded-md px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800"><TrendingUp className="h-4 w-4" /> Explore</Link>
+          <Link to={`/influencer/${data.profile.username}/reels`} className="inline-flex items-center gap-2 rounded-md px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800"><Play className="h-4 w-4" /> Reels</Link>
+          <Link to="/offers" className="inline-flex items-center gap-2 rounded-md px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800"><Percent className="h-4 w-4" /> Offers</Link>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
 export function InfluencerPublicStorefrontPage() {
-  const { username, slug, tab } = useParams();
+  const { username, slug, tab, collectionSlug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const authUser = useAuthStore((state) => state.user);
@@ -791,7 +998,7 @@ export function InfluencerPublicStorefrontPage() {
   const [followBusy, setFollowBusy] = useState(false);
   const [loginPrompt, setLoginPrompt] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => new URLSearchParams(location.search).get("search") || "");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [actionStatus, setActionStatus] = useState("");
 
@@ -927,10 +1134,10 @@ export function InfluencerPublicStorefrontPage() {
     if (!data) return null;
     if (active === "posts") return <PostsGrid data={data} posts={data.posts || []} onRequireAuth={requireAuthenticatedAction} />;
     if (active === "reels") return <ReelsTab data={data} />;
-    if (active === "collections") return <CollectionsTab data={data} />;
+    if (active === "collections") return <CollectionsTab data={data} initialCollectionSlug={collectionSlug} />;
     if (active === "about") return <AboutTab data={data} />;
-    return <StorefrontTab data={data} />;
-  }, [active, data, requireAuthenticatedAction]);
+    return <StorefrontTab data={data} initialCollectionSlug={collectionSlug} />;
+  }, [active, collectionSlug, data, requireAuthenticatedAction]);
 
   const canEdit = Boolean(
     data?.viewer?.isOwner ||
@@ -942,39 +1149,19 @@ export function InfluencerPublicStorefrontPage() {
   if (!data) return <main className="mx-auto max-w-5xl p-6"><div className="rounded-lg border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-900">Loading creator storefront...</div></main>;
 
   return (
-    <main className="mx-auto max-w-[1440px] space-y-5">
+    <>
+    <PublicStoreNav data={data} search={search} setSearch={setSearch} />
+    <main className="mx-auto max-w-[1440px] space-y-5 px-4 py-5">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data.seo?.structuredData || {}) }} />
-      <nav aria-label="Breadcrumb" className="text-sm font-bold text-slate-500">
-        <Link to="/influencers" className="hover:text-indigo-600">Influencers</Link>
-        <span className="px-2">/</span>
-        <span className="text-slate-900 dark:text-white">{data.profile.name}</span>
-      </nav>
-
-      <ProfileHeader
-        data={data}
-        following={following}
-        followBusy={followBusy}
-        onFollow={toggleFollow}
-        onShare={handleShareProfile}
-        onCopy={handleCopyProfileUrl}
-        onReport={handleReportProfile}
-        onBlock={handleBlockProfile}
-        onMore={() => setMoreOpen((value) => !value)}
-        moreOpen={moreOpen}
-        canEdit={canEdit}
-        actionStatus={actionStatus}
-      />
-      <Tabs username={data.profile.username} active={active} />
-
-      <div className="flex flex-col gap-6 lg:flex-row">
-        <Sidebar data={data} />
+      {actionStatus ? <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-bold text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">{actionStatus}</div> : null}
+      <div className="flex flex-col gap-5 lg:flex-row">
+        <Sidebar data={data} following={following} followBusy={followBusy} onFollow={toggleFollow} onShare={handleShareProfile} canEdit={canEdit} />
         <section className="min-w-0 flex-1 space-y-5">
-          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900">
-            <Search className="ml-2 h-4 w-4 text-slate-400" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products, collections, reels, posts" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm outline-none dark:text-white" />
-            {search ? <button onClick={() => setSearch("")} className="rounded-md p-2 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Clear search"><X className="h-4 w-4" /></button> : null}
-            <button type="button" onClick={toggleFilters} aria-expanded={filtersOpen} className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-2 text-sm font-bold dark:border-slate-700">Filters <ChevronDown className="h-4 w-4" /></button>
+          <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:flex-row md:items-center md:justify-between">
+            <Tabs username={data.profile.username} active={active} />
+            <button type="button" onClick={handleShareProfile} className="inline-flex items-center justify-center gap-2 rounded-md border border-indigo-200 px-4 py-2 text-sm font-black text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:hover:bg-indigo-950/40"><Share2 className="h-4 w-4" /> Share Store</button>
           </div>
+          <button type="button" onClick={toggleFilters} aria-expanded={filtersOpen} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">Filters <ChevronDown className="h-4 w-4" /></button>
           {filtersOpen ? (
             <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex flex-wrap gap-2">
@@ -1008,5 +1195,6 @@ export function InfluencerPublicStorefrontPage() {
       </div>
       {loginPrompt ? <LoginPromptModal onClose={() => setLoginPrompt(false)} /> : null}
     </main>
+    </>
   );
 }

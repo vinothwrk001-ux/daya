@@ -1,6 +1,7 @@
 const { ok } = require("../../utils/apiResponse");
 const { asyncHandler } = require("../../utils/asyncHandler");
 const service = require("./service");
+const configEngine = require("../../services/influencer-commerce-engine.service");
 
 const dashboard = asyncHandler(async (req, res) => ok(res, await service.dashboard(req.query), "Influencer commerce dashboard loaded"));
 const influencers = asyncHandler(async (req, res) => ok(res, await service.influencers(req.query), "Influencers loaded"));
@@ -35,6 +36,14 @@ const saveReportSchedule = asyncHandler(async (req, res) => ok(res, await servic
 const settings = asyncHandler(async (req, res) => ok(res, await service.settings(), "Settings loaded"));
 const updateSettings = asyncHandler(async (req, res) => ok(res, await service.updateSettings(req.user, req.body), "Settings updated"));
 const auditLogs = asyncHandler(async (req, res) => ok(res, await service.auditLogs(req.query), "Audit logs loaded"));
+const configOverview = asyncHandler(async (_req, res) => ok(res, await configEngine.overview(), "Influencer commerce configuration loaded"));
+const listConfig = asyncHandler(async (req, res) => ok(res, await configEngine.listConfig(req.params.entityType, req.query), "Configuration records loaded"));
+const createConfig = asyncHandler(async (req, res) => ok(res, await configEngine.createConfig(req.user, req.params.entityType, req.body, { ipAddress: req.ip, userAgent: req.get("user-agent") }), "Configuration created", 201));
+const updateConfig = asyncHandler(async (req, res) => ok(res, await configEngine.updateConfig(req.user, req.params.entityType, req.params.id, req.body, { ipAddress: req.ip, userAgent: req.get("user-agent") }), "Configuration updated"));
+const deleteConfig = asyncHandler(async (req, res) => ok(res, await configEngine.deleteConfig(req.user, req.params.entityType, req.params.id, req.body || {}, { ipAddress: req.ip, userAgent: req.get("user-agent") }), "Configuration archived"));
+const recoverConfig = asyncHandler(async (req, res) => ok(res, await configEngine.recoverConfig(req.user, req.params.entityType, req.params.id, req.body.version, { ipAddress: req.ip, userAgent: req.get("user-agent") }), "Configuration recovered"));
+const configVersions = asyncHandler(async (req, res) => ok(res, await configEngine.versions(req.params.entityType, req.params.id), "Configuration history loaded"));
+const configAuditLogs = asyncHandler(async (req, res) => ok(res, await configEngine.auditLogs(req.query), "Configuration audit logs loaded"));
 
 module.exports = {
   dashboard,
@@ -70,4 +79,12 @@ module.exports = {
   settings,
   updateSettings,
   auditLogs,
+  configOverview,
+  listConfig,
+  createConfig,
+  updateConfig,
+  deleteConfig,
+  recoverConfig,
+  configVersions,
+  configAuditLogs,
 };

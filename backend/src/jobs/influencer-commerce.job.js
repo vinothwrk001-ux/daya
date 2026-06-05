@@ -1,6 +1,7 @@
 const cron = require("node-cron");
 const { logger } = require("../utils/logger");
 const commissionService = require("../modules/commission/service");
+const influencerCommerceService = require("../modules/influencerCommerce/service");
 const trackingService = require("../modules/tracking/service");
 const { InfluencerProfile } = require("../modules/influencer/model");
 const { Reel } = require("../modules/reel/model");
@@ -58,6 +59,10 @@ async function initializeInfluencerCommerceJobs() {
 
   schedule(process.env.INFLUENCER_METRICS_SCHEDULE || "30 2 * * *", "metrics-aggregation", async () => {
     await aggregateInfluencerMetrics();
+  });
+
+  schedule(process.env.INFLUENCER_SUBSCRIPTION_EXPIRY_SCHEDULE || "5 0 * * *", "subscription-expiry", async () => {
+    await influencerCommerceService.expireSubscriptions();
   });
 
   return {

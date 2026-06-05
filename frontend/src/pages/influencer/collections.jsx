@@ -16,6 +16,8 @@ import {
   Settings2,
   Star,
   Trash2,
+  Upload,
+  X,
 } from "lucide-react";
 import {
   Area,
@@ -28,13 +30,16 @@ import {
 } from "recharts";
 import {
   assignInfluencerCollectionProducts,
+  deleteInfluencerCollection,
   getInfluencerCollectionAnalytics,
   listInfluencerCollectionProducts,
   listInfluencerCollections,
   saveInfluencerCollection,
   updateInfluencerCollectionStatus,
+  uploadInfluencerCollectionMedia,
 } from "../../services/influencerCommerceService";
 import { formatCurrency } from "../../utils/formatCurrency";
+import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 
 const TYPE_OPTIONS = [
   ["custom", "Custom"],
@@ -76,6 +81,45 @@ function Panel({ title, icon: Icon = Boxes, action, children }) {
       </div>
       <div className="p-4">{children}</div>
     </section>
+  );
+}
+
+function ImageFileField({ label, field, value, uploading, onFile, onClear }) {
+  return (
+    <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+      <div className="flex items-center justify-between gap-3">
+        <span>{label}</span>
+        {value ? (
+          <button type="button" onClick={() => onClear(field)} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-rose-600">
+            <X className="h-3.5 w-3.5" />
+            Remove
+          </button>
+        ) : null}
+      </div>
+      <div className="mt-1 flex min-h-28 items-center gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950">
+        <div className="flex h-20 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-slate-900">
+          {value ? <img src={resolveApiAssetUrl(value)} alt="" className="h-full w-full object-cover" /> : <Image className="h-5 w-5 text-slate-400" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white">
+            <Upload className="h-4 w-4" />
+            {uploading ? "Uploading..." : "Choose File"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              disabled={uploading}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onFile(field, file);
+                event.target.value = "";
+              }}
+              className="sr-only"
+            />
+          </label>
+          <p className="mt-2 truncate text-xs font-normal text-slate-500">{value || "PNG, JPG, or WebP up to 5 MB"}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -123,6 +167,59 @@ function CollectionCard({ collection, selected, onSelect, onStatus }) {
   );
 }
 
+function ProductPicker({ products, selectedProducts, setSelectedProducts, productFilters, setProductFilters, action }) {
+  return (
+    <div className="lg:col-span-2 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-950 dark:text-white">Products</h3>
+          <p className="mt-1 text-xs text-slate-500">{selectedProducts.length} selected for this collection</p>
+        </div>
+        {action}
+      </div>
+      <div className="mt-4 grid gap-2 md:grid-cols-2">
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-950">
+          <Search className="h-4 w-4 text-slate-400" />
+          <input
+            value={productFilters.search}
+            onChange={(event) => setProductFilters((current) => ({ ...current, search: event.target.value }))}
+            placeholder="Search products"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none dark:text-white"
+          />
+        </div>
+        <input
+          value={productFilters.category}
+          onChange={(event) => setProductFilters((current) => ({ ...current, category: event.target.value }))}
+          placeholder="Category"
+          className="rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+        />
+      </div>
+      <div className="mt-4 grid max-h-80 gap-3 overflow-y-auto pr-1 md:grid-cols-2">
+        {products.length ? products.map((product) => {
+          const checked = selectedProducts.includes(product.id);
+          return (
+            <button
+              key={product.id}
+              type="button"
+              onClick={() => setSelectedProducts((current) => checked ? current.filter((id) => id !== product.id) : [...current, product.id])}
+              className={`flex items-center gap-3 rounded-2xl border p-3 text-left ${checked ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30" : "border-slate-200 dark:border-slate-800"}`}
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+                {product.image ? <img src={resolveApiAssetUrl(product.image)} alt="" className="h-full w-full object-cover" /> : <Boxes className="h-5 w-5 text-slate-400" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{product.name}</p>
+                <p className="text-xs text-slate-500">{product.category} - {formatCurrency(product.price)}</p>
+              </div>
+              {checked ? <Check className="h-5 w-5 text-indigo-600" /> : null}
+            </button>
+          );
+        }) : <EmptyState title="No eligible products found" />}
+      </div>
+    </div>
+  );
+}
+
 const initialForm = {
   title: "",
   slug: "",
@@ -143,13 +240,17 @@ const initialForm = {
   endDate: "",
 };
 
+function normalizeCollectionStatus(status = "draft") {
+  return status === "published" ? "active" : status || "draft";
+}
+
 function buildPayload(form, productIds = []) {
   return {
     title: form.title,
     slug: form.slug,
     description: form.description,
     type: form.type,
-    status: form.status,
+    status: normalizeCollectionStatus(form.status),
     tags: form.tags.split(",").map((item) => item.trim()).filter(Boolean),
     productIds,
     featured: form.featured,
@@ -190,6 +291,7 @@ export default function InfluencerCollectionsPage() {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState("");
   const [message, setMessage] = useState("");
 
   const loadCollections = useCallback(async () => {
@@ -202,19 +304,31 @@ export default function InfluencerCollectionsPage() {
         setSelected(items[0]);
         setSelectedProducts((items[0].productIds || []).map((product) => String(product._id || product)));
       }
+    } catch (error) {
+      setCollections([]);
+      setMessage(error?.response?.data?.message || "Collections could not be loaded.");
     } finally {
       setLoading(false);
     }
   }, [filters, selected]);
 
   const loadProducts = useCallback(async () => {
-    const response = await listInfluencerCollectionProducts({ ...productFilters, collectionId: selected?._id || "" });
-    setProducts(response?.data?.items || []);
+    try {
+      const response = await listInfluencerCollectionProducts({ ...productFilters, collectionId: selected?._id || "" });
+      setProducts(response?.data?.items || []);
+    } catch (error) {
+      setProducts([]);
+      setMessage(error?.response?.data?.message || "Products could not be loaded.");
+    }
   }, [productFilters, selected?._id]);
 
   const loadAnalytics = useCallback(async () => {
-    const response = await getInfluencerCollectionAnalytics(selected?._id ? { collectionId: selected._id } : {});
-    setAnalytics(response?.data || null);
+    try {
+      const response = await getInfluencerCollectionAnalytics(selected?._id ? { collectionId: selected._id } : {});
+      setAnalytics(response?.data || null);
+    } catch {
+      setAnalytics(null);
+    }
   }, [selected?._id]);
 
   useEffect(() => { loadCollections(); }, [loadCollections]);
@@ -232,7 +346,7 @@ export default function InfluencerCollectionsPage() {
       slug: selected.slug || "",
       description: selected.description || "",
       type: selected.type || "custom",
-      status: selected.status || "draft",
+      status: normalizeCollectionStatus(selected.status),
       tags: (selected.tags || []).join(", "),
       coverImage: selected.media?.coverImage || "",
       bannerImage: selected.media?.bannerImage || "",
@@ -253,7 +367,7 @@ export default function InfluencerCollectionsPage() {
     setSaving(true);
     setMessage("");
     try {
-      const payload = buildPayload({ ...form, status }, selectedProducts);
+      const payload = buildPayload({ ...form, status: normalizeCollectionStatus(status) }, selectedProducts);
       const response = await saveInfluencerCollection(payload, selected?._id || "");
       setSelected(response?.data || null);
       setMessage("Collection saved.");
@@ -265,9 +379,52 @@ export default function InfluencerCollectionsPage() {
     }
   }
 
+  async function handleImageUpload(field, file) {
+    setUploadingImage(field);
+    setMessage("");
+    try {
+      const formData = new FormData();
+      formData.append(field, file);
+      const response = await uploadInfluencerCollectionMedia(formData);
+      const url = response?.data?.[field];
+      if (url) {
+        setForm((current) => ({ ...current, [field]: url }));
+        setMessage(`${field === "coverImage" ? "Cover" : "Banner"} image uploaded.`);
+      }
+    } catch (error) {
+      setMessage(error?.response?.data?.message || "Image could not be uploaded.");
+    } finally {
+      setUploadingImage("");
+    }
+  }
+
+  function clearImage(field) {
+    setForm((current) => ({ ...current, [field]: "" }));
+  }
+
   async function handleStatus(id, payload) {
     await updateInfluencerCollectionStatus(id, payload);
     await loadCollections();
+  }
+
+  async function handleDelete() {
+    if (!selected?._id) return;
+    const confirmed = window.confirm(`Delete "${selected.title || "this collection"}"? This cannot be undone.`);
+    if (!confirmed) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      await deleteInfluencerCollection(selected._id);
+      setSelected(null);
+      setSelectedProducts([]);
+      setForm(initialForm);
+      setMessage("Collection deleted.");
+      await loadCollections();
+    } catch (error) {
+      setMessage(error?.response?.data?.message || "Collection could not be deleted.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function syncProducts(mode = "replace") {
@@ -310,6 +467,13 @@ export default function InfluencerCollectionsPage() {
               <Search className="h-4 w-4 text-slate-400" />
               <input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Search collections" className="min-w-0 flex-1 bg-transparent text-sm outline-none dark:text-white" />
             </div>
+            <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value, page: 1 }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+              <option value="">All statuses</option>
+              <option value="active">Published</option>
+              <option value="draft">Draft</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="archived">Archived</option>
+            </select>
             <select value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
               <option value="">All types</option>
               {TYPE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -362,8 +526,8 @@ export default function InfluencerCollectionsPage() {
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Type<select value={form.type} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal dark:border-slate-700 dark:bg-slate-950 dark:text-white">{TYPE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Status<select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal dark:border-slate-700 dark:bg-slate-950 dark:text-white"><option value="draft">Draft</option><option value="active">Published</option><option value="scheduled">Scheduled</option><option value="archived">Archived</option></select></label>
                 <label className="lg:col-span-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Description<textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows={3} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></label>
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Cover Image URL<input value={form.coverImage} onChange={(event) => setForm((current) => ({ ...current, coverImage: event.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></label>
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Banner Image URL<input value={form.bannerImage} onChange={(event) => setForm((current) => ({ ...current, bannerImage: event.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></label>
+                <ImageFileField label="Cover Image" field="coverImage" value={form.coverImage} uploading={uploadingImage === "coverImage"} onFile={handleImageUpload} onClear={clearImage} />
+                <ImageFileField label="Banner Image" field="bannerImage" value={form.bannerImage} uploading={uploadingImage === "bannerImage"} onFile={handleImageUpload} onClear={clearImage} />
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Layout<select value={form.layout} onChange={(event) => setForm((current) => ({ ...current, layout: event.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal dark:border-slate-700 dark:bg-slate-950 dark:text-white"><option value="grid">Grid</option><option value="list">List</option><option value="carousel">Carousel</option><option value="masonry">Masonry</option></select></label>
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Tags<input value={form.tags} onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))} placeholder="gift, summer, tech" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></label>
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">SEO Title<input value={form.metaTitle} onChange={(event) => setForm((current) => ({ ...current, metaTitle: event.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></label>
@@ -376,43 +540,25 @@ export default function InfluencerCollectionsPage() {
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">End Date<input type="date" value={form.endDate} onChange={(event) => setForm((current) => ({ ...current, endDate: event.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></label>
                   </>
                 ) : null}
+                <ProductPicker
+                  products={products}
+                  selectedProducts={selectedProducts}
+                  setSelectedProducts={setSelectedProducts}
+                  productFilters={productFilters}
+                  setProductFilters={setProductFilters}
+                  action={selected ? <button type="button" onClick={() => syncProducts("replace")} className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white">Sync Products</button> : null}
+                />
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
                 <button disabled={saving} onClick={() => handleSave("draft")} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold dark:border-slate-700 dark:text-white"><Check className="h-4 w-4" />Save Draft</button>
                 <button disabled={saving} onClick={() => handleSave("active")} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"><Megaphone className="h-4 w-4" />Publish</button>
                 {selected ? <button onClick={() => handleStatus(selected._id, { status: "archived" })} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-white"><Archive className="h-4 w-4" />Archive</button> : null}
                 {selected ? <button onClick={() => { setSelected(null); setForm((current) => ({ ...current, title: `${current.title} Copy`, slug: "" })); }} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-white">Duplicate</button> : null}
-                {selected ? <button onClick={() => handleStatus(selected._id, { status: "archived" })} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 dark:border-rose-900"><Trash2 className="h-4 w-4" />Delete</button> : null}
+                {selected ? <button disabled={saving} onClick={handleDelete} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 dark:border-rose-900"><Trash2 className="h-4 w-4" />Delete</button> : null}
               </div>
             </Panel>
           ) : null}
 
-          {tab === "assignment" ? (
-            <Panel title="Product Assignment" icon={PackagePlus} action={<button onClick={() => syncProducts("replace")} className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white">Sync Products</button>}>
-              <div className="mb-4 grid gap-2 md:grid-cols-2">
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-950">
-                  <Search className="h-4 w-4 text-slate-400" />
-                  <input value={productFilters.search} onChange={(event) => setProductFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Search products" className="min-w-0 flex-1 bg-transparent text-sm outline-none dark:text-white" />
-                </div>
-                <input value={productFilters.category} onChange={(event) => setProductFilters((current) => ({ ...current, category: event.target.value }))} placeholder="Category" className="rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                {products.map((product) => {
-                  const checked = selectedProducts.includes(product.id);
-                  return (
-                    <button key={product.id} type="button" onClick={() => setSelectedProducts((current) => checked ? current.filter((id) => id !== product.id) : [...current, product.id])} className={`flex items-center gap-3 rounded-2xl border p-3 text-left ${checked ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30" : "border-slate-200 dark:border-slate-800"}`}>
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">{product.image ? <img src={product.image} alt="" className="h-full w-full object-cover" /> : <Boxes className="h-5 w-5 text-slate-400" />}</div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{product.name}</p>
-                        <p className="text-xs text-slate-500">{product.category} - {formatCurrency(product.price)}</p>
-                      </div>
-                      {checked ? <Check className="h-5 w-5 text-indigo-600" /> : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </Panel>
-          ) : null}
         </div>
       </div>
     </div>

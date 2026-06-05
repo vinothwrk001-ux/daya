@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
 import { Topbar } from "./Topbar";
 import { Sidebar } from "./sidebar/Sidebar";
@@ -6,6 +7,7 @@ import { useAuthStore } from "../context/authStore";
 import { VendorModuleProvider, useModuleAccess } from "../context/VendorModuleContext";
 import { useVendorSidebarData } from "../hooks/useVendorSidebarData";
 import { useRoleNotifications } from "../hooks/useRoleNotifications";
+import { getVendorInfluencerSubscriptionPlans } from "../services/influencerCommerceService";
 
 const pageMeta = {
   "/vendor/dashboard": {
@@ -143,6 +145,7 @@ function VendorLayoutInner() {
   const user = useAuthStore((state) => state.user);
   const { sidebarOpen, setSidebarOpen } = useVendorDashboardStore();
   const { can } = useModuleAccess();
+  const [subscriptionPlanName, setSubscriptionPlanName] = useState("");
   const baseSidebarData = useVendorSidebarData();
   let activeNotificationTarget = null;
   for (const section of baseSidebarData.sections) {
@@ -162,6 +165,30 @@ function VendorLayoutInner() {
     unreadCount: summary.total,
     summary,
   });
+  useEffect(() => {
+    let active = true;
+
+    async function loadSubscriptionPlan() {
+      if (!user || user.role !== "vendor") return;
+      try {
+        const response = await getVendorInfluencerSubscriptionPlans();
+        const payload = response?.data || response || {};
+        const current = payload.currentSubscription || {};
+        const status = String(current.status || "").toLowerCase();
+        const hasActivePlan = current?._id && ["active", "trialing", "grace_period"].includes(status);
+        const planName = current.planId?.planName || current.planName || "";
+        if (active) setSubscriptionPlanName(hasActivePlan && planName ? planName : "Not subscribed");
+      } catch {
+        if (active) setSubscriptionPlanName("");
+      }
+    }
+
+    loadSubscriptionPlan();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
   const meta =
     (location.pathname.startsWith("/vendor/finance/invoices")
       ? pageMeta["/vendor/finance/invoices"]
@@ -188,6 +215,7 @@ function VendorLayoutInner() {
         onNavigate={() => setSidebarOpen(false)}
         title={sidebarData.title}
         subtitle={sidebarData.subtitle}
+        planLabel={subscriptionPlanName ? `Subscription: ${subscriptionPlanName}` : ""}
         primaryItem={sidebarData.primaryItem}
         sections={sidebarData.sections}
         loading={sidebarData.loading}

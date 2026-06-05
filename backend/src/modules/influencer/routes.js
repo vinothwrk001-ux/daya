@@ -47,6 +47,15 @@ const verificationUpload = multer({
   },
   limits: { fileSize: 10 * 1024 * 1024, files: 6 },
 });
+const collectionMediaUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/png", "image/jpeg", "image/webp"];
+    if (!allowed.includes(file.mimetype)) return cb(new Error("UNSUPPORTED_FILE_TYPE"));
+    cb(null, true);
+  },
+  limits: { fileSize: 5 * 1024 * 1024, files: 2 },
+});
 
 const saveSchema = Joi.object({
   categories: Joi.array().items(Joi.string().valid(...INFLUENCER_CATEGORIES)).default([]),
@@ -99,7 +108,7 @@ const collectionSchema = Joi.object({
   tags: Joi.array().items(Joi.string().max(40)).default([]),
   productIds: Joi.array().items(Joi.string()).max(100).default([]),
   featured: Joi.boolean().optional(),
-  status: Joi.string().valid("active", "draft", "archived", "scheduled").default("draft"),
+  status: Joi.string().valid("active", "published", "draft", "archived", "scheduled").default("draft"),
   layout: Joi.string().valid("grid", "list", "carousel", "masonry").optional(),
   coverImage: Joi.string().allow("").optional(),
   bannerImage: Joi.string().allow("").optional(),
@@ -136,7 +145,7 @@ const collectionSchema = Joi.object({
 const collectionListQuery = Joi.object({
   page: Joi.number().integer().min(1).optional(),
   limit: Joi.number().integer().min(1).max(50).optional(),
-  status: Joi.string().valid("active", "draft", "archived", "scheduled").optional(),
+  status: Joi.string().valid("active", "published", "draft", "archived", "scheduled", "").optional(),
   type: Joi.string().allow("").optional(),
   featured: Joi.string().valid("true", "false").optional(),
   search: Joi.string().allow("").optional(),
@@ -158,7 +167,7 @@ const collectionProductQuery = Joi.object({
 });
 
 const collectionStatusSchema = Joi.object({
-  status: Joi.string().valid("active", "draft", "archived", "scheduled").optional(),
+  status: Joi.string().valid("active", "published", "draft", "archived", "scheduled").optional(),
   featured: Joi.boolean().optional(),
   priority: Joi.number().min(0).optional(),
   visibility: Joi.object().unknown(true).optional(),
@@ -589,6 +598,16 @@ router.get("/affiliate-products/saved", authRequired, requireRole("influencer"),
 router.get("/affiliate-products/analytics", authRequired, requireRole("influencer"), validate(affiliateProductQuery, "query"), controller.affiliateProductAnalytics);
 router.patch("/affiliate-products/:productId/save", authRequired, requireRole("influencer"), validate(affiliateSaveSchema), controller.saveAffiliateProduct);
 router.post("/affiliate-products/links", authRequired, requireRole("influencer"), validate(affiliateLinkBulkSchema), controller.generateAffiliateProductLinks);
+router.post(
+  "/collections/media",
+  authRequired,
+  requireRole("influencer"),
+  collectionMediaUpload.fields([
+    { name: "coverImage", maxCount: 1 },
+    { name: "bannerImage", maxCount: 1 },
+  ]),
+  controller.uploadCollectionMedia
+);
 router.get("/collections/products", authRequired, requireRole("influencer"), validate(collectionProductQuery, "query"), controller.collectionProducts);
 router.get("/collections/analytics", authRequired, requireRole("influencer"), validate(collectionAnalyticsQuery, "query"), controller.collectionAnalytics);
 router.get("/collections", authRequired, requireRole("influencer"), validate(collectionListQuery, "query"), controller.listCollections);
@@ -596,13 +615,12 @@ router.post("/collections", authRequired, requireRole("influencer"), validate(co
 router.get("/collections/:id", authRequired, requireRole("influencer"), controller.getCollection);
 router.put("/collections/:id", authRequired, requireRole("influencer"), validate(collectionSchema), controller.updateCollection);
 router.patch("/collections/:id/status", authRequired, requireRole("influencer"), validate(collectionStatusSchema), controller.updateCollectionStatus);
+router.delete("/collections/:id", authRequired, requireRole("influencer"), controller.deleteCollection);
 router.post("/collections/:id/products", authRequired, requireRole("influencer"), validate(collectionAssignmentSchema), controller.assignCollectionProducts);
 router.post("/register", authRequired, requireRole("influencer", "user"), validate(saveSchema), controller.register);
 router.get("/profile", authRequired, requireRole("influencer"), controller.profile);
 router.put("/profile", authRequired, requireRole("influencer"), validate(saveSchema), controller.update);
-router.get("/activation/welcome", authRequired, requireRole("influencer"), controller.activationWelcome);
 router.post("/generate-affiliate-link", authRequired, requireRole("influencer"), validate(affiliateLinkSchema), controller.generateAffiliateLink);
-router.get("/analytics", authRequired, requireRole("influencer"), controller.analytics);
 router.get("/dashboard", authRequired, requireRole("influencer"), validate(dashboardQuery, "query"), controller.dashboard);
 router.get("/earnings", authRequired, requireRole("influencer"), validate(earningsQuery, "query"), controller.earnings);
 router.get("/verification", authRequired, requireRole("influencer"), validate(verificationQuerySchema, "query"), controller.verificationCenter);

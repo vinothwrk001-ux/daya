@@ -239,6 +239,10 @@ const pageMeta = {
     title: "Influencer Commerce",
     subtitle: "Export and schedule campaign, creator, vendor, revenue, commission, and fraud reports.",
   },
+  "/admin/influencer-commerce/configuration": {
+    title: "Influencer Tier & Score",
+    subtitle: "Configure dynamic scoring, tiers, subscription limits, ranking rules, and budget protection.",
+  },
   "/admin/influencer-commerce/settings": {
     title: "Influencer Commerce",
     subtitle: "Configure platform-wide commerce rules using existing settings infrastructure.",

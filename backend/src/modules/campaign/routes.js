@@ -25,6 +25,7 @@ router.post(
       language: Joi.string().trim().allow("").default("en"),
       commissionPercent: Joi.number().min(0).max(50).required(),
       fixedFee: Joi.number().min(0).default(0),
+      budget: Joi.number().min(0).optional(),
       deadline: Joi.date().iso().allow(null),
       marketplace: Joi.object({
         public: Joi.boolean().default(false),

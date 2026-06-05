@@ -1548,7 +1548,6 @@ class CommissionService {
         { key: "video", label: "Upload Video", href: "/influencer/reels/upload", enabled: true },
         { key: "collection", label: "Create Collection", href: "/influencer/collections", enabled: Boolean(profile.permissions?.collections) },
         { key: "withdraw", label: "Request Withdrawal", href: "/influencer/earnings", enabled: Boolean(profile.permissions?.wallet) },
-        { key: "analytics", label: "Analytics", href: "/influencer/analytics", enabled: Boolean(profile.permissions?.analytics) },
       ],
       notifications: {
         unreadCount: 0,

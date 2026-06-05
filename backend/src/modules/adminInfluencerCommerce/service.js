@@ -50,6 +50,13 @@ const { AuditLog } = require("../../models/AuditLog");
 const PlatformConfig = require("../../models/PlatformConfig");
 const { VendorInfluencerRelationship } = require("../influencerCommerce/model");
 const { InfluencerCommerceFraudAlert, InfluencerCommerceReportSchedule } = require("./model");
+const {
+  VendorSubscription,
+  SubscriptionPayment,
+  SubscriptionRevenue,
+  VendorSubscriptionChange,
+  SubscriptionCreditWallet,
+} = require("../../models/InfluencerCommerceConfig");
 
 function oid(value) {
   if (!value || !mongoose.Types.ObjectId.isValid(value)) return null;
@@ -257,6 +264,19 @@ class AdminInfluencerCommerceService {
       campaignTrendRows,
       influencerGrowthRows,
       vendorGrowthRows,
+      subscriptionRevenueAgg,
+      monthlySubscriptionRevenueAgg,
+      annualSubscriptionRevenueAgg,
+      activeSubscribers,
+      expiredSubscribers,
+      planDistribution,
+      failedPayments,
+      pendingRenewals,
+      recentSubscriptionPayments,
+      upgradeRevenueAgg,
+      downgradeChanges,
+      creditWalletAgg,
+      mostUpgradedPlans,
     ] = await Promise.all([
       InfluencerProfile.countDocuments({}),
       InfluencerProfile.countDocuments({ state: "active" }),
@@ -278,6 +298,19 @@ class AdminInfluencerCommerceService {
       Campaign.aggregate([{ $match: { createdAt: { $gte: start, $lte: end } } }, { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, campaigns: { $sum: 1 } } }]),
       InfluencerProfile.aggregate([{ $match: { createdAt: { $gte: start, $lte: end } } }, { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, influencers: { $sum: 1 } } }]),
       Vendor.aggregate([{ $match: { createdAt: { $gte: start, $lte: end } } }, { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, vendors: { $sum: 1 } } }]),
+      SubscriptionRevenue.aggregate([{ $match: { createdAt: { $gte: start, $lte: end }, status: "recognized" } }, { $group: { _id: null, gross: { $sum: "$grossAmount" }, net: { $sum: "$netAmount" }, gatewayFee: { $sum: "$gatewayFee" }, tax: { $sum: "$tax" } } }]),
+      SubscriptionRevenue.aggregate([{ $match: { createdAt: { $gte: addDays(new Date(), -30), $lte: new Date() }, status: "recognized" } }, { $group: { _id: null, gross: { $sum: "$grossAmount" } } }]),
+      SubscriptionRevenue.aggregate([{ $match: { createdAt: { $gte: addDays(new Date(), -365), $lte: new Date() }, status: "recognized" } }, { $group: { _id: null, gross: { $sum: "$grossAmount" } } }]),
+      VendorSubscription.countDocuments({ status: "active", $or: [{ endDate: { $exists: false } }, { endDate: null }, { endDate: { $gte: new Date() } }] }),
+      VendorSubscription.countDocuments({ $or: [{ status: "expired" }, { endDate: { $lt: new Date() } }] }),
+      VendorSubscription.aggregate([{ $match: { status: "active" } }, { $group: { _id: "$planId", subscribers: { $sum: 1 } } }, { $sort: { subscribers: -1 } }, { $limit: 20 }]),
+      SubscriptionPayment.countDocuments({ status: "failed", createdAt: { $gte: start, $lte: end } }),
+      VendorSubscription.countDocuments({ status: "active", endDate: { $gte: new Date(), $lte: addDays(new Date(), 7) } }),
+      SubscriptionPayment.find({}).populate("vendorId", "shopName companyName").populate("planId", "planName").sort({ createdAt: -1 }).limit(8).lean(),
+      VendorSubscriptionChange.aggregate([{ $match: { status: "completed", changeType: { $in: ["upgrade", "cycle_change"] }, createdAt: { $gte: start, $lte: end } } }, { $group: { _id: null, amount: { $sum: "$finalAmountPaid" } } }]),
+      VendorSubscriptionChange.countDocuments({ status: "completed", changeType: "downgrade", createdAt: { $gte: start, $lte: end } }),
+      SubscriptionCreditWallet.aggregate([{ $match: { status: "active" } }, { $group: { _id: null, balance: { $sum: "$remainingAmount" } } }]),
+      VendorSubscriptionChange.aggregate([{ $match: { status: "completed", changeType: { $in: ["upgrade", "cycle_change"] } } }, { $group: { _id: "$newPlanId", upgrades: { $sum: 1 } } }, { $sort: { upgrades: -1 } }, { $limit: 10 }]),
     ]);
 
     const trendMap = new Map(buckets(start, end).map((row) => [row.date, row]));
@@ -295,6 +328,8 @@ class AdminInfluencerCommerceService {
     const influencerMap = new Map(influencers.map((row) => [String(row._id), row]));
     const vendorMap = new Map(vendors.map((row) => [String(row._id), row]));
     const summary = commissionAgg[0] || {};
+    const subscriptionSummary = subscriptionRevenueAgg[0] || {};
+    const mostPopularPlan = planDistribution[0] || null;
 
     return {
       kpis: {
@@ -309,6 +344,18 @@ class AdminInfluencerCommerceService {
         pendingWithdrawalAmount: money(pendingWithdrawalAmount[0]?.amount || 0),
         contentPendingApproval,
         fraudAlerts,
+        totalSubscriptionRevenue: money(subscriptionSummary.gross),
+        monthlySubscriptionRevenue: money(monthlySubscriptionRevenueAgg[0]?.gross || 0),
+        annualSubscriptionRevenue: money(annualSubscriptionRevenueAgg[0]?.gross || 0),
+        subscriptionNetRevenue: money(subscriptionSummary.net),
+        activeSubscribers,
+        expiredSubscribers,
+        pendingRenewals,
+        failedSubscriptionPayments: failedPayments,
+        upgradeRevenue: money(upgradeRevenueAgg[0]?.amount || 0),
+        downgradeRequests: downgradeChanges,
+        subscriptionCreditBalance: money(creditWalletAgg[0]?.balance || 0),
+        mostPopularPlanId: mostPopularPlan?._id || null,
       },
       charts: {
         revenueTrend: [...trendMap.values()],
@@ -325,6 +372,10 @@ class AdminInfluencerCommerceService {
         pendingWithdrawals: await InfluencerWithdrawalRequest.find({ status: { $in: ["PENDING", "UNDER_REVIEW"] } }).populate("influencerId", "displayName userId").sort({ requestedAt: -1 }).limit(8).lean(),
         pendingContentReviews: await Reel.find({ state: { $in: ["uploaded", "pending_review"] } }).populate({ path: "influencerId", populate: { path: "userId", select: "name email" } }).populate("campaignId", "title vendorId").sort({ createdAt: -1 }).limit(8).lean(),
         recentFraudAlerts: await InfluencerCommerceFraudAlert.find({}).sort({ createdAt: -1 }).limit(8).lean(),
+        subscriptionRevenue: subscriptionSummary,
+        planDistribution,
+        mostUpgradedPlans,
+        recentSubscriptionPayments,
       },
     };
   }

@@ -40,6 +40,7 @@ const campaignPayload = Joi.object({
   language: Joi.string().trim().allow("").default("en"),
   commissionPercent: Joi.number().min(0).max(50).required(),
   fixedFee: Joi.number().min(0).default(0),
+  budget: Joi.number().min(0).optional(),
   deadline: Joi.date().iso().allow(null),
   marketplace: Joi.object({
     public: Joi.boolean().default(false),
@@ -52,14 +53,74 @@ const campaignPayload = Joi.object({
 });
 
 router.get("/dashboard", validate(listQuery, "query"), controller.dashboard);
+router.get("/subscription/plans", controller.subscriptionPlans);
+router.post(
+  "/subscription/order",
+  validate(Joi.object({
+    planId: Joi.string().required(),
+    billingCycle: Joi.string().valid("monthly", "quarterly", "half_yearly", "yearly", "custom").default("monthly"),
+    autoRenew: Joi.boolean().default(false),
+  })),
+  controller.createSubscriptionOrder
+);
+router.post(
+  "/subscription/verify",
+  validate(Joi.object({
+    razorpay_order_id: Joi.string().required(),
+    razorpay_payment_id: Joi.string().required(),
+    razorpay_signature: Joi.string().required(),
+  })),
+  controller.verifySubscriptionPayment
+);
+router.get(
+  "/subscription/proration-preview",
+  validate(Joi.object({
+    planId: Joi.string().required(),
+    billingCycle: Joi.string().valid("monthly", "quarterly", "half_yearly", "yearly", "custom").default("monthly"),
+  }), "query"),
+  controller.prorationPreview
+);
+router.post(
+  "/subscription/change-plan",
+  validate(Joi.object({
+    planId: Joi.string().required(),
+    billingCycle: Joi.string().valid("monthly", "quarterly", "half_yearly", "yearly", "custom").default("monthly"),
+    autoRenew: Joi.boolean().default(false),
+    reason: Joi.string().trim().max(1000).allow("").default(""),
+  })),
+  controller.createPlanChangeOrder
+);
+router.post(
+  "/subscription/change-plan/confirm",
+  validate(Joi.object({
+    razorpay_order_id: Joi.string().required(),
+    razorpay_payment_id: Joi.string().required(),
+    razorpay_signature: Joi.string().required(),
+  })),
+  controller.confirmPlanChange
+);
+router.post("/subscription/cancel", controller.cancelSubscription);
+router.post(
+  "/subscription",
+  validate(Joi.object({
+    planId: Joi.string().required(),
+    billingCycle: Joi.string().valid("monthly", "quarterly", "half_yearly", "yearly", "custom").default("monthly"),
+    paymentReference: Joi.string().allow("").optional(),
+    endDate: Joi.date().iso().allow(null).optional(),
+    autoRenew: Joi.boolean().default(false),
+    metadata: Joi.object().unknown(true).default({}),
+  })),
+  controller.subscribe
+);
 router.get("/discover", validate(listQuery, "query"), controller.discover);
 router.get("/relationships", validate(listQuery, "query"), controller.relationships);
 router.patch("/relationships/:influencerId/save", validate(Joi.object({ saved: Joi.boolean().default(true) })), controller.saveInfluencer);
+router.post("/relationships/:influencerId/visit", controller.visitInfluencer);
 router.patch(
   "/relationships/:influencerId",
   validate(
     Joi.object({
-      status: Joi.string().valid("saved", "invited", "applied", "approved", "active", "paused", "blacklisted").required(),
+      status: Joi.string().valid("viewed", "saved", "invited", "applied", "approved", "active", "paused", "blacklisted").required(),
       notes: Joi.string().trim().max(1200).allow("").optional(),
       blacklistReason: Joi.string().trim().max(500).allow("").optional(),
     })

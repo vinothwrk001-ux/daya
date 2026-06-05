@@ -25,6 +25,32 @@ const querySchema = Joi.object({
   sort: Joi.string().trim().allow("").optional(),
 });
 
+const configEntitySchema = Joi.object({
+  entityType: Joi.string().valid(
+    "scoreConfigs",
+    "tiers",
+    "subscriptionPlans",
+    "vendorSubscriptions",
+    "budgetControls",
+    "budgetRules",
+    "rankingRules",
+    "platformConfigurations"
+  ).required(),
+  id: Joi.string().trim().optional(),
+}).unknown(true);
+
+const flexibleConfigSchema = Joi.object({
+  reason: Joi.string().trim().max(1000).allow("").optional(),
+  approval: Joi.object({
+    status: Joi.string().valid("draft", "review", "approved", "active", "inactive", "archived").optional(),
+    reason: Joi.string().trim().max(1000).allow("").optional(),
+  }).unknown(true).optional(),
+}).unknown(true);
+
+const recoverConfigSchema = Joi.object({
+  version: Joi.number().integer().min(1).required(),
+});
+
 router.get("/dashboard", validate(querySchema, "query"), controller.dashboard);
 router.get("/influencers", validate(querySchema, "query"), controller.influencers);
 router.get("/vendors", validate(querySchema, "query"), controller.vendors);
@@ -128,5 +154,13 @@ router.post(
 router.get("/settings", controller.settings);
 router.patch("/settings", validate(Joi.object({ enabled: Joi.boolean().optional() }).unknown(true)), controller.updateSettings);
 router.get("/audit-logs", validate(querySchema, "query"), controller.auditLogs);
+router.get("/configuration", controller.configOverview);
+router.get("/configuration/audit-logs", validate(querySchema, "query"), controller.configAuditLogs);
+router.get("/configuration/:entityType", validate(configEntitySchema, "params"), validate(querySchema, "query"), controller.listConfig);
+router.post("/configuration/:entityType", validate(configEntitySchema, "params"), validate(flexibleConfigSchema), controller.createConfig);
+router.patch("/configuration/:entityType/:id", validate(configEntitySchema, "params"), validate(flexibleConfigSchema), controller.updateConfig);
+router.delete("/configuration/:entityType/:id", validate(configEntitySchema, "params"), controller.deleteConfig);
+router.get("/configuration/:entityType/:id/history", validate(configEntitySchema, "params"), controller.configVersions);
+router.post("/configuration/:entityType/:id/recover", validate(configEntitySchema, "params"), validate(recoverConfigSchema), controller.recoverConfig);
 
 module.exports = router;

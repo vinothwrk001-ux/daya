@@ -65,12 +65,10 @@ const OrderSuccessPage = lazyNamed(() => import("./pages/OrderSuccessPage"), "Or
 const InfluencerPublicStorefrontPage = lazyNamed(() => import("./pages/InfluencerPublicStorefrontPage"), "InfluencerPublicStorefrontPage");
 const InfluencerLayout = lazyNamed(() => import("./pages/influencer/InfluencerLayout"), "InfluencerLayout");
 const InfluencerDashboardPage = lazyDefault(() => import("./pages/influencer/dashboard.jsx"));
-const InfluencerWelcomePage = lazyDefault(() => import("./pages/influencer/welcome.jsx"));
 const InfluencerStorefrontBuilderPage = lazyDefault(() => import("./pages/influencer/storefrontBuilder.jsx"));
 const InfluencerCollectionsPage = lazyDefault(() => import("./pages/influencer/collections.jsx"));
 const InfluencerAffiliateProductsPage = lazyDefault(() => import("./pages/influencer/affiliateProducts.jsx"));
 const InfluencerAffiliateLinksPage = lazyDefault(() => import("./pages/influencer/affiliateLinks.jsx"));
-const InfluencerAnalyticsPage = lazyDefault(() => import("./pages/influencer/analytics.jsx"));
 const InfluencerCampaignsPage = lazyDefault(() => import("./pages/influencer/campaigns.jsx"));
 const InfluencerContentCenterPage = lazyDefault(() => import("./pages/influencer/contentCenter.jsx"));
 const InfluencerReelUploadPage = lazyDefault(() => import("./pages/influencer/reelUpload.jsx"));
@@ -200,6 +198,7 @@ export default function App() {
         <Route path="/influencer/:username/posts" element={<InfluencerPublicStorefrontPage />} />
         <Route path="/influencer/:username/reels" element={<InfluencerPublicStorefrontPage />} />
         <Route path="/influencer/:username/collections" element={<InfluencerPublicStorefrontPage />} />
+        <Route path="/influencer/:username/collections/:collectionSlug" element={<InfluencerPublicStorefrontPage />} />
         <Route path="/influencer/:username/about" element={<InfluencerPublicStorefrontPage />} />
         <Route path="/shop" element={<ProductsPage />} />
         <Route path="/stores" element={<StoresPage />} />
@@ -249,12 +248,10 @@ export default function App() {
             <Route path="/influencer" element={<Navigate to="/influencer/dashboard" replace />} />
             <Route element={<InfluencerLayout />}>
               <Route path="/influencer/dashboard" element={<InfluencerDashboardPage />} />
-              <Route path="/influencer/welcome" element={<InfluencerWelcomePage />} />
               <Route path="/influencer/storefront-builder" element={<InfluencerStorefrontBuilderPage />} />
               <Route path="/influencer/collections" element={<InfluencerCollectionsPage />} />
               <Route path="/influencer/affiliate-products" element={<InfluencerAffiliateProductsPage />} />
               <Route path="/influencer/affiliate-links" element={<InfluencerAffiliateLinksPage />} />
-              <Route path="/influencer/analytics" element={<InfluencerAnalyticsPage />} />
               <Route path="/influencer/campaigns" element={<InfluencerCampaignsPage />} />
               <Route path="/influencer/content" element={<InfluencerContentCenterPage />} />
               <Route path="/influencer/reels/upload" element={<InfluencerReelUploadPage />} />

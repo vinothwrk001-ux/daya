@@ -44,8 +44,6 @@ const INFLUENCER_SECTIONS = [
     section: "Overview",
     key: "overview",
     items: [
-      { name: "Welcome", path: "/influencer/welcome", icon: Store },
-      { name: "Analytics", path: "/influencer/analytics", icon: BarChart3 },
       { name: "Profile", path: "/influencer/profile", icon: UserRound },
     ],
   },
@@ -173,7 +171,7 @@ const INFLUENCER_SECTIONS = [
     section: "Workspace",
     key: "workspace",
     items: [
-      { name: "Storefront", path: "/influencer/welcome", icon: Store },
+      { name: "Storefront", path: "/influencer/storefront-builder", icon: Store },
       { name: "Settings", path: "/influencer/profile", icon: Settings },
     ],
   },
@@ -183,10 +181,6 @@ const PAGE_META = {
   "/influencer/dashboard": {
     title: "Creator overview",
     subtitle: "Earnings, attributed orders, clicks, and recent wallet activity.",
-  },
-  "/influencer/welcome": {
-    title: "Creator activation",
-    subtitle: "Badge, storefront, affiliate links, wallet, and setup checklist.",
   },
   "/influencer/collections": {
     title: "Collections",
@@ -203,10 +197,6 @@ const PAGE_META = {
   "/influencer/affiliate-products": {
     title: "Affiliate Products",
     subtitle: "Discover products, generate tracking links, save opportunities, and analyze affiliate performance.",
-  },
-  "/influencer/analytics": {
-    title: "Analytics",
-    subtitle: "Storefront, affiliate, conversion, and revenue metrics.",
   },
   "/influencer/campaigns": {
     title: "Campaign Marketplace",

@@ -264,6 +264,12 @@ function normalizeCollectionType(value = "custom") {
   return map[next] || next || "custom";
 }
 
+function normalizeCollectionStatus(value = "draft") {
+  const next = cleanString(value).toLowerCase();
+  if (next === "published") return "active";
+  return ["active", "draft", "archived", "scheduled"].includes(next) ? next : "draft";
+}
+
 function normalizeTags(value = []) {
   return Array.from(new Set((Array.isArray(value) ? value : String(value || "").split(","))
     .map((item) => cleanString(item).toLowerCase())
@@ -1739,7 +1745,6 @@ class InfluencerService {
             storefront: false,
             affiliateLinks: false,
             collections: false,
-            analytics: false,
             wallet: false,
             campaigns: false,
           },
@@ -1813,7 +1818,6 @@ class InfluencerService {
             storefront: true,
             affiliateLinks: true,
             collections: true,
-            analytics: true,
             wallet: true,
             campaigns: true,
           },
@@ -1940,7 +1944,6 @@ class InfluencerService {
         affiliateLinksEnabled: Boolean(affiliate),
         productCollectionsEnabled: true,
         commissionWalletActivated: Boolean(wallet),
-        analyticsDashboardEnabled: true,
       },
     };
   }
@@ -1980,11 +1983,6 @@ class InfluencerService {
     const profile = await getProfileByUserId(userId);
     if (!profile) throw new AppError("Influencer profile not found", 404, "NOT_FOUND");
     return profile;
-  }
-
-  async getWelcomeForUser(userId) {
-    const profile = await this.getProfile(userId);
-    return await this.getActivationWelcome(profile._id);
   }
 
   async getStorefrontBuilder(userId) {
@@ -2416,7 +2414,7 @@ class InfluencerService {
     const limit = Math.min(50, Math.max(1, Number(query.limit) || 12));
     const skip = (page - 1) * limit;
     const filter = { influencerId: profile._id };
-    if (query.status) filter.status = query.status;
+    if (query.status) filter.status = normalizeCollectionStatus(query.status);
     if (query.type) filter.type = normalizeCollectionType(query.type);
     if (query.featured === "true") filter.featured = true;
     if (query.search) {
@@ -2468,7 +2466,8 @@ class InfluencerService {
     if (existing) throw new AppError("Collection slug already exists", 409, "DUPLICATE_SLUG");
     const eligible = await getEligiblePromotionProductContext(profile._id);
     const productIds = Array.isArray(payload.productIds) ? payload.productIds.filter((productId) => eligible.byProduct.has(String(productId))).slice(0, 100) : [];
-    if (payload.status === "active" && productIds.length < 1) {
+    const status = normalizeCollectionStatus(payload.status);
+    if (status === "active" && productIds.length < 1) {
       throw new AppError("Published collections require at least one product", 400, "MINIMUM_PRODUCTS_REQUIRED");
     }
     const type = normalizeCollectionType(payload.type);
@@ -2482,7 +2481,7 @@ class InfluencerService {
       productIds,
       productOrder: productIds.map((productId, index) => ({ productId, position: index, pinned: false })),
       featured: Boolean(payload.featured) || type === "featured",
-      status: payload.status || "draft",
+      status,
       media: {
         coverImage: cleanString(payload.coverImage || payload.media?.coverImage),
         bannerImage: cleanString(payload.bannerImage || payload.media?.bannerImage),
@@ -2534,7 +2533,7 @@ class InfluencerService {
   async updateCollectionStatus(userId, collectionId, payload = {}) {
     const profile = await this.getProfile(userId);
     const update = {};
-    if (payload.status) update.status = payload.status;
+    if (payload.status) update.status = normalizeCollectionStatus(payload.status);
     if (payload.featured !== undefined) update.featured = Boolean(payload.featured);
     if (payload.priority !== undefined) update["display.priority"] = Number(payload.priority || 0);
     if (payload.visibility) Object.keys(payload.visibility).forEach((key) => { update[`visibility.${key}`] = payload.visibility[key]; });
@@ -2542,6 +2541,27 @@ class InfluencerService {
     if (!collection) throw new AppError("Collection not found", 404, "NOT_FOUND");
     await writeActivationAudit({ influencerId: profile._id, actorId: profile.userId, action: "COLLECTION_VISIBILITY_UPDATED", status: "success", metadata: { collectionId, update } });
     return collection;
+  }
+
+  async deleteCollection(userId, collectionId) {
+    const profile = await this.getProfile(userId);
+    if (!profile.permissions?.collections) throw new AppError("Collections are not enabled", 403, "FORBIDDEN");
+    const collection = await InfluencerCollection.findOneAndDelete({ _id: collectionId, influencerId: profile._id });
+    if (!collection) throw new AppError("Collection not found", 404, "NOT_FOUND");
+    await Promise.all([
+      InfluencerStorefront.updateMany(
+        { influencerId: profile._id },
+        { $pull: { featuredCollectionIds: collection._id } }
+      ),
+      writeActivationAudit({
+        influencerId: profile._id,
+        actorId: profile.userId,
+        action: "COLLECTION_DELETED",
+        status: "success",
+        metadata: { collectionId: collection._id, slug: collection.slug },
+      }),
+    ]);
+    return { id: String(collection._id), deleted: true };
   }
 
   async assignCollectionProducts(userId, collectionId, payload = {}) {
@@ -2935,30 +2955,6 @@ class InfluencerService {
     await InfluencerProfile.updateOne({ _id: profile._id }, { $set: { "activation.checklist.firstAffiliateLinkGenerated": true } });
     await writeActivationAudit({ influencerId: profile._id, action: "AFFILIATE_LINK_GENERATED", status: "success", metadata: { targetType, targetPath: normalizedPath, trackingUrl } });
     return { trackingCode: affiliate.trackingCode, targetType, targetPath: normalizedPath, trackingUrl };
-  }
-
-  async getAnalytics(userId) {
-    const profile = await this.getProfile(userId);
-    const [wallet, storefront, collections, productCount] = await Promise.all([
-      InfluencerWallet.findOne({ influencerId: profile._id }).lean(),
-      InfluencerStorefront.findOne({ influencerId: profile._id }).lean(),
-      InfluencerCollection.find({ influencerId: profile._id, status: "active" }).lean(),
-      Product.countDocuments({ status: "active" }).catch(() => 0),
-    ]);
-    return {
-      profileVisits: Number(profile.stats?.views || 0),
-      storeViews: Number(profile.stats?.views || 0),
-      followers: Number(profile.followers || 0),
-      affiliateClicks: Number(profile.stats?.clicks || 0),
-      orders: Number(profile.stats?.sales || 0),
-      revenueGenerated: Number(profile.stats?.revenue || 0),
-      conversionRate: profile.stats?.clicks ? Number(((profile.stats.sales || 0) / profile.stats.clicks) * 100).toFixed(2) : 0,
-      averageOrderValue: profile.stats?.sales ? Number((profile.stats.revenue || 0) / profile.stats.sales).toFixed(2) : 0,
-      commissionEarned: Number(wallet?.totalEarnings || 0),
-      storefront,
-      collections,
-      activeProductCatalogSize: productCount,
-    };
   }
 
   async getProfileSettings(userId) {

@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const RELATIONSHIP_STATUSES = ["saved", "invited", "applied", "approved", "active", "paused", "blacklisted"];
+const RELATIONSHIP_STATUSES = ["viewed", "saved", "invited", "applied", "approved", "active", "paused", "blacklisted"];
 
 const vendorInfluencerRelationshipSchema = new mongoose.Schema(
   {
@@ -30,6 +30,10 @@ const vendorInfluencerRelationshipSchema = new mongoose.Schema(
     },
     activeCampaignIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Campaign" }],
     saved: { type: Boolean, default: false, index: true },
+    visited: { type: Boolean, default: false, index: true },
+    visitCount: { type: Number, min: 0, default: 0 },
+    firstVisitedAt: { type: Date },
+    lastVisitedAt: { type: Date, index: true },
     lastActivityAt: { type: Date, default: Date.now, index: true },
     pausedAt: { type: Date },
     blacklistedAt: { type: Date },

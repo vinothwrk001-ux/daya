@@ -2,6 +2,7 @@ const { AppError } = require("../../utils/AppError");
 const vendorRepo = require("../../repositories/vendor.repository");
 const productRepo = require("../../repositories/product.repository");
 const influencerService = require("../influencer/service");
+const influencerCommerceEngine = require("../../services/influencer-commerce-engine.service");
 const { emitDomainEvent } = require("../events/event-bus");
 const { INFLUENCER_EVENTS } = require("../shared/constants");
 const { CommissionRecord } = require("../commission/models");
@@ -201,10 +202,11 @@ class CampaignService {
     const vendor = await vendorRepo.findByUserId(userId);
     if (!vendor) throw new AppError("Vendor profile not found", 404, "VENDOR_NOT_FOUND");
     const influencer = await influencerService.getProfileById(payload.influencerId);
+    await influencerCommerceEngine.enforceCampaignLimit(vendor._id);
 
     await ensureVendorOwnsProducts(vendor._id, payload.productIds);
 
-    return await Campaign.create({
+    const campaign = await Campaign.create({
       vendorId: vendor._id,
       influencerId: influencer._id,
       title: payload.title || "",
@@ -229,6 +231,8 @@ class CampaignService {
       state: "proposed",
       history: [pushHistory("proposed", userId, "Campaign proposed by vendor")],
     });
+    await influencerCommerceEngine.ensureCampaignBudgetControl(campaign, payload.budget || payload.fixedFee || 0);
+    return campaign;
   }
 
   async accept(userId, campaignId) {

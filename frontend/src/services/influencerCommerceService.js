@@ -1,12 +1,13 @@
 import { api } from "./api";
 
-export async function getInfluencerDashboard(params = {}) {
-  const { data } = await api.get("/api/influencer/dashboard", { params });
-  return data;
+function compactParams(params = {}) {
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== "" && value !== null && value !== undefined)
+  );
 }
 
-export async function getInfluencerActivationWelcome() {
-  const { data } = await api.get("/api/influencer/activation/welcome");
+export async function getInfluencerDashboard(params = {}) {
+  const { data } = await api.get("/api/influencer/dashboard", { params: compactParams(params) });
   return data;
 }
 
@@ -62,7 +63,7 @@ export async function generateInfluencerAffiliateLink(payload) {
 }
 
 export async function listAffiliateProducts(params = {}) {
-  const { data } = await api.get("/api/influencer/affiliate-products", { params });
+  const { data } = await api.get("/api/influencer/affiliate-products", { params: compactParams(params) });
   return data;
 }
 
@@ -87,17 +88,12 @@ export async function generateAffiliateProductLinks(payload) {
 }
 
 export async function getAffiliateProductAnalytics(params = {}) {
-  const { data } = await api.get("/api/influencer/affiliate-products/analytics", { params });
-  return data;
-}
-
-export async function getInfluencerAnalytics() {
-  const { data } = await api.get("/api/influencer/analytics");
+  const { data } = await api.get("/api/influencer/affiliate-products/analytics", { params: compactParams(params) });
   return data;
 }
 
 export async function listInfluencerCollections(params = {}) {
-  const { data } = await api.get("/api/influencer/collections", { params });
+  const { data } = await api.get("/api/influencer/collections", { params: compactParams(params) });
   return data;
 }
 
@@ -113,8 +109,20 @@ export async function saveInfluencerCollection(payload, id = "") {
   return data;
 }
 
+export async function uploadInfluencerCollectionMedia(formData) {
+  const { data } = await api.post("/api/influencer/collections/media", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
 export async function updateInfluencerCollectionStatus(id, payload) {
   const { data } = await api.patch(`/api/influencer/collections/${id}/status`, payload);
+  return data;
+}
+
+export async function deleteInfluencerCollection(id) {
+  const { data } = await api.delete(`/api/influencer/collections/${id}`);
   return data;
 }
 
@@ -124,12 +132,12 @@ export async function assignInfluencerCollectionProducts(id, payload) {
 }
 
 export async function listInfluencerCollectionProducts(params = {}) {
-  const { data } = await api.get("/api/influencer/collections/products", { params });
+  const { data } = await api.get("/api/influencer/collections/products", { params: compactParams(params) });
   return data;
 }
 
 export async function getInfluencerCollectionAnalytics(params = {}) {
-  const { data } = await api.get("/api/influencer/collections/analytics", { params });
+  const { data } = await api.get("/api/influencer/collections/analytics", { params: compactParams(params) });
   return data;
 }
 
@@ -283,6 +291,46 @@ export async function getVendorInfluencerCommerceDashboard(params = {}) {
   return data;
 }
 
+export async function getVendorInfluencerSubscriptionPlans() {
+  const { data } = await api.get("/api/vendor/influencer-commerce/subscription/plans");
+  return data;
+}
+
+export async function activateVendorInfluencerSubscription(payload = {}) {
+  const { data } = await api.post("/api/vendor/influencer-commerce/subscription", payload);
+  return data;
+}
+
+export async function createVendorInfluencerSubscriptionOrder(payload = {}) {
+  const { data } = await api.post("/api/vendor/influencer-commerce/subscription/order", payload);
+  return data;
+}
+
+export async function verifyVendorInfluencerSubscriptionPayment(payload = {}) {
+  const { data } = await api.post("/api/vendor/influencer-commerce/subscription/verify", payload);
+  return data;
+}
+
+export async function previewVendorInfluencerSubscriptionChange(params = {}) {
+  const { data } = await api.get("/api/vendor/influencer-commerce/subscription/proration-preview", { params });
+  return data;
+}
+
+export async function createVendorInfluencerSubscriptionChangeOrder(payload = {}) {
+  const { data } = await api.post("/api/vendor/influencer-commerce/subscription/change-plan", payload);
+  return data;
+}
+
+export async function confirmVendorInfluencerSubscriptionChange(payload = {}) {
+  const { data } = await api.post("/api/vendor/influencer-commerce/subscription/change-plan/confirm", payload);
+  return data;
+}
+
+export async function cancelVendorInfluencerSubscription() {
+  const { data } = await api.post("/api/vendor/influencer-commerce/subscription/cancel");
+  return data;
+}
+
 export async function discoverVendorInfluencers(params = {}) {
   const { data } = await api.get("/api/vendor/influencer-commerce/discover", { params });
   return data;
@@ -295,6 +343,11 @@ export async function getVendorInfluencerRelationships(params = {}) {
 
 export async function saveVendorInfluencer(influencerId, saved = true) {
   const { data } = await api.patch(`/api/vendor/influencer-commerce/relationships/${influencerId}/save`, { saved });
+  return data;
+}
+
+export async function visitVendorInfluencer(influencerId) {
+  const { data } = await api.post(`/api/vendor/influencer-commerce/relationships/${influencerId}/visit`);
   return data;
 }
 

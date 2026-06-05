@@ -29,7 +29,6 @@ const influencerProfileSchema = new mongoose.Schema(
       storefront: { type: Boolean, default: false },
       affiliateLinks: { type: Boolean, default: false },
       collections: { type: Boolean, default: false },
-      analytics: { type: Boolean, default: false },
       wallet: { type: Boolean, default: false },
       campaigns: { type: Boolean, default: false },
     },

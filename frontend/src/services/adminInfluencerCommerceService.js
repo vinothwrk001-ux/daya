@@ -162,6 +162,46 @@ export async function updateAdminInfluencerSettings(payload = {}) {
   return data;
 }
 
+export async function getInfluencerCommerceConfiguration() {
+  const { data } = await api.get(`${base}/configuration`);
+  return data;
+}
+
+export async function listInfluencerCommerceConfig(entityType, params = {}) {
+  const { data } = await api.get(`${base}/configuration/${entityType}`, { params });
+  return data;
+}
+
+export async function createInfluencerCommerceConfig(entityType, payload = {}) {
+  const { data } = await api.post(`${base}/configuration/${entityType}`, payload);
+  return data;
+}
+
+export async function updateInfluencerCommerceConfig(entityType, id, payload = {}) {
+  const { data } = await api.patch(`${base}/configuration/${entityType}/${id}`, payload);
+  return data;
+}
+
+export async function deleteInfluencerCommerceConfig(entityType, id) {
+  const { data } = await api.delete(`${base}/configuration/${entityType}/${id}`);
+  return data;
+}
+
+export async function recoverInfluencerCommerceConfig(entityType, id, version) {
+  const { data } = await api.post(`${base}/configuration/${entityType}/${id}/recover`, { version });
+  return data;
+}
+
+export async function listInfluencerCommerceConfigHistory(entityType, id) {
+  const { data } = await api.get(`${base}/configuration/${entityType}/${id}/history`);
+  return data;
+}
+
+export async function listInfluencerCommerceConfigAudit(params = {}) {
+  const { data } = await api.get(`${base}/configuration/audit-logs`, { params });
+  return data;
+}
+
 const commissionEngineBase = "/api/commission/admin/engine";
 
 export async function getCommissionEngineDashboard(params = {}) {

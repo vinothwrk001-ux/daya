@@ -9,6 +9,7 @@ export function Sidebar({
   onNavigate,
   title,
   subtitle,
+  planLabel = "",
   primaryItem,
   sections,
   loading = false,
@@ -48,6 +49,11 @@ export function Sidebar({
         <div className="hidden truncate text-base font-semibold text-slate-950 dark:text-white sm:text-lg group-hover:block">
           {title}
           {subtitle ? <span className="block truncate text-xs font-medium text-slate-500 dark:text-slate-400">{subtitle}</span> : null}
+          {planLabel ? (
+            <span className="mt-1 inline-flex max-w-full truncate rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-200 dark:ring-indigo-900/50">
+              {planLabel}
+            </span>
+          ) : null}
         </div>
       </div>
 
