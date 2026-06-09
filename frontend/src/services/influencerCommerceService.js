@@ -231,6 +231,21 @@ export async function getInfluencerProfile() {
   return data;
 }
 
+export async function getInfluencerCommerceProfile() {
+  const { data } = await api.get("/api/influencer/commerce-profile");
+  return data;
+}
+
+export async function saveInfluencerServices(payload = {}) {
+  const { data } = await api.put("/api/influencer/services", payload);
+  return data;
+}
+
+export async function saveInfluencerRequirements(payload = {}) {
+  const { data } = await api.put("/api/influencer/requirements", payload);
+  return data;
+}
+
 export async function updateInfluencerProfile(payload) {
   const { data } = await api.put("/api/influencer/profile", payload);
   return data;
@@ -336,6 +351,16 @@ export async function discoverVendorInfluencers(params = {}) {
   return data;
 }
 
+export async function getVendorInfluencerCommerceConfiguration() {
+  const { data } = await api.get("/api/vendor/influencer-commerce/configuration");
+  return data;
+}
+
+export async function getVendorInfluencerProfile(influencerId) {
+  const { data } = await api.get(`/api/vendor/influencer-commerce/creators/${influencerId}`);
+  return data;
+}
+
 export async function getVendorInfluencerRelationships(params = {}) {
   const { data } = await api.get("/api/vendor/influencer-commerce/relationships", { params });
   return data;
@@ -358,6 +383,11 @@ export async function updateVendorInfluencerRelationship(influencerId, payload =
 
 export async function createVendorInfluencerCampaign(payload = {}) {
   const { data } = await api.post("/api/vendor/influencer-commerce/campaigns", payload);
+  return data;
+}
+
+export async function previewVendorInfluencerCampaign(payload = {}) {
+  const { data } = await api.post("/api/vendor/influencer-commerce/campaigns/preview", payload);
   return data;
 }
 

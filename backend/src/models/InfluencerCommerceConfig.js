@@ -3,6 +3,9 @@ const mongoose = require("mongoose");
 const STATUS_VALUES = ["draft", "review", "approved", "active", "inactive", "archived"];
 const BILLING_CYCLES = ["monthly", "quarterly", "half_yearly", "yearly", "custom"];
 const SUBSCRIPTION_STATUSES = ["not_subscribed", "active", "expired", "cancelled", "pending_payment", "payment_failed", "grace_period", "suspended", "trialing", "past_due"];
+const CAMPAIGN_CONFIG_STATUSES = ["active", "inactive", "archived"];
+const CAMPAIGN_DYNAMIC_FIELD_TYPES = ["text", "textarea", "number", "currency", "percentage", "select", "multi_select", "boolean", "date", "json", "service_selector"];
+const CAMPAIGN_PAYMENT_MODEL_SLUGS = ["fixed", "commission", "hybrid", "free_product"];
 
 const approvalSchema = new mongoose.Schema(
   {
@@ -262,6 +265,277 @@ const platformConfigurationSchema = new mongoose.Schema(
   { timestamps: true, collection: "influencer_platform_configurations" }
 );
 
+const optionSchema = new mongoose.Schema(
+  {
+    label: { type: String, trim: true, maxlength: 120, default: "" },
+    value: { type: mongoose.Schema.Types.Mixed, default: "" },
+  },
+  { _id: false }
+);
+
+const dynamicFieldSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, required: true, maxlength: 120 },
+    label: { type: String, trim: true, required: true, maxlength: 160 },
+    fieldType: {
+      type: String,
+      enum: ["text", "textarea", "number", "currency", "percentage", "select", "multi_select", "boolean", "date", "json"],
+      default: "text",
+    },
+    required: { type: Boolean, default: false },
+    min: { type: Number },
+    max: { type: Number },
+    defaultValue: { type: mongoose.Schema.Types.Mixed, default: null },
+    options: { type: [optionSchema], default: [] },
+    helpText: { type: String, trim: true, maxlength: 500, default: "" },
+    displayOrder: { type: Number, default: 0 },
+    visibilityRules: { type: mongoose.Schema.Types.Mixed, default: {} },
+  },
+  { _id: false }
+);
+
+const influencerServiceTypeSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, lowercase: true, required: true, unique: true, index: true, maxlength: 120 },
+    label: { type: String, trim: true, required: true, maxlength: 160 },
+    description: { type: String, trim: true, maxlength: 1000, default: "" },
+    group: { type: String, trim: true, maxlength: 120, default: "content" },
+    icon: { type: String, trim: true, maxlength: 80, default: "" },
+    defaultCurrency: { type: String, trim: true, uppercase: true, default: "INR" },
+    defaultDeliveryDays: { type: Number, min: 0, default: 3 },
+    defaultRevisionCount: { type: Number, min: 0, default: 1 },
+    displayOrder: { type: Number, default: 0, index: true },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "influencer_service_types" }
+);
+
+influencerServiceTypeSchema.index({ "approval.status": 1, displayOrder: 1 });
+
+const packageTemplateSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, lowercase: true, required: true, unique: true, index: true, maxlength: 120 },
+    label: { type: String, trim: true, required: true, maxlength: 160 },
+    serviceTypeKey: { type: String, trim: true, lowercase: true, default: "", index: true, maxlength: 120 },
+    packageName: { type: String, trim: true, maxlength: 160, default: "" },
+    quantity: { type: Number, min: 1, default: 1 },
+    defaultDeliveryDays: { type: Number, min: 0, default: 3 },
+    defaultRevisionCount: { type: Number, min: 0, default: 1 },
+    description: { type: String, trim: true, maxlength: 1000, default: "" },
+    displayOrder: { type: Number, default: 0, index: true },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "influencer_package_templates" }
+);
+
+packageTemplateSchema.index({ "approval.status": 1, serviceTypeKey: 1, displayOrder: 1 });
+
+const optionConfigSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, lowercase: true, required: true, unique: true, index: true, maxlength: 120 },
+    label: { type: String, trim: true, required: true, maxlength: 160 },
+    description: { type: String, trim: true, maxlength: 1000, default: "" },
+    displayOrder: { type: Number, default: 0, index: true },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true }
+);
+
+const attributionWindowSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, lowercase: true, required: true, unique: true, index: true, maxlength: 80 },
+    label: { type: String, trim: true, required: true, maxlength: 120 },
+    days: { type: Number, min: 1, required: true, index: true },
+    customAllowed: { type: Boolean, default: false },
+    minDays: { type: Number, min: 1, default: 1 },
+    maxDays: { type: Number, min: 1, default: 365 },
+    displayOrder: { type: Number, default: 0, index: true },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "campaign_attribution_windows" }
+);
+
+attributionWindowSchema.index({ "approval.status": 1, displayOrder: 1 });
+
+const paymentModelConfigSchema = new mongoose.Schema(
+  {
+    key: {
+      type: String,
+      enum: ["fixed", "commission", "hybrid", "free_product"],
+      required: true,
+      unique: true,
+      index: true,
+    },
+    label: { type: String, trim: true, required: true, maxlength: 140 },
+    description: { type: String, trim: true, maxlength: 1200, default: "" },
+    requiresFixedFee: { type: Boolean, default: false },
+    requiresCommission: { type: Boolean, default: false },
+    requiresAttributionWindow: { type: Boolean, default: false },
+    requiresProduct: { type: Boolean, default: false },
+    fields: { type: [dynamicFieldSchema], default: [] },
+    budgetComponents: { type: [String], default: [] },
+    displayOrder: { type: Number, default: 0, index: true },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "campaign_payment_model_configs" }
+);
+
+paymentModelConfigSchema.index({ "approval.status": 1, displayOrder: 1 });
+
+const campaignTypeConfigSchema = new mongoose.Schema(
+  {
+    name: { type: String, trim: true, required: true, maxlength: 160 },
+    slug: { type: String, trim: true, lowercase: true, required: true, unique: true, index: true, maxlength: 120 },
+    description: { type: String, trim: true, maxlength: 1200, default: "" },
+    purpose: { type: String, trim: true, maxlength: 1000, default: "" },
+    status: { type: String, enum: CAMPAIGN_CONFIG_STATUSES, default: "active", index: true },
+    displayOrder: { type: Number, default: 0, index: true },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "campaign_types" }
+);
+
+campaignTypeConfigSchema.index({ status: 1, displayOrder: 1 });
+
+const campaignPaymentModelOptionSchema = new mongoose.Schema(
+  {
+    name: { type: String, trim: true, required: true, maxlength: 160 },
+    slug: { type: String, trim: true, lowercase: true, required: true, unique: true, index: true, maxlength: 120 },
+    description: { type: String, trim: true, maxlength: 1200, default: "" },
+    status: { type: String, enum: CAMPAIGN_CONFIG_STATUSES, default: "active", index: true },
+    displayOrder: { type: Number, default: 0, index: true },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "payment_models" }
+);
+
+campaignPaymentModelOptionSchema.index({ status: 1, displayOrder: 1 });
+
+const campaignPaymentRuleConfigSchema = new mongoose.Schema(
+  {
+    campaignTypeId: { type: mongoose.Schema.Types.ObjectId, ref: "CampaignTypeConfig", required: true, index: true },
+    paymentModelId: { type: mongoose.Schema.Types.ObjectId, ref: "CampaignPaymentModelOption", required: true, index: true },
+    allowed: { type: Boolean, default: true, index: true },
+    status: { type: String, enum: CAMPAIGN_CONFIG_STATUSES, default: "active", index: true },
+    reason: { type: String, trim: true, maxlength: 1000, default: "" },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: { createdAt: true, updatedAt: false }, collection: "campaign_payment_rules" }
+);
+
+campaignPaymentRuleConfigSchema.index({ campaignTypeId: 1, paymentModelId: 1 }, { unique: true });
+
+const campaignDynamicFieldConfigSchema = new mongoose.Schema(
+  {
+    campaignTypeId: { type: mongoose.Schema.Types.ObjectId, ref: "CampaignTypeConfig", required: true, index: true },
+    paymentModelId: { type: mongoose.Schema.Types.ObjectId, ref: "CampaignPaymentModelOption", required: true, index: true },
+    fieldName: { type: String, trim: true, required: true, maxlength: 120 },
+    label: { type: String, trim: true, maxlength: 160, default: "" },
+    fieldType: { type: String, enum: CAMPAIGN_DYNAMIC_FIELD_TYPES, default: "text" },
+    required: { type: Boolean, default: false },
+    configuration: { type: mongoose.Schema.Types.Mixed, default: {} },
+    displayOrder: { type: Number, default: 0, index: true },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "campaign_dynamic_fields" }
+);
+
+campaignDynamicFieldConfigSchema.index({ campaignTypeId: 1, paymentModelId: 1, "approval.status": 1, displayOrder: 1 });
+
+const campaignValidationRuleConfigSchema = new mongoose.Schema(
+  {
+    campaignTypeId: { type: mongoose.Schema.Types.ObjectId, ref: "CampaignTypeConfig", required: true, index: true },
+    paymentModelId: { type: mongoose.Schema.Types.ObjectId, ref: "CampaignPaymentModelOption", required: true, index: true },
+    ruleName: { type: String, trim: true, required: true, maxlength: 160 },
+    ruleConfiguration: { type: mongoose.Schema.Types.Mixed, default: {} },
+    severity: { type: String, enum: ["error", "warning", "info"], default: "error" },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "campaign_validation_rules" }
+);
+
+campaignValidationRuleConfigSchema.index({ campaignTypeId: 1, paymentModelId: 1, "approval.status": 1 });
+
+const requirementFieldSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, lowercase: true, required: true, unique: true, index: true, maxlength: 120 },
+    label: { type: String, trim: true, required: true, maxlength: 160 },
+    fieldType: {
+      type: String,
+      enum: ["text", "textarea", "number", "currency", "select", "multi_select", "boolean", "location", "address", "json"],
+      default: "text",
+    },
+    required: { type: Boolean, default: false },
+    options: { type: [optionSchema], default: [] },
+    displayOrder: { type: Number, default: 0, index: true },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "influencer_requirement_fields" }
+);
+
+requirementFieldSchema.index({ "approval.status": 1, displayOrder: 1 });
+
+const campaignTemplateSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, lowercase: true, required: true, unique: true, index: true, maxlength: 120 },
+    label: { type: String, trim: true, required: true, maxlength: 160 },
+    campaignType: { type: String, trim: true, maxlength: 80, default: "affiliate" },
+    defaultPaymentType: { type: String, enum: ["fixed", "commission", "hybrid", "free_product"], default: "commission" },
+    defaultRequirements: { type: mongoose.Schema.Types.Mixed, default: {} },
+    defaultDeliverables: { type: [String], default: [] },
+    displayOrder: { type: Number, default: 0, index: true },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "campaign_templates" }
+);
+
+campaignTemplateSchema.index({ "approval.status": 1, displayOrder: 1 });
+
+const discoveryRuleSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, lowercase: true, required: true, unique: true, index: true, maxlength: 120 },
+    label: { type: String, trim: true, required: true, maxlength: 160 },
+    rules: { type: mongoose.Schema.Types.Mixed, default: {} },
+    displayOrder: { type: Number, default: 0, index: true },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "influencer_discovery_rules" }
+);
+
+const campaignRuleSchema = new mongoose.Schema(
+  {
+    key: { type: String, trim: true, lowercase: true, required: true, unique: true, index: true, maxlength: 120 },
+    label: { type: String, trim: true, required: true, maxlength: 160 },
+    rules: { type: mongoose.Schema.Types.Mixed, default: {} },
+    displayOrder: { type: Number, default: 0, index: true },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "influencer_campaign_rules" }
+);
+
+const dynamicFormFieldConfigSchema = new mongoose.Schema(
+  {
+    scope: { type: String, trim: true, lowercase: true, required: true, index: true, maxlength: 120 },
+    paymentType: { type: String, enum: ["fixed", "commission", "hybrid", "free_product", ""], default: "" },
+    field: { type: mongoose.Schema.Types.Mixed, required: true },
+    displayOrder: { type: Number, default: 0, index: true },
+    approval: { type: approvalSchema, default: () => ({ status: "active" }) },
+  },
+  { timestamps: true, collection: "influencer_dynamic_form_fields" }
+);
+
+dynamicFormFieldConfigSchema.index({ scope: 1, paymentType: 1, "approval.status": 1, displayOrder: 1 });
+
 const configVersionSchema = new mongoose.Schema(
   {
     module: { type: String, trim: true, required: true, index: true },
@@ -308,9 +582,28 @@ module.exports = {
   BudgetProtectionRule: mongoose.models.BudgetProtectionRule || mongoose.model("BudgetProtectionRule", budgetProtectionRuleSchema),
   MarketplaceRankingRule: mongoose.models.MarketplaceRankingRule || mongoose.model("MarketplaceRankingRule", marketplaceRankingRuleSchema),
   InfluencerPlatformConfiguration: mongoose.models.InfluencerPlatformConfiguration || mongoose.model("InfluencerPlatformConfiguration", platformConfigurationSchema),
+  InfluencerServiceType: mongoose.models.InfluencerServiceType || mongoose.model("InfluencerServiceType", influencerServiceTypeSchema),
+  InfluencerPackageTemplate: mongoose.models.InfluencerPackageTemplate || mongoose.model("InfluencerPackageTemplate", packageTemplateSchema),
+  InfluencerCategoryOption: mongoose.models.InfluencerCategoryOption || mongoose.model("InfluencerCategoryOption", optionConfigSchema, "influencer_category_options"),
+  InfluencerLanguageOption: mongoose.models.InfluencerLanguageOption || mongoose.model("InfluencerLanguageOption", optionConfigSchema, "influencer_language_options"),
+  CampaignAttributionWindow: mongoose.models.CampaignAttributionWindow || mongoose.model("CampaignAttributionWindow", attributionWindowSchema),
+  CampaignPaymentModelConfig: mongoose.models.CampaignPaymentModelConfig || mongoose.model("CampaignPaymentModelConfig", paymentModelConfigSchema),
+  CampaignTypeConfig: mongoose.models.CampaignTypeConfig || mongoose.model("CampaignTypeConfig", campaignTypeConfigSchema),
+  CampaignPaymentModelOption: mongoose.models.CampaignPaymentModelOption || mongoose.model("CampaignPaymentModelOption", campaignPaymentModelOptionSchema),
+  CampaignPaymentRuleConfig: mongoose.models.CampaignPaymentRuleConfig || mongoose.model("CampaignPaymentRuleConfig", campaignPaymentRuleConfigSchema),
+  CampaignDynamicFieldConfig: mongoose.models.CampaignDynamicFieldConfig || mongoose.model("CampaignDynamicFieldConfig", campaignDynamicFieldConfigSchema),
+  CampaignValidationRuleConfig: mongoose.models.CampaignValidationRuleConfig || mongoose.model("CampaignValidationRuleConfig", campaignValidationRuleConfigSchema),
+  InfluencerRequirementField: mongoose.models.InfluencerRequirementField || mongoose.model("InfluencerRequirementField", requirementFieldSchema),
+  InfluencerCampaignTemplate: mongoose.models.InfluencerCampaignTemplate || mongoose.model("InfluencerCampaignTemplate", campaignTemplateSchema),
+  InfluencerDiscoveryRule: mongoose.models.InfluencerDiscoveryRule || mongoose.model("InfluencerDiscoveryRule", discoveryRuleSchema),
+  InfluencerCampaignRule: mongoose.models.InfluencerCampaignRule || mongoose.model("InfluencerCampaignRule", campaignRuleSchema),
+  InfluencerDynamicFormField: mongoose.models.InfluencerDynamicFormField || mongoose.model("InfluencerDynamicFormField", dynamicFormFieldConfigSchema),
   InfluencerConfigVersion: mongoose.models.InfluencerConfigVersion || mongoose.model("InfluencerConfigVersion", configVersionSchema),
   ConfigAuditLog: mongoose.models.ConfigAuditLog || mongoose.model("ConfigAuditLog", configAuditLogSchema),
   STATUS_VALUES,
   BILLING_CYCLES,
   SUBSCRIPTION_STATUSES,
+  CAMPAIGN_CONFIG_STATUSES,
+  CAMPAIGN_DYNAMIC_FIELD_TYPES,
+  CAMPAIGN_PAYMENT_MODEL_SLUGS,
 };

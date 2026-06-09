@@ -41,12 +41,14 @@ import {
   getVendorCreatorLeaderboard,
   getVendorInfluencerAnalytics,
   getVendorInfluencerCampaigns,
+  getVendorInfluencerCommerceConfiguration,
   getVendorInfluencerCommerceDashboard,
   getVendorInfluencerPerformance,
   getVendorInfluencerRelationships,
   getVendorInfluencerReports,
   getVendorInfluencerSubscriptionPlans,
   getVendorPromotionProducts,
+  previewVendorInfluencerCampaign,
   previewVendorInfluencerSubscriptionChange,
   reviewVendorCampaignApplication,
   reviewVendorInfluencerContent,
@@ -90,15 +92,6 @@ const TAB_PATHS = {
   reports: "/vendor/influencer-commerce/reports",
 };
 
-const CAMPAIGN_TYPES = [
-  ["affiliate", "Affiliate Campaign"],
-  ["sponsored", "Sponsored Campaign"],
-  ["ugc", "UGC Campaign"],
-  ["video", "Video Campaign"],
-  ["live_commerce", "Live Commerce Campaign"],
-  ["brand_ambassador", "Brand Ambassador Program"],
-];
-
 const defaultFilters = {
   search: "",
   status: "",
@@ -108,6 +101,13 @@ const defaultFilters = {
   influencerId: "",
   startDate: "",
   endDate: "",
+  serviceType: "",
+  minPrice: "",
+  maxPrice: "",
+  language: "",
+  ratingMin: "",
+  scoreMin: "",
+  completionMin: "",
   sort: "trending",
   page: 1,
 };
@@ -146,6 +146,140 @@ function getId(row) {
 function shortText(value = "", limit = 54) {
   const text = String(value || "");
   return text.length > limit ? `${text.slice(0, limit - 3)}...` : text;
+}
+
+function servicePackages(service = {}) {
+  const rows = Array.isArray(service.packages) && service.packages.length
+    ? service.packages
+    : [{
+      packageName: service.serviceName || service.label || "Package",
+      quantity: 1,
+      price: service.price || 0,
+      currency: service.currency || "INR",
+      deliveryDays: service.deliveryDays || 0,
+      revisionCount: service.revisionCount || 0,
+      status: service.status || "active",
+    }];
+  return rows.filter((pkg) => String(pkg.status || "active") === "active");
+}
+
+function packagePrice(pkg = {}, service = {}) {
+  return Number(pkg.price ?? service.price ?? 0);
+}
+
+function serviceStartingPrice(service = {}) {
+  const packages = servicePackages(service);
+  if (!packages.length) return Number(service.price || 0);
+  return Math.min(...packages.map((pkg) => packagePrice(pkg, service)));
+}
+
+function packageKey(service = {}, pkg = {}) {
+  const serviceId = String(service._id || service.id || service.serviceId || service.serviceTypeKey || "");
+  const pkgId = String(pkg._id || pkg.id || pkg.packageId || pkg.packageName || "");
+  return `${serviceId}:${pkgId}`;
+}
+
+function configKey(row = {}) {
+  if (typeof row === "string") return row.trim().toLowerCase();
+  return String(row.key || row.slug || row.fieldName || "").trim().toLowerCase();
+}
+
+function configLabel(row = {}) {
+  if (typeof row === "string") return row;
+  return row.label || row.name || row.field?.label || row.fieldName || row.key || row.slug || "";
+}
+
+function normalizePaymentConfig(row = {}) {
+  const key = configKey(row);
+  return { ...row, key, slug: key, label: configLabel(row), name: configLabel(row), displayOrder: Number(row.displayOrder || 0) };
+}
+
+function normalizeCampaignTypeConfig(row = {}, paymentModels = []) {
+  const paymentByKey = new Map(paymentModels.map((payment) => [payment.key, payment]));
+  const allowedRows = row.allowedPaymentModels || row.paymentModels || [];
+  const allowedPaymentModels = allowedRows
+    .map((item) => paymentByKey.get(configKey(item)) || normalizePaymentConfig(item))
+    .filter((item) => item.key);
+  const key = configKey(row);
+  return {
+    ...row,
+    key,
+    slug: key,
+    label: configLabel(row),
+    name: configLabel(row),
+    allowedPaymentModels,
+    paymentModels: allowedPaymentModels,
+    defaultPaymentType: row.defaultPaymentType || allowedPaymentModels[0]?.key || "",
+    displayOrder: Number(row.displayOrder || 0),
+  };
+}
+
+function normalizeDynamicField(field = {}) {
+  const configuration = field.configuration || field.field?.configuration || {};
+  const fieldName = field.fieldName || field.key || field.field?.key || "";
+  return {
+    ...field,
+    fieldName,
+    key: fieldName,
+    label: field.label || field.field?.label || fieldName,
+    fieldType: field.fieldType || field.type || field.field?.fieldType || "text",
+    required: Boolean(field.required ?? field.field?.required),
+    configuration,
+    options: field.options || configuration.options || field.field?.options || [],
+    min: field.min ?? configuration.min ?? field.field?.min,
+    max: field.max ?? configuration.max ?? field.field?.max,
+    defaultValue: field.defaultValue ?? configuration.defaultValue ?? field.field?.defaultValue ?? "",
+    displayOrder: Number(field.displayOrder || field.field?.displayOrder || 0),
+  };
+}
+
+function campaignRuleConfig(configuration = {}) {
+  const engine = configuration.campaignRuleEngine || {};
+  const paymentModels = (engine.paymentModels || configuration.paymentModelOptions || configuration.paymentModels || [])
+    .map(normalizePaymentConfig)
+    .filter((row) => row.key)
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.label.localeCompare(b.label));
+  const campaignTypes = (engine.campaignTypes || configuration.campaignTypes || [])
+    .map((row) => normalizeCampaignTypeConfig(row, paymentModels))
+    .filter((row) => row.key)
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.label.localeCompare(b.label));
+  const fieldsByCombination = Object.fromEntries(
+    Object.entries(engine.fieldsByCombination || {}).map(([key, rows]) => [
+      key,
+      (rows || []).map(normalizeDynamicField).sort((a, b) => a.displayOrder - b.displayOrder || a.label.localeCompare(b.label)),
+    ])
+  );
+  return {
+    campaignTypes,
+    paymentModels,
+    attributionWindows: (engine.attributionWindows || configuration.attributionWindows || []).filter((row) => !row.customAllowed),
+    fieldsByCombination,
+  };
+}
+
+function defaultDynamicValues(fields = []) {
+  return fields.reduce((values, field) => {
+    const name = field.fieldName || field.key;
+    if (!name || values[name] !== undefined) return values;
+    if (field.defaultValue !== "" && field.defaultValue !== null && field.defaultValue !== undefined) {
+      values[name] = field.defaultValue;
+    } else if (field.fieldType === "boolean") {
+      values[name] = false;
+    }
+    return values;
+  }, {});
+}
+
+function fieldNames(fields = []) {
+  return new Set(fields.map((field) => field.fieldName || field.key).filter(Boolean));
+}
+
+function splitLines(value = "") {
+  if (Array.isArray(value)) return value;
+  return String(value || "")
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function planIcon(plan = {}) {
@@ -270,12 +404,18 @@ function FieldLabel({ children }) {
   );
 }
 
-function Filters({ filters, setFilters, campaigns = [], products = [], includeSearch = true }) {
+function Filters({ filters, setFilters, campaigns = [], products = [], configuration = {}, tab = "", includeSearch = true }) {
   const updateFilter = useCallback((key, value) => {
     setFilters((current) => ({ ...current, [key]: value, page: 1 }));
   }, [setFilters]);
+  const serviceTypes = configuration.serviceTypes || [];
+  const languages = configuration.languageOptions || [];
   const categories = useMemo(() => {
     const values = new Set();
+    (configuration.categoryOptions || []).forEach((category) => {
+      if (category.label) values.add(category.label);
+      if (category.key) values.add(category.key);
+    });
     campaigns.forEach((campaign) => {
       if (campaign.category) values.add(campaign.category);
     });
@@ -284,7 +424,8 @@ function Filters({ filters, setFilters, campaigns = [], products = [], includeSe
       if (product.category) values.add(product.category);
     });
     return [...values].filter(Boolean).sort((a, b) => String(a).localeCompare(String(b)));
-  }, [campaigns, products]);
+  }, [campaigns, configuration.categoryOptions, products]);
+  const discoverFilters = tab === "discover";
 
   return (
     <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-2 xl:grid-cols-6">
@@ -342,6 +483,44 @@ function Filters({ filters, setFilters, campaigns = [], products = [], includeSe
           {categories.map((category) => <option key={category} value={category}>{category}</option>)}
         </select>
       </label>
+      {discoverFilters ? (
+        <>
+          <label className="block space-y-1.5">
+            <FieldLabel>Service</FieldLabel>
+            <select value={filters.serviceType || ""} onChange={(event) => updateFilter("serviceType", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Service type filter">
+              <option value="">All services</option>
+              {serviceTypes.map((type) => <option key={type.key} value={type.key}>{type.label}</option>)}
+            </select>
+          </label>
+          <label className="block space-y-1.5">
+            <FieldLabel>Min Price</FieldLabel>
+            <input type="number" min="0" value={filters.minPrice || ""} onChange={(event) => updateFilter("minPrice", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Minimum package price" />
+          </label>
+          <label className="block space-y-1.5">
+            <FieldLabel>Max Price</FieldLabel>
+            <input type="number" min="0" value={filters.maxPrice || ""} onChange={(event) => updateFilter("maxPrice", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Maximum package price" />
+          </label>
+          <label className="block space-y-1.5">
+            <FieldLabel>Language</FieldLabel>
+            <select value={filters.language || ""} onChange={(event) => updateFilter("language", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Language filter">
+              <option value="">Any language</option>
+              {languages.map((language) => <option key={language.key || language.label} value={language.key || language.label}>{language.label || language.key}</option>)}
+            </select>
+          </label>
+          <label className="block space-y-1.5">
+            <FieldLabel>Min Rating</FieldLabel>
+            <input type="number" min="0" max="5" value={filters.ratingMin || ""} onChange={(event) => updateFilter("ratingMin", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Minimum rating" />
+          </label>
+          <label className="block space-y-1.5">
+            <FieldLabel>Min Score</FieldLabel>
+            <input type="number" min="0" max="100" value={filters.scoreMin || ""} onChange={(event) => updateFilter("scoreMin", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Minimum score" />
+          </label>
+          <label className="block space-y-1.5">
+            <FieldLabel>Completion</FieldLabel>
+            <input type="number" min="0" max="100" value={filters.completionMin || ""} onChange={(event) => updateFilter("completionMin", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Minimum completion rate" />
+          </label>
+        </>
+      ) : null}
       <label className="block space-y-1.5">
         <FieldLabel>Start Date</FieldLabel>
         <input type="date" value={filters.startDate} onChange={(event) => updateFilter("startDate", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Start date" />
@@ -368,18 +547,89 @@ function SimpleBars({ rows = [], valueKey = "revenue", labelKey = "date" }) {
   );
 }
 
-function CampaignForm({ influencers, products, onCreate, busy, initialInfluencerId = "", initialProductIds = [] }) {
+function DynamicCampaignField({ field, value, onChange }) {
+  const name = field.fieldName || field.key;
+  const label = field.label || name;
+  const commonClass = "h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white";
+  if (field.configuration?.readOnly) {
+    return (
+      <label className="block space-y-1.5">
+        <FieldLabel>{label}</FieldLabel>
+        <span className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">{String(value ?? field.defaultValue ?? "")}</span>
+      </label>
+    );
+  }
+  if (field.fieldType === "boolean") {
+    return (
+      <label className="block space-y-1.5">
+        <FieldLabel>{label}</FieldLabel>
+        <span className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200">
+          <input type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(name, event.target.checked)} />
+          {Boolean(value) ? "Enabled" : "Disabled"}
+        </span>
+      </label>
+    );
+  }
+  if (field.fieldType === "select" || field.fieldType === "multi_select") {
+    const options = field.options || field.configuration?.options || [];
+    return (
+      <label className="block space-y-1.5">
+        <FieldLabel>{label}</FieldLabel>
+        <select multiple={field.fieldType === "multi_select"} value={field.fieldType === "multi_select" ? (Array.isArray(value) ? value : []) : (value || "")} onChange={(event) => {
+          if (field.fieldType === "multi_select") {
+            onChange(name, Array.from(event.target.selectedOptions).map((option) => option.value));
+          } else {
+            onChange(name, event.target.value);
+          }
+        }} className={commonClass} aria-label={label}>
+          {field.fieldType !== "multi_select" ? <option value="">Select</option> : null}
+          {options.map((option) => {
+            const optionValue = option.value ?? option.key ?? option.label ?? option;
+            return <option key={String(optionValue)} value={optionValue}>{option.label || option.name || optionValue}</option>;
+          })}
+        </select>
+      </label>
+    );
+  }
+  if (field.fieldType === "textarea" || field.fieldType === "json") {
+    return (
+      <label className="block space-y-1.5 xl:col-span-2">
+        <FieldLabel>{label}</FieldLabel>
+        <textarea value={value || ""} onChange={(event) => onChange(name, event.target.value)} rows={3} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label={label} />
+      </label>
+    );
+  }
+  const numeric = ["number", "currency", "percentage"].includes(field.fieldType);
+  return (
+    <label className="block space-y-1.5">
+      <FieldLabel>{label}</FieldLabel>
+      <input type={numeric ? "number" : field.fieldType === "date" ? "date" : "text"} min={field.min ?? field.configuration?.min} max={field.max ?? field.configuration?.max} value={value ?? ""} onChange={(event) => onChange(name, numeric ? Number(event.target.value || 0) : event.target.value)} className={commonClass} aria-label={label} />
+    </label>
+  );
+}
+
+function CampaignForm({ influencers, products, configuration = {}, onCreate, busy, initialInfluencerId = "", initialProductIds = [] }) {
   const initialProductKey = initialProductIds.join("|");
+  const rules = useMemo(() => campaignRuleConfig(configuration), [configuration]);
   const [form, setForm] = useState({
     influencerId: initialInfluencerId || "",
     title: "",
-    campaignType: "affiliate",
+    campaignType: "",
     productIds: initialProductIds,
-    commissionPercent: 10,
+    paymentType: "",
+    commissionPercent: 0,
     fixedFee: 0,
+    attributionDays: 0,
+    expectedBudget: 0,
+    productValue: 0,
+    shippingCost: 0,
+    selectedServices: [],
+    dynamicFields: {},
     deadline: "",
     marketplace: { public: true },
   });
+  const [preview, setPreview] = useState(null);
+  const [previewError, setPreviewError] = useState("");
 
   useEffect(() => {
     if (initialInfluencerId) {
@@ -396,8 +646,129 @@ function CampaignForm({ influencers, products, onCreate, busy, initialInfluencer
     }
   }, [initialProductKey]);
 
+  const influencerOptions = useMemo(() => {
+    const map = new Map();
+    influencers.forEach((row) => {
+      const id = String(row.influencerId || row.id || row._id || "");
+      if (!id) return;
+      const current = map.get(id) || {};
+      map.set(id, {
+        ...current,
+        ...row,
+        rateCard: row.rateCard?.length ? row.rateCard : current.rateCard,
+        services: row.services?.length ? row.services : current.services,
+        requirements: row.requirements || current.requirements,
+      });
+    });
+    return [...map.values()];
+  }, [influencers]);
+
+  const selectedInfluencer = useMemo(() => {
+    const id = String(form.influencerId || "");
+    return influencerOptions.find((row) => String(row.influencerId || row.id || row._id) === id) || null;
+  }, [form.influencerId, influencerOptions]);
+
+  const selectedRateCard = selectedInfluencer?.rateCard || selectedInfluencer?.services || [];
+  const selectedCampaignType = rules.campaignTypes.find((type) => type.key === form.campaignType) || rules.campaignTypes[0] || null;
+  const paymentModels = selectedCampaignType?.allowedPaymentModels?.length ? selectedCampaignType.allowedPaymentModels : rules.paymentModels;
+  const selectedPaymentModel = paymentModels.find((model) => model.key === form.paymentType) || paymentModels[0];
+  const attributionWindows = rules.attributionWindows.length ? rules.attributionWindows : [];
+  const dynamicFields = useMemo(() => (
+    rules.fieldsByCombination[`${form.campaignType}:${form.paymentType}`] || []
+  ), [rules.fieldsByCombination, form.campaignType, form.paymentType]);
+  const dynamicNames = useMemo(() => fieldNames(dynamicFields), [dynamicFields]);
+  const handledDynamicNames = new Set([
+    "fixedFee",
+    "fixedAmount",
+    "selectedServices",
+    "services",
+    "commissionPercent",
+    "commissionPercentage",
+    "attributionDays",
+    "expectedBudget",
+    "maximumBudget",
+    "productValue",
+    "shippingCost",
+    "affiliateTrackingEnabled",
+  ]);
+  const genericDynamicFields = dynamicFields.filter((field) => !handledDynamicNames.has(field.fieldName || field.key));
+
+  useEffect(() => {
+    setForm((current) => {
+      const campaignType = rules.campaignTypes.some((type) => type.key === current.campaignType)
+        ? current.campaignType
+        : rules.campaignTypes[0]?.key || "";
+      const typeConfig = rules.campaignTypes.find((type) => type.key === campaignType) || rules.campaignTypes[0] || null;
+      const allowedPayments = typeConfig?.allowedPaymentModels?.length ? typeConfig.allowedPaymentModels : rules.paymentModels;
+      const paymentType = allowedPayments.some((model) => model.key === current.paymentType)
+        ? current.paymentType
+        : typeConfig?.defaultPaymentType || allowedPayments[0]?.key || "";
+      const fields = rules.fieldsByCombination[`${campaignType}:${paymentType}`] || [];
+      const defaults = defaultDynamicValues(fields);
+      const attributionDays = Number(current.attributionDays || defaults.attributionDays || rules.attributionWindows[0]?.days || 0);
+      const commissionPercent = Number(current.commissionPercent || defaults.commissionPercent || defaults.commissionPercentage || 0);
+      const dynamicFieldsNext = {
+        ...defaults,
+        ...current.dynamicFields,
+        paymentType,
+        attributionDays,
+        commissionPercent,
+        fixedFee: current.fixedFee,
+        expectedBudget: current.expectedBudget,
+        productValue: current.productValue,
+        shippingCost: current.shippingCost,
+      };
+      if (
+        campaignType === current.campaignType &&
+        paymentType === current.paymentType &&
+        attributionDays === current.attributionDays &&
+        commissionPercent === current.commissionPercent
+      ) {
+        return { ...current, dynamicFields: dynamicFieldsNext };
+      }
+      return { ...current, campaignType, paymentType, attributionDays, commissionPercent, dynamicFields: dynamicFieldsNext };
+    });
+  }, [rules]);
+
   function setField(key, value) {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => ({ ...current, [key]: value, dynamicFields: { ...current.dynamicFields, [key]: value } }));
+  }
+
+  function setDynamicField(key, value) {
+    setForm((current) => ({ ...current, dynamicFields: { ...current.dynamicFields, [key]: value } }));
+  }
+
+  function setCampaignType(value) {
+    const typeConfig = rules.campaignTypes.find((type) => type.key === value) || null;
+    const allowedPayments = typeConfig?.allowedPaymentModels?.length ? typeConfig.allowedPaymentModels : rules.paymentModels;
+    const paymentType = allowedPayments.some((model) => model.key === form.paymentType)
+      ? form.paymentType
+      : typeConfig?.defaultPaymentType || allowedPayments[0]?.key || "";
+    const fields = rules.fieldsByCombination[`${value}:${paymentType}`] || [];
+    const defaults = defaultDynamicValues(fields);
+    setForm((current) => ({
+      ...current,
+      campaignType: value,
+      paymentType,
+      commissionPercent: Number(defaults.commissionPercent ?? defaults.commissionPercentage ?? current.commissionPercent ?? 0),
+      attributionDays: Number(defaults.attributionDays ?? current.attributionDays ?? rules.attributionWindows[0]?.days ?? 0),
+      dynamicFields: { ...defaults, campaignType: value, paymentType },
+    }));
+  }
+
+  function setPaymentType(value) {
+    const fields = rules.fieldsByCombination[`${form.campaignType}:${value}`] || [];
+    const defaults = defaultDynamicValues(fields);
+    const nextNames = fieldNames(fields);
+    setForm((current) => ({
+      ...current,
+      paymentType: value,
+      commissionPercent: Number(defaults.commissionPercent ?? defaults.commissionPercentage ?? current.commissionPercent ?? 0),
+      attributionDays: Number(defaults.attributionDays ?? current.attributionDays ?? rules.attributionWindows[0]?.days ?? 0),
+      selectedServices: nextNames.has("selectedServices") || nextNames.has("services") ? current.selectedServices : [],
+      fixedFee: nextNames.has("fixedFee") || nextNames.has("fixedAmount") ? current.fixedFee : 0,
+      dynamicFields: { ...defaults, paymentType: value },
+    }));
   }
 
   function toggleProduct(productId) {
@@ -409,10 +780,131 @@ function CampaignForm({ influencers, products, onCreate, busy, initialInfluencer
     });
   }
 
+  function togglePackageSelection(service, pkg) {
+    const serviceId = String(service._id || service.id || service.serviceId);
+    const pkgId = String(pkg._id || pkg.id || pkg.packageId || "");
+    const key = packageKey(service, pkg);
+    setForm((current) => {
+      const exists = current.selectedServices.some((item) => String(item.selectionKey || "") === key);
+      const existing = current.selectedServices.filter((item) => String(item.selectionKey || "") !== key);
+      if (exists) return { ...current, selectedServices: existing, dynamicFields: { ...current.dynamicFields, selectedServices: existing } };
+      const selectedServices = [
+        ...existing,
+        {
+          selectionKey: key,
+          serviceId,
+          packageId: pkgId || undefined,
+          packageName: pkg.packageName || pkg.name || service.serviceName,
+          serviceTypeKey: service.serviceTypeKey,
+          serviceName: service.serviceName,
+          quantity: 1,
+          units: 1,
+        },
+      ];
+      return {
+        ...current,
+        selectedServices,
+        dynamicFields: { ...current.dynamicFields, selectedServices },
+      };
+    });
+  }
+
+  function isPackageSelected(service, pkg) {
+    const key = packageKey(service, pkg);
+    return form.selectedServices.some((item) => String(item.selectionKey || "") === key);
+  }
+
+  async function refreshPreview(nextForm = form) {
+    if (!nextForm.productIds.length) return;
+    setPreviewError("");
+    try {
+      const response = await previewVendorInfluencerCampaign(buildPayload(nextForm));
+      setPreview(response?.data || null);
+    } catch (err) {
+      setPreview(null);
+      setPreviewError(err?.response?.data?.message || "Unable to preview pricing.");
+    }
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      refreshPreview().catch(() => {});
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [form.influencerId, form.productIds, form.campaignType, form.paymentType, form.commissionPercent, form.fixedFee, form.attributionDays, form.expectedBudget, form.productValue, form.shippingCost, form.selectedServices, form.dynamicFields]);
+
+  function buildPayload(source = form) {
+    const selectedServices = source.selectedServices.map(({ selectionKey, ...item }) => item);
+    const dynamicFieldValues = {
+      ...(source.dynamicFields || {}),
+      selectedServices,
+      fixedFee: Number(source.fixedFee || 0),
+      commissionPercent: Number(source.commissionPercent || 0),
+      attributionDays: Number(source.attributionDays || 0),
+      expectedBudget: Number(source.expectedBudget || 0),
+      productValue: Number(source.productValue || 0),
+      shippingCost: Number(source.shippingCost || 0),
+    };
+    return {
+      ...source,
+      selectedServices,
+      dynamicFields: dynamicFieldValues,
+      deadline: source.deadline || null,
+      commissionPercent: Number(source.commissionPercent || 0),
+      fixedFee: Number(source.fixedFee || 0),
+      marketplace: {
+        ...source.marketplace,
+        requiredDeliverables: splitLines(dynamicFieldValues.expectedDeliverables || dynamicFieldValues.deliverables || source.marketplace?.requiredDeliverables || []),
+        requirements: {
+          ...(source.marketplace?.requirements || {}),
+          dynamicFields: dynamicFieldValues,
+        },
+      },
+      paymentModel: {
+        paymentType: source.paymentType,
+        selectedServices,
+        services: selectedServices,
+        dynamicFields: dynamicFieldValues,
+        fixedFee: Number(source.fixedFee || 0),
+        commissionPercentage: Number(source.commissionPercent || 0),
+        attributionDays: Number(source.attributionDays || 0),
+        expectedBudget: Number(source.expectedBudget || 0),
+        commissionCap: Number(dynamicFieldValues.commissionCap || 0),
+        productValue: Number(source.productValue || 0),
+        shippingCost: Number(source.shippingCost || 0),
+        shippingDetails: dynamicFieldValues.shippingDetails || "",
+        returnRequired: Boolean(dynamicFieldValues.returnRequired),
+        currency: dynamicFieldValues.currency || undefined,
+      },
+    };
+  }
+
   async function submit(event) {
     event.preventDefault();
-    await onCreate({ ...form, deadline: form.deadline || null });
-    setForm({ influencerId: initialInfluencerId || "", title: "", campaignType: "affiliate", productIds: initialProductKey ? initialProductKey.split("|") : [], commissionPercent: 10, fixedFee: 0, deadline: "", marketplace: { public: true } });
+    await onCreate(buildPayload());
+    const campaignType = rules.campaignTypes[0]?.key || "";
+    const typeConfig = rules.campaignTypes[0] || null;
+    const paymentType = typeConfig?.defaultPaymentType || typeConfig?.allowedPaymentModels?.[0]?.key || rules.paymentModels[0]?.key || "";
+    const fields = rules.fieldsByCombination[`${campaignType}:${paymentType}`] || [];
+    const defaults = defaultDynamicValues(fields);
+    setForm({
+      influencerId: initialInfluencerId || "",
+      title: "",
+      campaignType,
+      productIds: initialProductKey ? initialProductKey.split("|") : [],
+      paymentType,
+      commissionPercent: Number(defaults.commissionPercent ?? defaults.commissionPercentage ?? 0),
+      fixedFee: 0,
+      attributionDays: Number(defaults.attributionDays ?? rules.attributionWindows[0]?.days ?? 0),
+      expectedBudget: 0,
+      productValue: 0,
+      shippingCost: 0,
+      selectedServices: [],
+      dynamicFields: defaults,
+      deadline: "",
+      marketplace: { public: true },
+    });
+    setPreview(null);
   }
 
   return (
@@ -423,15 +915,16 @@ function CampaignForm({ influencers, products, onCreate, busy, initialInfluencer
       </label>
       <label className="block space-y-1.5">
         <FieldLabel>Influencer</FieldLabel>
-        <select value={form.influencerId} onChange={(event) => setField("influencerId", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Invite influencer">
+        <select value={form.influencerId} onChange={(event) => setForm((current) => ({ ...current, influencerId: event.target.value, selectedServices: [] }))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Invite influencer">
           <option value="">Public marketplace campaign</option>
-          {influencers.map((row) => <option key={row.influencerId || row.id} value={row.influencerId || row.id}>{row.name || row.username}</option>)}
+          {influencerOptions.map((row) => <option key={row.influencerId || row.id || row._id} value={row.influencerId || row.id || row._id}>{row.name || row.username}</option>)}
         </select>
       </label>
       <label className="block space-y-1.5">
         <FieldLabel>Campaign Type</FieldLabel>
-        <select value={form.campaignType} onChange={(event) => setField("campaignType", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Campaign type">
-          {CAMPAIGN_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        <select value={form.campaignType} onChange={(event) => setCampaignType(event.target.value)} disabled={!rules.campaignTypes.length} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white disabled:opacity-60" aria-label="Campaign type">
+          {!rules.campaignTypes.length ? <option value="">No campaign rules configured</option> : null}
+          {rules.campaignTypes.map((type) => <option key={type.key} value={type.key}>{type.label}</option>)}
         </select>
       </label>
       <fieldset className="block space-y-1.5 xl:col-span-2">
@@ -452,17 +945,100 @@ function CampaignForm({ influencers, products, onCreate, busy, initialInfluencer
         <p className="text-xs text-slate-500">{form.productIds.length} selected</p>
       </fieldset>
       <label className="block space-y-1.5">
-        <FieldLabel>Commission Percent</FieldLabel>
-        <input type="number" min="0" max="50" value={form.commissionPercent} onChange={(event) => setField("commissionPercent", Number(event.target.value || 0))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Commission percent" />
+        <FieldLabel>Payment Model</FieldLabel>
+        <select value={form.paymentType} onChange={(event) => setPaymentType(event.target.value)} disabled={!paymentModels.length} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white disabled:opacity-60" aria-label="Payment model">
+          {!paymentModels.length ? <option value="">No valid payment models</option> : null}
+          {paymentModels.map((model) => <option key={model.key} value={model.key}>{model.label}</option>)}
+        </select>
       </label>
-      <label className="block space-y-1.5">
-        <FieldLabel>Fixed Fee</FieldLabel>
-        <input type="number" min="0" value={form.fixedFee} onChange={(event) => setField("fixedFee", Number(event.target.value || 0))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Fixed fee" />
-      </label>
+      {(dynamicNames.has("selectedServices") || dynamicNames.has("services")) ? (
+        <fieldset className="block space-y-1.5 xl:col-span-3">
+          <FieldLabel>Creator Services</FieldLabel>
+          <div className="max-h-44 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-950">
+            {selectedRateCard.length ? selectedRateCard.map((service) => (
+              <div key={service._id || service.id} className="rounded-lg px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-900">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{service.serviceName}</span>
+                  <span className="text-xs font-semibold text-slate-500">{service.minimumNoticePeriod ? `${service.minimumNoticePeriod}d notice` : ""}</span>
+                </div>
+                <div className="mt-2 grid gap-2">
+                  {servicePackages(service).map((pkg) => {
+                    const selected = isPackageSelected(service, pkg);
+                    const price = packagePrice(pkg, service);
+                    return (
+                      <label key={packageKey(service, pkg)} className={`grid min-h-10 cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-2 rounded-lg border px-2 py-1.5 text-sm ${selected ? "border-indigo-300 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/30" : "border-slate-100 dark:border-slate-800"}`}>
+                        <input type="checkbox" checked={selected} onChange={() => togglePackageSelection(service, pkg)} />
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-slate-800 dark:text-slate-100">{pkg.packageName || pkg.name || "Package"}</span>
+                          <span className="text-xs text-slate-500">{Number(pkg.quantity || 1)} deliverable{Number(pkg.quantity || 1) === 1 ? "" : "s"} - {pkg.deliveryDays ?? service.deliveryDays ?? 0}d - {pkg.revisionCount ?? service.revisionCount ?? 0} rev</span>
+                        </span>
+                        <span className="text-sm font-semibold text-slate-950 dark:text-white">{price ? formatCurrency(price) : "Request"}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )) : (
+              <p className="px-2 py-4 text-sm text-slate-500">Select a creator with active services or enter a fallback fixed fee.</p>
+            )}
+          </div>
+        </fieldset>
+      ) : null}
+      {(dynamicNames.has("fixedFee") || dynamicNames.has("fixedAmount")) && !form.selectedServices.length ? (
+        <label className="block space-y-1.5">
+          <FieldLabel>{dynamicFields.find((field) => ["fixedFee", "fixedAmount"].includes(field.fieldName || field.key))?.label || "Fixed Fee"}</FieldLabel>
+          <input type="number" min="0" value={form.fixedFee} onChange={(event) => setField("fixedFee", Number(event.target.value || 0))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Fixed fee" />
+        </label>
+      ) : null}
+      {(dynamicNames.has("commissionPercent") || dynamicNames.has("commissionPercentage")) ? (
+        <label className="block space-y-1.5">
+          <FieldLabel>{dynamicFields.find((field) => ["commissionPercent", "commissionPercentage"].includes(field.fieldName || field.key))?.label || "Commission Percent"}</FieldLabel>
+          <input type="number" min="0" max="50" value={form.commissionPercent} onChange={(event) => setField("commissionPercent", Number(event.target.value || 0))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Commission percent" />
+        </label>
+      ) : null}
+      {dynamicNames.has("attributionDays") ? (
+        <label className="block space-y-1.5">
+          <FieldLabel>{dynamicFields.find((field) => (field.fieldName || field.key) === "attributionDays")?.label || "Attribution Window"}</FieldLabel>
+          <select value={form.attributionDays} onChange={(event) => setField("attributionDays", Number(event.target.value || 0))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Attribution window">
+            {attributionWindows.map((window) => <option key={window.key || window.days} value={window.days}>{window.label || `${window.days} days`}</option>)}
+          </select>
+        </label>
+      ) : null}
+      {(dynamicNames.has("expectedBudget") || dynamicNames.has("maximumBudget")) ? (
+        <label className="block space-y-1.5">
+          <FieldLabel>{dynamicFields.find((field) => ["expectedBudget", "maximumBudget"].includes(field.fieldName || field.key))?.label || "Maximum Budget"}</FieldLabel>
+          <input type="number" min="0" value={form.expectedBudget} onChange={(event) => setField("expectedBudget", Number(event.target.value || 0))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Expected budget" />
+        </label>
+      ) : null}
+      {dynamicNames.has("productValue") ? (
+        <label className="block space-y-1.5">
+          <FieldLabel>{dynamicFields.find((field) => (field.fieldName || field.key) === "productValue")?.label || "Product Value"}</FieldLabel>
+          <input type="number" min="0" value={form.productValue} onChange={(event) => setField("productValue", Number(event.target.value || 0))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Product value" />
+        </label>
+      ) : null}
+      {dynamicNames.has("shippingCost") ? (
+        <label className="block space-y-1.5">
+          <FieldLabel>{dynamicFields.find((field) => (field.fieldName || field.key) === "shippingCost")?.label || "Shipping Cost"}</FieldLabel>
+          <input type="number" min="0" value={form.shippingCost} onChange={(event) => setField("shippingCost", Number(event.target.value || 0))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Shipping cost" />
+        </label>
+      ) : null}
+      {genericDynamicFields.map((field) => (
+        <DynamicCampaignField key={field.fieldName || field.key} field={field} value={form.dynamicFields?.[field.fieldName || field.key]} onChange={setDynamicField} />
+      ))}
       <label className="block space-y-1.5">
         <FieldLabel>Campaign Deadline</FieldLabel>
         <input type="date" value={form.deadline} onChange={(event) => setField("deadline", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Campaign deadline" />
       </label>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950 xl:col-span-2">
+        <p className="font-semibold text-slate-950 dark:text-white">{selectedPaymentModel?.label || "Payment Model"}</p>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-300">
+          <span>Fixed</span><b className="text-right">{formatCurrency(preview?.pricing?.fixedCost || 0)}</b>
+          <span>Reserve</span><b className="text-right">{formatCurrency(preview?.pricing?.commissionReserve || 0)}</b>
+          <span>Product/Shipping</span><b className="text-right">{formatCurrency((preview?.pricing?.productCost || 0) + (preview?.pricing?.shippingCost || 0))}</b>
+          <span>Total</span><b className="text-right text-slate-950 dark:text-white">{formatCurrency(preview?.pricing?.totalBudget || 0)}</b>
+        </div>
+        {previewError ? <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-300">{previewError}</p> : null}
+      </div>
       <label className="block space-y-1.5">
         <FieldLabel>Visibility</FieldLabel>
         <span className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200">
@@ -470,7 +1046,7 @@ function CampaignForm({ influencers, products, onCreate, busy, initialInfluencer
           Marketplace
         </span>
       </label>
-      <button type="submit" disabled={busy || !form.title.trim() || !form.productIds.length} className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50">
+      <button type="submit" disabled={busy || !form.title.trim() || !form.productIds.length || !form.campaignType || !form.paymentType || Boolean(previewError)} className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50">
         <Send className="h-4 w-4" aria-hidden="true" />
         Create
       </button>
@@ -509,11 +1085,12 @@ export function VendorInfluencerPage() {
   const discovery = data.discover?.items || [];
 
   const loadFoundation = useCallback(async () => {
-    const [campaignResponse, productResponse, relationshipResponse, subscriptionResponse] = await Promise.all([
+    const [campaignResponse, productResponse, relationshipResponse, subscriptionResponse, configurationResponse] = await Promise.all([
       getVendorInfluencerCampaigns({ limit: 100 }),
       getVendorPromotionProducts({ limit: 100 }),
       getVendorInfluencerRelationships({ limit: 100 }),
       getVendorInfluencerSubscriptionPlans(),
+      getVendorInfluencerCommerceConfiguration(),
     ]);
     setData((current) => ({
       ...current,
@@ -521,6 +1098,7 @@ export function VendorInfluencerPage() {
       products: productResponse?.data || { items: [] },
       relationships: relationshipResponse?.data || { items: [] },
       subscription: subscriptionResponse?.data || {},
+      configuration: configurationResponse?.data || {},
     }));
   }, []);
 
@@ -782,7 +1360,7 @@ export function VendorInfluencerPage() {
         })}
       </nav>
 
-      <Filters filters={filters} setFilters={setFilters} campaigns={campaigns} products={products} includeSearch={!["dashboard", "analytics", "reports", "subscription"].includes(tab)} />
+      <Filters filters={filters} setFilters={setFilters} campaigns={campaigns} products={products} configuration={data.configuration || {}} tab={tab} includeSearch={!["dashboard", "analytics", "reports", "subscription"].includes(tab)} />
 
       {message ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">{message}</div> : null}
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-100">{error}</div> : null}
@@ -838,7 +1416,7 @@ export function VendorInfluencerPage() {
           onStatus={(row, status) => runAction(row.influencerId, () => updateVendorInfluencerRelationship(row.influencerId, { status }), "Relationship updated.")}
         />
       ) : null}
-      {tab === "campaigns" ? <CampaignsView campaigns={campaigns} pagination={data.campaigns?.pagination} products={products} influencers={[...relationships, ...discovery]} selectedInfluencerId={filters.influencerId} selectedProductIds={filters.productId ? [filters.productId] : []} busyId={busyId} onPage={(page) => setFilters((current) => ({ ...current, page }))} onCreate={createCampaign} onReview={(campaign, application, decision) => runAction(`${campaign._id}-${application.influencerId}`, () => reviewVendorCampaignApplication(campaign._id, application.influencerId, { decision }), "Campaign application reviewed.")} onStatus={(campaign, action) => runAction(campaign._id, () => updateVendorInfluencerCampaignStatus(campaign._id, { action }), "Campaign status updated.")} onDelete={(campaign) => runAction(`delete-${campaign._id}`, () => deleteVendorInfluencerCampaign(campaign._id), "Campaign deleted.")} /> : null}
+      {tab === "campaigns" ? <CampaignsView campaigns={campaigns} pagination={data.campaigns?.pagination} products={products} influencers={[...relationships, ...discovery]} configuration={data.configuration || {}} selectedInfluencerId={filters.influencerId} selectedProductIds={filters.productId ? [filters.productId] : []} busyId={busyId} onPage={(page) => setFilters((current) => ({ ...current, page }))} onCreate={createCampaign} onReview={(campaign, application, decision) => runAction(`${campaign._id}-${application.influencerId}`, () => reviewVendorCampaignApplication(campaign._id, application.influencerId, { decision }), "Campaign application reviewed.")} onStatus={(campaign, action) => runAction(campaign._id, () => updateVendorInfluencerCampaignStatus(campaign._id, { action }), "Campaign status updated.")} onDelete={(campaign) => runAction(`delete-${campaign._id}`, () => deleteVendorInfluencerCampaign(campaign._id), "Campaign deleted.")} /> : null}
       {tab === "products" ? (
         <ProductsView
           rows={products}
@@ -1255,6 +1833,7 @@ function TrustTile({ icon: Icon, title, text, tone }) {
 }
 
 function DiscoverView({ rows, pagination, subscriptionData = {}, busyId, onSubscribe, onSave, onVisit, onInvite, onPage }) {
+  const [expandedCards, setExpandedCards] = useState({});
   return (
     <div className="grid gap-5">
       <PremiumSubscriptionPlans data={subscriptionData} busyId={busyId} onSubscribe={onSubscribe} />
@@ -1266,6 +1845,12 @@ function DiscoverView({ rows, pagination, subscriptionData = {}, busyId, onSubsc
           const saveBusy = busyId === `save-${row.id}`;
           const visitBusy = busyId === `visit-${row.id}`;
           const invited = row.status === "invited" || row.status === "approved" || row.status === "active";
+          const rateCard = Array.isArray(row.rateCard) ? row.rateCard : Array.isArray(row.services) ? row.services : [];
+          const pricedServices = rateCard.filter((service) => serviceStartingPrice(service) > 0);
+          const startingRate = Number(row.startingRate || (pricedServices.length ? Math.min(...pricedServices.map((service) => serviceStartingPrice(service))) : 0));
+          const cardKey = String(row.id || row._id);
+          const expanded = Boolean(expandedCards[cardKey]);
+          const visibleServices = expanded ? rateCard : rateCard.slice(0, 2);
           return (
             <article key={row.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
               <div className="flex items-start gap-3">
@@ -1286,7 +1871,44 @@ function DiscoverView({ rows, pagination, subscriptionData = {}, busyId, onSubsc
                 <MetricTile label="Engage" value={percentValue(row.engagementRate)} />
                 <MetricTile label="Convert" value={percentValue(row.conversionRate)} />
               </div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                <MetricTile label="Score" value={numberValue(row.influencerScore)} />
+                <MetricTile label="Rating" value={Number(row.rating || 0).toFixed(1)} />
+                <MetricTile label="Complete" value={percentValue(row.completionRate)} />
+              </div>
               <p className="mt-3 min-h-10 text-sm text-slate-600 dark:text-slate-300">{row.category || "General"} - {(row.languages || []).join(", ") || "Any language"}</p>
+              <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-xs dark:border-slate-800">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold uppercase tracking-wide text-slate-500">Starting Rate</span>
+                  <span className="font-semibold text-slate-950 dark:text-white">{startingRate ? formatCurrency(startingRate) : "Rate on request"}</span>
+                </div>
+                {visibleServices.length ? (
+                  <div className="space-y-2">
+                    {visibleServices.map((service) => (
+                      <div key={service._id || service.id || service.serviceName} className="rounded-lg border border-slate-100 p-2 dark:border-slate-800">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate font-semibold text-slate-700 dark:text-slate-200">{service.serviceName || service.label || service.serviceTypeKey}</span>
+                          <span className="text-slate-500">{service.minimumNoticePeriod ? `${service.minimumNoticePeriod}d notice` : ""}</span>
+                        </div>
+                        <div className="mt-1 space-y-1">
+                          {servicePackages(service).slice(0, expanded ? 6 : 2).map((pkg) => (
+                            <div key={packageKey(service, pkg)} className="flex items-center justify-between gap-2 text-slate-500">
+                              <span className="truncate">{pkg.packageName || "Package"} · {Number(pkg.quantity || 1)}x · {pkg.deliveryDays ?? service.deliveryDays ?? 0}d</span>
+                              <b className="shrink-0 text-slate-800 dark:text-slate-100">{packagePrice(pkg, service) ? formatCurrency(packagePrice(pkg, service)) : "Request"}</b>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    {rateCard.length > 2 ? (
+                      <button type="button" onClick={() => setExpandedCards((current) => ({ ...current, [cardKey]: !expanded }))} className="text-xs font-semibold text-indigo-600 dark:text-indigo-300">
+                        {expanded ? "Show less" : `Show ${rateCard.length - 2} more`}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+                {row.requirements?.minimumAttributionDays ? <p className="text-slate-500">Minimum attribution: {row.requirements.minimumAttributionDays} days</p> : null}
+              </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button type="button" disabled={inviteBusy} onClick={() => onInvite(row)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"><Send className="h-3.5 w-3.5" />{invited ? "Invite Again" : "Invite"}</button>
                 <button type="button" disabled={visitBusy} onClick={() => onVisit(row)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200"><Eye className="h-3.5 w-3.5" />{row.visited ? "Visit Again" : "View"}</button>
@@ -1359,7 +1981,7 @@ function RelationshipsView({ rows, pagination, busyId, onStatus, onInvite, onPag
   );
 }
 
-function CampaignsView({ campaigns, pagination, products, influencers, selectedInfluencerId = "", selectedProductIds = [], busyId, onPage, onCreate, onReview, onStatus, onDelete }) {
+function CampaignsView({ campaigns, pagination, products, influencers, configuration, selectedInfluencerId = "", selectedProductIds = [], busyId, onPage, onCreate, onReview, onStatus, onDelete }) {
   async function confirmDelete(campaign) {
     const title = campaign.title || "this campaign";
     if (await confirmAction({ message: `Delete "${title}"? This is only allowed before applications, content, or commissions exist.`, tone: "danger", confirmLabel: "Confirm" })) {
@@ -1370,7 +1992,7 @@ function CampaignsView({ campaigns, pagination, products, influencers, selectedI
   return (
     <div className="grid gap-5">
       <Section title="Create Campaign" icon={Megaphone}>
-        <CampaignForm influencers={influencers} products={products} initialInfluencerId={selectedInfluencerId} initialProductIds={selectedProductIds} onCreate={onCreate} busy={busyId === "create-campaign"} />
+        <CampaignForm influencers={influencers} products={products} configuration={configuration} initialInfluencerId={selectedInfluencerId} initialProductIds={selectedProductIds} onCreate={onCreate} busy={busyId === "create-campaign"} />
       </Section>
       <Section title="Campaign Management" icon={Megaphone}>
         <ResponsiveTable
@@ -1386,10 +2008,22 @@ function CampaignsView({ campaigns, pagination, products, influencers, selectedI
               const isCancelled = state === "cancelled";
               const isCompleted = state === "completed";
               const isTerminal = isCancelled || isCompleted;
+              const paymentModel = campaign.paymentModel || campaign.paymentModelSnapshot || {};
+              const attributionRule = campaign.attributionRule || {};
+              const pricing = campaign.pricing || paymentModel.pricing || {};
+              const budgetValue = pricing.totalBudget || campaign.budget || campaign.fixedFee || 0;
+              const paymentLabel = paymentModel.label || statusText(campaign.paymentType || paymentModel.type);
+              const attributionDays = attributionRule.attributionDays || campaign.attributionWindowDays;
               return (
                 <tr key={campaign._id} className="border-t border-slate-100 align-top dark:border-slate-800">
-                  <td className="px-3 py-3 font-semibold text-slate-950 dark:text-white">{campaign.title || "Campaign"}<div className="text-xs font-normal capitalize text-slate-500">{statusText(campaign.campaignType)}</div></td>
-                  <td className="px-3 py-3">{formatCurrency(campaign.budget || campaign.fixedFee || 0)}</td>
+                  <td className="px-3 py-3 font-semibold text-slate-950 dark:text-white">
+                    {campaign.title || "Campaign"}
+                    <div className="text-xs font-normal capitalize text-slate-500">{statusText(campaign.campaignType)} - {paymentLabel || "Payment model"}</div>
+                  </td>
+                  <td className="px-3 py-3">
+                    {formatCurrency(budgetValue)}
+                    {attributionDays ? <div className="text-xs text-slate-500">{attributionDays} day attribution</div> : null}
+                  </td>
                   <td className="px-3 py-3">{formatCurrency(campaign.revenue || campaign.analytics?.revenue || 0)}</td>
                   <td className="px-3 py-3">{numberValue(campaign.orders || campaign.analytics?.orders || 0)}</td>
                   <td className="px-3 py-3">{campaign.applicationsCount || campaign.applications?.length || 0}</td>

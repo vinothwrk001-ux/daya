@@ -5,12 +5,20 @@ const { InfluencerProfile, InfluencerStorefront, InfluencerCollection, Influence
 const { Reel } = require("../reel/model");
 const { signTrackingToken, verifyTrackingToken } = require("./token");
 const { TrackingSession } = require("./model");
+const { CampaignAttributionRule } = require("../influencerCommerce/model");
 const { emitDomainEvent } = require("../events/event-bus");
 const { INFLUENCER_EVENTS } = require("../shared/constants");
 const { nowPlusHours } = require("../shared/helpers");
 const { isInfluencerCommerceEnabled } = require("../../services/influencer-commerce-config.service");
 
 const ATTRIBUTION_WINDOW_HOURS = Number(process.env.INFLUENCER_TRACKING_TTL_HOURS || process.env.AFFILIATE_ATTRIBUTION_WINDOW_HOURS || 720);
+
+async function attributionHoursForCampaign(campaignId) {
+  if (!campaignId) return ATTRIBUTION_WINDOW_HOURS;
+  const rule = await CampaignAttributionRule.findOne({ campaignId, trackingEnabled: true }).lean();
+  if (!rule?.attributionDays) return ATTRIBUTION_WINDOW_HOURS;
+  return Math.max(1, Number(rule.attributionDays) * 24);
+}
 
 function buildIdentityQuery({ userId, anonymousId }) {
   if (userId) return { userId, anonymousId: null };
@@ -107,7 +115,8 @@ class TrackingService {
       }
     }
 
-    const expiresAt = nowPlusHours(ATTRIBUTION_WINDOW_HOURS);
+    const attributionHours = await attributionHoursForCampaign(context.campaignId);
+    const expiresAt = nowPlusHours(attributionHours);
     const identity = buildIdentityQuery({
       userId: user?.sub || null,
       anonymousId: anonymousId || `anon_${crypto.randomBytes(8).toString("hex")}`,
@@ -129,7 +138,7 @@ class TrackingService {
       collectionId: collectionId || null,
       postId: postId || null,
       surface: surface || context.surface,
-    }, ATTRIBUTION_WINDOW_HOURS);
+    }, attributionHours);
 
     const session = await TrackingSession.create({
       ...identity,

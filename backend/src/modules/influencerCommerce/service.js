@@ -8,6 +8,7 @@ const auditService = require("../../services/audit.service");
 const notificationService = require("../../services/notification.service");
 const paymentService = require("../../services/payment.service");
 const influencerCommerceEngine = require("../../services/influencer-commerce-engine.service");
+const influencerRateCardService = require("../../services/influencer-rate-card.service");
 const { AppError } = require("../../utils/AppError");
 const { Campaign } = require("../campaign/model");
 const { CommissionRecord } = require("../commission/models");
@@ -17,7 +18,7 @@ const { TrackingSession } = require("../tracking/model");
 const { Product } = require("../../models/Product");
 const { Order } = require("../../models/Order");
 const { emitDomainEvent } = require("../events/event-bus");
-const { VendorInfluencerRelationship } = require("./model");
+const { VendorInfluencerRelationship, InfluencerService } = require("./model");
 const {
   VendorSubscriptionPlan,
   VendorSubscription,
@@ -815,6 +816,44 @@ class InfluencerCommerceVendorService {
     return subscription;
   }
 
+  async configuration() {
+    return influencerRateCardService.getConfiguration();
+  }
+
+  async creatorProfile(userId, influencerId) {
+    const vendor = await this.getVendor(userId);
+    await this.visitInfluencer(userId, influencerId);
+    const profile = await influencerRateCardService.getCreatorProfile(influencerId);
+    const relationship = await VendorInfluencerRelationship.findOne({ vendorId: vendor._id, influencerId }).lean();
+    return { ...profile, relationship };
+  }
+
+  async campaignPreview(userId, payload = {}) {
+    const vendor = await this.getVendor(userId);
+    const productIds = Array.isArray(payload.productIds) ? payload.productIds : [];
+    const products = await Product.find({ _id: { $in: productIds }, sellerId: vendor._id }).select("_id name price discountPrice category images thumbnail").lean();
+    if (products.length !== productIds.length) {
+      throw new AppError("Campaign products must belong to the vendor", 403, "FORBIDDEN");
+    }
+    const pricing = await influencerRateCardService.calculateCampaignPricing({
+      vendorId: vendor._id,
+      influencerId: payload.influencerId || null,
+      payload,
+      products,
+    });
+    return {
+      paymentModel: pricing.paymentModel,
+      attributionRule: {
+        attributionDays: pricing.attributionDays,
+        trackingEnabled: Boolean(pricing.affiliateTrackingEnabled),
+      },
+      campaignRuleEngine: pricing.paymentModel?.ruleEngine || null,
+      pricing: pricing.pricing,
+      influencerSnapshot: pricing.influencerSnapshot,
+      campaignFields: pricing.campaignFields,
+    };
+  }
+
   async expireSubscriptions({ now = new Date(), notify = true } = {}) {
     const expired = await VendorSubscription.find({
       status: { $in: ["trialing", "active", "grace_period", "past_due"] },
@@ -887,6 +926,53 @@ class InfluencerCommerceVendorService {
       const assignments = await InfluencerProductAssignment.find({ vendorId: vendor._id, productId: objectId(query.productId), status: { $ne: "rejected" } }).select("influencerId").lean();
       requiredIdSets.push(new Set(assignments.map((row) => String(row.influencerId))));
     }
+    const priceClause = (minValue, maxValue) => {
+      const range = {};
+      if (minValue !== undefined && minValue !== "") range.$gte = Number(minValue);
+      if (maxValue !== undefined && maxValue !== "") range.$lte = Number(maxValue);
+      if (!Object.keys(range).length) return null;
+      return {
+        $or: [
+          { packages: { $elemMatch: { status: "active", price: range } } },
+          { packages: { $exists: false }, price: range },
+          { packages: { $size: 0 }, price: range },
+        ],
+      };
+    };
+    const matchingServiceSet = async (serviceFilter) => {
+      const rows = await InfluencerService.find(serviceFilter).select("influencerId").lean();
+      return new Set(rows.map((row) => String(row.influencerId)).filter(Boolean));
+    };
+    const baseServiceFilter = { status: "active" };
+    let hasBaseServiceFilter = false;
+    if (query.serviceType) {
+      baseServiceFilter.serviceTypeKey = String(query.serviceType).trim().toLowerCase();
+      hasBaseServiceFilter = true;
+    }
+    const basePriceClause = priceClause(query.minPrice, query.maxPrice);
+    if (basePriceClause) {
+      baseServiceFilter.$and = [...(baseServiceFilter.$and || []), basePriceClause];
+      hasBaseServiceFilter = true;
+    }
+    if (hasBaseServiceFilter) {
+      requiredIdSets.push(await matchingServiceSet(baseServiceFilter));
+    }
+    const packagePriceAliases = [
+      ["reelPrice", "reel"],
+      ["postPrice", "post"],
+      ["storyPrice", "story"],
+      ["livePrice", "live_stream"],
+    ];
+    for (const [field, serviceTypeKey] of packagePriceAliases) {
+      if (query[field] === undefined || query[field] === "") continue;
+      const aliasPriceClause = priceClause(undefined, query[field]);
+      const aliasFilter = {
+        status: "active",
+        serviceTypeKey,
+        ...(aliasPriceClause ? { $and: [aliasPriceClause] } : {}),
+      };
+      requiredIdSets.push(await matchingServiceSet(aliasFilter));
+    }
     if (requiredIdSets.length) {
       const [firstSet, ...restSets] = requiredIdSets;
       const ids = [...firstSet].filter((id) => restSets.every((set) => set.has(id))).map((id) => objectId(id)).filter(Boolean);
@@ -933,10 +1019,14 @@ class InfluencerCommerceVendorService {
       return map;
     }, new Map());
 
-    const scoredRows = await influencerCommerceEngine.rankInfluencerRows(await influencerCommerceEngine.scoreProfiles(items));
+    const [scoredRows, creatorCardMap] = await Promise.all([
+      influencerCommerceEngine.rankInfluencerRows(await influencerCommerceEngine.scoreProfiles(items)),
+      influencerRateCardService.getCreatorCards(items.map((profile) => profile._id)),
+    ]);
     const scoredMap = new Map(scoredRows.map((row) => [String(row.profile._id), row]));
     const mappedItems = items.map((profile) => {
         const socials = socialMap.get(String(profile._id)) || [];
+        const creatorCard = creatorCardMap.get(String(profile._id)) || {};
         const engagementRate = socials.length
           ? money(socials.reduce((sum, account) => sum + Number(account.engagementRate || 0), 0) / socials.length)
           : 0;
@@ -960,6 +1050,8 @@ class InfluencerCommerceVendorService {
           influencerScore: scored?.score?.score || 0,
           scoreComponents: scored?.score?.components || {},
           scoreConfigVersion: scored?.score?.configVersion || 1,
+          completionRate: scored?.completionRate || 0,
+          rating: Number(profile.rating || 0),
           tier: scored?.tier ? {
             id: scored.tier._id,
             name: scored.tier.tierName,
@@ -977,9 +1069,19 @@ class InfluencerCommerceVendorService {
           visited: Boolean(relationshipMap.get(String(profile._id))?.visited),
           visitCount: Number(relationshipMap.get(String(profile._id))?.visitCount || 0),
           lastVisitedAt: relationshipMap.get(String(profile._id))?.lastVisitedAt,
+          services: creatorCard.services || [],
+          rateCard: creatorCard.rateCard || [],
+          requirements: creatorCard.requirements || null,
+          startingRate: creatorCard.startingRate || 0,
         };
       });
-    const sortedItems = query.sort ? mappedItems : mappedItems.sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0));
+    const scoreFilteredItems = mappedItems.filter((row) => {
+      if (query.ratingMin && Number(row.rating || 0) < Number(query.ratingMin)) return false;
+      if (query.scoreMin && Number(row.influencerScore || 0) < Number(query.scoreMin)) return false;
+      if (query.completionMin && Number(row.completionRate || 0) < Number(query.completionMin)) return false;
+      return true;
+    });
+    const sortedItems = query.sort ? scoreFilteredItems : scoreFilteredItems.sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0));
     const visibleTotal = discoveryPlan.visibilityLimit < 0 ? total : Math.min(total, discoveryPlan.visibilityLimit);
     return {
       items: sortedItems,
@@ -1180,16 +1282,21 @@ class InfluencerCommerceVendorService {
       await emitDomainEvent(SYNC_EVENTS.CAMPAIGN_INVITED, { campaignId: campaign._id, vendorId: vendor._id, influencerId: campaign.influencerId });
     } else {
       const productIds = Array.isArray(payload.productIds) ? payload.productIds : [];
-      const products = await Product.find({ _id: { $in: productIds }, sellerId: vendor._id }).select("_id").lean();
+      const products = await Product.find({ _id: { $in: productIds }, sellerId: vendor._id }).select("_id name price discountPrice category images thumbnail").lean();
       if (products.length !== productIds.length) {
         throw new AppError("Campaign products must belong to the vendor", 403, "FORBIDDEN");
       }
+      const pricing = await influencerRateCardService.calculateCampaignPricing({
+        vendorId: vendor._id,
+        payload,
+        products,
+      });
       campaign = await Campaign.create({
         vendorId: vendor._id,
         title: payload.title || "",
         description: payload.description || "",
         banner: payload.banner || "",
-        campaignType: payload.campaignType || "affiliate",
+        campaignType: pricing.campaignType || payload.campaignType || "affiliate",
         category: payload.category || "",
         country: payload.country || "",
         language: payload.language || "en",
@@ -1202,14 +1309,21 @@ class InfluencerCommerceVendorService {
           assets: payload.marketplace?.assets || [],
         },
         productIds,
-        commissionPercent: payload.commissionPercent,
-        fixedFee: payload.fixedFee || 0,
+        commissionPercent: pricing.commissionPercentage,
+        fixedFee: pricing.fixedFee,
+        paymentType: pricing.paymentType,
+        attributionWindowDays: pricing.attributionDays,
+        pricing: pricing.pricing,
+        paymentModelSnapshot: pricing.paymentModel,
+        influencerRateSnapshot: pricing.influencerSnapshot,
+        requirementsSnapshot: pricing.influencerSnapshot?.requirements || {},
         deadline: payload.deadline,
         state: "draft",
         history: [{ state: "draft", actorId: userId, note: "Marketplace campaign created by vendor", changedAt: new Date() }],
       });
+      await influencerRateCardService.attachCampaignPricing(campaign, pricing);
     }
-    await influencerCommerceEngine.ensureCampaignBudgetControl(campaign, payload.budget || payload.fixedFee || 0);
+    await influencerCommerceEngine.ensureCampaignBudgetControl(campaign, campaign.pricing?.totalBudget || payload.budget || campaign.fixedFee || 0);
     await auditService.log({ actor: { _id: userId, role: "vendor" }, action: payload.influencerId ? "campaign.invite" : "campaign.create", entityType: "Campaign", entityId: campaign._id, metadata: { influencerId: payload.influencerId || null } }).catch(() => {});
     return campaign;
   }
@@ -1242,7 +1356,7 @@ class InfluencerCommerceVendorService {
       Campaign.countDocuments(filter),
     ]);
     const campaignIds = items.map((campaign) => campaign._id);
-    const [contentCounts, commissionCounts, orderCounts] = campaignIds.length
+    const [contentCounts, commissionCounts, orderCounts, commerceDocs] = campaignIds.length
       ? await Promise.all([
         Reel.aggregate([
           { $match: { campaignId: { $in: campaignIds } } },
@@ -1256,8 +1370,9 @@ class InfluencerCommerceVendorService {
           { $match: { "attribution.campaignId": { $in: campaignIds } } },
           { $group: { _id: "$attribution.campaignId", count: { $sum: 1 } } },
         ]),
+        influencerRateCardService.getCampaignCommerceDocs(campaignIds),
       ])
-      : [[], [], []];
+      : [[], [], [], { paymentModels: new Map(), attributionRules: new Map() }];
     const contentCountMap = new Map(contentCounts.map((row) => [String(row._id), Number(row.count || 0)]));
     const commissionCountMap = new Map(commissionCounts.map((row) => [String(row._id), row]));
     const orderCountMap = new Map(orderCounts.map((row) => [String(row._id), Number(row.count || 0)]));
@@ -1266,6 +1381,8 @@ class InfluencerCommerceVendorService {
         const applicationsCount = campaign.applications?.length || 0;
         const contentCount = contentCountMap.get(String(campaign._id)) || 0;
         const commissionStats = commissionCountMap.get(String(campaign._id)) || {};
+        const paymentModel = commerceDocs.paymentModels.get(String(campaign._id)) || campaign.paymentModelSnapshot || null;
+        const attributionRule = commerceDocs.attributionRules.get(String(campaign._id)) || null;
         const commissionCount = Number(commissionStats.count || 0);
         const orderAttributionCount = orderCountMap.get(String(campaign._id)) || 0;
         const deleteBlockers = [
@@ -1276,7 +1393,9 @@ class InfluencerCommerceVendorService {
         ].filter(Boolean);
         return {
           ...campaign,
-          budget: Number(campaign.fixedFee || 0),
+          paymentModel,
+          attributionRule,
+          budget: Number(campaign.pricing?.totalBudget || paymentModel?.totalBudget || campaign.fixedFee || 0),
           revenue: money(commissionStats.revenue || campaign.analytics?.revenue || 0),
           commission: money(commissionStats.commission || 0),
           orders: Number(commissionStats.orders || campaign.analytics?.orders || 0),
@@ -1325,6 +1444,11 @@ class InfluencerCommerceVendorService {
     await campaign.save();
     if (decision === "approved") {
       await upsertProductAssignments({ campaign, influencerId: influencerObjectId, status: "approved", source: "campaign_application", actorId: userId });
+      await influencerRateCardService.lockCampaignContract(campaign._id, {
+        influencerId: influencerObjectId,
+        actorId: userId,
+        source: "vendor_application_approval",
+      });
     }
     await this.upsertRelationship(vendor._id, influencerId, {
       status: decision === "approved" ? "approved" : "paused",

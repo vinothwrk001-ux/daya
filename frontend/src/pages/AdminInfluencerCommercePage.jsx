@@ -528,8 +528,10 @@ export function AdminInfluencerCommercePage() {
       await action();
       setMessage(successMessage);
       await load();
+      return true;
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || "Action failed.");
+      return false;
     } finally {
       setBusyId("");
     }
@@ -696,11 +698,15 @@ function CampaignsView({ items, pagination, setFilters, runAction, busyId }) {
       <ResponsiveTable headers={["Campaign", "Vendor", "Budget", "Revenue", "Applications", "Creators", "Products", "Commission", "Status", "Actions"]} rows={items} renderRow={(row) => {
         const id = idOf(row);
         const actions = campaignActionState(row);
+        const pricing = row.pricing || row.paymentModel?.pricing || {};
+        const paymentLabel = row.paymentModel?.label || statusText(row.paymentType || row.paymentModel?.type);
+        const attributionDays = row.attributionRule?.attributionDays || row.attributionWindowDays;
+        const budgetValue = pricing.totalBudget || row.budget || row.fixedFee || 0;
         return (
           <tr key={id}>
-            <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{text(row.title)}</td>
+            <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">{text(row.title)}<div className="text-xs font-normal capitalize text-slate-500">{paymentLabel || "-"}</div></td>
             <td className="px-3 py-3 text-slate-500">{pickVendorName(row.vendorId || row.vendor)}</td>
-            <td className="px-3 py-3">{formatCurrency(row.budget || row.fixedFee || 0)}</td>
+            <td className="px-3 py-3">{formatCurrency(budgetValue)}{attributionDays ? <div className="text-xs text-slate-500">{attributionDays} day attribution</div> : null}</td>
             <td className="px-3 py-3">{formatCurrency(row.revenue || 0)}</td>
             <td className="px-3 py-3">{numberValue(row.applicationsCount || row.applications?.length)}</td>
             <td className="px-3 py-3">{numberValue(row.approvedCreators || row.approvedInfluencers?.length)}</td>
@@ -1886,7 +1892,7 @@ function ConfigInput({ label, value, onChange, type = "number" }) {
   );
 }
 
-function ConfigTextarea({ label, value, onChange, placeholder = "" }) {
+function ConfigTextarea({ label, value, onChange, placeholder = "", rows = 4 }) {
   return (
     <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
       {label}
@@ -1894,9 +1900,26 @@ function ConfigTextarea({ label, value, onChange, placeholder = "" }) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        rows={4}
+        rows={rows}
         className="min-h-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-950 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
       />
+    </label>
+  );
+}
+
+function ConfigSelect({ label, value, onChange, options = [] }) {
+  return (
+    <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+      {label}
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
     </label>
   );
 }
@@ -1912,6 +1935,315 @@ function ConfigCheckbox({ label, checked, onChange }) {
 
 function weightTotal(form, keys) {
   return keys.reduce((sum, key) => sum + Number(form[key] || 0), 0);
+}
+
+const PAYMENT_MODEL_OPTIONS = [
+  { value: "fixed", label: "Fixed" },
+  { value: "commission", label: "Commission" },
+  { value: "hybrid", label: "Hybrid" },
+  { value: "free_product", label: "Free Product" },
+];
+
+const REQUIREMENT_FIELD_TYPES = ["text", "textarea", "number", "currency", "select", "multi_select", "boolean", "location", "address", "json"].map((value) => ({ value, label: statusText(value) }));
+
+const COMMERCE_EDITOR_DEFS = {
+  serviceTypes: {
+    title: "Service Types",
+    defaults: { key: "", label: "", description: "", group: "content", defaultCurrency: "INR", defaultDeliveryDays: 3, defaultRevisionCount: 1, displayOrder: 0 },
+    fields: [
+      { key: "key", label: "Key", type: "text" },
+      { key: "label", label: "Label", type: "text" },
+      { key: "group", label: "Group", type: "text" },
+      { key: "defaultCurrency", label: "Currency", type: "text" },
+      { key: "defaultDeliveryDays", label: "Delivery Days", type: "number" },
+      { key: "defaultRevisionCount", label: "Revisions", type: "number" },
+      { key: "displayOrder", label: "Display Order", type: "number" },
+      { key: "description", label: "Description", type: "textarea" },
+    ],
+    detail: (row) => `${row.group || "content"} - ${row.defaultCurrency || "INR"} - ${numberValue(row.defaultDeliveryDays)}d`,
+  },
+  packageTemplates: {
+    title: "Package Templates",
+    defaults: { key: "", label: "", serviceTypeKey: "", packageName: "", quantity: 1, defaultDeliveryDays: 3, defaultRevisionCount: 1, displayOrder: 0 },
+    fields: [
+      { key: "key", label: "Key", type: "text" },
+      { key: "label", label: "Label", type: "text" },
+      { key: "serviceTypeKey", label: "Service Type Key", type: "text" },
+      { key: "packageName", label: "Package Name", type: "text" },
+      { key: "quantity", label: "Quantity", type: "number" },
+      { key: "defaultDeliveryDays", label: "Delivery Days", type: "number" },
+      { key: "defaultRevisionCount", label: "Revisions", type: "number" },
+      { key: "displayOrder", label: "Display Order", type: "number" },
+      { key: "description", label: "Description", type: "textarea" },
+    ],
+    detail: (row) => `${row.serviceTypeKey || "all services"} - ${numberValue(row.quantity || 1)} deliverable${Number(row.quantity || 1) === 1 ? "" : "s"}`,
+  },
+  categoryOptions: {
+    title: "Category Options",
+    defaults: { key: "", label: "", description: "", displayOrder: 0 },
+    fields: [
+      { key: "key", label: "Key", type: "text" },
+      { key: "label", label: "Label", type: "text" },
+      { key: "displayOrder", label: "Display Order", type: "number" },
+      { key: "description", label: "Description", type: "textarea" },
+    ],
+    detail: (row) => row.description || "Discovery and requirement category",
+  },
+  languageOptions: {
+    title: "Language Options",
+    defaults: { key: "", label: "", description: "", displayOrder: 0 },
+    fields: [
+      { key: "key", label: "Key", type: "text" },
+      { key: "label", label: "Label", type: "text" },
+      { key: "displayOrder", label: "Display Order", type: "number" },
+      { key: "description", label: "Description", type: "textarea" },
+    ],
+    detail: (row) => row.description || "Creator language filter option",
+  },
+  attributionWindows: {
+    title: "Attribution Windows",
+    defaults: { key: "", label: "", days: 30, customAllowed: false, minDays: 1, maxDays: 365, displayOrder: 0 },
+    fields: [
+      { key: "key", label: "Key", type: "text" },
+      { key: "label", label: "Label", type: "text" },
+      { key: "days", label: "Days", type: "number" },
+      { key: "minDays", label: "Min Days", type: "number" },
+      { key: "maxDays", label: "Max Days", type: "number" },
+      { key: "displayOrder", label: "Display Order", type: "number" },
+      { key: "customAllowed", label: "Custom Allowed", type: "checkbox" },
+    ],
+    detail: (row) => row.customAllowed ? `${row.minDays || 1}-${row.maxDays || row.days || 365} days` : `${row.days || 0} days`,
+  },
+  paymentModels: {
+    title: "Payment Models",
+    defaults: { key: "commission", label: "", description: "", requiresFixedFee: false, requiresCommission: true, requiresAttributionWindow: true, requiresProduct: false, budgetComponents: [], displayOrder: 0 },
+    fields: [
+      { key: "key", label: "Key", type: "select", options: PAYMENT_MODEL_OPTIONS },
+      { key: "label", label: "Label", type: "text" },
+      { key: "budgetComponents", label: "Budget Components", type: "csv" },
+      { key: "displayOrder", label: "Display Order", type: "number" },
+      { key: "requiresFixedFee", label: "Requires Fixed Fee", type: "checkbox" },
+      { key: "requiresCommission", label: "Requires Commission", type: "checkbox" },
+      { key: "requiresAttributionWindow", label: "Requires Attribution", type: "checkbox" },
+      { key: "requiresProduct", label: "Requires Product", type: "checkbox" },
+      { key: "description", label: "Description", type: "textarea" },
+    ],
+    detail: (row) => (row.budgetComponents || []).join(", ") || "No budget components",
+  },
+  requirementFields: {
+    title: "Requirement Fields",
+    defaults: { key: "", label: "", fieldType: "text", required: false, displayOrder: 0 },
+    fields: [
+      { key: "key", label: "Key", type: "text" },
+      { key: "label", label: "Label", type: "text" },
+      { key: "fieldType", label: "Field Type", type: "select", options: REQUIREMENT_FIELD_TYPES },
+      { key: "displayOrder", label: "Display Order", type: "number" },
+      { key: "required", label: "Required", type: "checkbox" },
+    ],
+    detail: (row) => `${statusText(row.fieldType)}${row.required ? " - required" : ""}`,
+  },
+};
+
+const ADVANCED_CONFIG_ENTITIES = [
+  { entityType: "campaignTypes", label: "Campaign Types" },
+  { entityType: "paymentModelOptions", label: "Payment Model Options" },
+  { entityType: "campaignPaymentRules", label: "Campaign Payment Rules" },
+  { entityType: "campaignDynamicFields", label: "Campaign Dynamic Fields" },
+  { entityType: "campaignValidationRules", label: "Campaign Validation Rules" },
+  { entityType: "campaignTemplates", label: "Campaign Templates" },
+  { entityType: "discoveryRules", label: "Discovery Rules" },
+  { entityType: "campaignRules", label: "Campaign Rules" },
+  { entityType: "dynamicFormFields", label: "Dynamic Form Fields" },
+];
+
+function splitConfigList(value) {
+  if (Array.isArray(value)) return value;
+  return String(value || "")
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function withoutSystemFields(row = {}) {
+  const copy = { ...row };
+  delete copy._id;
+  delete copy.__v;
+  delete copy.createdAt;
+  delete copy.updatedAt;
+  return copy;
+}
+
+function CommerceEntityEditor({ entityType, rows = [], def, runAction, busyId, archiveConfig }) {
+  const blankForm = useMemo(() => ({ ...def.defaults, displayOrder: rows.length + 1, approval: { status: "active" }, reason: "Updated from admin commerce configuration" }), [def.defaults, rows.length]);
+  const [form, setForm] = useState(blankForm);
+  const [editingId, setEditingId] = useState("");
+
+  const reset = () => {
+    setEditingId("");
+    setForm(blankForm);
+  };
+
+  const edit = (row) => {
+    const next = { ...blankForm, ...withoutSystemFields(row), approval: { status: row.approval?.status || "active" }, reason: "Updated from admin commerce configuration" };
+    def.fields.forEach((field) => {
+      if (field.type === "csv") next[field.key] = Array.isArray(row[field.key]) ? row[field.key].join(", ") : row[field.key] || "";
+    });
+    setEditingId(row._id);
+    setForm(next);
+  };
+
+  const updateField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+
+  const payload = () => {
+    const next = { ...form, approval: form.approval || { status: "active" }, reason: form.reason || "Updated from admin commerce configuration" };
+    def.fields.forEach((field) => {
+      if (field.type === "csv") next[field.key] = splitConfigList(next[field.key]);
+    });
+    return next;
+  };
+
+  const save = async () => {
+    const body = payload();
+    const success = await runAction(
+      editingId ? `update-${entityType}-${editingId}` : `create-${entityType}`,
+      () => editingId ? updateInfluencerCommerceConfig(entityType, editingId, body) : createInfluencerCommerceConfig(entityType, body),
+      editingId ? `${def.title} updated.` : `${def.title} created.`
+    );
+    if (success) reset();
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{def.title}</h3>
+        {editingId ? <ActionButton tone="slate" onClick={reset}>Cancel</ActionButton> : null}
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {def.fields.map((field) => {
+          if (field.type === "checkbox") return <ConfigCheckbox key={field.key} label={field.label} checked={form[field.key]} onChange={(value) => updateField(field.key, value)} />;
+          if (field.type === "select") return <ConfigSelect key={field.key} label={field.label} value={form[field.key] || ""} onChange={(value) => updateField(field.key, value)} options={field.options} />;
+          if (field.type === "textarea") return <div key={field.key} className="md:col-span-2"><ConfigTextarea label={field.label} value={form[field.key] || ""} onChange={(value) => updateField(field.key, value)} /></div>;
+          return <ConfigInput key={field.key} type={field.type === "number" ? "number" : "text"} label={field.label} value={form[field.key] ?? ""} onChange={(value) => updateField(field.key, value)} />;
+        })}
+      </div>
+      <div className="mt-3 flex justify-end">
+        <ActionButton icon={CheckCircle2} disabled={Boolean(busyId) || !form.key || !form.label} onClick={save}>{editingId ? "Update" : "Create"}</ActionButton>
+      </div>
+      <div className="mt-4">
+        <ResponsiveTable headers={["Name", "Key", "Details", "Order", "Status", "Actions"]} rows={rows} renderRow={(row) => (
+          <tr key={row._id || row.key}>
+            <td className="px-3 py-3 font-semibold text-slate-950 dark:text-white">{row.label || row.key}</td>
+            <td className="px-3 py-3 text-slate-500">{row.key}</td>
+            <td className="px-3 py-3 text-slate-500">{def.detail(row)}</td>
+            <td className="px-3 py-3">{numberValue(row.displayOrder)}</td>
+            <td className="px-3 py-3"><StatusBadge value={row.approval?.status} /></td>
+            <td className="px-3 py-3">
+              <div className="flex flex-wrap gap-2">
+                <ActionButton tone="slate" icon={Pencil} disabled={Boolean(busyId)} onClick={() => edit(row)}>Update</ActionButton>
+                <ActionButton tone="red" icon={Trash2} disabled={Boolean(busyId)} onClick={() => archiveConfig(entityType, row._id, row.label || row.key)}>Delete</ActionButton>
+              </div>
+            </td>
+          </tr>
+        )} />
+      </div>
+    </div>
+  );
+}
+
+function AdvancedConfigManager({ data, runAction, busyId, archiveConfig }) {
+  const [entityType, setEntityType] = useState(ADVANCED_CONFIG_ENTITIES[0].entityType);
+  const [editingId, setEditingId] = useState("");
+  const [json, setJson] = useState("{}");
+  const [jsonError, setJsonError] = useState("");
+  const entity = ADVANCED_CONFIG_ENTITIES.find((item) => item.entityType === entityType) || ADVANCED_CONFIG_ENTITIES[0];
+  const rows = data[entityType] || [];
+
+  const reset = () => {
+    setEditingId("");
+    setJson("{}");
+    setJsonError("");
+  };
+
+  const edit = (row) => {
+    setEditingId(row._id);
+    setJson(JSON.stringify({ ...withoutSystemFields(row), approval: { status: row.approval?.status || "active" }, reason: "Updated from admin advanced commerce configuration" }, null, 2));
+    setJsonError("");
+  };
+
+  const save = async () => {
+    let payload;
+    try {
+      payload = JSON.parse(json);
+    } catch (err) {
+      setJsonError("Enter valid JSON before saving.");
+      return;
+    }
+    if (!payload || Array.isArray(payload) || typeof payload !== "object") {
+      setJsonError("JSON must be an object.");
+      return;
+    }
+    payload = { ...payload, approval: payload.approval || { status: "active" }, reason: payload.reason || "Updated from admin advanced commerce configuration" };
+    const label = payload.label || payload.key || entity.label;
+    const success = await runAction(
+      editingId ? `update-${entityType}-${editingId}` : `create-${entityType}`,
+      () => editingId ? updateInfluencerCommerceConfig(entityType, editingId, payload) : createInfluencerCommerceConfig(entityType, payload),
+      editingId ? `${label} updated.` : `${label} created.`
+    );
+    if (success) reset();
+  };
+
+  return (
+    <Section title="Templates, Rules & Dynamic Fields" icon={SlidersHorizontal}>
+      <div className="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <ConfigSelect label="Configuration Type" value={entityType} onChange={(value) => { setEntityType(value); reset(); }} options={ADVANCED_CONFIG_ENTITIES.map((item) => ({ value: item.entityType, label: item.label }))} />
+        <ConfigTextarea label="Configuration JSON" value={json} onChange={setJson} rows={8} />
+      </div>
+      {jsonError ? <p className="mt-2 text-sm font-semibold text-rose-600 dark:text-rose-300">{jsonError}</p> : null}
+      <div className="mt-3 flex justify-end gap-2">
+        {editingId ? <ActionButton tone="slate" onClick={reset}>Cancel</ActionButton> : null}
+        <ActionButton icon={CheckCircle2} disabled={Boolean(busyId)} onClick={save}>{editingId ? "Update" : "Create"}</ActionButton>
+      </div>
+      <div className="mt-4">
+        <ResponsiveTable headers={["Name", "Key", "Detail", "Status", "Actions"]} rows={rows} renderRow={(row) => (
+          <tr key={row._id || row.key}>
+            <td className="px-3 py-3 font-semibold text-slate-950 dark:text-white">{row.name || row.label || row.field?.label || row.fieldName || row.ruleName || row.key}</td>
+            <td className="px-3 py-3 text-slate-500">{row.slug || row.key || row.scope || row.fieldName || "-"}</td>
+            <td className="px-3 py-3 text-slate-500">{row.defaultPaymentType || row.paymentType || row.fieldType || row.field?.fieldType || row.ruleName || (row.rules ? shortText(JSON.stringify(row.rules), 46) : row.allowed !== undefined ? (row.allowed ? "Allowed" : "Blocked") : "-")}</td>
+            <td className="px-3 py-3"><StatusBadge value={row.approval?.status} /></td>
+            <td className="px-3 py-3">
+              <div className="flex flex-wrap gap-2">
+                <ActionButton tone="slate" icon={Pencil} disabled={Boolean(busyId)} onClick={() => edit(row)}>Update</ActionButton>
+                <ActionButton tone="red" icon={Trash2} disabled={Boolean(busyId)} onClick={() => archiveConfig(entityType, row._id, row.name || row.label || row.key || row.slug || row.scope)}>Delete</ActionButton>
+              </div>
+            </td>
+          </tr>
+        )} />
+      </div>
+    </Section>
+  );
+}
+
+function CommerceConfigurationView({ data, runAction, busyId, archiveConfig }) {
+  return (
+    <div className="space-y-4">
+      <Section title="Creator Rate Card Builder" icon={Package}>
+        <div className="grid gap-4 xl:grid-cols-2">
+          {Object.entries(COMMERCE_EDITOR_DEFS).map(([entityType, def]) => (
+            <CommerceEntityEditor
+              key={entityType}
+              entityType={entityType}
+              rows={data[entityType] || []}
+              def={def}
+              runAction={runAction}
+              busyId={busyId}
+              archiveConfig={archiveConfig}
+            />
+          ))}
+        </div>
+      </Section>
+      <AdvancedConfigManager data={data} runAction={runAction} busyId={busyId} archiveConfig={archiveConfig} />
+    </div>
+  );
 }
 
 function ConfigurationEngineView({ data, runAction, busyId }) {
@@ -2120,8 +2452,9 @@ function ConfigurationEngineView({ data, runAction, busyId }) {
     if (success) resetPlanForm();
   };
   const archiveConfig = (entityType, id, label) => {
-    const pairLabel = entityType === "tiers" ? "matching subscription plan" : entityType === "subscriptionPlans" ? "matching influencer tier" : "configuration";
-    if (!window.confirm(`Archive ${label}? This will also archive the ${pairLabel}.`)) return Promise.resolve(false);
+    const pairLabel = entityType === "tiers" ? "matching subscription plan" : entityType === "subscriptionPlans" ? "matching influencer tier" : "";
+    const message = pairLabel ? `Archive ${label}? This will also archive the ${pairLabel}.` : `Archive ${label}?`;
+    if (!window.confirm(message)) return Promise.resolve(false);
     return runAction(`delete-${entityType}-${id}`, () => deleteInfluencerCommerceConfig(entityType, id), `${label} archived.`);
   };
 
@@ -2272,6 +2605,8 @@ function ConfigurationEngineView({ data, runAction, busyId }) {
             </tr>
           )} />
         </Section>
+
+        <CommerceConfigurationView data={data} runAction={runAction} busyId={busyId} archiveConfig={archiveConfig} />
       </div>
 
       <div className="space-y-4">

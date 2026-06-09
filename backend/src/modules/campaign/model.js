@@ -91,6 +91,23 @@ const campaignSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
+    paymentType: {
+      type: String,
+      enum: ["fixed", "commission", "hybrid", "free_product"],
+      default: "commission",
+      index: true,
+    },
+    attributionWindowDays: { type: Number, min: 0, default: 0 },
+    pricing: {
+      fixedCost: { type: Number, min: 0, default: 0 },
+      commissionReserve: { type: Number, min: 0, default: 0 },
+      productCost: { type: Number, min: 0, default: 0 },
+      shippingCost: { type: Number, min: 0, default: 0 },
+      taxes: { type: Number, min: 0, default: 0 },
+      platformFees: { type: Number, min: 0, default: 0 },
+      totalBudget: { type: Number, min: 0, default: 0 },
+      currency: { type: String, trim: true, uppercase: true, default: "INR" },
+    },
     deadline: { type: Date },
     state: {
       type: String,
@@ -103,7 +120,31 @@ const campaignSchema = new mongoose.Schema(
       fixedFee: { type: Number, min: 0 },
       productIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
       deadline: { type: Date },
+      paymentType: { type: String, enum: ["fixed", "commission", "hybrid", "free_product"] },
+      attributionWindowDays: { type: Number, min: 0 },
+      pricing: { type: mongoose.Schema.Types.Mixed, default: {} },
+      paymentModelSnapshot: { type: mongoose.Schema.Types.Mixed, default: {} },
+      influencerRateSnapshot: { type: mongoose.Schema.Types.Mixed, default: {} },
+      requirementsSnapshot: { type: mongoose.Schema.Types.Mixed, default: {} },
       frozenAt: { type: Date },
+    },
+    paymentModelSnapshot: { type: mongoose.Schema.Types.Mixed, default: {} },
+    influencerRateSnapshot: { type: mongoose.Schema.Types.Mixed, default: {} },
+    requirementsSnapshot: { type: mongoose.Schema.Types.Mixed, default: {} },
+    contractSnapshot: {
+      locked: { type: Boolean, default: false, index: true },
+      lockedAt: { type: Date },
+      acceptedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor" },
+      influencerId: { type: mongoose.Schema.Types.ObjectId, ref: "InfluencerProfile" },
+      termsHash: { type: String, trim: true, default: "" },
+      paymentModel: { type: mongoose.Schema.Types.Mixed, default: {} },
+      influencerRateCard: { type: mongoose.Schema.Types.Mixed, default: {} },
+      requirements: { type: mongoose.Schema.Types.Mixed, default: {} },
+    },
+    contractSnapshots: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
     },
     history: {
       type: [mongoose.Schema.Types.Mixed],
@@ -120,6 +161,8 @@ campaignSchema.index({ vendorId: 1, state: 1, createdAt: -1 });
 campaignSchema.index({ influencerId: 1, state: 1, createdAt: -1 });
 campaignSchema.index({ "marketplace.public": 1, state: 1, createdAt: -1 });
 campaignSchema.index({ "applications.influencerId": 1, "applications.status": 1 });
+campaignSchema.index({ paymentType: 1, attributionWindowDays: 1 });
+campaignSchema.index({ "contractSnapshot.locked": 1, state: 1 });
 
 module.exports = {
   Campaign: mongoose.models.Campaign || mongoose.model("Campaign", campaignSchema),

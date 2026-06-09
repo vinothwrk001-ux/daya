@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const auditService = require("../../services/audit.service");
 const notificationService = require("../../services/notification.service");
 const { isInfluencerCommerceEnabled, invalidateInfluencerCommerceConfigCache } = require("../../services/influencer-commerce-config.service");
+const influencerRateCardService = require("../../services/influencer-rate-card.service");
 const { AppError } = require("../../utils/AppError");
 const { Campaign } = require("../campaign/model");
 const {
@@ -472,16 +473,22 @@ class AdminInfluencerCommerceService {
       Campaign.find(filter).populate("vendorId", "shopName companyName").populate({ path: "influencerId", populate: { path: "userId", select: "name email" } }).populate("productIds", "name category images thumbnail").sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       Campaign.countDocuments(filter),
     ]);
+    const commerceDocs = await influencerRateCardService.getCampaignCommerceDocs(items.map((campaign) => campaign._id));
     return {
-      items: items.map((campaign) => ({
-        ...campaign,
-        vendorName: vendorName(campaign.vendorId),
-        influencerName: campaign.influencerId ? influencerName(campaign.influencerId) : "",
-        budget: Number(campaign.fixedFee || 0),
-        revenue: Number(campaign.analytics?.revenue || 0),
-        applicationsCount: campaign.applications?.length || 0,
-        approvedCreators: (campaign.applications || []).filter((app) => app.status === "approved").length + (campaign.influencerId ? 1 : 0),
-      })),
+      items: items.map((campaign) => {
+        const paymentModel = commerceDocs.paymentModels.get(String(campaign._id)) || campaign.paymentModelSnapshot || null;
+        return {
+          ...campaign,
+          paymentModel,
+          attributionRule: commerceDocs.attributionRules.get(String(campaign._id)) || null,
+          vendorName: vendorName(campaign.vendorId),
+          influencerName: campaign.influencerId ? influencerName(campaign.influencerId) : "",
+          budget: Number(campaign.pricing?.totalBudget || paymentModel?.totalBudget || campaign.fixedFee || 0),
+          revenue: Number(campaign.analytics?.revenue || 0),
+          applicationsCount: campaign.applications?.length || 0,
+          approvedCreators: (campaign.applications || []).filter((app) => app.status === "approved").length + (campaign.influencerId ? 1 : 0),
+        };
+      }),
       pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 },
     };
   }
@@ -533,6 +540,11 @@ class AdminInfluencerCommerceService {
           { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
         ),
       ]);
+      await influencerRateCardService.lockCampaignContract(campaign._id, {
+        influencerId,
+        actorId: actor.sub || actor._id,
+        source: "admin_application_approval",
+      });
     } else if (application.status === "rejected") {
       await Promise.all([
         InfluencerProductAssignment.updateMany(
@@ -586,6 +598,14 @@ class AdminInfluencerCommerceService {
     if (payload.marketplace?.requirements !== undefined) allowed["marketplace.requirements"] = payload.marketplace.requirements;
     if (payload.marketplace?.assets !== undefined) allowed["marketplace.assets"] = payload.marketplace.assets;
     if (!Object.keys(allowed).length) throw new AppError("No campaign updates supplied", 400, "VALIDATION_ERROR");
+    const pricingKeys = new Set(["commissionPercent", "fixedFee", "paymentType", "attributionWindowDays", "pricing", "paymentModelSnapshot", "influencerRateSnapshot", "requirementsSnapshot"]);
+    const touchesPricing = Object.keys(allowed).some((key) => pricingKeys.has(key));
+    if (touchesPricing) {
+      const current = await Campaign.findById(campaignId).select("contractSnapshot.locked termsFrozen.frozenAt").lean();
+      if (current?.contractSnapshot?.locked || current?.termsFrozen?.frozenAt) {
+        throw new AppError("Campaign pricing is locked after acceptance", 409, "CAMPAIGN_PRICING_LOCKED");
+      }
+    }
 
     const historyState = allowed.state || payload.action || "updated";
     const campaign = await Campaign.findByIdAndUpdate(

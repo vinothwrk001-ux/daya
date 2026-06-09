@@ -496,6 +496,76 @@ const verificationBankSchema = Joi.object({
 });
 
 const profileSettingsSchema = Joi.object().unknown(true);
+const servicePackageSchema = Joi.object({
+  id: Joi.string().allow("").optional(),
+  _id: Joi.string().allow("").optional(),
+  packageName: Joi.string().trim().max(160).allow("").optional(),
+  name: Joi.string().trim().max(160).allow("").optional(),
+  label: Joi.string().trim().max(160).allow("").optional(),
+  quantity: Joi.number().integer().min(1).default(1),
+  price: Joi.number().min(0).default(0),
+  currency: Joi.string().trim().max(8).default("INR"),
+  deliveryDays: Joi.number().integer().min(0).default(0),
+  deliveryLabel: Joi.string().trim().max(120).allow("").optional(),
+  revisionCount: Joi.number().integer().min(0).default(0),
+  description: Joi.string().trim().max(1200).allow("").default(""),
+  status: Joi.string().valid("draft", "active", "inactive", "archived").default("active"),
+  metadata: Joi.object().unknown(true).default({}),
+}).unknown(true);
+const serviceItemSchema = Joi.object({
+  id: Joi.string().allow("").optional(),
+  _id: Joi.string().allow("").optional(),
+  serviceTypeId: Joi.string().allow("").optional(),
+  serviceTypeKey: Joi.string().trim().max(120).allow("").optional(),
+  serviceType: Joi.string().trim().max(120).allow("").optional(),
+  key: Joi.string().trim().max(120).allow("").optional(),
+  serviceName: Joi.string().trim().max(160).allow("").optional(),
+  name: Joi.string().trim().max(160).allow("").optional(),
+  serviceCategory: Joi.string().trim().max(120).allow("").optional(),
+  category: Joi.string().trim().max(120).allow("").optional(),
+  price: Joi.number().min(0).default(0),
+  currency: Joi.string().trim().max(8).default("INR"),
+  deliveryDays: Joi.number().integer().min(0).default(0),
+  deliveryLabel: Joi.string().trim().max(120).allow("").optional(),
+  revisionCount: Joi.number().integer().min(0).default(0),
+  minimumNoticePeriod: Joi.number().integer().min(0).default(0),
+  minNoticePeriod: Joi.number().integer().min(0).optional(),
+  contentApprovalRequired: Joi.boolean().default(false),
+  brandApprovalRequired: Joi.boolean().default(false),
+  approvalRequired: Joi.boolean().optional(),
+  active: Joi.boolean().optional(),
+  description: Joi.string().trim().max(1200).allow("").default(""),
+  status: Joi.string().valid("draft", "active", "inactive", "archived").default("active"),
+  packages: Joi.array().items(servicePackageSchema).max(50).optional(),
+  metadata: Joi.object().unknown(true).default({}),
+}).unknown(true);
+const servicesSchema = Joi.object({
+  replace: Joi.boolean().optional(),
+  services: Joi.array().items(serviceItemSchema).max(100).default([]),
+}).unknown(true);
+const requirementsSchema = Joi.object({
+  minimumBudget: Joi.number().min(0).default(0),
+  minimumAttributionDays: Joi.number().integer().min(0).optional(),
+  minimumAttributionWindow: Joi.number().integer().min(0).optional(),
+  productRequired: Joi.boolean().default(false),
+  sampleRequired: Joi.boolean().default(false),
+  productReturnRequired: Joi.boolean().default(false),
+  shippingRequired: Joi.boolean().default(false),
+  brandGuidelinesRequired: Joi.boolean().default(false),
+  creativeApprovalRequired: Joi.boolean().default(false),
+  contentApprovalRequired: Joi.boolean().default(false),
+  approvalRequired: Joi.boolean().optional(),
+  languages: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()).optional(),
+  categories: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()).optional(),
+  preferredCategories: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()).optional(),
+  targetAudience: Joi.string().trim().max(1200).allow("").default(""),
+  deliveryTime: Joi.string().trim().max(160).allow("").default(""),
+  communicationPreferences: Joi.string().trim().max(1200).allow("").default(""),
+  location: Joi.object().unknown(true).optional(),
+  shippingAddress: Joi.alternatives().try(Joi.object().unknown(true), Joi.string().allow("")).optional(),
+  notes: Joi.string().trim().max(2000).allow("").default(""),
+  customFields: Joi.object().unknown(true).default({}),
+}).unknown(true);
 const settingsPasswordSchema = Joi.object({
   currentPassword: Joi.string().min(6).max(128).required(),
   newPassword: Joi.string().min(8).max(128).required(),
@@ -620,6 +690,11 @@ router.post("/collections/:id/products", authRequired, requireRole("influencer")
 router.post("/register", authRequired, requireRole("influencer", "user"), validate(saveSchema), controller.register);
 router.get("/profile", authRequired, requireRole("influencer"), controller.profile);
 router.put("/profile", authRequired, requireRole("influencer"), validate(saveSchema), controller.update);
+router.get("/commerce-profile", authRequired, requireRole("influencer"), controller.commerceProfile);
+router.get("/services", authRequired, requireRole("influencer"), controller.commerceProfile);
+router.put("/services", authRequired, requireRole("influencer"), validate(servicesSchema), controller.saveServices);
+router.get("/requirements", authRequired, requireRole("influencer"), controller.commerceProfile);
+router.put("/requirements", authRequired, requireRole("influencer"), validate(requirementsSchema), controller.saveRequirements);
 router.post("/generate-affiliate-link", authRequired, requireRole("influencer"), validate(affiliateLinkSchema), controller.generateAffiliateLink);
 router.get("/dashboard", authRequired, requireRole("influencer"), validate(dashboardQuery, "query"), controller.dashboard);
 router.get("/earnings", authRequired, requireRole("influencer"), validate(earningsQuery, "query"), controller.earnings);

@@ -11,12 +11,15 @@ const prorationPreview = asyncHandler(async (req, res) => ok(res, await service.
 const createPlanChangeOrder = asyncHandler(async (req, res) => ok(res, await service.createPlanChangeOrder(req.user.sub, req.body), "Subscription change order created"));
 const confirmPlanChange = asyncHandler(async (req, res) => ok(res, await service.confirmPlanChange(req.user.sub, req.body), "Subscription change confirmed"));
 const cancelSubscription = asyncHandler(async (req, res) => ok(res, await service.cancelSubscription(req.user.sub), "Subscription cancelled"));
+const configuration = asyncHandler(async (_req, res) => ok(res, await service.configuration(), "Influencer commerce configuration loaded"));
 const discover = asyncHandler(async (req, res) => ok(res, await service.discover(req.user.sub, req.query), "Influencers loaded"));
+const creatorProfile = asyncHandler(async (req, res) => ok(res, await service.creatorProfile(req.user.sub, req.params.influencerId), "Influencer profile loaded"));
 const relationships = asyncHandler(async (req, res) => ok(res, await service.relationships(req.user.sub, req.query), "Influencer relationships loaded"));
 const saveInfluencer = asyncHandler(async (req, res) => ok(res, await service.saveInfluencer(req.user.sub, req.params.influencerId, req.body.saved !== false), "Influencer saved"));
 const visitInfluencer = asyncHandler(async (req, res) => ok(res, await service.visitInfluencer(req.user.sub, req.params.influencerId), "Influencer visit recorded"));
 const updateRelationship = asyncHandler(async (req, res) => ok(res, await service.updateRelationship(req.user.sub, req.params.influencerId, req.body), "Influencer relationship updated"));
 const createCampaign = asyncHandler(async (req, res) => ok(res, await service.createCampaign(req.user.sub, req.body), "Campaign created"));
+const campaignPreview = asyncHandler(async (req, res) => ok(res, await service.campaignPreview(req.user.sub, req.body), "Campaign pricing preview generated"));
 const campaigns = asyncHandler(async (req, res) => ok(res, await service.campaigns(req.user.sub, req.query), "Campaigns loaded"));
 const reviewApplication = asyncHandler(async (req, res) => ok(res, await service.reviewApplication(req.user.sub, req.params.campaignId, req.params.influencerId, req.body), "Campaign application reviewed"));
 const updateCampaignStatus = asyncHandler(async (req, res) => ok(res, await service.updateCampaignStatus(req.user.sub, req.params.campaignId, req.body), "Campaign status updated"));
@@ -40,12 +43,15 @@ module.exports = {
   createPlanChangeOrder,
   confirmPlanChange,
   cancelSubscription,
+  configuration,
   discover,
+  creatorProfile,
   relationships,
   saveInfluencer,
   visitInfluencer,
   updateRelationship,
   createCampaign,
+  campaignPreview,
   campaigns,
   reviewApplication,
   updateCampaignStatus,

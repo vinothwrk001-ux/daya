@@ -12,6 +12,16 @@ const listQuery = Joi.object({
   category: Joi.string().trim().allow("").optional(),
   country: Joi.string().trim().allow("").optional(),
   language: Joi.string().trim().allow("").optional(),
+  serviceType: Joi.string().trim().allow("").optional(),
+  minPrice: Joi.number().min(0).optional(),
+  maxPrice: Joi.number().min(0).optional(),
+  reelPrice: Joi.number().min(0).optional(),
+  postPrice: Joi.number().min(0).optional(),
+  storyPrice: Joi.number().min(0).optional(),
+  livePrice: Joi.number().min(0).optional(),
+  ratingMin: Joi.number().min(0).max(5).optional(),
+  scoreMin: Joi.number().min(0).max(100).optional(),
+  completionMin: Joi.number().min(0).max(100).optional(),
   minFollowers: Joi.number().min(0).optional(),
   maxFollowers: Joi.number().min(0).optional(),
   sort: Joi.string().trim().allow("").optional(),
@@ -38,8 +48,32 @@ const campaignPayload = Joi.object({
   category: Joi.string().trim().allow("").default(""),
   country: Joi.string().trim().allow("").default(""),
   language: Joi.string().trim().allow("").default("en"),
-  commissionPercent: Joi.number().min(0).max(50).required(),
+  commissionPercent: Joi.number().min(0).max(50).default(0),
   fixedFee: Joi.number().min(0).default(0),
+  paymentType: Joi.string().valid("fixed", "commission", "hybrid", "free_product").optional(),
+  attributionDays: Joi.number().integer().min(1).max(365).optional(),
+  services: Joi.array().items(Joi.object().unknown(true)).default([]),
+  selectedServices: Joi.array().items(Joi.object().unknown(true)).default([]),
+  dynamicFields: Joi.object().unknown(true).default({}),
+  paymentModel: Joi.object({
+    paymentType: Joi.string().valid("fixed", "commission", "hybrid", "free_product").optional(),
+    type: Joi.string().trim().allow("").optional(),
+    services: Joi.array().items(Joi.object().unknown(true)).default([]),
+    selectedServices: Joi.array().items(Joi.object().unknown(true)).default([]),
+    fixedFee: Joi.number().min(0).optional(),
+    commissionPercentage: Joi.number().min(0).max(50).optional(),
+    commissionPercent: Joi.number().min(0).max(50).optional(),
+    attributionDays: Joi.number().integer().min(1).max(365).optional(),
+    expectedBudget: Joi.number().min(0).optional(),
+    productValue: Joi.number().min(0).optional(),
+    shippingCost: Joi.number().min(0).optional(),
+    taxes: Joi.number().min(0).optional(),
+    platformFees: Joi.number().min(0).optional(),
+    returnRequired: Joi.boolean().optional(),
+    dynamicFields: Joi.object().unknown(true).default({}),
+    currency: Joi.string().trim().max(8).optional(),
+  }).unknown(true).optional(),
+  payment: Joi.object().unknown(true).optional(),
   budget: Joi.number().min(0).optional(),
   deadline: Joi.date().iso().allow(null),
   marketplace: Joi.object({
@@ -113,6 +147,8 @@ router.post(
   controller.subscribe
 );
 router.get("/discover", validate(listQuery, "query"), controller.discover);
+router.get("/configuration", controller.configuration);
+router.get("/creators/:influencerId", controller.creatorProfile);
 router.get("/relationships", validate(listQuery, "query"), controller.relationships);
 router.patch("/relationships/:influencerId/save", validate(Joi.object({ saved: Joi.boolean().default(true) })), controller.saveInfluencer);
 router.post("/relationships/:influencerId/visit", controller.visitInfluencer);
@@ -129,6 +165,7 @@ router.patch(
 );
 
 router.get("/campaigns", validate(listQuery, "query"), controller.campaigns);
+router.post("/campaigns/preview", validate(campaignPayload), controller.campaignPreview);
 router.post("/campaigns", validate(campaignPayload), controller.createCampaign);
 router.patch(
   "/campaigns/:campaignId/status",

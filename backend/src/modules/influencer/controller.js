@@ -3,6 +3,7 @@ const { asyncHandler } = require("../../utils/asyncHandler");
 const { uploadMany } = require("../../utils/upload");
 const influencerService = require("./service");
 const commissionService = require("../commission/service");
+const influencerRateCardService = require("../../services/influencer-rate-card.service");
 
 const checkEmail = asyncHandler(async (req, res) =>
   ok(res, await influencerService.checkEmail(req.query.email), "Email availability checked")
@@ -177,6 +178,15 @@ const saveVerificationBank = asyncHandler(async (req, res) =>
     "Bank information submitted"
   )
 );
+const commerceProfile = asyncHandler(async (req, res) =>
+  ok(res, await influencerRateCardService.getMyCommerceProfile(req.user.sub), "Influencer commerce profile loaded")
+);
+const saveServices = asyncHandler(async (req, res) =>
+  ok(res, await influencerRateCardService.saveMyServices(req.user.sub, req.body), "Influencer services saved")
+);
+const saveRequirements = asyncHandler(async (req, res) =>
+  ok(res, await influencerRateCardService.saveMyRequirements(req.user.sub, req.body), "Influencer requirements saved")
+);
 
 module.exports = {
   checkEmail,
@@ -247,4 +257,7 @@ module.exports = {
   uploadVerificationDocuments,
   saveVerificationTax,
   saveVerificationBank,
+  commerceProfile,
+  saveServices,
+  saveRequirements,
 };

@@ -108,6 +108,7 @@ const INFLUENCER_SECTIONS = [
     key: "campaigns",
     items: [
       { name: "Available Campaigns", path: "/influencer/campaigns", icon: Megaphone },
+      { name: "My Services", path: "/influencer/campaigns", matchSearch: "?tab=services", icon: Settings },
       { name: "Recommended Campaigns", path: "/influencer/campaigns", matchSearch: "?tab=recommended", icon: Star },
       { name: "Applied Campaigns", path: "/influencer/campaigns", matchSearch: "?tab=applied", icon: ClipboardList },
       { name: "Active Campaigns", path: "/influencer/campaigns", matchSearch: "?tab=active", icon: CheckCircle2 },
@@ -200,7 +201,7 @@ const PAGE_META = {
   },
   "/influencer/campaigns": {
     title: "Campaign Marketplace",
-    subtitle: "Discover, apply, manage deliverables, and analyze brand campaign performance.",
+    subtitle: "Configure services, discover campaigns, manage deliverables, and analyze brand performance.",
   },
   "/influencer/reels/upload": {
     title: "Upload a reel",

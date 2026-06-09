@@ -3,6 +3,7 @@ const vendorRepo = require("../../repositories/vendor.repository");
 const productRepo = require("../../repositories/product.repository");
 const influencerService = require("../influencer/service");
 const influencerCommerceEngine = require("../../services/influencer-commerce-engine.service");
+const influencerRateCardService = require("../../services/influencer-rate-card.service");
 const { emitDomainEvent } = require("../events/event-bus");
 const { INFLUENCER_EVENTS } = require("../shared/constants");
 const { CommissionRecord } = require("../commission/models");
@@ -205,6 +206,11 @@ class CampaignService {
     await influencerCommerceEngine.enforceCampaignLimit(vendor._id);
 
     await ensureVendorOwnsProducts(vendor._id, payload.productIds);
+    const pricing = await influencerRateCardService.calculateCampaignPricing({
+      vendorId: vendor._id,
+      influencerId: influencer._id,
+      payload,
+    });
 
     const campaign = await Campaign.create({
       vendorId: vendor._id,
@@ -212,7 +218,7 @@ class CampaignService {
       title: payload.title || "",
       description: payload.description || "",
       banner: payload.banner || "",
-      campaignType: payload.campaignType || "affiliate",
+      campaignType: pricing.campaignType || payload.campaignType || "affiliate",
       category: payload.category || "",
       country: payload.country || "",
       language: payload.language || "en",
@@ -225,13 +231,20 @@ class CampaignService {
         assets: payload.marketplace?.assets || [],
       },
       productIds: payload.productIds,
-      commissionPercent: payload.commissionPercent,
-      fixedFee: payload.fixedFee || 0,
+      commissionPercent: pricing.commissionPercentage,
+      fixedFee: pricing.fixedFee,
+      paymentType: pricing.paymentType,
+      attributionWindowDays: pricing.attributionDays,
+      pricing: pricing.pricing,
+      paymentModelSnapshot: pricing.paymentModel,
+      influencerRateSnapshot: pricing.influencerSnapshot,
+      requirementsSnapshot: pricing.influencerSnapshot?.requirements || {},
       deadline: payload.deadline,
       state: "proposed",
       history: [pushHistory("proposed", userId, "Campaign proposed by vendor")],
     });
-    await influencerCommerceEngine.ensureCampaignBudgetControl(campaign, payload.budget || payload.fixedFee || 0);
+    await influencerRateCardService.attachCampaignPricing(campaign, pricing);
+    await influencerCommerceEngine.ensureCampaignBudgetControl(campaign, pricing.budgetValue || payload.budget || campaign.fixedFee || 0);
     return campaign;
   }
 
@@ -270,6 +283,11 @@ class CampaignService {
     );
 
     await upsertProductAssignments({ campaign: updated, influencerId: updated.influencerId, status: "accepted", source: "influencer_acceptance", actorId: userId });
+    const locked = await influencerRateCardService.lockCampaignContract(updated._id, {
+      influencerId: updated.influencerId,
+      actorId: userId,
+      source: "influencer_acceptance",
+    });
 
     await emitDomainEvent(INFLUENCER_EVENTS.CAMPAIGN_ACTIVATED, {
       campaignId: updated._id,
@@ -277,7 +295,7 @@ class CampaignService {
       vendorId: updated.vendorId,
     });
 
-    return updated;
+    return locked;
   }
 
   async reject(userId, campaignId, note = "") {

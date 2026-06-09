@@ -15,6 +15,22 @@ const {
   BudgetProtectionRule,
   MarketplaceRankingRule,
   InfluencerPlatformConfiguration,
+  InfluencerServiceType,
+  InfluencerPackageTemplate,
+  InfluencerCategoryOption,
+  InfluencerLanguageOption,
+  CampaignAttributionWindow,
+  CampaignPaymentModelConfig,
+  CampaignTypeConfig,
+  CampaignPaymentModelOption,
+  CampaignPaymentRuleConfig,
+  CampaignDynamicFieldConfig,
+  CampaignValidationRuleConfig,
+  InfluencerRequirementField,
+  InfluencerCampaignTemplate,
+  InfluencerDiscoveryRule,
+  InfluencerCampaignRule,
+  InfluencerDynamicFormField,
   InfluencerConfigVersion,
   ConfigAuditLog,
 } = require("../models/InfluencerCommerceConfig");
@@ -29,6 +45,22 @@ const ENTITY = {
   budgetRules: BudgetProtectionRule,
   rankingRules: MarketplaceRankingRule,
   platformConfigurations: InfluencerPlatformConfiguration,
+  serviceTypes: InfluencerServiceType,
+  packageTemplates: InfluencerPackageTemplate,
+  categoryOptions: InfluencerCategoryOption,
+  languageOptions: InfluencerLanguageOption,
+  attributionWindows: CampaignAttributionWindow,
+  paymentModels: CampaignPaymentModelConfig,
+  campaignTypes: CampaignTypeConfig,
+  paymentModelOptions: CampaignPaymentModelOption,
+  campaignPaymentRules: CampaignPaymentRuleConfig,
+  campaignDynamicFields: CampaignDynamicFieldConfig,
+  campaignValidationRules: CampaignValidationRuleConfig,
+  requirementFields: InfluencerRequirementField,
+  campaignTemplates: InfluencerCampaignTemplate,
+  discoveryRules: InfluencerDiscoveryRule,
+  campaignRules: InfluencerCampaignRule,
+  dynamicFormFields: InfluencerDynamicFormField,
 };
 
 function actorId(actor) {
@@ -87,6 +119,246 @@ function exactNameRegex(value = "") {
 function configVersion(doc) {
   return Number(doc?.approval?.version || doc?.version || 1);
 }
+
+const SERVICE_TYPE_DEFAULTS = [
+  ["reel", "Reel", 1],
+  ["post", "Post", 2],
+  ["story", "Story", 3],
+  ["live_stream", "Live Stream", 4],
+  ["short_video", "Short Video", 5],
+  ["unboxing_video", "Unboxing Video", 6],
+  ["review_video", "Review Video", 7],
+  ["storefront_promotion", "Storefront Promotion", 8],
+  ["collection_promotion", "Collection Promotion", 9],
+  ["affiliate_promotion", "Affiliate Promotion", 10],
+  ["custom_service", "Custom Service", 99],
+].map(([key, label, displayOrder]) => ({
+  key,
+  label,
+  displayOrder,
+  defaultCurrency: "INR",
+  defaultDeliveryDays: key === "live_stream" ? 0 : 3,
+  defaultRevisionCount: 1,
+  approval: { status: "active", version: 1 },
+}));
+
+const PACKAGE_TEMPLATE_DEFAULTS = [
+  ["single", "Single Deliverable", "", "Single Deliverable", 1, 3, 1, 1],
+  ["bundle_3", "Three Deliverables", "", "Three Deliverables", 3, 5, 1, 2],
+  ["bundle_5", "Five Deliverables", "", "Five Deliverables", 5, 7, 2, 3],
+].map(([key, label, serviceTypeKey, packageName, quantity, defaultDeliveryDays, defaultRevisionCount, displayOrder]) => ({
+  key,
+  label,
+  serviceTypeKey,
+  packageName,
+  quantity,
+  defaultDeliveryDays,
+  defaultRevisionCount,
+  displayOrder,
+  approval: { status: "active", version: 1 },
+}));
+
+const CATEGORY_OPTION_DEFAULTS = [
+  ["fashion", "Fashion", 1],
+  ["beauty", "Beauty", 2],
+  ["fitness", "Fitness", 3],
+  ["food", "Food", 4],
+  ["technology", "Technology", 5],
+  ["home", "Home", 6],
+  ["travel", "Travel", 7],
+].map(([key, label, displayOrder]) => ({
+  key,
+  label,
+  displayOrder,
+  approval: { status: "active", version: 1 },
+}));
+
+const LANGUAGE_OPTION_DEFAULTS = [
+  ["en", "English", 1],
+  ["hi", "Hindi", 2],
+  ["ta", "Tamil", 3],
+  ["te", "Telugu", 4],
+  ["ml", "Malayalam", 5],
+  ["kn", "Kannada", 6],
+].map(([key, label, displayOrder]) => ({
+  key,
+  label,
+  displayOrder,
+  approval: { status: "active", version: 1 },
+}));
+
+const ATTRIBUTION_WINDOW_DEFAULTS = [
+  { key: "30_days", label: "30 Days", days: 30, displayOrder: 1 },
+  { key: "60_days", label: "60 Days", days: 60, displayOrder: 2 },
+  { key: "90_days", label: "90 Days", days: 90, displayOrder: 3 },
+  { key: "custom", label: "Custom", days: 30, customAllowed: true, minDays: 1, maxDays: 365, displayOrder: 99 },
+].map((row) => ({ ...row, approval: { status: "active", version: 1 } }));
+
+const PAYMENT_MODEL_DEFAULTS = [
+  {
+    key: "fixed",
+    label: "Fixed Payment",
+    requiresFixedFee: true,
+    fields: [
+      { key: "services", label: "Services", fieldType: "json", required: true, displayOrder: 1 },
+      { key: "quantity", label: "Quantity", fieldType: "number", required: true, min: 1, defaultValue: 1, displayOrder: 2 },
+      { key: "total", label: "Total", fieldType: "currency", required: true, displayOrder: 3 },
+    ],
+    budgetComponents: ["fixedCost", "taxes", "platformFees"],
+    displayOrder: 1,
+  },
+  {
+    key: "commission",
+    label: "Commission Model",
+    requiresCommission: true,
+    requiresAttributionWindow: true,
+    fields: [
+      { key: "commissionPercentage", label: "Commission %", fieldType: "percentage", required: true, min: 0, max: 50, displayOrder: 1 },
+      { key: "attributionDays", label: "Attribution Window", fieldType: "number", required: true, defaultValue: 30, displayOrder: 2 },
+      { key: "expectedBudget", label: "Expected Budget", fieldType: "currency", required: false, displayOrder: 3 },
+    ],
+    budgetComponents: ["commissionReserve", "taxes", "platformFees"],
+    displayOrder: 2,
+  },
+  {
+    key: "hybrid",
+    label: "Hybrid Model",
+    requiresFixedFee: true,
+    requiresCommission: true,
+    requiresAttributionWindow: true,
+    fields: [
+      { key: "services", label: "Services", fieldType: "json", required: true, displayOrder: 1 },
+      { key: "fixedFee", label: "Fixed Fee", fieldType: "currency", required: true, displayOrder: 2 },
+      { key: "commissionPercentage", label: "Commission %", fieldType: "percentage", required: true, min: 0, max: 50, displayOrder: 3 },
+      { key: "attributionDays", label: "Attribution Window", fieldType: "number", required: true, defaultValue: 30, displayOrder: 4 },
+    ],
+    budgetComponents: ["fixedCost", "commissionReserve", "taxes", "platformFees"],
+    displayOrder: 3,
+  },
+  {
+    key: "free_product",
+    label: "Free Product Promotion",
+    requiresProduct: true,
+    fields: [
+      { key: "productValue", label: "Product Value", fieldType: "currency", required: true, displayOrder: 1 },
+      { key: "shippingCost", label: "Shipping", fieldType: "currency", required: false, displayOrder: 2 },
+      { key: "returnRequired", label: "Return Required", fieldType: "boolean", required: false, defaultValue: false, displayOrder: 3 },
+    ],
+    budgetComponents: ["productCost", "shippingCost", "taxes", "platformFees"],
+    displayOrder: 4,
+  },
+].map((row) => ({ ...row, approval: { status: "active", version: 1 } }));
+
+const CAMPAIGN_TYPE_DEFAULTS = [
+  ["affiliate", "Affiliate Campaign", "Drive tracked sales through affiliate links.", 1],
+  ["sponsored", "Sponsored Campaign", "Brand awareness and sponsored content.", 2],
+  ["ugc", "UGC Campaign", "Purchase creator-generated content.", 3],
+  ["video", "Video Campaign", "Reels, Shorts, video reviews, and product videos.", 4],
+  ["live_commerce", "Live Commerce Campaign", "Live selling and real-time commerce.", 5],
+  ["brand_ambassador", "Brand Ambassador Program", "Long-term creator partnerships.", 6],
+  ["custom", "Custom Campaign", "Admin-configured campaign workflow for future campaign types.", 99],
+].map(([slug, name, purpose, displayOrder]) => ({
+  slug,
+  name,
+  description: purpose,
+  purpose,
+  status: "active",
+  displayOrder,
+  approval: { status: "active", version: 1 },
+}));
+
+const PAYMENT_MODEL_OPTION_DEFAULTS = [
+  ["fixed", "Fixed Payment", "Pay a fixed creator fee for agreed deliverables.", 1],
+  ["commission", "Commission Model", "Pay through attributed sales commission.", 2],
+  ["hybrid", "Hybrid Model", "Combine a fixed fee with attributed sales commission.", 3],
+  ["free_product", "Free Product Promotion", "Provide product value instead of direct cash payment.", 4],
+].map(([slug, name, description, displayOrder]) => ({
+  slug,
+  name,
+  description,
+  status: "active",
+  displayOrder,
+  approval: { status: "active", version: 1 },
+}));
+
+const CAMPAIGN_PAYMENT_RULE_MATRIX = {
+  affiliate: ["commission", "hybrid"],
+  sponsored: ["fixed", "hybrid"],
+  ugc: ["fixed", "free_product"],
+  video: ["fixed", "hybrid", "free_product"],
+  live_commerce: ["commission", "hybrid"],
+  brand_ambassador: ["fixed", "hybrid"],
+  custom: ["fixed", "commission", "hybrid", "free_product"],
+};
+
+const CAMPAIGN_DYNAMIC_FIELD_DEFAULTS = {
+  fixed: [
+    ["fixedFee", "Fixed Amount", "currency", true, { min: 0 }],
+    ["currency", "Currency", "select", true, { defaultValue: "INR", options: [{ label: "INR", value: "INR" }] }],
+    ["milestonePayment", "Milestone Payment", "boolean", false, { defaultValue: false }],
+    ["selectedServices", "Deliverables", "service_selector", false, {}],
+    ["paymentSchedule", "Payment Schedule", "textarea", false, {}],
+  ],
+  commission: [
+    ["commissionPercent", "Commission %", "percentage", true, { min: 0, max: 50, defaultValue: 10 }],
+    ["attributionDays", "Attribution Window", "select", true, { defaultValue: 30, source: "attributionWindows" }],
+    ["commissionRules", "Commission Rules", "textarea", false, {}],
+    ["expectedBudget", "Maximum Budget", "currency", false, { min: 0 }],
+    ["commissionCap", "Commission Cap", "currency", false, { min: 0 }],
+    ["affiliateTrackingEnabled", "Affiliate Tracking Enabled", "boolean", false, { defaultValue: true, readOnly: true }],
+  ],
+  hybrid: [
+    ["fixedFee", "Fixed Fee", "currency", true, { min: 0 }],
+    ["commissionPercent", "Commission %", "percentage", true, { min: 0, max: 50, defaultValue: 10 }],
+    ["attributionDays", "Attribution Window", "select", true, { defaultValue: 30, source: "attributionWindows" }],
+    ["expectedBudget", "Maximum Budget", "currency", false, { min: 0 }],
+    ["commissionCap", "Commission Cap", "currency", false, { min: 0 }],
+    ["milestonePayment", "Milestone Payment", "boolean", false, { defaultValue: false }],
+    ["selectedServices", "Deliverables", "service_selector", false, {}],
+  ],
+  free_product: [
+    ["productValue", "Product Value", "currency", true, { min: 0 }],
+    ["shippingDetails", "Shipping Details", "textarea", false, {}],
+    ["expectedDeliverables", "Expected Deliverables", "textarea", false, {}],
+    ["returnRequired", "Return Required", "boolean", false, { defaultValue: false }],
+    ["productOwnershipTransfer", "Product Ownership Transfer", "boolean", false, { defaultValue: true }],
+  ],
+};
+
+const REQUIREMENT_FIELD_DEFAULTS = [
+  ["productRequired", "Product Required", "boolean", 1],
+  ["sampleRequired", "Sample Required", "boolean", 2],
+  ["productReturnRequired", "Product Return Required", "boolean", 3],
+  ["brandGuidelinesRequired", "Brand Guidelines Required", "boolean", 4],
+  ["creativeApprovalRequired", "Creative Approval Required", "boolean", 5],
+  ["contentApprovalRequired", "Content Approval Required", "boolean", 6],
+  ["minimumBudget", "Minimum Campaign Budget", "currency", 7],
+  ["minimumAttributionDays", "Minimum Attribution Window", "number", 8],
+  ["preferredCategories", "Preferred Categories", "multi_select", 9],
+  ["languages", "Languages", "multi_select", 10],
+  ["targetAudience", "Target Audience", "textarea", 11],
+  ["deliveryTime", "Delivery Time", "text", 12],
+  ["communicationPreferences", "Communication Preferences", "textarea", 13],
+  ["location", "Location", "location", 14],
+  ["shippingAddress", "Shipping Address", "address", 15],
+  ["notes", "Notes", "textarea", 16],
+].map(([key, label, fieldType, displayOrder]) => ({
+  key,
+  label,
+  fieldType,
+  displayOrder,
+  approval: { status: "active", version: 1 },
+}));
+
+const DYNAMIC_FORM_FIELD_DEFAULTS = PAYMENT_MODEL_DEFAULTS.flatMap((model) => (
+  model.fields.map((field) => ({
+    scope: "campaign_payment_model",
+    paymentType: model.key,
+    field,
+    displayOrder: field.displayOrder || model.displayOrder,
+    approval: { status: "active", version: 1 },
+  }))
+));
 
 async function logConfigChange({ actor, action, entityType, entityId, oldValue, newValue, reason = "", reqMeta = {} }) {
   await ConfigAuditLog.create({
@@ -171,6 +443,161 @@ function validateConfig(entityType, payload = {}) {
       throw new AppError("Tier minimum followers cannot be greater than maximum followers", 400, "INVALID_TIER_FOLLOWER_RANGE");
     }
   }
+  if (entityType === "campaignTypes") {
+    if (!payload.name || !payload.slug) throw new AppError("Campaign type name and slug are required", 400, "INVALID_CAMPAIGN_TYPE_CONFIG");
+  }
+  if (entityType === "paymentModelOptions") {
+    if (!payload.name || !payload.slug) throw new AppError("Payment model name and slug are required", 400, "INVALID_PAYMENT_MODEL_CONFIG");
+  }
+  if (entityType === "campaignPaymentRules") {
+    if (!payload.campaignTypeId || !payload.paymentModelId) throw new AppError("Campaign payment rules require campaignTypeId and paymentModelId", 400, "INVALID_PAYMENT_RULE_CONFIG");
+  }
+  if (entityType === "campaignDynamicFields") {
+    if (!payload.campaignTypeId || !payload.paymentModelId || !payload.fieldName) {
+      throw new AppError("Campaign dynamic fields require campaignTypeId, paymentModelId, and fieldName", 400, "INVALID_DYNAMIC_FIELD_CONFIG");
+    }
+  }
+  if (entityType === "campaignValidationRules") {
+    if (!payload.campaignTypeId || !payload.paymentModelId || !payload.ruleName) {
+      throw new AppError("Campaign validation rules require campaignTypeId, paymentModelId, and ruleName", 400, "INVALID_VALIDATION_RULE_CONFIG");
+    }
+  }
+}
+
+function configKey(row = {}) {
+  if (typeof row === "string") return row.trim().toLowerCase();
+  return String(row.slug || row.key || row.fieldName || "").trim().toLowerCase();
+}
+
+function configLabel(row = {}) {
+  if (typeof row === "string") return row;
+  return row.name || row.label || row.field?.label || row.fieldName || row.slug || row.key || "";
+}
+
+function isActiveCampaignConfig(row = {}) {
+  return row.status !== "inactive" && row.status !== "archived" && row.approval?.status === "active";
+}
+
+function normalizeCampaignDynamicField(field = {}, campaignTypeMap = new Map(), paymentModelMap = new Map()) {
+  const configuration = field.configuration || field.field?.configuration || {};
+  const fieldName = field.fieldName || field.field?.key || field.key || "";
+  return {
+    id: field._id,
+    campaignTypeId: field.campaignTypeId,
+    campaignType: campaignTypeMap.get(String(field.campaignTypeId))?.slug || "",
+    paymentModelId: field.paymentModelId,
+    paymentType: paymentModelMap.get(String(field.paymentModelId))?.slug || field.paymentType || "",
+    fieldName,
+    key: fieldName,
+    label: field.label || field.field?.label || fieldName,
+    fieldType: field.fieldType || field.field?.fieldType || "text",
+    type: field.fieldType || field.field?.fieldType || "text",
+    required: Boolean(field.required ?? field.field?.required),
+    configuration,
+    options: configuration.options || field.field?.options || [],
+    min: configuration.min ?? field.field?.min,
+    max: configuration.max ?? field.field?.max,
+    defaultValue: configuration.defaultValue ?? field.field?.defaultValue ?? null,
+    displayOrder: Number(field.displayOrder || field.field?.displayOrder || 0),
+  };
+}
+
+function buildCampaignRuleEngineConfig({
+  campaignTypes = [],
+  paymentModelOptions = [],
+  campaignPaymentRules = [],
+  campaignDynamicFields = [],
+  campaignValidationRules = [],
+  attributionWindows = [],
+} = {}) {
+  const activeTypes = campaignTypes.filter(isActiveCampaignConfig).map((row) => ({
+    id: row._id,
+    key: configKey(row),
+    slug: configKey(row),
+    label: configLabel(row),
+    name: configLabel(row),
+    description: row.description || "",
+    purpose: row.purpose || row.description || "",
+    displayOrder: Number(row.displayOrder || 0),
+  })).sort((a, b) => a.displayOrder - b.displayOrder || a.label.localeCompare(b.label));
+  const activePayments = paymentModelOptions.filter(isActiveCampaignConfig).map((row) => ({
+    id: row._id,
+    key: configKey(row),
+    slug: configKey(row),
+    label: configLabel(row),
+    name: configLabel(row),
+    description: row.description || "",
+    displayOrder: Number(row.displayOrder || 0),
+    metadata: row.metadata || {},
+  })).sort((a, b) => a.displayOrder - b.displayOrder || a.label.localeCompare(b.label));
+  const campaignTypeMap = new Map(campaignTypes.map((row) => [String(row._id), row]));
+  const paymentModelMap = new Map(paymentModelOptions.map((row) => [String(row._id), row]));
+  const paymentByKey = new Map(activePayments.map((row) => [row.key, row]));
+  const fieldsByCombination = {};
+  const normalizedFields = campaignDynamicFields
+    .filter((row) => row.approval?.status === "active")
+    .map((row) => normalizeCampaignDynamicField(row, campaignTypeMap, paymentModelMap))
+    .filter((row) => row.campaignType && row.paymentType)
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.label.localeCompare(b.label));
+
+  normalizedFields.forEach((field) => {
+    const key = `${field.campaignType}:${field.paymentType}`;
+    fieldsByCombination[key] = [...(fieldsByCombination[key] || []), field];
+  });
+
+  const rulesByType = campaignPaymentRules
+    .filter((row) => row.approval?.status === "active" && row.status !== "inactive" && row.status !== "archived")
+    .reduce((map, row) => {
+      const type = campaignTypeMap.get(String(row.campaignTypeId));
+      const payment = paymentModelMap.get(String(row.paymentModelId));
+      const typeKey = configKey(type);
+      const paymentKey = configKey(payment);
+      if (!typeKey || !paymentKey) return map;
+      const entry = map.get(typeKey) || { allowed: new Set(), blocked: new Set() };
+      if (row.allowed) entry.allowed.add(paymentKey);
+      else entry.blocked.add(paymentKey);
+      map.set(typeKey, entry);
+      return map;
+    }, new Map());
+
+  const validationRulesByCombination = campaignValidationRules
+    .filter((row) => row.approval?.status === "active")
+    .reduce((map, row) => {
+      const typeKey = configKey(campaignTypeMap.get(String(row.campaignTypeId)));
+      const paymentKey = configKey(paymentModelMap.get(String(row.paymentModelId)));
+      if (!typeKey || !paymentKey) return map;
+      const key = `${typeKey}:${paymentKey}`;
+      map[key] = [...(map[key] || []), {
+        id: row._id,
+        ruleName: row.ruleName,
+        severity: row.severity || "error",
+        configuration: row.ruleConfiguration || {},
+      }];
+      return map;
+    }, {});
+
+  return {
+    campaignTypes: activeTypes.map((type) => {
+      const rule = rulesByType.get(type.key) || { allowed: new Set(activePayments.map((payment) => payment.key)), blocked: new Set() };
+      const allowedPaymentModels = [...rule.allowed]
+        .filter((key) => paymentByKey.has(key) && !rule.blocked.has(key))
+        .map((key) => paymentByKey.get(key));
+      return {
+        ...type,
+        allowedPaymentModels,
+        paymentModels: allowedPaymentModels,
+        defaultPaymentType: allowedPaymentModels[0]?.key || "",
+      };
+    }),
+    paymentModels: activePayments,
+    attributionWindows: attributionWindows
+      .filter((row) => row.approval?.status === "active" && !row.customAllowed)
+      .map((row) => ({ id: row._id, key: row.key, label: row.label, days: Number(row.days || 0), displayOrder: Number(row.displayOrder || 0) }))
+      .filter((row) => row.days > 0)
+      .sort((a, b) => a.displayOrder - b.displayOrder || a.days - b.days),
+    fieldsByCombination,
+    validationRulesByCombination,
+  };
 }
 
 class InfluencerCommerceEngineService {
@@ -378,6 +805,179 @@ class InfluencerCommerceEngineService {
         })),
       ]);
     }
+
+    const [
+      serviceTypeCount,
+      packageTemplateCount,
+      categoryOptionCount,
+      languageOptionCount,
+      attributionWindowCount,
+      paymentModelCount,
+      campaignTypeConfigCount,
+      campaignPaymentModelOptionCount,
+      campaignPaymentRuleConfigCount,
+      campaignDynamicFieldConfigCount,
+      campaignValidationRuleConfigCount,
+      requirementFieldCount,
+      campaignTemplateCount,
+      discoveryRuleCount,
+      campaignRuleCount,
+      dynamicFormFieldCount,
+    ] = await Promise.all([
+      InfluencerServiceType.countDocuments(),
+      InfluencerPackageTemplate.countDocuments(),
+      InfluencerCategoryOption.countDocuments(),
+      InfluencerLanguageOption.countDocuments(),
+      CampaignAttributionWindow.countDocuments(),
+      CampaignPaymentModelConfig.countDocuments(),
+      CampaignTypeConfig.countDocuments(),
+      CampaignPaymentModelOption.countDocuments(),
+      CampaignPaymentRuleConfig.countDocuments(),
+      CampaignDynamicFieldConfig.countDocuments(),
+      CampaignValidationRuleConfig.countDocuments(),
+      InfluencerRequirementField.countDocuments(),
+      InfluencerCampaignTemplate.countDocuments(),
+      InfluencerDiscoveryRule.countDocuments(),
+      InfluencerCampaignRule.countDocuments(),
+      InfluencerDynamicFormField.countDocuments(),
+    ]);
+
+    if (!serviceTypeCount) await InfluencerServiceType.insertMany(SERVICE_TYPE_DEFAULTS);
+    if (!packageTemplateCount) await InfluencerPackageTemplate.insertMany(PACKAGE_TEMPLATE_DEFAULTS);
+    if (!categoryOptionCount) await InfluencerCategoryOption.insertMany(CATEGORY_OPTION_DEFAULTS);
+    if (!languageOptionCount) await InfluencerLanguageOption.insertMany(LANGUAGE_OPTION_DEFAULTS);
+    if (!attributionWindowCount) await CampaignAttributionWindow.insertMany(ATTRIBUTION_WINDOW_DEFAULTS);
+    if (!paymentModelCount) await CampaignPaymentModelConfig.insertMany(PAYMENT_MODEL_DEFAULTS);
+    if (!campaignTypeConfigCount) await CampaignTypeConfig.insertMany(CAMPAIGN_TYPE_DEFAULTS);
+    if (!campaignPaymentModelOptionCount) await CampaignPaymentModelOption.insertMany(PAYMENT_MODEL_OPTION_DEFAULTS);
+    if (!campaignPaymentRuleConfigCount || !campaignDynamicFieldConfigCount || !campaignValidationRuleConfigCount) {
+      const [campaignTypes, paymentOptions] = await Promise.all([
+        CampaignTypeConfig.find({}).lean(),
+        CampaignPaymentModelOption.find({}).lean(),
+      ]);
+      const typeBySlug = new Map(campaignTypes.map((row) => [row.slug, row]));
+      const paymentBySlug = new Map(paymentOptions.map((row) => [row.slug, row]));
+
+      if (!campaignPaymentRuleConfigCount) {
+        const rules = Object.entries(CAMPAIGN_PAYMENT_RULE_MATRIX).flatMap(([campaignType, allowedModels]) => {
+          const campaignTypeId = typeBySlug.get(campaignType)?._id;
+          if (!campaignTypeId) return [];
+          return [...paymentBySlug.entries()].map(([paymentType, paymentModel]) => ({
+            campaignTypeId,
+            paymentModelId: paymentModel._id,
+            allowed: allowedModels.includes(paymentType),
+            status: "active",
+            reason: allowedModels.includes(paymentType)
+              ? `${paymentModel.name} is allowed for ${typeBySlug.get(campaignType)?.name}`
+              : `${paymentModel.name} is blocked for ${typeBySlug.get(campaignType)?.name}`,
+            approval: { status: "active", version: 1 },
+          }));
+        });
+        if (rules.length) await CampaignPaymentRuleConfig.insertMany(rules);
+      }
+
+      if (!campaignDynamicFieldConfigCount) {
+        const fields = Object.entries(CAMPAIGN_PAYMENT_RULE_MATRIX).flatMap(([campaignType, allowedModels]) => {
+          const campaignTypeId = typeBySlug.get(campaignType)?._id;
+          if (!campaignTypeId) return [];
+          return allowedModels.flatMap((paymentType) => {
+            const paymentModelId = paymentBySlug.get(paymentType)?._id;
+            if (!paymentModelId) return [];
+            return (CAMPAIGN_DYNAMIC_FIELD_DEFAULTS[paymentType] || []).map(([fieldName, label, fieldType, required, configuration], index) => ({
+              campaignTypeId,
+              paymentModelId,
+              fieldName,
+              label,
+              fieldType,
+              required,
+              configuration,
+              displayOrder: index + 1,
+              approval: { status: "active", version: 1 },
+            }));
+          });
+        });
+        if (fields.length) await CampaignDynamicFieldConfig.insertMany(fields);
+      }
+
+      if (!campaignValidationRuleConfigCount) {
+        const validationRules = Object.entries(CAMPAIGN_PAYMENT_RULE_MATRIX).flatMap(([campaignType, allowedModels]) => {
+          const campaignTypeId = typeBySlug.get(campaignType)?._id;
+          if (!campaignTypeId) return [];
+          return allowedModels.flatMap((paymentType) => {
+            const paymentModelId = paymentBySlug.get(paymentType)?._id;
+            if (!paymentModelId) return [];
+            const rules = [{
+              campaignTypeId,
+              paymentModelId,
+              ruleName: "payment_model_allowed",
+              ruleConfiguration: { campaignType, paymentType },
+              severity: "error",
+              approval: { status: "active", version: 1 },
+            }];
+            if (["commission", "hybrid"].includes(paymentType)) {
+              rules.push({
+                campaignTypeId,
+                paymentModelId,
+                ruleName: "attribution_window_required",
+                ruleConfiguration: { allowedWindows: [30, 60, 90], customVendorWindowAllowed: false },
+                severity: "error",
+                approval: { status: "active", version: 1 },
+              });
+              rules.push({
+                campaignTypeId,
+                paymentModelId,
+                ruleName: "affiliate_tracking_required",
+                ruleConfiguration: { clickTracking: true, conversionTracking: true, commissionLedger: true, payoutTracking: true },
+                severity: "error",
+                approval: { status: "active", version: 1 },
+              });
+            }
+            return rules;
+          });
+        });
+        if (validationRules.length) await CampaignValidationRuleConfig.insertMany(validationRules);
+      }
+    }
+    if (!requirementFieldCount) await InfluencerRequirementField.insertMany(REQUIREMENT_FIELD_DEFAULTS);
+    if (!campaignTemplateCount) {
+      await InfluencerCampaignTemplate.insertMany([
+        {
+          key: "direct_creator_campaign",
+          label: "Direct Creator Campaign",
+          campaignType: "sponsored",
+          defaultPaymentType: "fixed",
+          defaultDeliverables: ["content", "tracking_link"],
+          displayOrder: 1,
+          approval: { status: "active", version: 1 },
+        },
+        {
+          key: "global_marketplace_campaign",
+          label: "Global Marketplace Campaign",
+          campaignType: "affiliate",
+          defaultPaymentType: "commission",
+          defaultDeliverables: ["tracking_link", "content"],
+          displayOrder: 2,
+          approval: { status: "active", version: 1 },
+        },
+      ]);
+    }
+    if (!discoveryRuleCount) {
+      await InfluencerDiscoveryRule.create({
+        key: "default_discovery",
+        label: "Default Discovery Rules",
+        rules: { filters: ["subscriptionPlan", "category", "language", "location", "score", "followers"] },
+        approval: { status: "active", version: 1 },
+      });
+    }
+    if (!campaignRuleCount) {
+      await InfluencerCampaignRule.create({
+        key: "default_campaign_contract",
+        label: "Default Campaign Rules",
+        rules: { immutableSnapshots: true, lockOnAcceptance: true, backendRateAuthority: true },
+        approval: { status: "active", version: 1 },
+      });
+    }
+    if (!dynamicFormFieldCount) await InfluencerDynamicFormField.insertMany(DYNAMIC_FORM_FIELD_DEFAULTS);
 
     await this.syncTierPlanPairs();
   }
@@ -731,9 +1331,75 @@ class InfluencerCommerceEngineService {
     return { items, pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 } };
   }
 
+  async commerceConfiguration() {
+    await this.ensureDefaults();
+    const sort = { displayOrder: 1, updatedAt: -1 };
+    const [
+      serviceTypes,
+      packageTemplates,
+      categoryOptions,
+      languageOptions,
+      attributionWindows,
+      paymentModels,
+      campaignTypes,
+      paymentModelOptions,
+      campaignPaymentRules,
+      campaignDynamicFields,
+      campaignValidationRules,
+      requirementFields,
+      campaignTemplates,
+      discoveryRules,
+      campaignRules,
+      dynamicFormFields,
+    ] = await Promise.all([
+      InfluencerServiceType.find(activeQuery()).sort(sort).lean(),
+      InfluencerPackageTemplate.find(activeQuery()).sort(sort).lean(),
+      InfluencerCategoryOption.find(activeQuery()).sort(sort).lean(),
+      InfluencerLanguageOption.find(activeQuery()).sort(sort).lean(),
+      CampaignAttributionWindow.find(activeQuery()).sort(sort).lean(),
+      CampaignPaymentModelConfig.find(activeQuery()).sort(sort).lean(),
+      CampaignTypeConfig.find({ ...activeQuery(), status: "active" }).sort(sort).lean(),
+      CampaignPaymentModelOption.find({ ...activeQuery(), status: "active" }).sort(sort).lean(),
+      CampaignPaymentRuleConfig.find({ ...activeQuery(), status: "active" }).sort({ createdAt: 1 }).lean(),
+      CampaignDynamicFieldConfig.find(activeQuery()).sort(sort).lean(),
+      CampaignValidationRuleConfig.find(activeQuery()).sort(sort).lean(),
+      InfluencerRequirementField.find(activeQuery()).sort(sort).lean(),
+      InfluencerCampaignTemplate.find(activeQuery()).sort(sort).lean(),
+      InfluencerDiscoveryRule.find(activeQuery()).sort(sort).lean(),
+      InfluencerCampaignRule.find(activeQuery()).sort(sort).lean(),
+      InfluencerDynamicFormField.find(activeQuery()).sort(sort).lean(),
+    ]);
+    return {
+      serviceTypes,
+      packageTemplates,
+      categoryOptions,
+      languageOptions,
+      attributionWindows,
+      paymentModels,
+      campaignTypes,
+      paymentModelOptions,
+      campaignPaymentRules,
+      campaignDynamicFields,
+      campaignValidationRules,
+      campaignRuleEngine: buildCampaignRuleEngineConfig({
+        campaignTypes,
+        paymentModelOptions,
+        campaignPaymentRules,
+        campaignDynamicFields,
+        campaignValidationRules,
+        attributionWindows,
+      }),
+      requirementFields,
+      campaignTemplates,
+      discoveryRules,
+      campaignRules,
+      dynamicFormFields,
+    };
+  }
+
   async overview() {
     await this.ensureDefaults();
-    const [scoreConfig, rankingRule, budgetRule, tiers, plans, subscriptionCount, budgetControls] = await Promise.all([
+    const [scoreConfig, rankingRule, budgetRule, tiers, plans, subscriptionCount, budgetControls, commerceConfiguration] = await Promise.all([
       this.getActiveScoreConfig(),
       this.getActiveRankingRule(),
       this.getActiveBudgetRule(),
@@ -741,6 +1407,7 @@ class InfluencerCommerceEngineService {
       VendorSubscriptionPlan.find(activeQuery()).sort({ displayOrder: 1 }).lean(),
       VendorSubscription.countDocuments({ status: { $in: ["trialing", "active"] } }),
       CampaignBudgetControl.find({}).sort({ updatedAt: -1 }).limit(20).lean(),
+      this.commerceConfiguration(),
     ]);
     return {
       scoreConfig,
@@ -750,6 +1417,7 @@ class InfluencerCommerceEngineService {
       plans,
       subscriptionCount,
       budgetControls,
+      ...commerceConfiguration,
     };
   }
 }
