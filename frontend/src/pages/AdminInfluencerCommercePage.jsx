@@ -316,7 +316,14 @@ function ActionButton({ children, icon: Icon, tone = "indigo", disabled, onClick
   return (
     <button
       type={type}
-      onClick={onClick}
+      onClick={(event) => {
+        if (type !== "submit") {
+          event.preventDefault();
+        }
+        if (onClick) {
+          onClick(event);
+        }
+      }}
       disabled={disabled}
       className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${tones[tone]}`}
     >
@@ -515,9 +522,10 @@ export function AdminInfluencerCommercePage() {
     },
   }), []);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silentOrEvent = false) => {
+    const silent = typeof silentOrEvent === "boolean" ? silentOrEvent : false;
     if (!moduleId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError("");
     try {
       const response = await fetcher[moduleId](moduleId === "settings" ? undefined : params);
@@ -525,7 +533,7 @@ export function AdminInfluencerCommercePage() {
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || "Unable to load influencer commerce data.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [fetcher, moduleId, params]);
 
@@ -540,7 +548,7 @@ export function AdminInfluencerCommercePage() {
     try {
       await action();
       setMessage(successMessage);
-      await load();
+      await load(true);
       return true;
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || "Action failed.");
@@ -2086,6 +2094,44 @@ function withoutSystemFields(row = {}) {
   return copy;
 }
 
+function configLabel(row = {}) {
+  return row.tierName || row.planName || row.name || row.label || row.field?.label || row.fieldName || row.ruleName || row.slug || row.key || "Configuration";
+}
+
+function isConfigActive(row = {}) {
+  return String(row.approval?.status || row.status || "active").toLowerCase() === "active";
+}
+
+function configTogglePayload(row = {}, nextActive) {
+  const nextStatus = nextActive ? "active" : "inactive";
+  const reason = `${nextActive ? "Enabled" : "Disabled"} from admin commerce configuration`;
+  const payload = { approval: { status: nextStatus, reason }, reason };
+  if (["active", "inactive"].includes(String(row.status || "").toLowerCase())) payload.status = nextStatus;
+  return payload;
+}
+
+function ConfigToggleButton({ entityType, row = {}, runAction, busyId, label }) {
+  const id = row._id;
+  if (!id) return null;
+  const active = isConfigActive(row);
+  const nextActive = !active;
+  const name = label || configLabel(row);
+  return (
+    <ActionButton
+      tone={active ? "amber" : "green"}
+      icon={active ? XCircle : CheckCircle2}
+      disabled={Boolean(busyId)}
+      onClick={() => runAction(
+        `toggle-${entityType}-${id}`,
+        () => updateInfluencerCommerceConfig(entityType, id, configTogglePayload(row, nextActive)),
+        `${name} ${nextActive ? "enabled" : "disabled"}.`
+      )}
+    >
+      {active ? "Disable" : "Enable"}
+    </ActionButton>
+  );
+}
+
 function CommerceEntityEditor({ entityType, rows = [], def, runAction, busyId, archiveConfig }) {
   const blankForm = useMemo(() => ({ ...def.defaults, displayOrder: rows.length + 1, approval: { status: "active" }, reason: "Updated from admin commerce configuration" }), [def.defaults, rows.length]);
   const [form, setForm] = useState(blankForm);
@@ -2153,6 +2199,7 @@ function CommerceEntityEditor({ entityType, rows = [], def, runAction, busyId, a
             <td className="px-3 py-3">
               <div className="flex flex-wrap gap-2">
                 <ActionButton tone="slate" icon={Pencil} disabled={Boolean(busyId)} onClick={() => edit(row)}>Update</ActionButton>
+                <ConfigToggleButton entityType={entityType} row={row} label={row.label || row.key} runAction={runAction} busyId={busyId} />
                 <ActionButton tone="red" icon={Trash2} disabled={Boolean(busyId)} onClick={() => archiveConfig(entityType, row._id, row.label || row.key)}>Delete</ActionButton>
               </div>
             </td>
@@ -2226,6 +2273,7 @@ function AdvancedConfigManager({ data, runAction, busyId, archiveConfig }) {
             <td className="px-3 py-3">
               <div className="flex flex-wrap gap-2">
                 <ActionButton tone="slate" icon={Pencil} disabled={Boolean(busyId)} onClick={() => edit(row)}>Update</ActionButton>
+                <ConfigToggleButton entityType={entityType} row={row} label={row.name || row.label || row.key || row.slug || row.scope} runAction={runAction} busyId={busyId} />
                 <ActionButton tone="red" icon={Trash2} disabled={Boolean(busyId)} onClick={() => archiveConfig(entityType, row._id, row.name || row.label || row.key || row.slug || row.scope)}>Delete</ActionButton>
               </div>
             </td>
@@ -2336,6 +2384,25 @@ function ConfigurationEngineView({ data, runAction, busyId }) {
   const rankingKeys = ["scoreWeight", "revenueWeight", "ordersWeight", "conversionWeight", "campaignSuccessWeight", "storefrontRevenueWeight", "engagementWeight", "followersWeight"];
   const scoreTotal = weightTotal(scoreForm, scoreKeys);
   const rankingTotal = weightTotal(rankingForm, rankingKeys);
+
+  useEffect(() => {
+    setScoreForm({ ...defaultScoreForm, ...scoreConfig });
+  }, [scoreConfig?._id, scoreConfig?.updatedAt, scoreConfig?.approval?.status]);
+
+  useEffect(() => {
+    setRankingForm({ ...defaultRankingForm, ...rankingRule });
+  }, [rankingRule?._id, rankingRule?.updatedAt, rankingRule?.approval?.status]);
+
+  useEffect(() => {
+    setBudgetForm({
+      warningThresholdPercent: budgetRule.warningThresholdPercent ?? 20,
+      criticalThresholdPercent: budgetRule.criticalThresholdPercent ?? 10,
+      pauseWhenExhausted: budgetRule.pauseWhenExhausted ?? true,
+      approval: { status: budgetRule.approval?.status || "active" },
+      reason: "Updated from admin configuration engine",
+    });
+  }, [budgetRule?._id, budgetRule?.updatedAt, budgetRule?.approval?.status]);
+
   const resetTierForm = () => {
     setEditingTierId("");
     setTierForm({ ...blankTierForm });
@@ -2474,7 +2541,16 @@ function ConfigurationEngineView({ data, runAction, busyId }) {
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="space-y-4">
-        <Section title="Influencer Score Engine" icon={Calculator} action={<StatusBadge value={scoreConfig?.approval?.status || "draft"} />}>
+        <Section
+          title="Influencer Score Engine"
+          icon={Calculator}
+          action={(
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge value={scoreConfig?.approval?.status || "draft"} />
+              <ConfigToggleButton entityType="scoreConfigs" row={scoreConfig} label="Score engine" runAction={runAction} busyId={busyId} />
+            </div>
+          )}
+        >
           <div className="grid gap-3 md:grid-cols-5">
             {scoreKeys.map((key) => (
               <ConfigInput key={key} label={key.replace(/Weight$/, "")} value={scoreForm[key] ?? 0} onChange={(value) => setScoreForm((current) => ({ ...current, [key]: value }))} />
@@ -2482,7 +2558,7 @@ function ConfigurationEngineView({ data, runAction, busyId }) {
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <span className={`text-sm font-semibold ${scoreTotal === 100 ? "text-emerald-600" : "text-rose-600"}`}>Total: {scoreTotal}%</span>
-            <ActionButton icon={CheckCircle2} disabled={busyId === "save-score" || scoreTotal !== 100} onClick={() => runAction("save-score", () => updateInfluencerCommerceConfig("scoreConfigs", scoreConfig._id, scoreForm), "Score formula activated.")}>Save Formula</ActionButton>
+            <ActionButton icon={CheckCircle2} disabled={!scoreConfig._id || busyId === "save-score" || scoreTotal !== 100} onClick={() => runAction("save-score", () => updateInfluencerCommerceConfig("scoreConfigs", scoreConfig._id, scoreForm), "Score formula activated.")}>Save Formula</ActionButton>
           </div>
         </Section>
 
@@ -2509,6 +2585,7 @@ function ConfigurationEngineView({ data, runAction, busyId }) {
               <td className="px-3 py-3">
                 <div className="flex flex-wrap gap-2">
                   <ActionButton tone="slate" icon={Pencil} disabled={Boolean(busyId)} onClick={() => editTier(tier)}>Update</ActionButton>
+                  <ConfigToggleButton entityType="tiers" row={tier} label={tier.tierName} runAction={runAction} busyId={busyId} />
                   <ActionButton tone="red" icon={Trash2} disabled={Boolean(busyId)} onClick={() => archiveConfig("tiers", tier._id, tier.tierName)}>Delete</ActionButton>
                 </div>
               </td>
@@ -2602,16 +2679,18 @@ function ConfigurationEngineView({ data, runAction, busyId }) {
             {editingPlanId ? <ActionButton tone="slate" onClick={resetPlanForm}>Cancel</ActionButton> : null}
             <ActionButton icon={CheckCircle2} disabled={Boolean(busyId) || !planForm.planName} onClick={savePlan}>{editingPlanId ? "Update Plan" : "Create Plan"}</ActionButton>
           </div>
-          <ResponsiveTable headers={["Plan", "Price", "Campaigns", "Discovery", "Features", "Actions"]} rows={plans} renderRow={(plan) => (
+          <ResponsiveTable headers={["Plan", "Price", "Campaigns", "Discovery", "Features", "Status", "Actions"]} rows={plans} renderRow={(plan) => (
             <tr key={plan._id}>
               <td className="px-3 py-3 font-semibold">{plan.planName}</td>
               <td className="px-3 py-3">{formatCurrency(plan.monthlyPrice || 0)} / mo</td>
               <td className="px-3 py-3">{plan.campaignLimit < 0 ? "Unlimited" : plan.campaignLimit}</td>
               <td className="px-3 py-3">{plan.influencerVisibilityLimit < 0 ? "Unlimited" : numberValue(plan.influencerVisibilityLimit)}</td>
               <td className="px-3 py-3 text-xs">{[plan.metadata?.cardBadge, plan.prioritySupport && "Priority", plan.featuredCampaigns && "Featured", plan.advancedAnalytics && "Analytics", plan.dedicatedManager && "Manager"].filter(Boolean).join(", ") || "-"}</td>
+              <td className="px-3 py-3"><StatusBadge value={plan.approval?.status} /></td>
               <td className="px-3 py-3">
                 <div className="flex flex-wrap gap-2">
                   <ActionButton tone="slate" icon={Pencil} disabled={Boolean(busyId)} onClick={() => editPlan(plan)}>Update</ActionButton>
+                  <ConfigToggleButton entityType="subscriptionPlans" row={plan} label={plan.planName} runAction={runAction} busyId={busyId} />
                   <ActionButton tone="red" icon={Trash2} disabled={Boolean(busyId)} onClick={() => archiveConfig("subscriptionPlans", plan._id, plan.planName)}>Delete</ActionButton>
                 </div>
               </td>
@@ -2623,7 +2702,16 @@ function ConfigurationEngineView({ data, runAction, busyId }) {
       </div>
 
       <div className="space-y-4">
-        <Section title="Ranking Rules" icon={BarChart3}>
+        <Section
+          title="Ranking Rules"
+          icon={BarChart3}
+          action={(
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge value={rankingRule?.approval?.status || "draft"} />
+              <ConfigToggleButton entityType="rankingRules" row={rankingRule} label="Ranking rules" runAction={runAction} busyId={busyId} />
+            </div>
+          )}
+        >
           <div className="grid gap-3">
             {rankingKeys.map((key) => (
               <ConfigInput key={key} label={key.replace(/Weight$/, "")} value={rankingForm[key] ?? 0} onChange={(value) => setRankingForm((current) => ({ ...current, [key]: value }))} />
@@ -2631,11 +2719,20 @@ function ConfigurationEngineView({ data, runAction, busyId }) {
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <span className={`text-sm font-semibold ${rankingTotal === 100 ? "text-emerald-600" : "text-rose-600"}`}>Total: {rankingTotal}%</span>
-            <ActionButton icon={CheckCircle2} disabled={busyId === "save-ranking" || rankingTotal !== 100} onClick={() => runAction("save-ranking", () => updateInfluencerCommerceConfig("rankingRules", rankingRule._id, rankingForm), "Ranking formula activated.")}>Save Ranking</ActionButton>
+            <ActionButton icon={CheckCircle2} disabled={!rankingRule._id || busyId === "save-ranking" || rankingTotal !== 100} onClick={() => runAction("save-ranking", () => updateInfluencerCommerceConfig("rankingRules", rankingRule._id, rankingForm), "Ranking formula activated.")}>Save Ranking</ActionButton>
           </div>
         </Section>
 
-        <Section title="Budget Protection" icon={AlertTriangle}>
+        <Section
+          title="Budget Protection"
+          icon={AlertTriangle}
+          action={(
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge value={budgetRule?.approval?.status || "draft"} />
+              <ConfigToggleButton entityType="budgetRules" row={budgetRule} label="Budget protection" runAction={runAction} busyId={busyId} />
+            </div>
+          )}
+        >
           <div className="grid gap-3">
             <ConfigInput label="Warning Threshold" value={budgetForm.warningThresholdPercent} onChange={(value) => setBudgetForm((current) => ({ ...current, warningThresholdPercent: value }))} />
             <ConfigInput label="Critical Threshold" value={budgetForm.criticalThresholdPercent} onChange={(value) => setBudgetForm((current) => ({ ...current, criticalThresholdPercent: value }))} />
@@ -2645,7 +2742,7 @@ function ConfigurationEngineView({ data, runAction, busyId }) {
             </label>
           </div>
           <div className="mt-4">
-            <ActionButton icon={CheckCircle2} disabled={busyId === "save-budget"} onClick={() => runAction("save-budget", () => updateInfluencerCommerceConfig("budgetRules", budgetRule._id, budgetForm), "Budget protection updated.")}>Save Budget Rules</ActionButton>
+            <ActionButton icon={CheckCircle2} disabled={!budgetRule._id || busyId === "save-budget"} onClick={() => runAction("save-budget", () => updateInfluencerCommerceConfig("budgetRules", budgetRule._id, budgetForm), "Budget protection updated.")}>Save Budget Rules</ActionButton>
           </div>
         </Section>
 

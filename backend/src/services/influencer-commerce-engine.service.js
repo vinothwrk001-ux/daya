@@ -108,6 +108,18 @@ function activeQuery() {
   return { "approval.status": "active" };
 }
 
+function nonArchivedQuery() {
+  return { "approval.status": { $ne: "archived" } };
+}
+
+async function editableSingleton(Model) {
+  return (
+    await Model.findOne(activeQuery()).sort({ "approval.version": -1, updatedAt: -1 }).lean()
+  ) || (
+    await Model.findOne(nonArchivedQuery()).sort({ "approval.version": -1, updatedAt: -1 }).lean()
+  );
+}
+
 function normalizeConfigName(value = "") {
   return String(value || "").trim().toLowerCase();
 }
@@ -774,14 +786,14 @@ class InfluencerCommerceEngineService {
       ]);
     }
 
-    const [scoreConfig, rankingRule, budgetRule] = await Promise.all([
-      InfluencerScoreConfig.findOne(activeQuery()),
-      MarketplaceRankingRule.findOne(activeQuery()),
-      BudgetProtectionRule.findOne(activeQuery()),
+    const [scoreConfigCount, rankingRuleCount, budgetRuleCount] = await Promise.all([
+      InfluencerScoreConfig.countDocuments(nonArchivedQuery()),
+      MarketplaceRankingRule.countDocuments(nonArchivedQuery()),
+      BudgetProtectionRule.countDocuments(nonArchivedQuery()),
     ]);
-    if (!scoreConfig) await InfluencerScoreConfig.create({ approval: { status: "active", version: 1 } });
-    if (!rankingRule) await MarketplaceRankingRule.create({ approval: { status: "active", version: 1 } });
-    if (!budgetRule) await BudgetProtectionRule.create({ approval: { status: "active", version: 1 } });
+    if (!scoreConfigCount) await InfluencerScoreConfig.create({ approval: { status: "active", version: 1 } });
+    if (!rankingRuleCount) await MarketplaceRankingRule.create({ approval: { status: "active", version: 1 } });
+    if (!budgetRuleCount) await BudgetProtectionRule.create({ approval: { status: "active", version: 1 } });
 
     const plans = await VendorSubscriptionPlan.countDocuments();
     if (!plans) {
@@ -1009,6 +1021,7 @@ class InfluencerCommerceEngineService {
 
   async calculateInfluencerScore(profile, extras = {}) {
     const config = await this.getActiveScoreConfig();
+    if (!config) throw new AppError("Influencer score engine is disabled.", 409, "INFLUENCER_SCORE_ENGINE_DISABLED");
     const followers = percent(profile.followers, config.normalization?.followersMax);
     const engagement = percent(extras.engagementRate, config.normalization?.engagementMax);
     const clicks = cleanNumber(profile.stats?.clicks);
@@ -1095,6 +1108,7 @@ class InfluencerCommerceEngineService {
 
   async rankInfluencerRows(rows = []) {
     const rule = await this.getActiveRankingRule();
+    if (!rule) throw new AppError("Influencer marketplace ranking is disabled.", 409, "INFLUENCER_RANKING_DISABLED");
     return rows.map((row) => {
       const stats = row.profile?.stats || {};
       const clicks = cleanNumber(stats.clicks);
@@ -1186,6 +1200,7 @@ class InfluencerCommerceEngineService {
     const campaign = await Campaign.findById(campaignId);
     if (!campaign) throw new AppError("Campaign not found", 404, "NOT_FOUND");
     const rule = await this.getActiveBudgetRule();
+    if (!rule) throw new AppError("Campaign budget protection is disabled.", 409, "CAMPAIGN_BUDGET_PROTECTION_DISABLED");
     const records = await CommissionRecord.aggregate([
       { $match: { campaignId: campaign._id } },
       { $group: { _id: null, commission: { $sum: "$influencerShare" }, gross: { $sum: "$gross" } } },
@@ -1331,9 +1346,11 @@ class InfluencerCommerceEngineService {
     return { items, pagination: { total, page, limit, pages: Math.ceil(total / limit) || 1 } };
   }
 
-  async commerceConfiguration() {
+  async commerceConfiguration({ includeInactive = false } = {}) {
     await this.ensureDefaults();
     const sort = { displayOrder: 1, updatedAt: -1 };
+    const configQuery = includeInactive ? nonArchivedQuery() : activeQuery();
+    const configStatusQuery = includeInactive ? { status: { $ne: "archived" } } : { status: "active" };
     const [
       serviceTypes,
       packageTemplates,
@@ -1352,22 +1369,22 @@ class InfluencerCommerceEngineService {
       campaignRules,
       dynamicFormFields,
     ] = await Promise.all([
-      InfluencerServiceType.find(activeQuery()).sort(sort).lean(),
-      InfluencerPackageTemplate.find(activeQuery()).sort(sort).lean(),
-      InfluencerCategoryOption.find(activeQuery()).sort(sort).lean(),
-      InfluencerLanguageOption.find(activeQuery()).sort(sort).lean(),
-      CampaignAttributionWindow.find(activeQuery()).sort(sort).lean(),
-      CampaignPaymentModelConfig.find(activeQuery()).sort(sort).lean(),
-      CampaignTypeConfig.find({ ...activeQuery(), status: "active" }).sort(sort).lean(),
-      CampaignPaymentModelOption.find({ ...activeQuery(), status: "active" }).sort(sort).lean(),
-      CampaignPaymentRuleConfig.find({ ...activeQuery(), status: "active" }).sort({ createdAt: 1 }).lean(),
-      CampaignDynamicFieldConfig.find(activeQuery()).sort(sort).lean(),
-      CampaignValidationRuleConfig.find(activeQuery()).sort(sort).lean(),
-      InfluencerRequirementField.find(activeQuery()).sort(sort).lean(),
-      InfluencerCampaignTemplate.find(activeQuery()).sort(sort).lean(),
-      InfluencerDiscoveryRule.find(activeQuery()).sort(sort).lean(),
-      InfluencerCampaignRule.find(activeQuery()).sort(sort).lean(),
-      InfluencerDynamicFormField.find(activeQuery()).sort(sort).lean(),
+      InfluencerServiceType.find(configQuery).sort(sort).lean(),
+      InfluencerPackageTemplate.find(configQuery).sort(sort).lean(),
+      InfluencerCategoryOption.find(configQuery).sort(sort).lean(),
+      InfluencerLanguageOption.find(configQuery).sort(sort).lean(),
+      CampaignAttributionWindow.find(configQuery).sort(sort).lean(),
+      CampaignPaymentModelConfig.find(configQuery).sort(sort).lean(),
+      CampaignTypeConfig.find({ ...configQuery, ...configStatusQuery }).sort(sort).lean(),
+      CampaignPaymentModelOption.find({ ...configQuery, ...configStatusQuery }).sort(sort).lean(),
+      CampaignPaymentRuleConfig.find({ ...configQuery, ...configStatusQuery }).sort({ createdAt: 1 }).lean(),
+      CampaignDynamicFieldConfig.find(configQuery).sort(sort).lean(),
+      CampaignValidationRuleConfig.find(configQuery).sort(sort).lean(),
+      InfluencerRequirementField.find(configQuery).sort(sort).lean(),
+      InfluencerCampaignTemplate.find(configQuery).sort(sort).lean(),
+      InfluencerDiscoveryRule.find(configQuery).sort(sort).lean(),
+      InfluencerCampaignRule.find(configQuery).sort(sort).lean(),
+      InfluencerDynamicFormField.find(configQuery).sort(sort).lean(),
     ]);
     return {
       serviceTypes,
@@ -1400,14 +1417,14 @@ class InfluencerCommerceEngineService {
   async overview() {
     await this.ensureDefaults();
     const [scoreConfig, rankingRule, budgetRule, tiers, plans, subscriptionCount, budgetControls, commerceConfiguration] = await Promise.all([
-      this.getActiveScoreConfig(),
-      this.getActiveRankingRule(),
-      this.getActiveBudgetRule(),
-      InfluencerTier.find(activeQuery()).sort({ displayOrder: 1 }).lean(),
-      VendorSubscriptionPlan.find(activeQuery()).sort({ displayOrder: 1 }).lean(),
+      editableSingleton(InfluencerScoreConfig),
+      editableSingleton(MarketplaceRankingRule),
+      editableSingleton(BudgetProtectionRule),
+      InfluencerTier.find(nonArchivedQuery()).sort({ displayOrder: 1 }).lean(),
+      VendorSubscriptionPlan.find(nonArchivedQuery()).sort({ displayOrder: 1 }).lean(),
       VendorSubscription.countDocuments({ status: { $in: ["trialing", "active"] } }),
       CampaignBudgetControl.find({}).sort({ updatedAt: -1 }).limit(20).lean(),
-      this.commerceConfiguration(),
+      this.commerceConfiguration({ includeInactive: true }),
     ]);
     return {
       scoreConfig,
