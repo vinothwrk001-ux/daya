@@ -18,13 +18,18 @@ import {
 } from "lucide-react";
 import {
   applyCampaignMarketplace,
+  acceptFixedCampaign,
+  rejectFixedCampaign,
   generateAffiliateProductLinks,
   getCampaignMarketplaceAnalytics,
+  getInfluencerFixedCampaignAnalytics,
+  getInfluencerFixedCampaigns,
   getInfluencerCommerceProfile,
   listCampaignMarketplace,
   saveCampaignMarketplace,
   saveInfluencerRequirements,
   saveInfluencerServices,
+  submitFixedCampaignContent,
   submitCampaignDeliverable,
 } from "../../services/influencerCommerceService";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -36,6 +41,7 @@ const TABS = [
   { id: "applied", label: "Applied Campaigns" },
   { id: "active", label: "Active Campaigns" },
   { id: "completed", label: "Completed Campaigns" },
+  { id: "fixed", label: "Fixed Campaigns" },
   { id: "analytics", label: "Campaign Analytics" },
 ];
 
@@ -194,14 +200,120 @@ function CampaignCard({ campaign, onApply, onSave, onSubmitDeliverable, onGenera
   );
 }
 
+function FixedCampaignCard({ campaign, onAccept, onReject, onSubmitContent, busyId }) {
+  const campaignId = String(campaign.id || campaign._id);
+  const busy = busyId === campaignId;
+  const status = String(campaign.status || campaign.state || "proposed");
+  const analytics = campaign.analytics || {};
+  const productCount = (campaign.productIds || campaign.products || []).length;
+  const submissions = campaign.submissions || [];
+  const latestSubmission = submissions[0] || null;
+  const canAccept = status === "proposed";
+  const canReject = ["proposed", "accepted"].includes(status);
+  const canSubmit = ["accepted", "content_submitted", "changes_requested", "approved"].includes(status);
+
+  return (
+    <article className="flex min-h-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="h-28 bg-slate-100 dark:bg-slate-800">
+        {campaign.banner ? (
+          <img src={campaign.banner} alt="" className="h-full w-full object-cover" loading="lazy" />
+        ) : (
+          <div className="flex h-full items-center justify-center text-slate-400">
+            <CheckCircle2 className="h-8 w-8" />
+          </div>
+        )}
+      </div>
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">{campaign.brandName}</p>
+            <h3 className="mt-1 line-clamp-2 text-lg font-semibold text-slate-950 dark:text-white">{campaign.title}</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Fixed deliverable campaign</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold capitalize text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            {statusLabel(status)}
+          </span>
+        </div>
+
+        <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
+          {campaign.description || "Fixed payment campaign with content approval and analytics-only revenue attribution."}
+        </p>
+
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950/60">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Fixed Payment</p>
+            <p className="mt-1 font-semibold text-slate-950 dark:text-white">{formatCurrency(campaign.influencerPayment || campaign.budget || 0)}</p>
+          </div>
+          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950/60">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Products</p>
+            <p className="mt-1 font-semibold text-slate-950 dark:text-white">{productCount}</p>
+          </div>
+          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950/60">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Revenue Influenced</p>
+            <p className="mt-1 font-semibold text-slate-950 dark:text-white">{formatCurrency(analytics.revenue || campaign.revenueGenerated || 0)}</p>
+          </div>
+          <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950/60">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Orders</p>
+            <p className="mt-1 font-semibold text-slate-950 dark:text-white">{analytics.orders || 0}</p>
+          </div>
+        </div>
+
+        {latestSubmission ? (
+          <div className="rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-800">
+            <p className="font-semibold capitalize text-slate-950 dark:text-white">Content {statusLabel(latestSubmission.status)}</p>
+            {latestSubmission.requestedChanges ? <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{latestSubmission.requestedChanges}</p> : null}
+          </div>
+        ) : null}
+
+        <div className="mt-auto flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={!canAccept || busy}
+            onClick={() => onAccept(campaign)}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {status === "accepted" ? "Accepted" : "Accept"}
+          </button>
+          <button
+            type="button"
+            disabled={!canReject || busy}
+            onClick={() => onReject(campaign)}
+            className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900/50 dark:text-rose-300 dark:hover:bg-rose-950/30"
+          >
+            Reject
+          </button>
+          <button
+            type="button"
+            disabled={!canSubmit || busy}
+            onClick={() => onSubmitContent(campaign)}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950"
+          >
+            <FileUp className="h-4 w-4" />
+            Submit Content
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function AnalyticsPanel({ analytics, loading }) {
-  const totals = analytics?.totals || {};
-  const rows = analytics?.rows || [];
+  const marketplace = analytics?.marketplace || analytics || {};
+  const fixed = analytics?.fixed || {};
+  const totals = marketplace?.totals || {};
+  const rows = marketplace?.rows || [];
+  const fixedKpis = fixed?.kpis || {};
+  const fixedInfluencer = fixed?.influencer || {};
   const metrics = [
     ["Campaign Revenue", formatCurrency(totals.revenue || 0)],
     ["Commission Earned", formatCurrency(totals.commission || 0)],
     ["Campaign Orders", totals.orders || 0],
     ["Conversion Rate", `${totals.conversionRate || 0}%`],
+    ["Fixed Revenue Influenced", formatCurrency(fixedKpis.revenueGenerated || 0)],
+    ["Fixed Earnings", formatCurrency(fixedInfluencer.totalFixedEarnings || 0)],
+    ["Fixed Orders", fixedKpis.orders || 0],
+    ["Fixed ROAS", Number(fixedKpis.roas || 0).toFixed(2)],
   ];
 
   return (
@@ -218,7 +330,7 @@ function AnalyticsPanel({ analytics, loading }) {
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
           <div>
             <h3 className="font-semibold text-slate-950 dark:text-white">Campaign performance</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Revenue attribution from existing campaign and commission records.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Commission rows stay separate from fixed campaign analytics.</p>
           </div>
           <BarChart3 className="h-5 w-5 text-slate-400" />
         </div>
@@ -593,13 +705,24 @@ export default function InfluencerCampaignsPage() {
     setError("");
     try {
       if (tab === "analytics") {
-        const res = await getCampaignMarketplaceAnalytics();
-        setAnalytics(res?.data || null);
+        const [marketplaceResponse, fixedResponse] = await Promise.all([
+          getCampaignMarketplaceAnalytics(),
+          getInfluencerFixedCampaignAnalytics(),
+        ]);
+        setAnalytics({
+          marketplace: marketplaceResponse?.data || null,
+          fixed: fixedResponse?.data || null,
+        });
         return;
       }
       if (tab === "services") {
         const res = await getInfluencerCommerceProfile();
         setCommerceProfile(res?.data || null);
+        return;
+      }
+      if (tab === "fixed") {
+        const res = await getInfluencerFixedCampaigns({ search: filters.search, limit: 24 });
+        setCampaigns(res?.data?.items || []);
         return;
       }
       const res = await listCampaignMarketplace({ tab, ...filters, limit: 24 });
@@ -661,6 +784,61 @@ export default function InfluencerCampaignsPage() {
       await loadCampaigns();
     } catch (err) {
       setError(err?.response?.data?.message || "Deliverable submission failed.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function handleAcceptFixed(campaign) {
+    const campaignId = String(campaign.id || campaign._id);
+    setBusyId(campaignId);
+    setError("");
+    setMessage("");
+    try {
+      await acceptFixedCampaign(campaignId);
+      setMessage("Fixed campaign accepted.");
+      await loadCampaigns();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Fixed campaign acceptance failed.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function handleRejectFixed(campaign) {
+    const campaignId = String(campaign.id || campaign._id);
+    setBusyId(campaignId);
+    setError("");
+    setMessage("");
+    try {
+      await rejectFixedCampaign(campaignId, "Rejected from campaign marketplace.");
+      setMessage("Fixed campaign rejected.");
+      await loadCampaigns();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Fixed campaign rejection failed.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function handleSubmitFixedContent(campaign) {
+    const campaignId = String(campaign.id || campaign._id);
+    const contentUrl = window.prompt("Paste the content URL for vendor approval");
+    if (!contentUrl) return;
+    setBusyId(campaignId);
+    setError("");
+    setMessage("");
+    try {
+      await submitFixedCampaignContent(campaignId, {
+        contentUrl,
+        contentType: "campaign",
+        productIds: campaignProductIds(campaign),
+        notes: "Content submitted from fixed campaign marketplace.",
+      });
+      setMessage("Fixed campaign content submitted for approval.");
+      await loadCampaigns();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Fixed campaign content submission failed.");
     } finally {
       setBusyId("");
     }
@@ -752,7 +930,7 @@ export default function InfluencerCampaignsPage() {
       </section>
 
       {!["analytics", "services"].includes(tab) ? (
-        <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-[1fr_220px_180px]">
+        <section className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${tab === "fixed" ? "" : "md:grid-cols-[1fr_220px_180px]"}`}>
           <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -762,24 +940,28 @@ export default function InfluencerCampaignsPage() {
               className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-indigo-950"
             />
           </label>
-          <select
-            value={filters.campaignType}
-            onChange={(event) => setFilters((current) => ({ ...current, campaignType: event.target.value }))}
-            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-          >
-            {CAMPAIGN_TYPES.map(([value, label]) => <option key={label} value={value}>{label}</option>)}
-          </select>
-          <select
-            value={filters.sort}
-            onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value }))}
-            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-          >
-            <option value="newest">Newest</option>
-            <option value="recommended">Recommended</option>
-            <option value="highest_budget">Highest Budget</option>
-            <option value="highest_commission">Highest Commission</option>
-            <option value="ending_soon">Ending Soon</option>
-          </select>
+          {tab !== "fixed" ? (
+            <>
+              <select
+                value={filters.campaignType}
+                onChange={(event) => setFilters((current) => ({ ...current, campaignType: event.target.value }))}
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              >
+                {CAMPAIGN_TYPES.map(([value, label]) => <option key={label} value={value}>{label}</option>)}
+              </select>
+              <select
+                value={filters.sort}
+                onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value }))}
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              >
+                <option value="newest">Newest</option>
+                <option value="recommended">Recommended</option>
+                <option value="highest_budget">Highest Budget</option>
+                <option value="highest_commission">Highest Commission</option>
+                <option value="ending_soon">Ending Soon</option>
+              </select>
+            </>
+          ) : null}
         </section>
       ) : null}
 
@@ -817,15 +999,26 @@ export default function InfluencerCampaignsPage() {
       ) : campaigns.length ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {campaigns.map((campaign) => (
-            <CampaignCard
-              key={campaign.id}
-              campaign={campaign}
-              onApply={handleApply}
-              onSave={handleSave}
-              onSubmitDeliverable={handleSubmitDeliverable}
-              onGenerateLink={handleGenerateLink}
-              busyId={busyId}
-            />
+            tab === "fixed" ? (
+              <FixedCampaignCard
+                key={campaign.id || campaign._id}
+                campaign={campaign}
+                onAccept={handleAcceptFixed}
+                onReject={handleRejectFixed}
+                onSubmitContent={handleSubmitFixedContent}
+                busyId={busyId}
+              />
+            ) : (
+              <CampaignCard
+                key={campaign.id}
+                campaign={campaign}
+                onApply={handleApply}
+                onSave={handleSave}
+                onSubmitDeliverable={handleSubmitDeliverable}
+                onGenerateLink={handleGenerateLink}
+                busyId={busyId}
+              />
+            )
           ))}
         </div>
       ) : (

@@ -300,6 +300,7 @@ export default function App() {
               <Route path="influencer-commerce/discover" element={<VendorInfluencerPage />} />
               <Route path="influencer-commerce/relationships" element={<VendorInfluencerPage />} />
               <Route path="influencer-commerce/campaigns" element={<VendorInfluencerPage />} />
+              <Route path="influencer-commerce/fixed" element={<VendorInfluencerPage />} />
               <Route path="influencer-commerce/products" element={<VendorInfluencerPage />} />
               <Route path="influencer-commerce/affiliate" element={<VendorInfluencerPage />} />
               <Route path="influencer-commerce/content" element={<VendorInfluencerPage />} />

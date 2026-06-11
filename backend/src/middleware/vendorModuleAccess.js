@@ -1,6 +1,7 @@
 const { AppError } = require("../utils/AppError");
 const vendorModuleService = require("../services/vendorModule.service");
 const { logger } = require("../utils/logger");
+const { ensureApprovedVendorForRequest } = require("./vendorApproval");
 
 /**
  * 🔥 CRITICAL MIDDLEWARE
@@ -21,6 +22,7 @@ function requireVendorModule(moduleKey) {
     }
 
     try {
+      await ensureApprovedVendorForRequest(req);
       const hasAccess = await vendorModuleService.canVendorPerformAction(moduleKey, "read", req.user);
 
       if (!hasAccess) {
@@ -61,6 +63,7 @@ function requireVendorPermission(permission) {
     }
 
     try {
+      await ensureApprovedVendorForRequest(req);
       const allowed = await vendorModuleService.canVendorAccessModule(moduleKey, req.user);
 
       if (!allowed) {
@@ -101,6 +104,7 @@ function requireVendorModules(moduleKeys) {
     }
 
     try {
+      await ensureApprovedVendorForRequest(req);
       const access = await vendorModuleService.canVendorAccessModules(moduleKeys, req.user);
 
       // Check if all modules are accessible

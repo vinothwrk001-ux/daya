@@ -162,6 +162,16 @@ export async function updateAdminInfluencerSettings(payload = {}) {
   return data;
 }
 
+export async function getAdminFixedCampaignSettings() {
+  const { data } = await api.get("/api/fixed-campaigns/settings");
+  return data;
+}
+
+export async function updateAdminFixedCampaignSettings(payload = {}) {
+  const { data } = await api.put("/api/fixed-campaigns/settings", payload);
+  return data;
+}
+
 export async function getInfluencerCommerceConfiguration() {
   const { data } = await api.get(`${base}/configuration`);
   return data;

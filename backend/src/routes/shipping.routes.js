@@ -1,26 +1,27 @@
 const express = require("express");
 const { authRequired, requireRole } = require("../middleware/auth");
+const { requireApprovedVendor } = require("../middleware/vendorApproval");
 const shippingController = require("../controllers/shipping.controller");
 const { validate } = require("../middleware/validate");
 const { body } = require("express-validator");
 
 const router = express.Router();
+const vendorAuth = [authRequired, requireRole("vendor"), requireApprovedVendor];
 
 /**
  * ==================== VENDOR ROUTES ====================
  */
 
 // Get available shipping modes for current vendor
-router.get("/vendor/modes", authRequired, requireRole("vendor"), shippingController.getVendorShippingModes);
+router.get("/vendor/modes", vendorAuth, shippingController.getVendorShippingModes);
 
 // Get vendor shipping settings
-router.get("/vendor/settings", authRequired, requireRole("vendor"), shippingController.getVendorShippingSettings);
+router.get("/vendor/settings", vendorAuth, shippingController.getVendorShippingSettings);
 
 // Update vendor shipping default mode
 router.patch(
   "/vendor/settings",
-  authRequired,
-  requireRole("vendor"),
+  vendorAuth,
   validate([
     body("defaultShippingMode")
       .optional()
@@ -33,8 +34,7 @@ router.patch(
 // Submit self-shipping tracking
 router.patch(
   "/vendor/orders/:orderId/self",
-  authRequired,
-  requireRole("vendor"),
+  vendorAuth,
   validate([
     body("trackingId")
       .trim()
@@ -60,8 +60,7 @@ router.patch(
 // Request platform pickup
 router.patch(
   "/vendor/orders/:orderId/platform",
-  authRequired,
-  requireRole("vendor"),
+  vendorAuth,
   shippingController.requestPlatformShipping
 );
 

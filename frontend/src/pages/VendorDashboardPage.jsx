@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import * as vendorService from "../services/vendorService";
+import { getVendorAccessRedirect } from "../utils/vendorAccess";
 
 export function VendorDashboardPage() {
   const [loading, setLoading] = useState(true);
-  const [vendor, setVendor] = useState(null);
+  const [destination, setDestination] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -12,10 +13,19 @@ export function VendorDashboardPage() {
     vendorService
       .getVendorMe()
       .then((response) => {
-        if (active) setVendor(response.data);
+        if (!active) return;
+        setDestination(getVendorAccessRedirect(response.data) || "/vendor/dashboard");
       })
       .catch((err) => {
-        if (active) setError(err?.response?.data?.message || "Failed to load vendor profile");
+        if (!active) return;
+        const redirect = err?.response?.data?.details?.redirect;
+        if (redirect) {
+          setDestination(redirect);
+        } else if (err?.response?.status === 404) {
+          setDestination("/vendor/onboarding");
+        } else {
+          setError(err?.response?.data?.message || "Failed to load vendor profile");
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -28,6 +38,5 @@ export function VendorDashboardPage() {
 
   if (loading) return <div className="text-sm text-slate-600">Loading vendor access...</div>;
   if (error) return <div className="text-sm text-rose-700">{error}</div>;
-  if (vendor?.status !== "approved") return <Navigate to="/vendor/status" replace />;
-  return <Navigate to="/vendor/dashboard" replace />;
+  return <Navigate to={destination || "/vendor/onboarding"} replace />;
 }

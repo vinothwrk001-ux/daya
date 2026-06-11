@@ -3,6 +3,7 @@ const { authRequired, requireRole } = require("../middleware/auth");
 const { validate } = require("../middleware/validate");
 const { upload } = require("../middleware/upload");
 const { requireVendorModule, requireVendorPermission } = require("../middleware/vendorModuleAccess");
+const { requireApprovedVendor } = require("../middleware/vendorApproval");
 const { influencerCommerceGate } = require("../middleware/influencerCommerceGate");
 const vendorController = require("../controllers/vendor.controller");
 const {
@@ -46,6 +47,8 @@ router.post(
 );
 
 router.get("/me", vendorController.me);
+router.use(requireApprovedVendor);
+
 router.get("/dashboard", vendorDashboardController.getDashboard);
 router.post("/settings/media", upload.single("image"), vendorController.uploadStoreMedia);
 router.use("/influencer-commerce", influencerCommerceGate, influencerCommerceRoutes);

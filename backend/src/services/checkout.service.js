@@ -13,6 +13,7 @@ const pricingService = require("./pricing.service");
 const { getItemWeight } = require("../utils/cartWeightCalculator");
 const notificationService = require("./notification.service");
 const trackingService = require("../modules/tracking/service");
+const fixedCampaignService = require("../modules/fixedCampaign/service");
 const commissionService = require("../modules/commission/service");
 const { emitDomainEvent } = require("../modules/events/event-bus");
 const { INFLUENCER_EVENTS } = require("../modules/shared/constants");
@@ -645,6 +646,9 @@ class CheckoutService {
     }
 
     const trackingContext = trackingToken ? await trackingService.validateTrackingToken(trackingToken, userId) : null;
+    const fixedTrackingContext = trackingToken && !trackingContext
+      ? await fixedCampaignService.validateOrderTrackingToken(trackingToken)
+      : null;
     const flattenedItems = sellers.flatMap((seller) => seller.items || []);
     const overallSubtotal = roundMoney(summary.subtotal || 0);
     const chargesBreakdown = Array.isArray(summary.charges) ? summary.charges : [];
@@ -945,6 +949,19 @@ class CheckoutService {
           if (payout) payouts.push(payout);
         }
 
+        if (fixedTrackingContext) {
+          for (const order of orders) {
+            await runNonBlocking(`attribute fixed campaign analytics for ${order.orderNumber}`, () =>
+              fixedCampaignService.attributeOrder({
+                order,
+                trackingToken,
+                fixedTrackingContext,
+                userId,
+              })
+            );
+          }
+        }
+
         await runNonBlocking(`remove purchased items from cart for user ${userId}`, () =>
           cartRepo.removeMatchingItems(
             userId,
@@ -1078,6 +1095,9 @@ class CheckoutService {
 
       const validated = [];
       const trackingContext = trackingToken ? await trackingService.validateTrackingToken(trackingToken, userId) : null;
+      const fixedTrackingContext = trackingToken && !trackingContext
+        ? await fixedCampaignService.validateOrderTrackingToken(trackingToken)
+        : null;
       for (const item of cart.items) {
         const product = await productRepo.findById(item.productId);
         if (!product) throw new AppError("Product not found", 404, "NOT_FOUND");
@@ -1516,6 +1536,17 @@ class CheckoutService {
               attribution: order.attribution || null,
             })
           );
+
+          if (fixedTrackingContext) {
+            await runNonBlocking(`attribute fixed campaign analytics for ${order.orderNumber}`, () =>
+              fixedCampaignService.attributeOrder({
+                order,
+                trackingToken,
+                fixedTrackingContext,
+                userId,
+              })
+            );
+          }
 
           if (order.attribution?.influencerId) {
             await runNonBlocking(`create commission hold for ${order.orderNumber}`, () =>

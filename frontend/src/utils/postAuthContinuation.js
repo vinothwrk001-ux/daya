@@ -7,20 +7,7 @@ import { consumeRedirectAfterLogin } from "./loginRedirect";
 import pendingActionManager from "./pendingActionManager";
 import pendingCheckoutManager from "./pendingCheckoutManager";
 import useAuthCartStore from "../context/authCartStore";
-
-function getPathnameFromTarget(target) {
-  if (!target) return "";
-
-  if (target.startsWith("http://") || target.startsWith("https://")) {
-    try {
-      return new URL(target).pathname;
-    } catch {
-      return "";
-    }
-  }
-
-  return target;
-}
+import { getPathnameFromTarget, getVendorAccessDestination } from "./vendorAccess";
 
 function isAuthPageTarget(target) {
   const pathname = getPathnameFromTarget(target);
@@ -62,6 +49,15 @@ function isShopperRole(role) {
 function clearPendingCheckoutState() {
   pendingActionManager.clearPendingAction();
   pendingCheckoutManager.clear();
+}
+
+async function resolveVendorDestination(target) {
+  try {
+    const vendorResponse = await vendorService.getVendorMe();
+    return getVendorAccessDestination(vendorResponse.data, target);
+  } catch {
+    return "/vendor/onboarding";
+  }
 }
 
 export async function continueAfterPrimaryAuth({ result, attemptedFrom, nav }) {
@@ -124,6 +120,17 @@ export async function continueAfterPrimaryAuth({ result, attemptedFrom, nav }) {
     return nav(`/influencer/${pendingAction.data.username}/storefront`, { replace: true });
   }
 
+  const primaryTarget =
+    redirect && isAllowedPrimaryTarget(redirect)
+      ? redirect
+      : attemptedFrom && isAllowedPrimaryTarget(attemptedFrom)
+        ? attemptedFrom
+        : "";
+
+  if (role === "vendor") {
+    return nav(await resolveVendorDestination(primaryTarget), { replace: true });
+  }
+
   if (redirect && isAllowedPrimaryTarget(redirect)) {
     if (isShopperRole(role) || !getPathnameFromTarget(redirect).startsWith("/checkout")) {
       return nav(redirect, { replace: true });
@@ -142,13 +149,5 @@ export async function continueAfterPrimaryAuth({ result, attemptedFrom, nav }) {
   if (role === "user") return nav("/", { replace: true });
   if (role === "influencer") return nav("/influencer/dashboard", { replace: true });
 
-  try {
-    const vendorResponse = await vendorService.getVendorMe();
-    const status = vendorResponse.data.status;
-    if (status === "approved") return nav("/dashboard/vendor", { replace: true });
-    if (status === "pending") return nav("/vendor/status", { replace: true });
-    return nav("/vendor/onboarding", { replace: true });
-  } catch {
-    return nav("/vendor/onboarding", { replace: true });
-  }
+  return nav("/dashboard", { replace: true });
 }

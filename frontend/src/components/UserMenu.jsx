@@ -4,7 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../context/authStore";
 import { Portal } from "./Portal";
 import * as authService from "../services/authService";
+import * as vendorService from "../services/vendorService";
 import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
+import { getVendorAccessRedirect } from "../utils/vendorAccess";
 
 export function UserMenu() {
   const { influencerCommerceEnabled, loading: commerceLoading } = usePlatformFeatures();
@@ -14,6 +16,7 @@ export function UserMenu() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [vendorAccess, setVendorAccess] = useState({ loading: false, redirect: "" });
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -70,6 +73,32 @@ export function UserMenu() {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    let alive = true;
+
+    async function loadVendorAccess() {
+      if (!user || user.role !== "vendor") {
+        if (alive) setVendorAccess({ loading: false, redirect: "" });
+        return;
+      }
+
+      setVendorAccess({ loading: true, redirect: "" });
+      try {
+        const response = await vendorService.getVendorMe();
+        if (!alive) return;
+        setVendorAccess({ loading: false, redirect: getVendorAccessRedirect(response.data) });
+      } catch {
+        if (alive) setVendorAccess({ loading: false, redirect: "/vendor/onboarding" });
+      }
+    }
+
+    loadVendorAccess();
+
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, user?._id, user?.email, user?.role]);
+
   const handleLogout = async () => {
     try {
       await authService.logout();
@@ -83,6 +112,7 @@ export function UserMenu() {
   };
 
   const handleMenuClick = (path) => {
+    if (!path) return;
     navigate(path);
     setIsOpen(false);
   };
@@ -128,6 +158,17 @@ export function UserMenu() {
   };
 
   let menuItems = menuItemsByRole[user.role] || [{ label: "Dashboard", path: "/dashboard", icon: "D" }];
+  if (user.role === "vendor" && vendorAccess.loading) {
+    menuItems = [{ label: "Checking vendor access", path: "", icon: "V", disabled: true }];
+  } else if (user.role === "vendor" && vendorAccess.redirect) {
+    menuItems = [
+      {
+        label: vendorAccess.redirect === "/vendor/status" ? "Vendor status" : "Continue registration",
+        path: vendorAccess.redirect,
+        icon: "V",
+      },
+    ];
+  }
   if (!commerceLoading && user.role === "vendor") {
     menuItems = menuItems.filter(
       (item) => influencerCommerceEnabled || item.path !== "/vendor/influencer-commerce"
@@ -216,7 +257,8 @@ export function UserMenu() {
                 <button
                   key={item.path}
                   onClick={() => handleMenuClick(item.path)}
-                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                  disabled={item.disabled}
+                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 disabled:cursor-wait disabled:text-slate-400 disabled:hover:bg-white disabled:hover:text-slate-400"
                 >
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
                     {item.icon}

@@ -1,15 +1,16 @@
 const express = require("express");
 const Joi = require("joi");
 const { authRequired, requireRole } = require("../../middleware/auth");
+const { requireApprovedVendor } = require("../../middleware/vendorApproval");
 const { validate } = require("../../middleware/validate");
 const controller = require("./controller");
 
 const router = express.Router();
+const vendorAuth = [authRequired, requireRole("vendor"), requireApprovedVendor];
 
 router.post(
   "/create",
-  authRequired,
-  requireRole("vendor"),
+  vendorAuth,
   validate(
     Joi.object({
       influencerId: Joi.string().required(),
@@ -85,7 +86,7 @@ router.post(
   controller.reject
 );
 
-router.get("/vendor", authRequired, requireRole("vendor"), controller.vendor);
+router.get("/vendor", vendorAuth, controller.vendor);
 router.get("/influencer", authRequired, requireRole("influencer"), controller.influencer);
 router.get("/marketplace", authRequired, requireRole("influencer"), controller.marketplace);
 router.get("/marketplace/analytics", authRequired, requireRole("influencer"), controller.analytics);

@@ -19,6 +19,10 @@ export function VendorStatusPage() {
         if (res.data.status === "approved") nav("/dashboard/vendor", { replace: true });
       } catch (e) {
         if (!alive) return;
+        if (e?.response?.status === 404) {
+          nav("/vendor/onboarding", { replace: true });
+          return;
+        }
         setError(e?.response?.data?.message || "Failed to load vendor status");
       } finally {
         if (alive) setLoading(false);
@@ -56,6 +60,11 @@ export function VendorStatusPage() {
         <div className="text-sm text-slate-600">Current status</div>
         <div className="mt-2 text-lg font-semibold capitalize">{status}</div>
         <div className="mt-2 text-sm text-slate-700">Step completed: {step}/4</div>
+        {status === "rejected" && vendor?.rejectionReason ? (
+          <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            {vendor.rejectionReason}
+          </div>
+        ) : null}
 
         {status !== "approved" ? (
           <div className="mt-4 flex flex-wrap gap-3">

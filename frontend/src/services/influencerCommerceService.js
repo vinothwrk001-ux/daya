@@ -486,6 +486,71 @@ export async function getCampaignMarketplaceAnalytics(params = {}) {
   return data;
 }
 
+export async function previewFixedCampaign(payload = {}) {
+  const { data } = await api.post("/api/fixed-campaigns/preview", payload);
+  return data;
+}
+
+export async function createFixedCampaign(payload = {}) {
+  const { data } = await api.post("/api/fixed-campaigns", payload);
+  return data;
+}
+
+export async function getVendorFixedCampaigns(params = {}) {
+  const { data } = await api.get("/api/fixed-campaigns/vendor", { params: compactParams(params) });
+  return data;
+}
+
+export async function getVendorFixedCampaignAnalytics(params = {}) {
+  const { data } = await api.get("/api/fixed-campaigns/vendor/analytics", { params: compactParams(params) });
+  return data;
+}
+
+export async function reviewFixedCampaignContent(submissionId, payload = {}) {
+  const { data } = await api.patch(`/api/fixed-campaigns/content/${submissionId}/review`, payload);
+  return data;
+}
+
+export async function releaseFixedCampaignPayment(campaignId, payload = {}) {
+  const { data } = await api.post(`/api/fixed-campaigns/${campaignId}/release-payment`, payload);
+  return data;
+}
+
+export async function cancelFixedCampaign(campaignId, payload = {}) {
+  const { data } = await api.post(`/api/fixed-campaigns/${campaignId}/cancel`, payload);
+  return data;
+}
+
+export async function getInfluencerFixedCampaigns(params = {}) {
+  const { data } = await api.get("/api/fixed-campaigns/influencer", { params: compactParams(params) });
+  return data;
+}
+
+export async function getInfluencerFixedCampaignAnalytics(params = {}) {
+  const { data } = await api.get("/api/fixed-campaigns/influencer/analytics", { params: compactParams(params) });
+  return data;
+}
+
+export async function acceptFixedCampaign(campaignId) {
+  const { data } = await api.post(`/api/fixed-campaigns/${campaignId}/accept`);
+  return data;
+}
+
+export async function rejectFixedCampaign(campaignId, note = "") {
+  const { data } = await api.post(`/api/fixed-campaigns/${campaignId}/reject`, { note });
+  return data;
+}
+
+export async function submitFixedCampaignContent(campaignId, payload = {}) {
+  const { data } = await api.post(`/api/fixed-campaigns/${campaignId}/content`, payload);
+  return data;
+}
+
+export async function trackFixedCampaignEvent(payload = {}) {
+  const { data } = await api.post("/api/fixed-campaigns/track", payload);
+  return data;
+}
+
 export async function uploadReel(payload) {
   const { data } = await api.post("/api/reel/upload", payload);
   return data;

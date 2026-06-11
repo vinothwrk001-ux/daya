@@ -52,6 +52,7 @@ const privateDocumentRoutes = require("./routes/private-document.routes");
 const invoiceRoutes = require("./routes/invoice.routes");
 const influencerRoutes = require("./modules/influencer/routes");
 const campaignRoutes = require("./modules/campaign/routes");
+const fixedCampaignRoutes = require("./modules/fixedCampaign/routes");
 const reelRoutes = require("./modules/reel/routes");
 const trackingRoutes = require("./modules/tracking/routes");
 const commissionRoutes = require("./modules/commission/routes");
@@ -259,6 +260,7 @@ function createApp() {
   app.use("/api/invoices", invoiceRoutes);
   app.use("/api/influencer", authOptional, influencerCommerceGate, influencerRoutes);
   app.use("/api/campaign", authOptional, influencerCommerceGate, campaignRoutes);
+  app.use("/api/fixed-campaigns", authOptional, influencerCommerceGate, fixedCampaignRoutes);
   app.use("/api/reel", authOptional, influencerCommerceGate, reelRoutes);
   app.use("/api/tracking", authOptional, influencerCommerceGate, trackingRoutes);
   app.use("/api/commission", authOptional, influencerCommerceGate, commissionRoutes);

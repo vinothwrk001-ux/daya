@@ -1,9 +1,11 @@
 const express = require("express");
 const multer = require("multer");
 const { authRequired, requireRole } = require("../middleware/auth");
+const { requireApprovedVendor } = require("../middleware/vendorApproval");
 const reviewController = require("../controllers/review.controller");
 
 const router = express.Router();
+const vendorAuth = [authRequired, requireRole("vendor"), requireApprovedVendor];
 
 const uploadReviewMedia = multer({
   storage: multer.memoryStorage(),
@@ -19,13 +21,13 @@ router.get("/summary", reviewController.getReviewSummaries);
 router.get("/product/:id", reviewController.listProductReviews);
 
 router.post("/", authRequired, requireRole("user"), uploadReviewMedia.array("media", 11), reviewController.createReview);
-router.get("/vendor", authRequired, requireRole("vendor"), reviewController.listVendorReviews);
+router.get("/vendor", vendorAuth, reviewController.listVendorReviews);
 router.get("/admin", authRequired, requireRole(...adminRoles), reviewController.listAdminReviews);
 router.get("/admin/dashboard", authRequired, requireRole(...adminRoles), reviewController.getAdminDashboard);
 
 router.put("/:id", authRequired, reviewController.updateReview);
 router.delete("/:id", authRequired, reviewController.deleteReview);
-router.post("/:id/reply", authRequired, requireRole("vendor"), reviewController.replyToReview);
+router.post("/:id/reply", vendorAuth, reviewController.replyToReview);
 router.post("/:id/vote", authRequired, requireRole("user"), reviewController.voteReview);
 router.post("/:id/report", authRequired, requireRole("user"), reviewController.reportReview);
 

@@ -5,6 +5,7 @@ const {
   requireLegacyAdminPermission,
 } = require("../middleware/adminAccess");
 const { authRequired, requireRole } = require("../middleware/auth");
+const { requireApprovedVendor } = require("../middleware/vendorApproval");
 
 const router = express.Router();
 
@@ -14,8 +15,8 @@ const router = express.Router();
  */
 
 // Public vendor routes
-router.get("/vendor/accessible", authRequired, requireRole("vendor"), vendorModuleController.getVendorAccessibleModules);
-router.post("/vendor/check", authRequired, requireRole("vendor"), vendorModuleController.checkVendorModuleAccess);
+router.get("/vendor/accessible", authRequired, requireRole("vendor"), requireApprovedVendor, vendorModuleController.getVendorAccessibleModules);
+router.post("/vendor/check", authRequired, requireRole("vendor"), requireApprovedVendor, vendorModuleController.checkVendorModuleAccess);
 
 // Admin routes
 router.get(

@@ -8,6 +8,8 @@ import { VendorModuleProvider, useModuleAccess } from "../context/VendorModuleCo
 import { useVendorSidebarData } from "../hooks/useVendorSidebarData";
 import { useRoleNotifications } from "../hooks/useRoleNotifications";
 import { getVendorInfluencerSubscriptionPlans } from "../services/influencerCommerceService";
+import * as vendorService from "../services/vendorService";
+import { getVendorAccessRedirect } from "../utils/vendorAccess";
 
 const pageMeta = {
   "/vendor/dashboard": {
@@ -140,6 +142,52 @@ const pageMeta = {
   },
 };
 
+function VendorAccessGate({ children }) {
+  const location = useLocation();
+  const user = useAuthStore((state) => state.user);
+  const [state, setState] = useState({ loading: true, redirect: "" });
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkVendorAccess() {
+      if (!user || user.role !== "vendor") {
+        if (active) setState({ loading: false, redirect: "/dashboard" });
+        return;
+      }
+
+      try {
+        const response = await vendorService.getVendorMe();
+        if (!active) return;
+        setState({ loading: false, redirect: getVendorAccessRedirect(response.data) });
+      } catch {
+        if (active) setState({ loading: false, redirect: "/vendor/onboarding" });
+      }
+    }
+
+    setState({ loading: true, redirect: "" });
+    checkVendorAccess();
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, user?._id, user?.email, user?.role, location.pathname]);
+
+  if (state.loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 text-sm text-slate-600 dark:bg-slate-950 dark:text-slate-300">
+        Checking vendor access...
+      </div>
+    );
+  }
+
+  if (state.redirect) {
+    return <Navigate to={state.redirect} replace state={{ from: location.pathname }} />;
+  }
+
+  return children;
+}
+
 function VendorLayoutInner() {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
@@ -254,8 +302,10 @@ function VendorLayoutInner() {
 
 export function VendorLayout() {
   return (
-    <VendorModuleProvider>
-      <VendorLayoutInner />
-    </VendorModuleProvider>
+    <VendorAccessGate>
+      <VendorModuleProvider>
+        <VendorLayoutInner />
+      </VendorModuleProvider>
+    </VendorAccessGate>
   );
 }

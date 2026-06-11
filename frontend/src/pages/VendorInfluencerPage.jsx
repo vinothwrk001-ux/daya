@@ -30,6 +30,7 @@ import {
 import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
 import {
   createVendorInfluencerCampaign,
+  createFixedCampaign,
   cancelVendorInfluencerSubscription,
   confirmVendorInfluencerSubscriptionChange,
   createVendorInfluencerSubscriptionChangeOrder,
@@ -39,6 +40,8 @@ import {
   getVendorAffiliateProducts,
   getVendorContentApprovals,
   getVendorCreatorLeaderboard,
+  getVendorFixedCampaignAnalytics,
+  getVendorFixedCampaigns,
   getVendorInfluencerAnalytics,
   getVendorInfluencerCampaigns,
   getVendorInfluencerCommerceConfiguration,
@@ -50,9 +53,12 @@ import {
   getVendorPromotionProducts,
   previewVendorInfluencerCampaign,
   previewVendorInfluencerSubscriptionChange,
+  releaseFixedCampaignPayment,
+  reviewFixedCampaignContent,
   reviewVendorCampaignApplication,
   reviewVendorInfluencerContent,
   saveVendorInfluencer,
+  cancelFixedCampaign,
   updateVendorInfluencerCampaignStatus,
   updateVendorInfluencerRelationship,
   visitVendorInfluencer,
@@ -67,6 +73,7 @@ const TABS = [
   ["subscription", "Subscription", CreditCard],
   ["relationships", "My Influencers", Users],
   ["campaigns", "Campaign Management", Megaphone],
+  ["fixed", "Fixed Campaigns", CheckCircle2],
   ["products", "Product Promotion", Package],
   ["affiliate", "Affiliate Products", LinkIcon],
   ["content", "Content Approvals", FileCheck2],
@@ -83,6 +90,7 @@ const TAB_PATHS = {
   subscription: "/vendor/influencer-commerce/subscription",
   relationships: "/vendor/influencer-commerce/relationships",
   campaigns: "/vendor/influencer-commerce/campaigns",
+  fixed: "/vendor/influencer-commerce/fixed",
   products: "/vendor/influencer-commerce/products",
   affiliate: "/vendor/influencer-commerce/affiliate",
   content: "/vendor/influencer-commerce/content",
@@ -177,6 +185,42 @@ function packageKey(service = {}, pkg = {}) {
   const serviceId = String(service._id || service.id || service.serviceId || service.serviceTypeKey || "");
   const pkgId = String(pkg._id || pkg.id || pkg.packageId || pkg.packageName || "");
   return `${serviceId}:${pkgId}`;
+}
+
+function productRow(row = {}) {
+  return row.product || row;
+}
+
+function productRowId(row = {}) {
+  const product = productRow(row);
+  return String(product.id || product._id || product.productId || "");
+}
+
+function productRowName(row = {}) {
+  const product = productRow(row);
+  return product.name || product.title || "Product";
+}
+
+function influencerRowId(row = {}) {
+  return String(row.influencerId || row.id || row._id || row.influencer?._id || row.influencer?.id || "");
+}
+
+function influencerRowName(row = {}) {
+  return row.name || row.displayName || row.influencer?.displayName || row.influencer?.userId?.name || "Creator";
+}
+
+function influencerRowUsername(row = {}) {
+  return row.username || row.influencer?.userId?.username || row.influencer?.influencerCode || "";
+}
+
+function influencerRateCard(row = {}) {
+  return Array.isArray(row.rateCard)
+    ? row.rateCard
+    : Array.isArray(row.services)
+      ? row.services
+      : Array.isArray(row.influencer?.rateCard)
+        ? row.influencer.rateCard
+        : [];
 }
 
 function configKey(row = {}) {
@@ -1080,15 +1124,17 @@ export function VendorInfluencerPage() {
   }, [filters]);
 
   const campaigns = data.campaigns?.items || data.dashboard?.campaigns || [];
+  const fixedCampaigns = data.fixed?.campaigns?.items || [];
   const products = data.products?.items || [];
   const relationships = data.relationships?.items || [];
   const discovery = data.discover?.items || [];
 
   const loadFoundation = useCallback(async () => {
-    const [campaignResponse, productResponse, relationshipResponse, subscriptionResponse, configurationResponse] = await Promise.all([
+    const [campaignResponse, productResponse, relationshipResponse, discoveryResponse, subscriptionResponse, configurationResponse] = await Promise.all([
       getVendorInfluencerCampaigns({ limit: 100 }),
       getVendorPromotionProducts({ limit: 100 }),
       getVendorInfluencerRelationships({ limit: 100 }),
+      discoverVendorInfluencers({ limit: 100, sort: "trending" }).catch(() => ({ data: { items: [] } })),
       getVendorInfluencerSubscriptionPlans(),
       getVendorInfluencerCommerceConfiguration(),
     ]);
@@ -1097,6 +1143,7 @@ export function VendorInfluencerPage() {
       campaigns: campaignResponse?.data || { items: [] },
       products: productResponse?.data || { items: [] },
       relationships: relationshipResponse?.data || { items: [] },
+      discover: current.discover?.items?.length ? current.discover : discoveryResponse?.data || { items: [] },
       subscription: subscriptionResponse?.data || {},
       configuration: configurationResponse?.data || {},
     }));
@@ -1113,6 +1160,18 @@ export function VendorInfluencerPage() {
         subscription: () => getVendorInfluencerSubscriptionPlans(),
         relationships: () => getVendorInfluencerRelationships(query),
         campaigns: () => getVendorInfluencerCampaigns(query),
+        fixed: async () => {
+          const [campaignResponse, analyticsResponse] = await Promise.all([
+            getVendorFixedCampaigns(query),
+            getVendorFixedCampaignAnalytics(query),
+          ]);
+          return {
+            data: {
+              campaigns: campaignResponse?.data || { items: [] },
+              analytics: analyticsResponse?.data || {},
+            },
+          };
+        },
         products: () => getVendorPromotionProducts(query),
         affiliate: () => getVendorAffiliateProducts(query),
         content: () => getVendorContentApprovals({ ...query, queue: "pending" }),
@@ -1174,6 +1233,27 @@ export function VendorInfluencerPage() {
 
   async function createCampaign(payload) {
     await runAction("create-campaign", () => createVendorInfluencerCampaign(payload), "Campaign synchronized with the influencer ecosystem.");
+  }
+
+  async function createFixedCampaignOffer(payload) {
+    return runAction("create-fixed-campaign", () => createFixedCampaign(payload), "Fixed payment campaign proposed to the influencer.");
+  }
+
+  async function reviewFixedContent(submission, decision, note = "") {
+    const submissionId = submission.id || submission._id;
+    await runAction(`fixed-content-${submissionId}`, () => reviewFixedCampaignContent(submissionId, { decision, note }), "Fixed campaign content review saved.");
+  }
+
+  async function releaseFixedPayment(campaign) {
+    const campaignId = campaign.id || campaign._id;
+    await runAction(`fixed-release-${campaignId}`, () => releaseFixedCampaignPayment(campaignId, { notes: "Released from vendor influencer commerce console." }), "Fixed campaign payment released and campaign completed.");
+  }
+
+  async function cancelFixedCampaignOffer(campaign) {
+    const campaignId = campaign.id || campaign._id;
+    if (await confirmAction({ message: `Cancel "${campaign.title || "this fixed campaign"}"?`, tone: "danger", confirmLabel: "Cancel campaign" })) {
+      await runAction(`fixed-cancel-${campaignId}`, () => cancelFixedCampaign(campaignId, { note: "Cancelled from vendor influencer commerce console." }), "Fixed campaign cancelled.");
+    }
   }
 
   async function visitInfluencerProfile(row) {
@@ -1417,6 +1497,23 @@ export function VendorInfluencerPage() {
         />
       ) : null}
       {tab === "campaigns" ? <CampaignsView campaigns={campaigns} pagination={data.campaigns?.pagination} products={products} influencers={[...relationships, ...discovery]} configuration={data.configuration || {}} selectedInfluencerId={filters.influencerId} selectedProductIds={filters.productId ? [filters.productId] : []} busyId={busyId} onPage={(page) => setFilters((current) => ({ ...current, page }))} onCreate={createCampaign} onReview={(campaign, application, decision) => runAction(`${campaign._id}-${application.influencerId}`, () => reviewVendorCampaignApplication(campaign._id, application.influencerId, { decision }), "Campaign application reviewed.")} onStatus={(campaign, action) => runAction(campaign._id, () => updateVendorInfluencerCampaignStatus(campaign._id, { action }), "Campaign status updated.")} onDelete={(campaign) => runAction(`delete-${campaign._id}`, () => deleteVendorInfluencerCampaign(campaign._id), "Campaign deleted.")} /> : null}
+      {tab === "fixed" ? (
+        <FixedCampaignsView
+          campaigns={fixedCampaigns}
+          analytics={data.fixed?.analytics}
+          pagination={data.fixed?.campaigns?.pagination}
+          products={products}
+          influencers={[...relationships, ...discovery]}
+          selectedInfluencerId={filters.influencerId}
+          selectedProductIds={filters.productId ? [filters.productId] : []}
+          busyId={busyId}
+          onPage={(page) => setFilters((current) => ({ ...current, page }))}
+          onCreate={createFixedCampaignOffer}
+          onReviewContent={reviewFixedContent}
+          onReleasePayment={releaseFixedPayment}
+          onCancel={cancelFixedCampaignOffer}
+        />
+      ) : null}
       {tab === "products" ? (
         <ProductsView
           rows={products}
@@ -2066,6 +2163,268 @@ function CampaignsView({ campaigns, pagination, products, influencers, configura
               );
             })()
           )}
+        />
+        <Pagination pagination={pagination} onPage={onPage} />
+      </Section>
+    </div>
+  );
+}
+
+function FixedCampaignForm({ influencers, products, initialInfluencerId = "", initialProductIds = [], busy, onCreate }) {
+  const influencerOptions = useMemo(() => {
+    const rows = new Map();
+    influencers.forEach((row) => {
+      const id = influencerRowId(row);
+      if (!id) return;
+      const existing = rows.get(id);
+      if (!existing || influencerRateCard(row).length > influencerRateCard(existing).length) rows.set(id, row);
+    });
+    return [...rows.values()];
+  }, [influencers]);
+  const productOptions = useMemo(() => {
+    const rows = new Map();
+    products.forEach((row) => {
+      const id = productRowId(row);
+      if (id && !rows.has(id)) rows.set(id, row);
+    });
+    return [...rows.values()];
+  }, [products]);
+  const [form, setForm] = useState({
+    influencerId: initialInfluencerId || "",
+    productId: initialProductIds[0] || "",
+    title: "",
+    description: "",
+    packageKey: "",
+    quantity: 1,
+    attributionWindowDays: 30,
+    endDate: "",
+  });
+  const selectedInfluencer = influencerOptions.find((row) => influencerRowId(row) === form.influencerId) || null;
+  const selectedProduct = productOptions.find((row) => productRowId(row) === form.productId) || null;
+  const packageOptions = useMemo(() => {
+    return influencerRateCard(selectedInfluencer).flatMap((service) => servicePackages(service).map((pkg) => ({
+      key: packageKey(service, pkg),
+      service,
+      pkg,
+      label: `${service.serviceName || service.label || service.serviceTypeKey || "Service"} - ${pkg.packageName || "Package"}`,
+      price: packagePrice(pkg, service),
+      deliveryDays: pkg.deliveryDays ?? service.deliveryDays ?? 0,
+    })));
+  }, [selectedInfluencer]);
+  const selectedPackage = packageOptions.find((row) => row.key === form.packageKey) || packageOptions[0] || null;
+  const estimatedTotal = selectedPackage ? Number(selectedPackage.price || 0) * Math.max(1, Number(form.quantity || 1)) : 0;
+
+  useEffect(() => {
+    if (!form.influencerId && initialInfluencerId) setForm((current) => ({ ...current, influencerId: initialInfluencerId }));
+    if (!form.productId && initialProductIds[0]) setForm((current) => ({ ...current, productId: initialProductIds[0] }));
+  }, [form.influencerId, form.productId, initialInfluencerId, initialProductIds]);
+
+  useEffect(() => {
+    if (!packageOptions.length) {
+      if (form.packageKey) setForm((current) => ({ ...current, packageKey: "" }));
+      return;
+    }
+    if (!packageOptions.some((row) => row.key === form.packageKey)) {
+      setForm((current) => ({ ...current, packageKey: packageOptions[0].key }));
+    }
+  }, [form.packageKey, packageOptions]);
+
+  function update(key, value) {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "influencerId" ? { packageKey: "" } : {}),
+    }));
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!selectedInfluencer || !selectedProduct || !selectedPackage) return;
+    await onCreate({
+      influencerId: form.influencerId,
+      productIds: [form.productId],
+      title: form.title || `${productRowName(selectedProduct)} fixed campaign`,
+      description: form.description,
+      category: productRow(selectedProduct).category || selectedInfluencer.category || "",
+      attributionWindowDays: Number(form.attributionWindowDays || 30),
+      endDate: form.endDate || null,
+      selectedServices: [{
+        serviceId: selectedPackage.service._id || selectedPackage.service.id || selectedPackage.service.serviceId,
+        serviceTypeKey: selectedPackage.service.serviceTypeKey,
+        serviceName: selectedPackage.service.serviceName,
+        packageId: selectedPackage.pkg._id || selectedPackage.pkg.id || selectedPackage.pkg.packageId,
+        packageName: selectedPackage.pkg.packageName,
+        quantity: Math.max(1, Number(form.quantity || 1)),
+      }],
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className="grid gap-3 xl:grid-cols-6">
+      <label className="block space-y-1.5 xl:col-span-2">
+        <FieldLabel>Influencer</FieldLabel>
+        <select value={form.influencerId} onChange={(event) => update("influencerId", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" required>
+          <option value="">Select creator</option>
+          {influencerOptions.map((row) => {
+            const id = influencerRowId(row);
+            const username = influencerRowUsername(row);
+            const hasRates = influencerRateCard(row).length > 0;
+            return <option key={id} value={id}>{influencerRowName(row)}{username ? ` @${username}` : ""}{hasRates ? "" : " (no active rate card)"}</option>;
+          })}
+        </select>
+      </label>
+      <label className="block space-y-1.5 xl:col-span-2">
+        <FieldLabel>Product</FieldLabel>
+        <select value={form.productId} onChange={(event) => update("productId", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" required>
+          <option value="">Select product</option>
+          {productOptions.map((row) => <option key={productRowId(row)} value={productRowId(row)}>{productRowName(row)}</option>)}
+        </select>
+      </label>
+      <label className="block space-y-1.5">
+        <FieldLabel>Attribution</FieldLabel>
+        <select value={form.attributionWindowDays} onChange={(event) => update("attributionWindowDays", Number(event.target.value))} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+          {[30, 60, 90].map((days) => <option key={days} value={days}>{days} days</option>)}
+        </select>
+      </label>
+      <label className="block space-y-1.5">
+        <FieldLabel>Quantity</FieldLabel>
+        <input type="number" min="1" value={form.quantity} onChange={(event) => update("quantity", Number(event.target.value || 1))} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+      </label>
+      <label className="block space-y-1.5 xl:col-span-2">
+        <FieldLabel>Rate Card Package</FieldLabel>
+        <select value={form.packageKey || selectedPackage?.key || ""} onChange={(event) => update("packageKey", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" required>
+          <option value="">Select package</option>
+          {packageOptions.map((row) => <option key={row.key} value={row.key}>{row.label} - {formatCurrency(row.price || 0)}</option>)}
+        </select>
+      </label>
+      <label className="block space-y-1.5 xl:col-span-2">
+        <FieldLabel>Campaign Title</FieldLabel>
+        <input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Fixed deliverable campaign" className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+      </label>
+      <label className="block space-y-1.5">
+        <FieldLabel>End Date</FieldLabel>
+        <input type="date" value={form.endDate} onChange={(event) => update("endDate", event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+      </label>
+      <label className="block space-y-1.5 xl:col-span-4">
+        <FieldLabel>Description</FieldLabel>
+        <textarea value={form.description} onChange={(event) => update("description", event.target.value)} rows={3} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+      </label>
+      <div className="flex flex-col justify-end gap-2 xl:col-span-2">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950">
+          <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Fixed payment</span>
+          <b className="text-slate-950 dark:text-white">{formatCurrency(estimatedTotal)}</b>
+          {selectedPackage?.deliveryDays ? <span className="ml-2 text-xs text-slate-500">{selectedPackage.deliveryDays} day delivery</span> : null}
+        </div>
+        <button type="submit" disabled={busy || !selectedInfluencer || !selectedProduct || !selectedPackage} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950">
+          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+          {busy ? "Creating..." : "Propose Fixed Campaign"}
+        </button>
+      </div>
+      {!packageOptions.length && form.influencerId ? (
+        <p className="text-sm font-medium text-amber-700 dark:text-amber-300 xl:col-span-6">
+          This creator does not have an active priced service package in the current discovery data.
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
+function FixedCampaignsView({ campaigns, analytics = {}, pagination, products, influencers, selectedInfluencerId = "", selectedProductIds = [], busyId, onPage, onCreate, onReviewContent, onReleasePayment, onCancel }) {
+  const kpis = analytics?.kpis || {};
+  return (
+    <div className="grid gap-5">
+      <Section title="Create Fixed Payment Campaign" icon={CheckCircle2}>
+        <FixedCampaignForm
+          influencers={influencers}
+          products={products}
+          initialInfluencerId={selectedInfluencerId}
+          initialProductIds={selectedProductIds}
+          busy={busyId === "create-fixed-campaign"}
+          onCreate={onCreate}
+        />
+      </Section>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <Metric label="Fixed Budget" value={formatCurrency(kpis.campaignBudget || 0)} />
+        <Metric label="Spend Released" value={formatCurrency(kpis.campaignSpend || 0)} />
+        <Metric label="Revenue Influenced" value={formatCurrency(kpis.revenueGenerated || 0)} />
+        <Metric label="ROAS" value={Number(kpis.roas || 0).toFixed(2)} />
+        <Metric label="Orders" value={numberValue(kpis.orders)} />
+        <Metric label="Product Clicks" value={numberValue(kpis.productClicks)} />
+      </div>
+      <Section title="Fixed Campaigns" icon={CheckCircle2}>
+        <ResponsiveTable
+          headers={["Campaign", "Creator", "Fixed Payment", "Analytics", "Content Approval", "Status", "Actions"]}
+          rows={campaigns}
+          renderRow={(campaign) => {
+            const campaignId = String(campaign.id || campaign._id);
+            const state = String(campaign.status || "proposed");
+            const analyticsRow = campaign.analytics || {};
+            const submissions = campaign.submissions || [];
+            const approvedContent = submissions.some((submission) => submission.status === "approved");
+            const canRelease = ["approved", "content_submitted"].includes(state) && approvedContent;
+            const terminal = ["completed", "cancelled", "rejected"].includes(state);
+            const releaseBusy = busyId === `fixed-release-${campaignId}`;
+            const cancelBusy = busyId === `fixed-cancel-${campaignId}`;
+            return (
+              <tr key={campaignId} className="border-t border-slate-100 align-top dark:border-slate-800">
+                <td className="max-w-sm px-3 py-3 font-semibold text-slate-950 dark:text-white">
+                  <span className="block truncate" title={campaign.title}>{shortText(campaign.title || "Fixed campaign", 82)}</span>
+                  <div className="text-xs font-normal text-slate-500">{(campaign.productIds || campaign.products || []).length} product(s) - {campaign.attributionWindowDays || 30} day analytics attribution</div>
+                </td>
+                <td className="px-3 py-3">
+                  <span className="font-semibold text-slate-950 dark:text-white">{campaign.influencerName || influencerRowName(campaign.influencerId)}</span>
+                  <div className="text-xs text-slate-500">@{campaign.influencerUsername || influencerRowUsername(campaign.influencerId) || "creator"}</div>
+                </td>
+                <td className="px-3 py-3">
+                  <span className="font-semibold text-slate-950 dark:text-white">{formatCurrency(campaign.influencerPayment || campaign.budget || 0)}</span>
+                  <div className="text-xs text-slate-500">Deliverable based only</div>
+                </td>
+                <td className="px-3 py-3">
+                  <div className="grid min-w-40 grid-cols-3 gap-1 text-xs">
+                    <MetricTile label="Views" value={numberValue(analyticsRow.contentViews)} />
+                    <MetricTile label="Clicks" value={numberValue(analyticsRow.productClicks)} />
+                    <MetricTile label="Orders" value={numberValue(analyticsRow.orders)} />
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">Revenue {formatCurrency(analyticsRow.revenue || campaign.revenueGenerated || 0)}</div>
+                </td>
+                <td className="min-w-64 px-3 py-3">
+                  {submissions.length ? (
+                    <div className="space-y-2">
+                      {submissions.map((submission) => {
+                        const submissionId = String(submission.id || submission._id);
+                        const reviewBusy = busyId === `fixed-content-${submissionId}`;
+                        const isApproved = submission.status === "approved";
+                        return (
+                          <div key={submissionId} className="rounded-xl border border-slate-100 p-2 text-xs dark:border-slate-800">
+                            <div className="flex items-center justify-between gap-2">
+                              <StatusBadge value={submission.status} />
+                              {submission.contentUrl ? <a href={resolveApiAssetUrl(submission.contentUrl) || submission.contentUrl} target="_blank" rel="noreferrer" className="font-semibold text-indigo-600 dark:text-indigo-300">View</a> : null}
+                            </div>
+                            {submission.requestedChanges ? <p className="mt-1 text-amber-700 dark:text-amber-300">{shortText(submission.requestedChanges, 96)}</p> : null}
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              <button type="button" disabled={reviewBusy || isApproved || terminal} onClick={() => onReviewContent(submission, "approve")} className="rounded-lg bg-emerald-600 px-2 py-1 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">Approve</button>
+                              <button type="button" disabled={reviewBusy || terminal} onClick={() => onReviewContent(submission, "changes", "Please update this content and resubmit.")} className="rounded-lg border border-amber-200 px-2 py-1 font-semibold text-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-900/50 dark:text-amber-300">Changes</button>
+                              <button type="button" disabled={reviewBusy || terminal} onClick={() => onReviewContent(submission, "reject", "Content rejected.")} className="rounded-lg border border-rose-200 px-2 py-1 font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/50 dark:text-rose-300">Reject</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-500">No content submitted yet.</span>
+                  )}
+                </td>
+                <td className="px-3 py-3"><StatusBadge value={state} /></td>
+                <td className="px-3 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" disabled={releaseBusy || !canRelease || terminal} onClick={() => onReleasePayment(campaign)} className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">Release</button>
+                    <button type="button" disabled={cancelBusy || terminal} onClick={() => onCancel(campaign)} className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/50 dark:text-rose-300">Cancel</button>
+                  </div>
+                  {!canRelease && !terminal ? <p className="mt-2 max-w-44 text-xs text-slate-500">Release unlocks after acceptance and approved content.</p> : null}
+                </td>
+              </tr>
+            );
+          }}
         />
         <Pagination pagination={pagination} onPage={onPage} />
       </Section>
