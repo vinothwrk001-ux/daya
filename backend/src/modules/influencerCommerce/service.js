@@ -244,7 +244,9 @@ class InfluencerCommerceVendorService {
 
   async upsertRelationship(vendorId, influencerId, payload = {}) {
     if (!influencerId) return null;
-    const current = await VendorInfluencerRelationship.findOne({ vendorId, influencerId }).lean();
+    const influencerObjectId = objectId(influencerId);
+    if (!influencerObjectId) throw new AppError("Influencer not found", 404, "NOT_FOUND");
+    const current = await VendorInfluencerRelationship.findOne({ vendorId, influencerId: influencerObjectId }).lean();
     const nextStatus = payload.status ? normalizeStatus(payload.status) : current?.status || "saved";
     const update = {
       $set: {
@@ -260,7 +262,7 @@ class InfluencerCommerceVendorService {
       ...(payload.campaignId ? { $addToSet: { activeCampaignIds: payload.campaignId } } : {}),
     };
     return VendorInfluencerRelationship.findOneAndUpdate(
-      { vendorId, influencerId },
+      { vendorId, influencerId: influencerObjectId },
       update,
       { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
@@ -1252,13 +1254,17 @@ class InfluencerCommerceVendorService {
 
   async updateRelationship(userId, influencerId, payload = {}) {
     const vendor = await this.getVendor(userId);
-    const relationship = await this.upsertRelationship(vendor._id, influencerId, {
+    const influencerObjectId = objectId(influencerId);
+    if (!influencerObjectId) throw new AppError("Influencer not found", 404, "NOT_FOUND");
+    const profile = await InfluencerProfile.findById(influencerObjectId).select("_id").lean();
+    if (!profile) throw new AppError("Influencer not found", 404, "NOT_FOUND");
+    const relationship = await this.upsertRelationship(vendor._id, influencerObjectId, {
       status: payload.status,
       source: "manual",
       notes: payload.notes,
       blacklistReason: payload.blacklistReason,
     });
-    await emitDomainEvent(SYNC_EVENTS.RELATIONSHIP_UPDATED, { vendorId: vendor._id, influencerId, status: relationship.status });
+    await emitDomainEvent(SYNC_EVENTS.RELATIONSHIP_UPDATED, { vendorId: vendor._id, influencerId: influencerObjectId, status: relationship.status });
     return relationship;
   }
 
@@ -1479,15 +1485,15 @@ class InfluencerCommerceVendorService {
   async updateCampaignStatus(userId, campaignId, payload = {}) {
     const vendor = await this.getVendor(userId);
     const action = String(payload.action || "").toLowerCase();
-    const state = action === "pause" ? "cancelled" : action === "close" ? "completed" : action === "activate" ? "active" : payload.state;
-    if (!["draft", "proposed", "accepted", "active", "completed", "cancelled"].includes(state)) {
+    const state = action === "pause" ? "paused" : action === "close" ? "completed" : action === "activate" ? "active" : payload.state;
+    if (!["draft", "proposed", "accepted", "active", "paused", "completed", "cancelled"].includes(state)) {
       throw new AppError("Invalid campaign state", 400, "INVALID_STATE");
     }
     const current = await Campaign.findOne({ _id: campaignId, vendorId: vendor._id }).select("state").lean();
     if (!current) throw new AppError("Campaign not found", 404, "NOT_FOUND");
     if (current.state === state) return current;
-    if (current.state === "completed" && state !== "completed") {
-      throw new AppError("Completed campaigns cannot be reopened. Create a new campaign instead.", 409, "CAMPAIGN_COMPLETED_LOCKED");
+    if (["completed", "cancelled"].includes(current.state) && state !== current.state) {
+      throw new AppError("Closed campaigns cannot be reopened. Create a new campaign instead.", 409, "CAMPAIGN_CLOSED_LOCKED");
     }
     const campaign = await Campaign.findOneAndUpdate(
       { _id: campaignId, vendorId: vendor._id },

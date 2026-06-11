@@ -100,6 +100,14 @@ const TAB_PATHS = {
   reports: "/vendor/influencer-commerce/reports",
 };
 
+function campaignBuilderPath({ influencerId = "", productId = "" } = {}) {
+  const params = new URLSearchParams();
+  if (influencerId) params.set("influencerId", influencerId);
+  if (productId) params.set("productId", productId);
+  const search = params.toString();
+  return search ? `${TAB_PATHS.campaigns}?${search}` : TAB_PATHS.campaigns;
+}
+
 const defaultFilters = {
   search: "",
   status: "",
@@ -148,7 +156,11 @@ function loadRazorpayScript() {
 }
 
 function getId(row) {
-  return row?.id || row?._id;
+  return row?.id || row?._id || row?.productId || row?.influencerId;
+}
+
+function arrayValue(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 function shortText(value = "", limit = 54) {
@@ -188,12 +200,14 @@ function packageKey(service = {}, pkg = {}) {
 }
 
 function productRow(row = {}) {
-  return row.product || row;
+  const source = row && typeof row === "object" ? row : {};
+  return source.product || source;
 }
 
 function productRowId(row = {}) {
-  const product = productRow(row);
-  return String(product.id || product._id || product.productId || "");
+  const source = row && typeof row === "object" ? row : {};
+  const product = productRow(source);
+  return String(source.id || source.productId || product.id || product._id || product.productId || "");
 }
 
 function productRowName(row = {}) {
@@ -202,25 +216,62 @@ function productRowName(row = {}) {
 }
 
 function influencerRowId(row = {}) {
-  return String(row.influencerId || row.id || row._id || row.influencer?._id || row.influencer?.id || "");
+  const source = row && typeof row === "object" ? row : {};
+  return String(source.influencerId || source.influencer?._id || source.influencer?.id || source.profileId || source.creatorId || source.id || source._id || "");
 }
 
 function influencerRowName(row = {}) {
-  return row.name || row.displayName || row.influencer?.displayName || row.influencer?.userId?.name || "Creator";
+  const source = row && typeof row === "object" ? row : {};
+  return source.name || source.displayName || source.influencer?.displayName || source.influencer?.userId?.name || "Creator";
 }
 
 function influencerRowUsername(row = {}) {
-  return row.username || row.influencer?.userId?.username || row.influencer?.influencerCode || "";
+  const source = row && typeof row === "object" ? row : {};
+  return source.username || source.influencer?.userId?.username || source.influencer?.influencerCode || "";
 }
 
 function influencerRateCard(row = {}) {
-  return Array.isArray(row.rateCard)
-    ? row.rateCard
-    : Array.isArray(row.services)
-      ? row.services
-      : Array.isArray(row.influencer?.rateCard)
-        ? row.influencer.rateCard
+  const source = row && typeof row === "object" ? row : {};
+  return Array.isArray(source.rateCard)
+    ? source.rateCard
+    : Array.isArray(source.services)
+      ? source.services
+      : Array.isArray(source.influencer?.rateCard)
+        ? source.influencer.rateCard
         : [];
+}
+
+function normalizeInfluencerOption(row = {}) {
+  if (!row || typeof row !== "object") return null;
+  const influencerId = influencerRowId(row);
+  if (!influencerId) return null;
+  const rateCard = influencerRateCard(row);
+  return {
+    ...row,
+    id: row.id || influencerId,
+    influencerId,
+    name: influencerRowName(row),
+    username: influencerRowUsername(row),
+    rateCard,
+    services: Array.isArray(row.services) && row.services.length ? row.services : rateCard,
+  };
+}
+
+function mergeInfluencerOptions(rows = []) {
+  const map = new Map();
+  rows.forEach((row) => {
+    const normalized = normalizeInfluencerOption(row);
+    if (!normalized) return;
+    const current = map.get(normalized.influencerId) || {};
+    map.set(normalized.influencerId, {
+      ...current,
+      ...normalized,
+      rateCard: normalized.rateCard?.length ? normalized.rateCard : current.rateCard,
+      services: normalized.services?.length ? normalized.services : current.services,
+      requirements: normalized.requirements || current.requirements,
+    });
+  });
+  return [...map.values()];
 }
 
 function configKey(row = {}) {
@@ -516,7 +567,8 @@ function Filters({ filters, setFilters, campaigns = [], products = [], configura
           <option value="">All products</option>
           {products.map((row) => {
             const product = row.product || row;
-            return <option key={getId(product)} value={getId(product)}>{shortText(product.name, 72)}</option>;
+            const id = productRowId(row);
+            return <option key={id} value={id}>{shortText(product.name, 72)}</option>;
           })}
         </select>
       </label>
@@ -691,25 +743,12 @@ function CampaignForm({ influencers, products, configuration = {}, onCreate, bus
   }, [initialProductKey]);
 
   const influencerOptions = useMemo(() => {
-    const map = new Map();
-    influencers.forEach((row) => {
-      const id = String(row.influencerId || row.id || row._id || "");
-      if (!id) return;
-      const current = map.get(id) || {};
-      map.set(id, {
-        ...current,
-        ...row,
-        rateCard: row.rateCard?.length ? row.rateCard : current.rateCard,
-        services: row.services?.length ? row.services : current.services,
-        requirements: row.requirements || current.requirements,
-      });
-    });
-    return [...map.values()];
+    return mergeInfluencerOptions(influencers);
   }, [influencers]);
 
   const selectedInfluencer = useMemo(() => {
     const id = String(form.influencerId || "");
-    return influencerOptions.find((row) => String(row.influencerId || row.id || row._id) === id) || null;
+    return influencerOptions.find((row) => influencerRowId(row) === id) || null;
   }, [form.influencerId, influencerOptions]);
 
   const selectedRateCard = selectedInfluencer?.rateCard || selectedInfluencer?.services || [];
@@ -859,7 +898,11 @@ function CampaignForm({ influencers, products, configuration = {}, onCreate, bus
   }
 
   async function refreshPreview(nextForm = form) {
-    if (!nextForm.productIds.length) return;
+    if (!nextForm.productIds.length) {
+      setPreview(null);
+      setPreviewError("");
+      return;
+    }
     setPreviewError("");
     try {
       const response = await previewVendorInfluencerCampaign(buildPayload(nextForm));
@@ -925,7 +968,8 @@ function CampaignForm({ influencers, products, configuration = {}, onCreate, bus
 
   async function submit(event) {
     event.preventDefault();
-    await onCreate(buildPayload());
+    const created = await onCreate(buildPayload());
+    if (!created) return;
     const campaignType = rules.campaignTypes[0]?.key || "";
     const typeConfig = rules.campaignTypes[0] || null;
     const paymentType = typeConfig?.defaultPaymentType || typeConfig?.allowedPaymentModels?.[0]?.key || rules.paymentModels[0]?.key || "";
@@ -961,7 +1005,11 @@ function CampaignForm({ influencers, products, configuration = {}, onCreate, bus
         <FieldLabel>Influencer</FieldLabel>
         <select value={form.influencerId} onChange={(event) => setForm((current) => ({ ...current, influencerId: event.target.value, selectedServices: [] }))} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" aria-label="Invite influencer">
           <option value="">Public marketplace campaign</option>
-          {influencerOptions.map((row) => <option key={row.influencerId || row.id || row._id} value={row.influencerId || row.id || row._id}>{row.name || row.username}</option>)}
+          {influencerOptions.map((row) => {
+            const id = influencerRowId(row);
+            const username = influencerRowUsername(row);
+            return <option key={id} value={id}>{influencerRowName(row)}{username ? ` @${username}` : ""}</option>;
+          })}
         </select>
       </label>
       <label className="block space-y-1.5">
@@ -976,7 +1024,8 @@ function CampaignForm({ influencers, products, configuration = {}, onCreate, bus
         <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-950">
           {products.map((row) => {
             const product = row.product || row;
-            const productId = String(getId(product));
+            const productId = productRowId(row);
+            if (!productId) return null;
             return (
               <label key={productId} className="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                 <input type="checkbox" checked={form.productIds.includes(productId)} onChange={() => toggleProduct(productId)} />
@@ -1114,6 +1163,24 @@ export function VendorInfluencerPage() {
   const [error, setError] = useState("");
   const [data, setData] = useState({});
   const [planChangePreview, setPlanChangePreview] = useState(null);
+  const [selectedInvite, setSelectedInvite] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const influencerId = params.get("influencerId") || "";
+    const productId = params.get("productId") || "";
+    if (!influencerId && !productId) return;
+    setFilters((current) => {
+      const next = {
+        ...current,
+        influencerId: influencerId || current.influencerId,
+        productId: productId || current.productId,
+        page: 1,
+      };
+      if (next.influencerId === current.influencerId && next.productId === current.productId && next.page === current.page) return current;
+      return next;
+    });
+  }, [location.search]);
 
   const query = useMemo(() => {
     const clean = {};
@@ -1123,11 +1190,12 @@ export function VendorInfluencerPage() {
     return clean;
   }, [filters]);
 
-  const campaigns = data.campaigns?.items || data.dashboard?.campaigns || [];
-  const fixedCampaigns = data.fixed?.campaigns?.items || [];
-  const products = data.products?.items || [];
-  const relationships = data.relationships?.items || [];
-  const discovery = data.discover?.items || [];
+  const campaigns = arrayValue(data.campaigns?.items).length ? arrayValue(data.campaigns?.items) : arrayValue(data.dashboard?.campaigns);
+  const fixedCampaigns = arrayValue(data.fixed?.campaigns?.items);
+  const products = arrayValue(data.products?.items);
+  const relationships = arrayValue(data.relationships?.items);
+  const discovery = arrayValue(data.discover?.items);
+  const campaignInfluencers = useMemo(() => mergeInfluencerOptions([selectedInvite, ...relationships, ...discovery]), [selectedInvite, relationships, discovery]);
 
   const loadFoundation = useCallback(async () => {
     const [campaignResponse, productResponse, relationshipResponse, discoveryResponse, subscriptionResponse, configurationResponse] = await Promise.all([
@@ -1221,10 +1289,14 @@ export function VendorInfluencerPage() {
     try {
       await action();
       setMessage(successText);
-      await Promise.all([loadTab({ silent: true }), loadFoundation()]);
+      try {
+        await Promise.all([loadTab({ silent: true }), loadFoundation()]);
+      } catch {
+        // The action itself succeeded; stale data is better than blocking the workflow.
+      }
       return true;
     } catch (err) {
-      setError(err?.response?.data?.message || "Action failed.");
+      setError(err?.response?.data?.message || err?.message || "Action failed.");
       return false;
     } finally {
       setBusyId("");
@@ -1232,7 +1304,7 @@ export function VendorInfluencerPage() {
   }
 
   async function createCampaign(payload) {
-    await runAction("create-campaign", () => createVendorInfluencerCampaign(payload), "Campaign synchronized with the influencer ecosystem.");
+    return runAction("create-campaign", () => createVendorInfluencerCampaign(payload), "Campaign synchronized with the influencer ecosystem.");
   }
 
   async function createFixedCampaignOffer(payload) {
@@ -1257,7 +1329,8 @@ export function VendorInfluencerPage() {
   }
 
   async function visitInfluencerProfile(row) {
-    const ok = await runAction(`visit-${row.id}`, () => visitVendorInfluencer(row.id), "Influencer visit recorded.");
+    const influencerId = influencerRowId(row);
+    const ok = await runAction(`visit-${influencerId}`, () => visitVendorInfluencer(influencerId), "Influencer visit recorded.");
     if (ok && row.username) navigate(`/influencer/${encodeURIComponent(row.username)}`);
   }
 
@@ -1392,6 +1465,32 @@ export function VendorInfluencerPage() {
     }
   }
 
+  function openCampaignBuilder({ influencer, influencerId = "", productId = "", preserveProduct = true, preserveInfluencer = true } = {}) {
+    const nextInfluencerId = String(influencerId || influencerRowId(influencer) || (preserveInfluencer ? filters.influencerId : ""));
+    const nextProductId = String(productId || (preserveProduct ? filters.productId : ""));
+    const normalized = normalizeInfluencerOption(influencer ? { ...influencer, influencerId: nextInfluencerId } : {});
+    if (normalized) setSelectedInvite(normalized);
+    setFilters((current) => ({
+      ...current,
+      influencerId: nextInfluencerId,
+      productId: nextProductId,
+      page: 1,
+    }));
+    navigate(campaignBuilderPath({ influencerId: nextInfluencerId, productId: nextProductId }));
+  }
+
+  function startCampaignInvite(row, notes) {
+    const influencerId = influencerRowId(row);
+    if (!influencerId) {
+      setError("Influencer not found.");
+      return;
+    }
+    setError("");
+    setMessage("Influencer selected. Create a campaign to send the invite.");
+    openCampaignBuilder({ influencer: row, influencerId });
+    updateVendorInfluencerRelationship(influencerId, { status: "invited", notes }).catch(() => {});
+  }
+
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-5">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -1457,17 +1556,12 @@ export function VendorInfluencerPage() {
           busyId={busyId}
           onSubscribe={purchaseSubscription}
           onPage={(page) => setFilters((current) => ({ ...current, page }))}
-          onSave={(row) => runAction(`save-${row.id}`, () => saveVendorInfluencer(row.id, !row.saved), row.saved ? "Influencer removed from saved list." : "Influencer saved.")}
+          onSave={(row) => {
+            const influencerId = influencerRowId(row);
+            return runAction(`save-${influencerId}`, () => saveVendorInfluencer(influencerId, !row.saved), row.saved ? "Influencer removed from saved list." : "Influencer saved.");
+          }}
           onVisit={visitInfluencerProfile}
-          onInvite={(row) => runAction(
-            `invite-${row.id}`,
-            () => updateVendorInfluencerRelationship(row.id, { status: "invited", notes: "Invited from influencer discovery." }),
-            "Influencer selected. Create a campaign to send the invite."
-          ).then((success) => {
-            if (!success) return;
-            setFilters((current) => ({ ...current, influencerId: row.id, page: 1 }));
-            navigate(TAB_PATHS.campaigns);
-          })}
+          onInvite={(row) => startCampaignInvite(row, "Invited from influencer discovery.")}
         />
       ) : null}
       {tab === "subscription" ? (
@@ -1484,26 +1578,18 @@ export function VendorInfluencerPage() {
           pagination={data.relationships?.pagination}
           busyId={busyId}
           onPage={(page) => setFilters((current) => ({ ...current, page }))}
-          onInvite={(row) => runAction(
-            `invite-${row.influencerId}`,
-            () => updateVendorInfluencerRelationship(row.influencerId, { status: "invited", notes: "Invited from relationship management." }),
-            "Influencer selected. Create a campaign to send the invite."
-          ).then((success) => {
-            if (!success) return;
-            setFilters((current) => ({ ...current, influencerId: row.influencerId, page: 1 }));
-            navigate(TAB_PATHS.campaigns);
-          })}
-          onStatus={(row, status) => runAction(row.influencerId, () => updateVendorInfluencerRelationship(row.influencerId, { status }), "Relationship updated.")}
+          onInvite={(row) => startCampaignInvite(row, "Invited from relationship management.")}
+          onStatus={(row, status) => runAction(influencerRowId(row), () => updateVendorInfluencerRelationship(influencerRowId(row), { status }), "Relationship updated.")}
         />
       ) : null}
-      {tab === "campaigns" ? <CampaignsView campaigns={campaigns} pagination={data.campaigns?.pagination} products={products} influencers={[...relationships, ...discovery]} configuration={data.configuration || {}} selectedInfluencerId={filters.influencerId} selectedProductIds={filters.productId ? [filters.productId] : []} busyId={busyId} onPage={(page) => setFilters((current) => ({ ...current, page }))} onCreate={createCampaign} onReview={(campaign, application, decision) => runAction(`${campaign._id}-${application.influencerId}`, () => reviewVendorCampaignApplication(campaign._id, application.influencerId, { decision }), "Campaign application reviewed.")} onStatus={(campaign, action) => runAction(campaign._id, () => updateVendorInfluencerCampaignStatus(campaign._id, { action }), "Campaign status updated.")} onDelete={(campaign) => runAction(`delete-${campaign._id}`, () => deleteVendorInfluencerCampaign(campaign._id), "Campaign deleted.")} /> : null}
+      {tab === "campaigns" ? <CampaignsView campaigns={campaigns} pagination={data.campaigns?.pagination} products={products} influencers={campaignInfluencers} configuration={data.configuration || {}} selectedInfluencerId={filters.influencerId} selectedProductIds={filters.productId ? [filters.productId] : []} busyId={busyId} onPage={(page) => setFilters((current) => ({ ...current, page }))} onCreate={createCampaign} onReview={(campaign, application, decision) => runAction(`${campaign._id}-${application.influencerId}`, () => reviewVendorCampaignApplication(campaign._id, application.influencerId, { decision }), "Campaign application reviewed.")} onStatus={(campaign, action) => runAction(campaign._id, () => updateVendorInfluencerCampaignStatus(campaign._id, { action }), "Campaign status updated.")} onDelete={(campaign) => runAction(`delete-${campaign._id}`, () => deleteVendorInfluencerCampaign(campaign._id), "Campaign deleted.")} /> : null}
       {tab === "fixed" ? (
         <FixedCampaignsView
           campaigns={fixedCampaigns}
           analytics={data.fixed?.analytics}
           pagination={data.fixed?.campaigns?.pagination}
           products={products}
-          influencers={[...relationships, ...discovery]}
+          influencers={campaignInfluencers}
           selectedInfluencerId={filters.influencerId}
           selectedProductIds={filters.productId ? [filters.productId] : []}
           busyId={busyId}
@@ -1521,8 +1607,7 @@ export function VendorInfluencerPage() {
           title="Product Promotion"
           onPage={(page) => setFilters((current) => ({ ...current, page }))}
           onPromote={(row) => {
-            setFilters((current) => ({ ...current, productId: String(row.id), page: 1 }));
-            navigate(TAB_PATHS.campaigns);
+            openCampaignBuilder({ productId: productRowId(row) });
           }}
           onEdit={(row) => navigate(`/vendor/products/${row.id}/edit`)}
         />
@@ -1534,8 +1619,7 @@ export function VendorInfluencerPage() {
           title="Affiliate Products"
           onPage={(page) => setFilters((current) => ({ ...current, page }))}
           onPromote={(row) => {
-            setFilters((current) => ({ ...current, productId: String(row.id), page: 1 }));
-            navigate(TAB_PATHS.campaigns);
+            openCampaignBuilder({ productId: productRowId(row) });
           }}
           onEdit={(row) => navigate(`/vendor/products/${row.id}/edit`)}
         />
@@ -1561,8 +1645,7 @@ export function VendorInfluencerPage() {
           busyId={busyId}
           onPage={(page) => setFilters((current) => ({ ...current, page }))}
           onCampaign={(row) => {
-            setFilters((current) => ({ ...current, influencerId: String(row.influencerId), page: 1 }));
-            navigate(TAB_PATHS.campaigns);
+            openCampaignBuilder({ influencer: row, influencerId: influencerRowId(row) });
           }}
         />
       ) : null}
@@ -1574,18 +1657,9 @@ export function VendorInfluencerPage() {
           pagination={data.leaderboard?.pagination}
           busyId={busyId}
           onPage={(page) => setFilters((current) => ({ ...current, page }))}
-          onInvite={(row) => runAction(
-            `invite-${row.influencerId}`,
-            () => updateVendorInfluencerRelationship(row.influencerId, { status: "invited", notes: "Invited from creator leaderboard." }),
-            "Creator selected. Create a campaign to send the invite."
-          ).then((success) => {
-            if (!success) return;
-            navigate(TAB_PATHS.campaigns);
-            setFilters((current) => ({ ...current, influencerId: row.influencerId, page: 1 }));
-          })}
+          onInvite={(row) => startCampaignInvite(row, "Invited from creator leaderboard.")}
           onCampaign={(row) => {
-            setFilters((current) => ({ ...current, influencerId: String(row.influencerId), page: 1 }));
-            navigate(TAB_PATHS.campaigns);
+            openCampaignBuilder({ influencer: row, influencerId: influencerRowId(row) });
           }}
         />
       ) : null}
@@ -1938,18 +2012,19 @@ function DiscoverView({ rows, pagination, subscriptionData = {}, busyId, onSubsc
       <Section title="Influencer Discovery Marketplace" icon={Search}>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {rows.map((row) => {
-          const inviteBusy = busyId === `invite-${row.id}`;
-          const saveBusy = busyId === `save-${row.id}`;
-          const visitBusy = busyId === `visit-${row.id}`;
+          const rowId = influencerRowId(row);
+          const inviteBusy = busyId === `invite-${rowId}`;
+          const saveBusy = busyId === `save-${rowId}`;
+          const visitBusy = busyId === `visit-${rowId}`;
           const invited = row.status === "invited" || row.status === "approved" || row.status === "active";
           const rateCard = Array.isArray(row.rateCard) ? row.rateCard : Array.isArray(row.services) ? row.services : [];
           const pricedServices = rateCard.filter((service) => serviceStartingPrice(service) > 0);
           const startingRate = Number(row.startingRate || (pricedServices.length ? Math.min(...pricedServices.map((service) => serviceStartingPrice(service))) : 0));
-          const cardKey = String(row.id || row._id);
+          const cardKey = String(rowId || row._id);
           const expanded = Boolean(expandedCards[cardKey]);
           const visibleServices = expanded ? rateCard : rateCard.slice(0, 2);
           return (
-            <article key={row.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+            <article key={rowId} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
               <div className="flex items-start gap-3">
                 <div className="h-12 w-12 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
                   {row.profilePicture ? <img src={resolveApiAssetUrl(row.profilePicture)} alt="" className="h-full w-full object-cover" /> : null}
@@ -2049,11 +2124,12 @@ function RelationshipsView({ rows, pagination, busyId, onStatus, onInvite, onPag
         headers={["Influencer", "Status", "Category", "Active Campaigns", "Revenue", "Commission", "Conversion", "Last Activity", "Actions"]}
         rows={rows}
         renderRow={(row) => {
-          const isBusy = busyId === row.influencerId || busyId === `invite-${row.influencerId}`;
+          const influencerId = influencerRowId(row);
+          const isBusy = busyId === influencerId || busyId === `invite-${influencerId}`;
           const isActive = row.status === "active" || row.status === "approved";
           const isPaused = row.status === "paused";
           return (
-            <tr key={row.id} className="border-t border-slate-100 dark:border-slate-800">
+            <tr key={row.id || influencerId} className="border-t border-slate-100 dark:border-slate-800">
               <td className="px-3 py-3 font-semibold text-slate-950 dark:text-white">{row.name}<div className="text-xs font-normal text-slate-500">@{row.username}</div></td>
               <td className="px-3 py-3"><StatusBadge value={row.status} /></td>
               <td className="px-3 py-3">{row.category || "-"}</td>
@@ -2102,6 +2178,7 @@ function CampaignsView({ campaigns, pagination, products, influencers, configura
               const state = String(campaign.state || "");
               const isBusy = busyId === campaign._id;
               const isActive = state === "active";
+              const isPaused = state === "paused";
               const isCancelled = state === "cancelled";
               const isCompleted = state === "completed";
               const isTerminal = isCancelled || isCompleted;
@@ -2128,9 +2205,9 @@ function CampaignsView({ campaigns, pagination, products, influencers, configura
                   <td className="px-3 py-3"><StatusBadge value={campaign.state} /></td>
                   <td className="px-3 py-3">
                     <div className="flex flex-wrap gap-2">
-                      <button disabled={isBusy || isActive || isCompleted} onClick={() => onStatus(campaign, "activate")} className="rounded-lg border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-900/50 dark:text-emerald-300">{isActive ? "Active" : "Activate"}</button>
-                      <button disabled={isBusy || isTerminal} onClick={() => onStatus(campaign, "pause")} className="rounded-lg border border-amber-200 px-2 py-1 text-xs font-semibold text-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-900/50 dark:text-amber-300">{isCancelled ? "Cancelled" : "Pause"}</button>
-                      <button disabled={isBusy || isCompleted} onClick={() => onStatus(campaign, "close")} className="rounded-lg border border-slate-200 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700">{isCompleted ? "Closed" : "Close"}</button>
+                      <button disabled={isBusy || isActive || isTerminal} onClick={() => onStatus(campaign, "activate")} className="rounded-lg border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-900/50 dark:text-emerald-300">{isActive ? "Active" : "Activate"}</button>
+                      <button disabled={isBusy || isPaused || isTerminal} onClick={() => onStatus(campaign, "pause")} className="rounded-lg border border-amber-200 px-2 py-1 text-xs font-semibold text-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-900/50 dark:text-amber-300">{isCancelled ? "Cancelled" : isPaused ? "Paused" : "Pause"}</button>
+                      <button disabled={isBusy || isTerminal} onClick={() => onStatus(campaign, "close")} className="rounded-lg border border-slate-200 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700">{isCompleted ? "Closed" : isCancelled ? "Cancelled" : "Close"}</button>
                       <button
                         disabled={!canDelete || busyId === `delete-${campaign._id}`}
                         title={canDelete ? "Delete campaign" : deleteReason}
@@ -2359,7 +2436,8 @@ function FixedCampaignsView({ campaigns, analytics = {}, pagination, products, i
             const campaignId = String(campaign.id || campaign._id);
             const state = String(campaign.status || "proposed");
             const analyticsRow = campaign.analytics || {};
-            const submissions = campaign.submissions || [];
+            const submissions = arrayValue(campaign.submissions);
+            const campaignProducts = arrayValue(campaign.productIds).length ? arrayValue(campaign.productIds) : arrayValue(campaign.products);
             const approvedContent = submissions.some((submission) => submission.status === "approved");
             const canRelease = ["approved", "content_submitted"].includes(state) && approvedContent;
             const terminal = ["completed", "cancelled", "rejected"].includes(state);
@@ -2369,7 +2447,7 @@ function FixedCampaignsView({ campaigns, analytics = {}, pagination, products, i
               <tr key={campaignId} className="border-t border-slate-100 align-top dark:border-slate-800">
                 <td className="max-w-sm px-3 py-3 font-semibold text-slate-950 dark:text-white">
                   <span className="block truncate" title={campaign.title}>{shortText(campaign.title || "Fixed campaign", 82)}</span>
-                  <div className="text-xs font-normal text-slate-500">{(campaign.productIds || campaign.products || []).length} product(s) - {campaign.attributionWindowDays || 30} day analytics attribution</div>
+                  <div className="text-xs font-normal text-slate-500">{campaignProducts.length} product(s) - {campaign.attributionWindowDays || 30} day analytics attribution</div>
                 </td>
                 <td className="px-3 py-3">
                   <span className="font-semibold text-slate-950 dark:text-white">{campaign.influencerName || influencerRowName(campaign.influencerId)}</span>
@@ -2681,9 +2759,10 @@ function LeaderboardView({ rows, summary = {}, pagination, busyId, onPage, onInv
           headers={["Rank", "Creator", "Status", "Category", "Revenue", "Commission", "Clicks", "Conversions", "Engagement", "ROI", "Score", "Actions"]}
           rows={rows}
           renderRow={(row) => {
-            const inviteBusy = busyId === `invite-${row.influencerId}`;
+            const influencerId = influencerRowId(row);
+            const inviteBusy = busyId === `invite-${influencerId}`;
             return (
-              <tr key={row.influencerId} className="border-t border-slate-100 dark:border-slate-800">
+              <tr key={influencerId || row.name} className="border-t border-slate-100 dark:border-slate-800">
                 <td className="px-3 py-3 font-semibold">#{row.rank}</td>
                 <td className="px-3 py-3 font-semibold text-slate-950 dark:text-white">
                   {row.creator || row.name}

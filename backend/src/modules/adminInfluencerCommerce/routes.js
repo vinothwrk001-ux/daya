@@ -84,7 +84,7 @@ router.patch(
       commissionPercent: Joi.number().min(0).max(50).optional(),
       fixedFee: Joi.number().min(0).optional(),
       deadline: Joi.date().iso().allow(null).optional(),
-      state: Joi.string().valid("draft", "proposed", "accepted", "active", "completed", "cancelled").optional(),
+      state: Joi.string().valid("draft", "proposed", "accepted", "active", "paused", "completed", "cancelled").optional(),
       status: Joi.string().trim().allow("").optional(),
       action: Joi.string().valid("pause", "close", "activate", "feature", "unfeature").optional(),
       featured: Joi.boolean().optional(),

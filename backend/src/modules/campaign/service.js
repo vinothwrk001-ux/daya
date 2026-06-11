@@ -15,7 +15,7 @@ async function ensureVendorOwnsProducts(vendorId, productIds = []) {
   if (products.some((product) => !product)) {
     throw new AppError("One or more campaign products were not found", 404, "NOT_FOUND");
   }
-  const invalid = products.find((product) => String(product.sellerId) !== String(vendorId));
+  const invalid = products.find((product) => String(product.sellerId?._id || product.sellerId) !== String(vendorId));
   if (invalid) {
     throw new AppError("Campaign products must belong to the vendor", 403, "FORBIDDEN");
   }

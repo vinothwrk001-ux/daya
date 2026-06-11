@@ -13,7 +13,7 @@ const INFLUENCER_CATEGORIES = [
 ];
 
 const INFLUENCER_STATES = ["draft", "submitted", "verified", "active", "suspended"];
-const CAMPAIGN_STATES = ["draft", "proposed", "accepted", "active", "completed", "cancelled"];
+const CAMPAIGN_STATES = ["draft", "proposed", "accepted", "active", "paused", "completed", "cancelled"];
 const REEL_STATES = ["uploaded", "pending_review", "approved", "published", "rejected"];
 const COMMISSION_STATES = ["HOLD", "SETTLED", "CANCELLED", "REVERSED"];
 
