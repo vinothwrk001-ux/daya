@@ -6,7 +6,7 @@ const versionSnapshotSchema = new mongoose.Schema(
     customNotes: { type: String, trim: true, default: "" },
     footerText: { type: String, trim: true, default: "" },
     billingLabel: { type: String, trim: true, default: "Bill To" },
-    sellerLabel: { type: String, trim: true, default: "Sold By" },
+    issuerLabel: { type: String, trim: true, default: "Issued By" },
     gstLabel: { type: String, trim: true, default: "GST" },
     organizationOverrides: {
       organizationName: { type: String, trim: true, default: "" },
@@ -30,7 +30,7 @@ const invoiceMetadataSchema = new mongoose.Schema(
     customNotes: { type: String, trim: true, default: "" },
     footerText: { type: String, trim: true, default: "" },
     billingLabel: { type: String, trim: true, default: "Bill To" },
-    sellerLabel: { type: String, trim: true, default: "Sold By" },
+    issuerLabel: { type: String, trim: true, default: "Issued By" },
     gstLabel: { type: String, trim: true, default: "GST" },
     organizationOverrides: {
       organizationName: { type: String, trim: true, default: "" },

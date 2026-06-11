@@ -14,16 +14,12 @@ const { errorHandler } = require("./middleware/errorHandler");
 const { csrfProtection } = require("./middleware/csrf");
 
 const authRoutes = require("./routes/auth.routes");
-const vendorRoutes = require("./routes/vendor.routes");
-const vendorStorefrontRoutes = require("./routes/vendor-storefront.routes");
-const vendorPublicRoutes = require("./routes/vendor-public.routes");
 const adminRoutes = require("./routes/admin.routes");
 const productRoutes = require("./routes/product.routes");
 const cartRoutes = require("./routes/cart.routes");
 const orderRoutes = require("./routes/order.routes");
 const checkoutRoutes = require("./routes/checkout.routes");
 const paymentRoutes = require("./routes/payment.routes");
-const payoutRoutes = require("./routes/payout.routes");
 const deliveryRoutes = require("./routes/delivery.routes");
 const shippingRoutes = require("./routes/shipping.routes");
 const pickupRoutes = require("./routes/pickup.routes");
@@ -36,12 +32,10 @@ const subcategoryRoutes = require("./routes/subcategory.routes");
 const attributeRoutes = require("./routes/attribute.routes");
 const productModuleRoutes = require("./routes/product-module.routes");
 const exportRoutes = require("./routes/export.routes");
-const vendorModuleRoutes = require("./routes/vendorModule.routes");
 const homepageContainerRoutes = require("./routes/homepage-container.routes");
 const homepageLayoutRoutes = require("./routes/homepage-layout.routes");
 const pricingRoutes = require("./routes/pricing.routes");
 const staffRoutes = require("./modules/staff/routes");
-const settlementRoutes = require("./routes/settlement.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const reviewRoutes = require("./routes/review.routes");
 const inventoryRoutes = require("./routes/inventory.routes");
@@ -50,15 +44,7 @@ const configRoutes = require("./routes/config.routes");
 const systemRoutes = require("./routes/system.routes");
 const privateDocumentRoutes = require("./routes/private-document.routes");
 const invoiceRoutes = require("./routes/invoice.routes");
-const influencerRoutes = require("./modules/influencer/routes");
-const campaignRoutes = require("./modules/campaign/routes");
-const fixedCampaignRoutes = require("./modules/fixedCampaign/routes");
-const reelRoutes = require("./modules/reel/routes");
-const trackingRoutes = require("./modules/tracking/routes");
-const commissionRoutes = require("./modules/commission/routes");
 const recommendationRoutes = require("./modules/recommendation/routes");
-const { authOptional } = require("./middleware/auth");
-const { influencerCommerceGate } = require("./middleware/influencerCommerceGate");
 const { assertNoProductionBootstrapRoutes } = require("./utils/bootstrapRouteScanner");
 
 function createLimiter({
@@ -97,8 +83,6 @@ function createApp() {
   const origins = (process.env.CORS_ORIGINS || [
     process.env.FRONTEND_URL,
     process.env.ADMIN_URL,
-    process.env.VENDOR_URL,
-    process.env.INFLUENCER_URL,
     process.env.INTERNAL_SERVICE_ORIGINS,
   ].filter(Boolean).join(","))
     .split(",")
@@ -115,7 +99,7 @@ function createApp() {
   const allowedOrigins = new Set(origins);
 
   if (!isDevelopment && !allowedOrigins.size) {
-    throw new Error("CORS_ORIGINS or explicit frontend/admin/vendor/influencer origins must be configured in production");
+    throw new Error("CORS_ORIGINS or explicit frontend/admin origins must be configured in production");
   }
 
   app.use(
@@ -201,8 +185,6 @@ function createApp() {
 
   app.use("/api/auth/login", authLimiter);
   app.use("/api/auth/register", authLimiter);
-  app.use("/api/influencer/register", authLimiter);
-  app.use("/api/influencer/social/verify", authLimiter);
   app.use("/api/auth/refresh", authLimiter);
   app.use("/api/staff/auth/login", authLimiter);
   app.use("/api/staff/auth/refresh", authLimiter);
@@ -211,10 +193,6 @@ function createApp() {
   app.use("/api", apiLimiter);
 
   app.use("/api/auth", authRoutes);
-  app.use("/api/vendor", vendorRoutes);
-  app.use("/api/vendor-store", vendorStorefrontRoutes);
-  app.use("/api/vendor-stores", vendorStorefrontRoutes);
-  app.use("/api/vendors", vendorPublicRoutes);
   app.use("/api/admin", adminRoutes);
   app.use("/api/products", productRoutes);
   app.use("/api/cart", cartRoutes);
@@ -222,7 +200,6 @@ function createApp() {
   app.use("/api/checkout", checkoutRoutes);
   app.use("/api/payments", paymentRoutes);
   app.use("/api/payment", paymentRoutes);
-  app.use("/api/payouts", payoutRoutes);
   app.use("/api/delivery", deliveryRoutes);
   app.use("/api/shipping", shippingRoutes);
   app.use("/api", pickupRoutes);
@@ -235,13 +212,11 @@ function createApp() {
   app.use("/api/attributes", attributeRoutes);
   app.use("/api/product-modules", productModuleRoutes);
   app.use("/api/export", exportRoutes);
-  app.use("/api/modules", vendorModuleRoutes);
   app.use("/api/homepage-containers", homepageContainerRoutes);
   app.use("/api/homepage-builder", homepageLayoutRoutes);
   app.use("/api/pricing", pricingRoutes);
   app.use("/api/inventory", inventoryRoutes);
   app.use("/api/staff", staffRoutes);
-  app.use("/api/admin", settlementRoutes);
   app.use("/api/notifications", notificationRoutes);
   app.use("/api/reviews", reviewRoutes);
   app.use("/api/public", publicFeatureRoutes);
@@ -258,12 +233,6 @@ function createApp() {
   app.use("/api/system", systemRoutes);
   app.use("/api/private-documents", privateDocumentRoutes);
   app.use("/api/invoices", invoiceRoutes);
-  app.use("/api/influencer", authOptional, influencerCommerceGate, influencerRoutes);
-  app.use("/api/campaign", authOptional, influencerCommerceGate, campaignRoutes);
-  app.use("/api/fixed-campaigns", authOptional, influencerCommerceGate, fixedCampaignRoutes);
-  app.use("/api/reel", authOptional, influencerCommerceGate, reelRoutes);
-  app.use("/api/tracking", authOptional, influencerCommerceGate, trackingRoutes);
-  app.use("/api/commission", authOptional, influencerCommerceGate, commissionRoutes);
   app.use("/api/recommendations", recommendationRoutes);
 
   app.use(notFound);

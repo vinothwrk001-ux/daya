@@ -22,11 +22,10 @@ const createOrder = asyncHandler(async (req, res) => {
     throw new AppError("Login required to create order", 401, "AUTH_REQUIRED");
   }
 
-  const { shippingAddress, paymentMethod, trackingToken } = req.body;
+  const { shippingAddress, paymentMethod } = req.body;
   const result = await checkoutService.createOrder(req.user.sub, {
     shippingAddress,
     paymentMethod,
-    trackingToken,
   });
   return ok(res, result, "Order created");
 });

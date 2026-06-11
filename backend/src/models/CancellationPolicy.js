@@ -13,7 +13,7 @@ const deductionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["FIXED", "PERCENTAGE", "SHIPPING", "GATEWAY_FEE", "VENDOR_COMPENSATION"],
+      enum: ["FIXED", "PERCENTAGE", "SHIPPING", "GATEWAY_FEE", "PLATFORM_ADJUSTMENT"],
       required: true,
     },
     label: { type: String, trim: true, required: true },

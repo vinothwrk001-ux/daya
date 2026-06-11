@@ -212,7 +212,7 @@ export function StaffProductsPage() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Image</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Vendor</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Created By</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Price</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Actions</th>
@@ -235,7 +235,7 @@ export function StaffProductsPage() {
                       <div className="mt-1 text-xs text-slate-500">{product.SKU || product.productNumber || product._id}</div>
                       <div className="mt-1 text-xs text-slate-500">{product.category || "Uncategorized"}</div>
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-600">{product.sellerId?.companyName || product.createdBy?.name || "Admin"}</td>
+                    <td className="px-4 py-4 text-sm text-slate-600">{product.createdBy?.name || product.createdBy?.email || "Admin"}</td>
                     <td className="px-4 py-4 font-semibold text-slate-950">${Number(product.discountPrice || product.price || 0).toFixed(2)}</td>
                     <td className="px-4 py-4">
                       <div className="flex flex-col gap-2">

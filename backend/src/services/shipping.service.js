@@ -1,5 +1,4 @@
 const { AppError } = require("../utils/AppError");
-const { SHIPPING_MODE } = require("../models/Vendor");
 const { ORDER_STATUS, SHIPPING_STATUS, PICKUP_STATUS } = require("../models/Order");
 const { logger } = require("../utils/logger");
 const {
@@ -10,16 +9,17 @@ const {
 const inventoryService = require("./inventory.service");
 const Shipment = require("../models/Shipment");
 
+const SHIPPING_MODE = ["SELF", "PLATFORM"];
 const TRACKING_ID_PATTERN = /^[A-Z0-9][A-Z0-9\-_/.]{5,39}$/i;
 
-function normalizeShippingMode(value, fallback = "SELF") {
+function normalizeShippingMode(value, fallback = "PLATFORM") {
   const mode = String(value || fallback).trim().toUpperCase();
   return SHIPPING_MODE.includes(mode) ? mode : fallback;
 }
 
 function sanitizeAllowedModes(modes = []) {
   const normalized = Array.from(new Set((Array.isArray(modes) ? modes : []).map((item) => normalizeShippingMode(item, "")).filter(Boolean)));
-  return normalized.length ? normalized : ["SELF"];
+  return normalized.length ? normalized : ["PLATFORM"];
 }
 
 function validateTrackingId(trackingId) {
@@ -36,40 +36,6 @@ function validateCourierName(courierName) {
     throw new AppError("Enter a valid courier name", 400, "INVALID_COURIER_NAME");
   }
   return value;
-}
-
-async function getPlatformShippingState() {
-  const config = await getShippingModesConfig();
-  return {
-    config,
-    enabledModes: resolveEnabledShippingModes(config.value),
-  };
-}
-
-async function resolveVendorShippingModes(vendor) {
-  const { enabledModes, config } = await getPlatformShippingState();
-  const requestedModes = sanitizeAllowedModes(vendor?.shippingSettings?.allowedShippingModes || enabledModes);
-  const effectiveModes = requestedModes.filter((mode) => enabledModes.includes(mode));
-  const defaultShippingMode = effectiveModes.includes(vendor?.shippingSettings?.defaultShippingMode)
-    ? vendor.shippingSettings.defaultShippingMode
-    : effectiveModes[0] || enabledModes[0] || "SELF";
-
-  return {
-    adminConfig: config.value,
-    enabledModes,
-    requestedModes,
-    effectiveModes,
-    defaultShippingMode,
-  };
-}
-
-async function assertVendorCanUseShippingMode(vendor, requestedMode) {
-  const vendorModes = await resolveVendorShippingModes(vendor);
-  const mode = normalizeShippingMode(requestedMode, vendorModes.defaultShippingMode);
-  if (!vendorModes.effectiveModes.includes(mode)) {
-    throw new AppError("Selected shipping mode is not enabled for this vendor", 400, "SHIPPING_MODE_DISABLED");
-  }
-  return { mode, vendorModes };
 }
 
 function applyShippingLifecycle({ orderStatus, shippingMode, shippingStatus, pickupStatus }) {
@@ -107,45 +73,22 @@ function applyShippingLifecycle({ orderStatus, shippingMode, shippingStatus, pic
   return next;
 }
 
-function buildVendorShippingSettingsPayload(payload = {}, vendorModes = null) {
-  const requestedAllowedModes = payload.allowedShippingModes !== undefined
-    ? sanitizeAllowedModes(payload.allowedShippingModes)
-    : vendorModes?.requestedModes;
-
-  const enabledModes = vendorModes?.enabledModes || requestedAllowedModes || ["SELF"];
-  const allowedShippingModes = (requestedAllowedModes || ["SELF"]).filter((mode) => enabledModes.includes(mode));
-  if (!allowedShippingModes.length) {
-    throw new AppError("At least one enabled shipping mode must remain selected", 400, "INVALID_SHIPPING_SETTINGS");
-  }
-
-  const defaultShippingMode = normalizeShippingMode(payload.defaultShippingMode, allowedShippingModes[0]);
-  if (!allowedShippingModes.includes(defaultShippingMode)) {
-    throw new AppError("Default shipping mode must be one of the allowed shipping modes", 400, "INVALID_SHIPPING_SETTINGS");
-  }
-
+async function getPlatformShippingState() {
+  const config = await getShippingModesConfig();
   return {
-    allowedShippingModes,
-    defaultShippingMode,
-    preferredPickupLocation: String(payload.preferredPickupLocation || "Primary").trim() || "Primary",
-    selfShippingEnabledAt: allowedShippingModes.includes("SELF") ? new Date() : null,
-    platformShippingEnabledAt: allowedShippingModes.includes("PLATFORM") ? new Date() : null,
+    config,
+    enabledModes: resolveEnabledShippingModes(config.value),
   };
 }
 
-/**
- * Submit self-shipping tracking information for an order
- */
-async function submitSelfShipping(order, { trackingId, courierName, trackingUrl, vendorId }) {
-  // Validate inputs
+async function submitSelfShipping(order, { trackingId, courierName, trackingUrl, actorId = null }) {
   const validTrackingId = validateTrackingId(trackingId);
   const validCourierName = validateCourierName(courierName);
 
-  // Prevent duplicate submissions
   if (order.shippingStatus === "SHIPPED" && order.trackingId) {
     throw new AppError("Tracking already submitted for this order", 400, "TRACKING_ALREADY_SUBMITTED");
   }
 
-  // Update order
   order.shippingMode = "SELF";
   order.shippingStatus = "SHIPPED";
   order.pickupStatus = "NOT_REQUESTED";
@@ -155,10 +98,9 @@ async function submitSelfShipping(order, { trackingId, courierName, trackingUrl,
     order.trackingUrl = String(trackingUrl).trim();
   }
   order.trackingAssignedAt = new Date();
-  order.courierAssignedByRole = "VENDOR";
-  order.courierAssignedById = vendorId;
+  order.courierAssignedByRole = "ADMIN";
+  order.courierAssignedById = actorId;
 
-  // Apply lifecycle changes
   const lifecycle = applyShippingLifecycle({
     orderStatus: order.status,
     shippingMode: order.shippingMode,
@@ -170,15 +112,14 @@ async function submitSelfShipping(order, { trackingId, courierName, trackingUrl,
   if (!order.inventoryCommittedAt) {
     await inventoryService.commitOrderInventory(order, {
       shipmentId: order.shipmentId || undefined,
-      performedBy: vendorId,
+      performedBy: actorId,
     });
   }
 
-  // Add to timeline
-  if (!order.timeline) order.timeline = [];
+  order.timeline = Array.isArray(order.timeline) ? order.timeline : [];
   order.timeline.push({
     status: order.status,
-    note: `Self-shipping submitted. Tracking ID: ${validTrackingId}, Courier: ${validCourierName}`,
+    note: `Tracking submitted. Tracking ID: ${validTrackingId}, Courier: ${validCourierName}`,
     changedAt: new Date(),
   });
 
@@ -199,22 +140,17 @@ async function submitSelfShipping(order, { trackingId, courierName, trackingUrl,
   return order;
 }
 
-/**
- * Request platform shipping (shipment creation only)
- */
-async function requestPlatformShipping(order, vendor) {
+async function requestPlatformShipping(order) {
   const logisticsService = require("./logistics.service");
 
-  // Check if already requested
   if (order.shipmentId || ["READY_FOR_PICKUP", "PICKUP_SCHEDULED", "SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.shippingStatus)) {
     throw new AppError("Shipment has already been created for this order", 400, "SHIPMENT_ALREADY_CREATED");
   }
 
-  // Build shipment payload for Shiprocket
   const shipmentPayload = {
     order_id: order.orderNumber,
     order_date: order.createdAt.toISOString().split("T")[0],
-    pickup_location: vendor.shippingSettings?.preferredPickupLocation || "Primary",
+    pickup_location: "Primary",
     channel_id: 0,
     billing_customer_name: order.shippingAddress?.fullName || "Customer",
     billing_customer_phone: order.shippingAddress?.phone || "",
@@ -240,10 +176,8 @@ async function requestPlatformShipping(order, vendor) {
     weight: 0.5,
   };
 
-  // Call logistics provider
   const shipmentData = await logisticsService.createPlatformShipment(shipmentPayload);
 
-  // Update order
   order.shippingMode = "PLATFORM";
   order.shippingStatus = "READY_FOR_PICKUP";
   order.pickupStatus = "NOT_REQUESTED";
@@ -258,7 +192,6 @@ async function requestPlatformShipping(order, vendor) {
   order.pickupRequestedAt = new Date();
   order.courierAssignedByRole = "SYSTEM";
 
-  // Apply lifecycle changes
   const lifecycle = applyShippingLifecycle({
     orderStatus: order.status,
     shippingMode: order.shippingMode,
@@ -267,9 +200,7 @@ async function requestPlatformShipping(order, vendor) {
   });
 
   order.status = lifecycle.status;
-
-  // Add to timeline
-  if (!order.timeline) order.timeline = [];
+  order.timeline = Array.isArray(order.timeline) ? order.timeline : [];
   order.timeline.push({
     status: order.status,
     note: `Platform shipment created. Shipment ID: ${shipmentData.shipmentId}`,
@@ -295,16 +226,12 @@ async function requestPlatformShipping(order, vendor) {
   return order;
 }
 
-/**
- * Process Shiprocket webhook events
- */
 async function processShiprocketWebhook(event) {
   const orderRepo = require("../repositories/order.repository");
 
   const shipmentId = event.shipment_id;
   if (!shipmentId) return null;
 
-  // Find order by shipment ID
   const order = await orderRepo.findOne({ shipmentId: String(shipmentId) });
   if (!order) {
     logger.webhook("Shiprocket webhook shipment not found", {
@@ -315,7 +242,6 @@ async function processShiprocketWebhook(event) {
     return null;
   }
 
-  // Map Shiprocket status to our status
   const statusMapping = {
     pending: "PICKUP_SCHEDULED",
     ready_to_ship: "PICKUP_SCHEDULED",
@@ -335,7 +261,6 @@ async function processShiprocketWebhook(event) {
     const previousShippingStatus = order.shippingStatus;
     order.shippingStatus = newShippingStatus;
 
-    // Update pickup status
     if (newShippingStatus === "PICKUP_SCHEDULED") {
       order.pickupScheduled = true;
       order.pickupStatus = "SCHEDULED";
@@ -352,7 +277,6 @@ async function processShiprocketWebhook(event) {
       order.pickupScheduled = true;
     }
 
-    // Apply lifecycle changes
     const lifecycle = applyShippingLifecycle({
       orderStatus: order.status,
       shippingMode: order.shippingMode,
@@ -367,8 +291,7 @@ async function processShiprocketWebhook(event) {
       });
     }
 
-    // Add to timeline
-    if (!order.timeline) order.timeline = [];
+    order.timeline = Array.isArray(order.timeline) ? order.timeline : [];
     order.timeline.push({
       status: order.status,
       note: `Shiprocket webhook: ${shiprocketStatus}`,
@@ -409,10 +332,8 @@ module.exports = {
   sanitizeAllowedModes,
   validateTrackingId,
   validateCourierName,
-  resolveVendorShippingModes,
-  assertVendorCanUseShippingMode,
   applyShippingLifecycle,
-  buildVendorShippingSettingsPayload,
+  getPlatformShippingState,
   submitSelfShipping,
   requestPlatformShipping,
   processShiprocketWebhook,

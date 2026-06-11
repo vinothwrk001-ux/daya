@@ -8,12 +8,6 @@ const cartItemSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    sellerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
-      required: true,
-      index: true,
-    },
     quantity: { type: Number, required: true, min: 1 },
     price: { type: Number, required: true, min: 0 }, // snapshot (unit price at time of add)
     image: { type: String, default: "" },

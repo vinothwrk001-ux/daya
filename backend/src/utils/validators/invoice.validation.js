@@ -29,7 +29,7 @@ const invoiceMetadataSchema = Joi.object({
   customNotes: Joi.string().trim().allow("").max(1200),
   footerText: Joi.string().trim().allow("").max(1200),
   billingLabel: Joi.string().trim().allow("").max(80),
-  sellerLabel: Joi.string().trim().allow("").max(80),
+  issuerLabel: Joi.string().trim().allow("").max(80),
   gstLabel: Joi.string().trim().allow("").max(80),
   organizationOverrides: Joi.object({
     organizationName: Joi.string().trim().allow("").max(160),

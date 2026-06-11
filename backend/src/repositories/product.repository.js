@@ -1,8 +1,6 @@
 const { Product } = require("../models/Product");
 const { normalizeDateRange, applyDateRange } = require("../utils/dateRange");
 
-const SELLER_PUBLIC_FIELDS = "companyName shopName storeSlug logoUrl bannerUrl status isStoreVisible storeThemeColor";
-
 function escapeRegex(value = "") {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -40,7 +38,6 @@ function buildProductQuery({
   subCategoryId,
   status,
   isActive,
-  sellerId,
   creatorType,
   search,
   minPrice,
@@ -58,7 +55,6 @@ function buildProductQuery({
   if (subCategoryId) query.subCategoryId = subCategoryId;
   if (status) query.status = status;
   if (isActive !== undefined) query.isActive = isActive;
-  if (sellerId) query.sellerId = sellerId;
   if (creatorType) query.creatorType = creatorType;
 
   if (minPrice !== undefined || maxPrice !== undefined) {
@@ -256,17 +252,16 @@ class ProductRepository {
     return await product.save();
   }
 
-  // Find product by ID with vendor details
+  // Find product by ID
   async findById(productId) {
     return await Product.findById(productId)
-      .populate("sellerId", SELLER_PUBLIC_FIELDS)
       .populate("createdBy", "name email role")
       .populate("approvedBy", "name email");
   }
 
   // Find product by slug
   async findBySlug(slug) {
-    return await Product.findOne({ slug }).populate("sellerId", SELLER_PUBLIC_FIELDS).populate("createdBy", "name email");
+    return await Product.findOne({ slug }).populate("createdBy", "name email");
   }
 
   // Find by SKU
@@ -283,7 +278,6 @@ class ProductRepository {
     subCategoryId,
     status,
     isActive,
-    sellerId,
     creatorType,
     search,
     sortBy = "createdAt",
@@ -302,7 +296,6 @@ class ProductRepository {
       subCategoryId,
       status,
       isActive,
-      sellerId,
       creatorType,
       search,
       minPrice,
@@ -318,7 +311,6 @@ class ProductRepository {
 
     const [products, total, facets] = await Promise.all([
       Product.find(query)
-        .populate("sellerId", SELLER_PUBLIC_FIELDS)
         .populate("createdBy", "name email")
         .sort(sortObj)
         .skip(skip)
@@ -330,7 +322,6 @@ class ProductRepository {
         subCategoryId,
         status,
         isActive,
-        sellerId,
         creatorType,
         search,
         minPrice,
@@ -436,33 +427,9 @@ class ProductRepository {
     };
   }
 
-  // Get seller's products
-  async getSellerProducts(sellerId, { page = 1, limit = 20, status, startDate, endDate } = {}) {
-    const query = { sellerId, isActive: true };
-    if (status) query.status = status;
-    applyDateRange(query, normalizeDateRange({ startDate, endDate }));
-
-    const skip = (page - 1) * limit;
-    const [products, total] = await Promise.all([
-      Product.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
-      Product.countDocuments(query),
-    ]);
-
-    return {
-      products,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
-      },
-    };
-  }
-
   // Update product
   async updateById(productId, updateData) {
     return await Product.findByIdAndUpdate(productId, { $set: updateData }, { returnDocument: "after", runValidators: true })
-      .populate("sellerId", SELLER_PUBLIC_FIELDS)
       .populate("createdBy", "name email");
   }
 
@@ -483,7 +450,6 @@ class ProductRepository {
     const skip = (page - 1) * limit;
     const [products, total] = await Promise.all([
       Product.find(query)
-        .populate("sellerId", SELLER_PUBLIC_FIELDS)
         .populate("createdBy", "name email")
         .sort({ createdAt: -1 })
         .skip(skip)

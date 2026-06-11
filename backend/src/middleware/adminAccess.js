@@ -5,7 +5,6 @@ const { Staff } = require("../modules/staff/models/Staff");
 const { StaffSession } = require("../modules/staff/models/StaffSession");
 const { hasStaffPermission } = require("../modules/staff/permissions");
 const { logger } = require("../utils/logger");
-const vendorModuleService = require("../services/vendorModule.service");
 
 function getTokenFromReq(req) {
   const header = req.headers.authorization || "";
@@ -106,12 +105,6 @@ function requireWorkspacePermission(permission, options = {}) {
 
       if (!hasStaffPermission(req.user.permissions, permission)) {
         return next(new AppError("Access denied", 403, "FORBIDDEN"));
-      }
-
-      const [moduleName] = String(permission || "").split(".");
-      const isGloballyEnabled = await vendorModuleService.isModuleGloballyEnabled(moduleName);
-      if (!isGloballyEnabled) {
-        return next(new AppError("Module is disabled globally", 403, "MODULE_DISABLED"));
       }
 
       return next();

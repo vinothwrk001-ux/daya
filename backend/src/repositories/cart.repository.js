@@ -3,8 +3,7 @@ const { Cart } = require("../models/Cart");
 class CartRepository {
   async findByUserId(userId) {
     return await Cart.findOne({ userId })
-      .populate("items.productId", "name slug images price discountPrice stock isActive status sellerId")
-      .populate("items.sellerId", "companyName shopName storeSlug logoUrl status isStoreVisible")
+      .populate("items.productId", "name slug images price discountPrice stock isActive status")
       .exec();
   }
 

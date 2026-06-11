@@ -39,17 +39,7 @@ const fallbackFooter = {
         { label: "Brands", href: "/brands" },
         { label: "Deals", href: "/deals" },
         { label: "New Arrivals", href: "/new-arrivals" },
-        { label: "Best Sellers", href: "/best-sellers" },
-      ],
-    },
-    {
-      title: "Vendors",
-      description: "Seller resources, policies, and partner onboarding.",
-      links: [
-        { label: "Become a Seller", href: "/become-a-seller" },
-        { label: "Seller Dashboard", href: "/seller-dashboard" },
-        { label: "Vendor Directory", href: "/vendor-directory" },
-        { label: "Seller Policies", href: "/seller-policies" },
+        { label: "Popular Products", href: "/popular-products" },
       ],
     },
     {

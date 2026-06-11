@@ -9,12 +9,9 @@ const { UserNotification } = require("../models/UserNotification");
 const orderRepo = require("../repositories/order.repository");
 const paymentRepo = require("../repositories/payment.repository");
 const refundRepo = require("../repositories/refund.repository");
-const payoutRepo = require("../repositories/payout.repository");
 const inventoryService = require("./inventory.service");
-const paymentService = require("./payment.service");
 const cancellationPolicyService = require("./cancellation-policy.service");
 const auditService = require("./audit.service");
-const notificationService = require("./notification.service");
 const productAnalyticsService = require("./product-analytics.service");
 const { withOptionalTransaction } = require("../utils/withOptionalTransaction");
 
@@ -126,7 +123,7 @@ function calculateDeductionAmount(deduction = {}, context = {}) {
     amount = Number(deduction.value || context.shipping || 0);
   } else if (type === "GATEWAY_FEE") {
     amount = Number(context.gatewayFee || deduction.value || 0);
-  } else if (type === "VENDOR_COMPENSATION") {
+  } else if (type === "PLATFORM_ADJUSTMENT") {
     amount = Number(deduction.value || 0);
   }
 
@@ -289,7 +286,6 @@ class CancellationRefundService {
       return { skipped: true, reason: "INVENTORY_ALREADY_RESTORED" };
     }
 
-    const sellerId = order.sellerId?._id || order.sellerId;
     const skippedItems = [];
     const skippableInventoryErrors = new Set(["INVALID_UNRESERVE", "VARIANT_NOT_FOUND", "PRODUCT_NOT_FOUND"]);
     for (const item of order.items || []) {
@@ -300,7 +296,6 @@ class CancellationRefundService {
             item.variantId || "",
             Number(item.quantity || 0),
             order._id,
-            sellerId,
             actorId,
             { session }
           );
@@ -327,7 +322,6 @@ class CancellationRefundService {
             Number(item.quantity || 0),
             null,
             order._id,
-            sellerId,
             actorId,
             "Order cancelled by policy engine",
             { session }
@@ -351,29 +345,8 @@ class CancellationRefundService {
     return { restored: true, skippedItems };
   }
 
-  async rollbackSettlementArtifacts(order, refundRef, { session = null } = {}) {
-    const payouts = await payoutRepo.findByOrderId(order._id);
-    const cancellablePayouts = payouts.filter((payout) => ["ON_HOLD", "PENDING", "QUEUED"].includes(payout.status));
-    for (const payout of cancellablePayouts) {
-      await payoutRepo.updateById(payout._id, {
-        $set: {
-          status: "CANCELLED",
-          notes: `Cancelled by cancellation/refund engine (${refundRef || "no-ref"})`,
-        },
-      });
-    }
-
-    if (order.vendorWalletReleasedAt) {
-      await paymentService.applyRefundWalletReversal(
-        order,
-        Number(order.refundSummary?.amount || order.totalAmount || 0),
-        refundRef,
-        { session }
-      );
-      return { reversed: true, mode: "LEDGER_ADJUSTMENT" };
-    }
-
-    return { reversed: false, mode: "PENDING_SETTLEMENT_CANCELLED" };
+  async recordCancellationAccounting() {
+    return { recorded: true };
   }
 
   async createRefundRecord({
@@ -637,8 +610,6 @@ class CancellationRefundService {
               paymentStatus: claim.paymentStatus,
               cancelledAt: new Date(),
               cancelReason: String(reason || "").trim(),
-              settlementStatus:
-                claim.paymentMethod === "COD" ? "CANCELLED" : claim.settlementStatus === "SETTLED" ? "REVERSED" : "CANCELLED",
               inventoryReservationReleasedAt: claim.inventoryCommittedAt ? claim.inventoryReservationReleasedAt : new Date(),
               inventoryRestoredAt: new Date(),
               "cancellation.status": "CANCELLED",
@@ -668,11 +639,7 @@ class CancellationRefundService {
           { session: session || undefined }
         );
 
-        await this.rollbackSettlementArtifacts(
-          { ...claim.toObject(), refundSummary: { amount: preview.refundAmount } },
-          refund?.refundId || refund?._id || "",
-          { session }
-        );
+        await this.recordCancellationAccounting();
 
         const freshOrder = await orderRepo.findById(claim._id);
         return { order: freshOrder, refund };
@@ -700,21 +667,6 @@ class CancellationRefundService {
 
     await Promise.all([
       productAnalyticsService.refreshForOrder(orderId),
-      notificationService.notifyVendorAndOperations({
-        vendorId: order.sellerId?._id || order.sellerId,
-        permissionKey: "orders.read",
-        module: "MANAGEMENT",
-        subModule: "RETURNS",
-        type: "ORDER_CANCELLED",
-        title: "Order cancelled",
-        message: `Order ${order.orderNumber} was cancelled${preview.refundAmount > 0 ? ` with refund ${preview.refundAmount}` : ""}.`,
-        referenceId: order._id,
-        meta: {
-          orderNumber: order.orderNumber,
-          refundAmount: preview.refundAmount,
-          deductionAmount: preview.deductionAmount,
-        },
-      }),
       UserNotification.create({
         userId: order.userId?._id || order.userId,
         type: "ORDER",

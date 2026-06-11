@@ -185,7 +185,6 @@ export function canPerformAction(userRole, action) {
     support_admin: [
       'view_dashboard',
       'manage_users',
-      'manage_vendors',
       'manage_orders',
       'view_products',
     ],
@@ -193,7 +192,6 @@ export function canPerformAction(userRole, action) {
       'view_dashboard',
       'view_analytics',
       'view_payments',
-      'view_payouts',
     ],
   };
 

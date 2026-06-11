@@ -35,12 +35,6 @@ const productReviewSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    vendorId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
-      required: true,
-      index: true,
-    },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -67,8 +61,8 @@ const productReviewSchema = new mongoose.Schema(
     status: { type: String, enum: REVIEW_STATUS, default: "pending", index: true },
     helpfulCount: { type: Number, min: 0, default: 0 },
     notHelpfulCount: { type: Number, min: 0, default: 0 },
-    vendorReply: { type: String, trim: true, maxlength: 1200, default: null },
-    vendorReplyDate: { type: Date, default: null },
+    platformReply: { type: String, trim: true, maxlength: 1200, default: null },
+    platformReplyDate: { type: Date, default: null },
     reportCount: { type: Number, min: 0, default: 0 },
     featured: { type: Boolean, default: false, index: true },
     moderationSignals: { type: moderationSignalsSchema, default: () => ({}) },
@@ -84,7 +78,6 @@ const productReviewSchema = new mongoose.Schema(
 
 productReviewSchema.index({ productId: 1, status: 1, createdAt: -1 });
 productReviewSchema.index({ productId: 1, status: 1, rating: 1 });
-productReviewSchema.index({ vendorId: 1, status: 1, createdAt: -1 });
 productReviewSchema.index({ customerId: 1, createdAt: -1 });
 productReviewSchema.index({ orderId: 1, productId: 1, customerId: 1 }, { unique: true });
 productReviewSchema.index({ helpfulCount: -1, createdAt: -1 });

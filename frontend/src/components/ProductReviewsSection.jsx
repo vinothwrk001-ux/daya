@@ -114,9 +114,9 @@ function HorizontalReviewCard({ review, product, onVote, onReport }) {
 
       <ReviewProductTile product={review.productId?.name ? review.productId : product} />
 
-      {review.vendorReply ? (
+      {review.platformReply ? (
         <div className="mt-3 line-clamp-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-          <span className="font-semibold">Vendor Reply:</span> {review.vendorReply}
+          <span className="font-semibold">Platform Reply:</span> {review.platformReply}
         </div>
       ) : null}
 

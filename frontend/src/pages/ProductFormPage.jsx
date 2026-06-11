@@ -1,27 +1,23 @@
 import { useParams } from "react-router-dom";
-import { useAuthStore } from "../context/authStore";
 import { ProductEditor } from "../components/ProductEditor";
 import * as productService from "../services/productService";
-import * as vendorDashboardService from "../services/vendorDashboardService";
 
 export function ProductFormPage() {
   const { productId } = useParams();
-  const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.role === "admin";
 
   return (
     <ProductEditor
-      mode={isAdmin ? "admin" : "vendor"}
+      mode="admin"
       productId={productId}
       title={productId ? "Edit Product" : "Create Product"}
       createLabel="Create Product"
       updateLabel="Update Product"
-      backTo={isAdmin ? "/admin/products" : "/vendor/products"}
-      listPath={isAdmin ? "/admin/products" : "/vendor/products"}
+      backTo="/admin/products"
+      listPath="/admin/products"
       fetchProduct={productService.getProductById}
-      createProduct={isAdmin ? productService.createProduct : vendorDashboardService.createVendorProduct}
-      updateProduct={isAdmin ? productService.updateProduct : vendorDashboardService.updateVendorProduct}
-      uploadImages={isAdmin ? productService.uploadProductImages : vendorDashboardService.uploadVendorImages}
+      createProduct={productService.createProduct}
+      updateProduct={productService.updateProduct}
+      uploadImages={productService.uploadProductImages}
     />
   );
 }

@@ -1,38 +1,24 @@
 import {
   BarChart3,
-  Bell,
   Brush,
   Boxes,
   CreditCard,
   FileSearch,
   FolderTree,
-  HeadphonesIcon,
   Image,
   Lightbulb,
   LayoutDashboard,
-  Package,
   Package2,
   Percent,
   RotateCcw,
   Settings,
   ShieldCheck,
-  ShoppingBag,
   ShoppingCart,
-  Star,
   Tags,
   Truck,
   Users,
   Wallet,
   UserCog,
-  Clapperboard,
-  Megaphone,
-  Search,
-  Link as LinkIcon,
-  FileCheck2,
-  LineChart,
-  Medal,
-  Download,
-  SlidersHorizontal,
 } from "lucide-react";
 
 export const ADMIN_PRIMARY_ITEM = {
@@ -42,93 +28,6 @@ export const ADMIN_PRIMARY_ITEM = {
 };
 
 export const ADMIN_SECTION_ITEMS = [
-  {
-    section: "Influencer Commerce",
-    key: "influencer-commerce",
-    notificationModule: "GROWTH",
-    items: [
-      {
-        name: "Overview",
-        key: "influencer-commerce-overview",
-        icon: BarChart3,
-        children: [
-          { name: "Dashboard", path: "/admin/influencer-commerce", permission: "influencerCommerce.read", icon: BarChart3, exact: true, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Reports", path: "/admin/influencer-commerce/reports", permission: "influencerCommerce.read", icon: Download, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-        ],
-      },
-      {
-        name: "People",
-        key: "influencer-commerce-people",
-        icon: Users,
-        children: [
-          { name: "Influencers", path: "/admin/influencer-commerce/influencers", permission: "influencerCommerce.read", icon: Users, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Vendors", path: "/admin/influencer-commerce/vendors", permission: "influencerCommerce.read", icon: ShoppingBag, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Influencer-Vendor Matching", path: "/admin/influencer-commerce/matching", permission: "influencerCommerce.read", icon: Lightbulb, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-        ],
-      },
-      {
-        name: "Campaigns",
-        key: "influencer-commerce-campaigns",
-        icon: Megaphone,
-        children: [
-          { name: "Campaign Management", path: "/admin/influencer-commerce/campaigns", permission: "influencerCommerce.read", icon: Megaphone, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Campaign Applications", path: "/admin/influencer-commerce/applications", permission: "influencerCommerce.read", icon: FileCheck2, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Content Moderation", path: "/admin/influencer-commerce/content", permission: "influencerCommerce.read", icon: FileCheck2, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-        ],
-      },
-      {
-        name: "Affiliate & Products",
-        key: "influencer-commerce-affiliate",
-        icon: LinkIcon,
-        children: [
-          { name: "Affiliate Products", path: "/admin/influencer-commerce/affiliate-products", permission: "influencerCommerce.read", icon: LinkIcon, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Affiliate Tracking", path: "/admin/influencer-commerce/tracking", permission: "influencerCommerce.read", icon: Search, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Product Promotions", path: "/admin/influencer-commerce/promotions", permission: "influencerCommerce.read", icon: Package, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-        ],
-      },
-      {
-        name: "Finance",
-        key: "influencer-commerce-finance",
-        icon: Wallet,
-        children: [
-          { name: "Commission Engine", path: "/admin/influencer-commerce/commission-engine", permission: "influencerCommerce.read", icon: Percent, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
-          { name: "Commission Management", path: "/admin/influencer-commerce/commissions", permission: "influencerCommerce.read", icon: Percent, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
-          { name: "Escrow & Settlements", path: "/admin/influencer-commerce/settlements", permission: "influencerCommerce.read", icon: Wallet, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
-          { name: "Payout Management", path: "/admin/influencer-commerce/payouts", permission: "influencerCommerce.read", icon: Wallet, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
-          { name: "Withdrawal Requests", path: "/admin/influencer-commerce/withdrawals", permission: "influencerCommerce.read", icon: CreditCard, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
-        ],
-      },
-      {
-        name: "Analytics",
-        key: "influencer-commerce-analytics",
-        icon: LineChart,
-        children: [
-          { name: "Creator Performance", path: "/admin/influencer-commerce/creator-performance", permission: "influencerCommerce.read", icon: LineChart, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Vendor Performance", path: "/admin/influencer-commerce/vendor-performance", permission: "influencerCommerce.read", icon: BarChart3, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Campaign Analytics", path: "/admin/influencer-commerce/campaign-analytics", permission: "influencerCommerce.read", icon: BarChart3, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Revenue Analytics", path: "/admin/influencer-commerce/revenue-analytics", permission: "influencerCommerce.read", icon: Wallet, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
-        ],
-      },
-      {
-        name: "Governance",
-        key: "influencer-commerce-governance",
-        icon: ShieldCheck,
-        children: [
-          { name: "Fraud & Compliance", path: "/admin/influencer-commerce/fraud", permission: "influencerCommerce.read", icon: ShieldCheck, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-          { name: "Communication Center", path: "/admin/influencer-commerce/communication", permission: "influencerCommerce.read", icon: HeadphonesIcon, notificationModule: "WORKSPACE", notificationSubModule: "SUPPORT" },
-        ],
-      },
-      {
-        name: "Configuration",
-        key: "influencer-commerce-configuration",
-        icon: Settings,
-        children: [
-          { name: "Tier & Score Config", path: "/admin/influencer-commerce/configuration", permission: "influencerCommerce.read", icon: SlidersHorizontal, notificationModule: "WORKSPACE", notificationSubModule: "SETTINGS" },
-          { name: "Settings", path: "/admin/influencer-commerce/settings", permission: "influencerCommerce.read", icon: Settings, notificationModule: "WORKSPACE", notificationSubModule: "SETTINGS" },
-        ],
-      },
-    ],
-  },
   {
     section: "Overview",
     key: "overview",
@@ -144,7 +43,6 @@ export const ADMIN_SECTION_ITEMS = [
     key: "management",
     items: [
       { name: "Users", path: "/admin/users", permission: "users.read", icon: Users, notificationModule: "MANAGEMENT", notificationSubModule: "USERS" },
-      { name: "Sellers", path: "/admin/sellers", permission: "vendors.read", icon: ShoppingBag, legacyOnly: true },
       { name: "Products", path: "/admin/products", permission: "products.read", icon: Boxes, notificationModule: "MANAGEMENT", notificationSubModule: "PRODUCTS" },
       { name: "Inventory", path: "/admin/inventory", permission: "products.read", icon: Package2, notificationModule: "MANAGEMENT", notificationSubModule: "INVENTORY" },
       { name: "Orders", path: "/admin/orders", permission: "orders.read", icon: ShoppingCart, notificationModule: "MANAGEMENT", notificationSubModule: "ORDERS" },
@@ -161,8 +59,6 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Product Modules", path: "/admin/product-modules", permission: "categories.read", icon: Boxes, legacyOnly: true },
       { name: "Homepage Containers", path: "/admin/homepage-containers", permission: "settings.read", icon: Image },
       { name: "Homepage Builder", path: "/admin/marketing/homepage-builder", permission: "settings.read", icon: LayoutDashboard },
-      { name: "Vendor Access", path: "/admin/vendor-access", permission: "dashboard.read", icon: ShieldCheck, legacyOnly: true },
-      { name: "Shipping Access", path: "/admin/vendor-access/shipping", permission: "settings.update", icon: Truck, legacyOnly: true },
     ],
   },
   {
@@ -189,9 +85,6 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Refunds", path: "/admin/refunds", permission: "payments.read", icon: RotateCcw, notificationModule: "MANAGEMENT", notificationSubModule: "RETURNS" },
       { name: "Cancellation Policies", path: "/admin/finance/cancellation-policies", permission: "settings.read", icon: ShieldCheck, notificationModule: "FINANCE", notificationSubModule: "SETTINGS" },
       { name: "Invoices", path: "/admin/finance/invoices", permission: "orders.read", icon: FileSearch, notificationModule: "FINANCE", notificationSubModule: "PAYMENTS" },
-      { name: "Payout Management", path: "/admin/finance/payouts", permission: "payouts.read", icon: Wallet, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
-      { name: "Commission", path: "/admin/commission", permission: "settings.update", icon: Percent, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
-      { name: "Influencers", path: "/admin/influencers", permission: "dashboard.read", icon: Clapperboard },
     ],
   },
   {
@@ -206,56 +99,6 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Pricing Categories", path: "/admin/pricing-categories", permission: "settings.update", icon: Tags },
       { name: "Staff Roles", path: "/admin/roles", permission: "roles.read", icon: ShieldCheck, legacyOnly: true },
       { name: "Staff Accounts", path: "/admin/staff", permission: "staff.read", icon: UserCog, legacyOnly: true },
-    ],
-  },
-];
-
-export const VENDOR_PRIMARY_ITEM = {
-  name: "Dashboard",
-  path: "/vendor/dashboard",
-  icon: LayoutDashboard,
-};
-
-export const VENDOR_DYNAMIC_MODULE_META = {
-  analytics: { section: "Finance", path: "/vendor/analytics", icon: BarChart3 },
-  delivery: { section: "Management", path: "/vendor/delivery", icon: Truck, notificationModule: "MANAGEMENT", notificationSubModule: "DELIVERY" },
-  inventory: { section: "Management", path: "/vendor/inventory", icon: Package2, notificationModule: "MANAGEMENT", notificationSubModule: "INVENTORY" },
-  orders: { section: "Management", path: "/vendor/orders", icon: ShoppingCart, notificationModule: "MANAGEMENT", notificationSubModule: "ORDERS" },
-  payments: { section: "Finance", path: "/vendor/finance", icon: CreditCard, notificationModule: "FINANCE", notificationSubModule: "PAYOUTS" },
-  products: { section: "Management", path: "/vendor/products", icon: Package, notificationModule: "MANAGEMENT", notificationSubModule: "PRODUCTS" },
-  returns: { section: "Management", path: "/vendor/returns", icon: RotateCcw, notificationModule: "MANAGEMENT", notificationSubModule: "RETURNS" },
-  reviews: { section: "Growth", path: "/vendor/reviews", icon: Star, notificationModule: "GROWTH", notificationSubModule: "REVIEWS" },
-};
-
-export const VENDOR_STATIC_ITEMS = [
-  {
-    section: "Influencer Commerce",
-    notificationModule: "GROWTH",
-    key: "influencer-commerce",
-    items: [
-      { name: "Dashboard", path: "/vendor/influencer-commerce", icon: BarChart3, exact: true, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-      { name: "Discover Influencers", path: "/vendor/influencer-commerce/discover", icon: Search, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-      { name: "My Influencers", path: "/vendor/influencer-commerce/relationships", icon: Users, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-      { name: "Campaign Management", path: "/vendor/influencer-commerce/campaigns", icon: Megaphone, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-      { name: "Product Promotion", path: "/vendor/influencer-commerce/products", icon: Package, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-      { name: "Affiliate Products", path: "/vendor/influencer-commerce/affiliate", icon: LinkIcon, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-      { name: "Content Approvals", path: "/vendor/influencer-commerce/content", icon: FileCheck2, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-      { name: "Influencer Performance", path: "/vendor/influencer-commerce/performance", icon: LineChart, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-      { name: "Campaign Analytics", path: "/vendor/influencer-commerce/analytics", icon: BarChart3, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-      { name: "Creator Leaderboard", path: "/vendor/influencer-commerce/leaderboard", icon: Medal, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-      { name: "Reports", path: "/vendor/influencer-commerce/reports", icon: Download, notificationModule: "GROWTH", notificationSubModule: "INFLUENCER_COMMERCE" },
-    ],
-  },
-  {
-    section: "Workspace",
-    notificationModule: "WORKSPACE",
-    key: "workspace",
-    items: [
-      { name: "Notifications", path: "/vendor/notifications", icon: Bell, badgeKey: "notificationsUnread" },
-      { name: "Ready for Pickup", path: "/vendor/pickups", icon: Truck },
-      { name: "Offers", path: "/vendor/offers", icon: Percent },
-      { name: "Support", path: "/vendor/support", icon: HeadphonesIcon, notificationModule: "WORKSPACE", notificationSubModule: "SUPPORT" },
-      { name: "Settings", path: "/vendor/settings", icon: Settings, notificationModule: "WORKSPACE", notificationSubModule: "SETTINGS" },
     ],
   },
 ];

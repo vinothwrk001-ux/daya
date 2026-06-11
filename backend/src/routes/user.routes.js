@@ -3,7 +3,6 @@ const { authRequired, requireRole } = require("../middleware/auth");
 const { validate } = require("../middleware/validate");
 const { upload } = require("../middleware/upload");
 const userController = require("../controllers/user.controller");
-const vendorStorefrontController = require("../controllers/vendor-storefront.controller");
 const {
   profileSchema,
   changePasswordSchema,
@@ -47,8 +46,6 @@ router.get("/wishlist", userController.getWishlist);
 router.post("/wishlist/:productId", userController.addToWishlist);
 router.delete("/wishlist/:productId", userController.removeFromWishlist);
 router.post("/wishlist/:productId/move-to-cart", userController.moveWishlistToCart);
-
-router.get("/followed-stores", vendorStorefrontController.myFollowedStores);
 
 router.get("/billing", userController.getBilling);
 router.get("/returns", userController.listReturns);

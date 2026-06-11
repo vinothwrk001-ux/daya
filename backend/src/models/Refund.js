@@ -63,7 +63,7 @@ const refundSchema = new mongoose.Schema(
     },
     requestedByRole: {
       type: String,
-      enum: ["user", "admin", "super_admin", "support_admin", "finance_admin", "staff", "system", "vendor"],
+      enum: ["user", "admin", "super_admin", "support_admin", "finance_admin", "staff", "system"],
       default: "system",
     },
     requestedById: {
@@ -111,7 +111,6 @@ const refundSchema = new mongoose.Schema(
       gatewayFee: { type: Number, min: 0, default: 0 },
       cancellationDeduction: { type: Number, min: 0, default: 0 },
       shippingDeduction: { type: Number, min: 0, default: 0 },
-      vendorCompensation: { type: Number, min: 0, default: 0 },
       refundAmount: { type: Number, min: 0, default: 0 },
       lineItems: {
         type: [mongoose.Schema.Types.Mixed],
@@ -123,10 +122,6 @@ const refundSchema = new mongoose.Schema(
       },
     },
     financeSnapshot: {
-      settlementRollbackRequired: { type: Boolean, default: false },
-      settlementRollbackAmount: { type: Number, min: 0, default: 0 },
-      vendorLedgerAdjustmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Ledger" },
-      platformLedgerAdjustmentId: { type: mongoose.Schema.Types.ObjectId, ref: "PlatformLedger" },
       walletTransactionId: { type: mongoose.Schema.Types.ObjectId, ref: "WalletTransaction" },
     },
     manualDetails: {

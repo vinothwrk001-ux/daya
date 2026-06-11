@@ -20,17 +20,7 @@ router.get("/product/:productId/variant/:variantId/available", authRequired, inv
 router.get("/product/:productId/variant/:variantId/ledger", authRequired, inventoryController.getVariantLedger);
 
 /**
- * Seller Inventory Management Routes (Protected)
- */
-
-// Get seller's inventory summary
-router.get("/seller/summary", authRequired, inventoryController.getSellerInventorySummary);
-
-// Get seller's low stock variants
-router.get("/seller/low-stock", authRequired, inventoryController.getSellersLowStockVariants);
-
-/**
- * Inventory Adjustment Routes (Protected - Admin/Seller)
+ * Inventory Adjustment Routes
  */
 
 // Manual stock adjustment

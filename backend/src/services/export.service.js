@@ -4,17 +4,12 @@ const PDFDocument = require("pdfkit");
 const { AppError } = require("../utils/AppError");
 const { normalizeDateRange, applyDateRange } = require("../utils/dateRange");
 const { User } = require("../models/User");
-const { Vendor } = require("../models/Vendor");
 const { Product } = require("../models/Product");
 const { Order } = require("../models/Order");
 const { Payment } = require("../models/Payment");
-const { Payout } = require("../models/Payout");
 const { ReturnRequest } = require("../models/ReturnRequest");
-const { Review } = require("../models/Review");
+const { ProductReview } = require("../models/ProductReview");
 const { AuditLog } = require("../models/AuditLog");
-const vendorRepo = require("../repositories/vendor.repository");
-const adminService = require("./admin.service");
-const vendorDashboardService = require("../modules/vendorDashboard/vendor-dashboard.service");
 const productAnalyticsService = require("./product-analytics.service");
 
 function toCurrency(value) {
@@ -40,15 +35,6 @@ function normalizeModuleName(value) {
     .trim()
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
-}
-
-async function getVendorScope(user) {
-  if (user.role !== "vendor") return null;
-  const vendor = await vendorRepo.findByUserId(user.sub);
-  if (!vendor) {
-    throw new AppError("Vendor profile not found", 404, "VENDOR_NOT_FOUND");
-  }
-  return vendor;
 }
 
 function buildFileName(moduleName, format) {
@@ -139,12 +125,9 @@ async function getRowsForModule(moduleName, user, query) {
     startDate: query.startDate,
     endDate: query.endDate,
   });
-  const vendor = await getVendorScope(user);
-  const role = user.role;
 
   const handlers = {
     users: async () => {
-      if (role === "vendor") throw new AppError("Forbidden", 403, "FORBIDDEN");
       const dbQuery = {};
       if (filters.role) dbQuery.role = filters.role;
       applyDateRange(dbQuery, dateRange);
@@ -158,32 +141,12 @@ async function getRowsForModule(moduleName, user, query) {
         CreatedAt: toDateTime(item.createdAt),
       }));
     },
-    sellers: async () => {
-      if (role === "vendor") throw new AppError("Forbidden", 403, "FORBIDDEN");
-      const dbQuery = {};
-      if (filters.status) dbQuery.status = filters.status;
-      applyDateRange(dbQuery, dateRange);
-      const sellers = await Vendor.find(dbQuery).populate("userId", "name email phone").sort({ createdAt: -1 }).lean();
-      return sellers.map((item) => ({
-        Company: item.companyName || "",
-        Shop: item.shopName || "",
-        ContactName: item.userId?.name || "",
-        ContactEmail: item.userId?.email || "",
-        ContactPhone: item.userId?.phone || "",
-        Status: item.status,
-        CreatedAt: toDateTime(item.createdAt),
-      }));
-    },
     products: async () => {
       const dbQuery = {};
       if (filters.status) dbQuery.status = filters.status;
       if (filters.category) dbQuery.category = filters.category;
-      if (vendor) dbQuery.sellerId = vendor._id;
       applyDateRange(dbQuery, dateRange);
-      const products = await Product.find(dbQuery)
-        .populate("sellerId", "companyName")
-        .sort({ createdAt: -1 })
-        .lean();
+      const products = await Product.find(dbQuery).sort({ createdAt: -1 }).lean();
       return products.map((item) => ({
         Name: item.name,
         Category: item.category,
@@ -191,40 +154,22 @@ async function getRowsForModule(moduleName, user, query) {
         Price: toCurrency(item.discountPrice || item.price),
         Stock: item.stock,
         Status: item.status,
-        Seller: item.sellerId?.companyName || "",
         CreatedAt: toDateTime(item.createdAt),
-      }));
-    },
-    inventory: async () => {
-      if (!vendor) throw new AppError("Forbidden", 403, "FORBIDDEN");
-      const dbQuery = { sellerId: vendor._id };
-      applyDateRange(dbQuery, dateRange);
-      const products = await Product.find(dbQuery).sort({ createdAt: -1 }).lean();
-      return products.map((item) => ({
-        Name: item.name,
-        SKU: item.SKU,
-        Stock: item.stock,
-        LowStockThreshold: item.lowStockThreshold || 0,
-        IsActive: item.isActive ? "Yes" : "No",
-        UpdatedAt: toDateTime(item.updatedAt),
       }));
     },
     orders: async () => {
       const dbQuery = { isActive: true };
       if (filters.status) dbQuery.status = filters.status;
       if (filters.paymentStatus) dbQuery.paymentStatus = filters.paymentStatus;
-      if (vendor) dbQuery.sellerId = vendor._id;
       applyDateRange(dbQuery, dateRange);
       const orders = await Order.find(dbQuery)
         .populate("userId", "name email")
-        .populate("sellerId", "companyName")
         .sort({ createdAt: -1 })
         .lean();
       return orders.map((item) => ({
         OrderNumber: item.orderNumber || String(item._id),
         Customer: item.userId?.name || "",
         Email: item.userId?.email || "",
-        Seller: item.sellerId?.companyName || "",
         Amount: toCurrency(item.totalAmount),
         PaymentStatus: item.paymentStatus,
         Status: item.status,
@@ -235,11 +180,9 @@ async function getRowsForModule(moduleName, user, query) {
       const dbQuery = { isActive: true };
       if (filters.status) dbQuery.status = filters.status;
       if (filters.paymentStatus) dbQuery.paymentStatus = filters.paymentStatus;
-      if (vendor) dbQuery.sellerId = vendor._id;
       applyDateRange(dbQuery, dateRange);
       const orders = await Order.find(dbQuery)
         .populate("userId", "name email phone")
-        .populate("sellerId", "companyName")
         .sort({ createdAt: -1 })
         .lean();
       return orders.map((item) => ({
@@ -247,7 +190,7 @@ async function getRowsForModule(moduleName, user, query) {
         OrderNumber: item.orderNumber || String(item._id),
         Customer: item.userId?.name || "",
         Phone: item.userId?.phone || "",
-        Seller: item.sellerId?.companyName || "Platform Store",
+        Issuer: "Platform",
         Amount: toCurrency(item.totalAmount),
         PaymentStatus: item.paymentStatus,
         Status: item.status,
@@ -255,7 +198,6 @@ async function getRowsForModule(moduleName, user, query) {
       }));
     },
     payments: async () => {
-      if (role === "vendor") throw new AppError("Forbidden", 403, "FORBIDDEN");
       const dbQuery = {};
       if (filters.status) dbQuery.status = filters.status;
       applyDateRange(dbQuery, dateRange);
@@ -270,26 +212,9 @@ async function getRowsForModule(moduleName, user, query) {
         CreatedAt: toDateTime(item.createdAt),
       }));
     },
-    payouts: async () => {
-      const dbQuery = {};
-      if (filters.status) dbQuery.status = filters.status;
-      if (vendor) dbQuery.sellerId = vendor._id;
-      applyDateRange(dbQuery, dateRange);
-      const payouts = await Payout.find(dbQuery).populate("orderId", "orderNumber").populate("sellerId", "companyName").sort({ createdAt: -1 }).lean();
-      return payouts.map((item) => ({
-        Order: item.orderId?.orderNumber || "",
-        Seller: item.sellerId?.companyName || "",
-        Amount: toCurrency(item.amount),
-        Commission: toCurrency(item.commission),
-        Status: item.status,
-        TransferId: item.transferId || "",
-        CreatedAt: toDateTime(item.createdAt),
-      }));
-    },
     returns: async () => {
       const dbQuery = {};
       if (filters.status) dbQuery.status = filters.status;
-      if (vendor) dbQuery.vendorId = vendor._id;
       applyDateRange(dbQuery, dateRange);
       const items = await ReturnRequest.find(dbQuery)
         .populate("orderId", "orderNumber")
@@ -308,25 +233,23 @@ async function getRowsForModule(moduleName, user, query) {
     },
     reviews: async () => {
       const dbQuery = {};
-      if (vendor) dbQuery.vendorId = vendor._id;
       applyDateRange(dbQuery, dateRange);
-      const items = await Review.find(dbQuery)
+      const items = await ProductReview.find(dbQuery)
         .populate("productId", "name")
-        .populate("userId", "name email")
+        .populate("customerId", "name email")
         .sort({ createdAt: -1 })
         .lean();
       return items.map((item) => ({
         Product: item.productId?.name || "",
-        Customer: item.userId?.name || "",
-        Email: item.userId?.email || "",
+        Customer: item.customerId?.name || "",
+        Email: item.customerId?.email || "",
         Rating: item.rating,
-        Comment: item.comment || item.title || "",
-        SellerResponse: item.sellerResponse?.message || "",
+        Comment: item.review || item.title || "",
+        PlatformResponse: item.platformReply || "",
         CreatedAt: toDateTime(item.createdAt),
       }));
     },
     audit_logs: async () => {
-      if (role === "vendor") throw new AppError("Forbidden", 403, "FORBIDDEN");
       const dbQuery = {};
       if (filters.action) dbQuery.action = filters.action;
       if (filters.actorRole) dbQuery.actorRole = filters.actorRole;
@@ -346,13 +269,12 @@ async function getRowsForModule(moduleName, user, query) {
     },
     analytics: async () => {
       const rows = await productAnalyticsService.buildExportRows({
-        scope: vendor ? "vendor" : "admin",
+        scope: "admin",
         userId: user.sub,
         filters: {
           range: query.range,
           startDate: query.startDate,
           endDate: query.endDate,
-          vendorId: query.vendorId,
           categoryId: query.categoryId,
           paymentMethod: query.paymentMethod,
           orderStatus: query.orderStatus,
@@ -363,15 +285,6 @@ async function getRowsForModule(moduleName, user, query) {
         Revenue: toCurrency(row.Revenue),
         NetRevenue: toCurrency(row.NetRevenue),
         RefundAmount: toCurrency(row.RefundAmount),
-      }));
-    },
-    earnings: async () => {
-      if (!vendor) throw new AppError("Forbidden", 403, "FORBIDDEN");
-      const analytics = await vendorDashboardService.getAnalytics(user.sub, query);
-      return analytics.salesTrend.map((item) => ({
-        Period: item.label,
-        Orders: item.orders,
-        Revenue: toCurrency(item.revenue),
       }));
     },
   };

@@ -134,7 +134,7 @@ export function AdminSubcategoriesPage() {
         <div>
           <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Subcategory management</h2>
           <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Active subcategories are visible to vendors while creating products.
+            Active subcategories are available while creating products.
           </div>
         </div>
 

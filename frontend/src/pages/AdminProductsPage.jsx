@@ -251,7 +251,7 @@ export function AdminProductsPage() {
             <input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search by product name, SKU, category, or vendor"
+              placeholder="Search by product name, SKU, category, or creator"
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
             <button
@@ -307,7 +307,7 @@ export function AdminProductsPage() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Image</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Vendor</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Created By</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Price</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
@@ -340,7 +340,7 @@ export function AdminProductsPage() {
                           </div>
                         </td>
                         <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-300">
-                          {product.sellerId?.companyName || product.createdBy?.name || "Admin"}
+                          {product.createdBy?.name || product.createdBy?.email || "Admin"}
                         </td>
                         <td className="px-4 py-4 text-sm font-semibold text-slate-950 dark:text-white">
                           {formatCurrency(product.discountPrice || product.price)}

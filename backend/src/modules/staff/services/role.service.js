@@ -40,11 +40,10 @@ const PREDEFINED_ROLES = [
   },
   {
     name: "Finance",
-    description: "Payments, payouts, and analytics access.",
+    description: "Payments and analytics access.",
     permissions: normalizePermissions({
       orders: { read: true },
       payments: { read: true, refund: true },
-      payouts: { read: true, process: true },
       analytics: { read: true },
       branding: { view: true },
     }),

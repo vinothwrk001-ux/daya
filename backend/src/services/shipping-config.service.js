@@ -28,7 +28,7 @@ async function ensureShippingModesConfig(updatedBy = null) {
     config = await PlatformConfig.create({
       key: "shipping_modes",
       value: DEFAULT_SHIPPING_MODES,
-      description: "Controls which shipping modes vendors can use.",
+      description: "Controls which shipping modes are available.",
       category: "shipping",
       type: "object",
       updatedBy: normalizeUpdatedBy(updatedBy),

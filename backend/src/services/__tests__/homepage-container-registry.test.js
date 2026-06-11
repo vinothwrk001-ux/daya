@@ -18,12 +18,11 @@ async function runTest(name, fn) {
 
 async function main() {
   await runTest("supports all requested homepage container types", () => {
-    assert.equal(CONTAINER_TYPES.length, 32);
+    assert.equal(CONTAINER_TYPES.length, 17);
     assert.ok(CONTAINER_TYPES.includes("CAROUSEL"));
     assert.ok(CONTAINER_TYPES.includes("FEATURED_PRODUCTS"));
     assert.ok(CONTAINER_TYPES.includes("VIDEO_PRODUCTS"));
-    assert.ok(CONTAINER_TYPES.includes("VENDOR_STOREFRONT_GRID"));
-    assert.ok(CONTAINER_TYPES.includes("INFLUENCER_FEATURED_CREATORS"));
+    assert.equal(CONTAINER_TYPES.some((type) => type.startsWith("INFL")), false);
     assert.equal(CONTAINER_TYPES.includes("FEATURED"), false);
     assert.equal(CONTAINER_TYPES.includes("LIST"), false);
     assert.equal(CONTAINER_TYPES.includes("TABS"), false);
@@ -39,7 +38,7 @@ async function main() {
     assert.equal(schema.productFilterFields.length, 0);
     assert.deepEqual(
       schema.typeFields.map((field) => field.name),
-      ["bannerMedia", "overlayOpacity", "textPosition", "autoSlide", "slideSpeed", "showArrows", "showDots", "infiniteLoop", "swipeEnabled", "showCtaOnHover"]
+      ["bannerMedia", "overlayOpacity", "textPosition", "autoSlide", "slideSpeed", "showArrows", "showDots"]
     );
   });
 
@@ -60,15 +59,11 @@ async function main() {
     assert.ok(schema.typeFields.some((field) => field.name === "endTime"));
   });
 
-  await runTest("storefront discovery schemas do not expose product filters", () => {
-    const vendorSchema = getContainerTypeSchema("VENDOR_STOREFRONT_GRID");
-    const influencerSchema = getContainerTypeSchema("INFLUENCER_STOREFRONT_CAROUSEL");
-    assert.equal(vendorSchema.supportsProducts, false);
-    assert.equal(influencerSchema.supportsProducts, false);
-    assert.equal(vendorSchema.productFilterFields.length, 0);
-    assert.equal(influencerSchema.productFilterFields.length, 0);
-    assert.ok(vendorSchema.typeFields.some((field) => field.name === "manualVendorIds"));
-    assert.ok(influencerSchema.typeFields.some((field) => field.name === "manualInfluencerIds"));
+  await runTest("category showcase schema exposes category sources", () => {
+    const categorySchema = getContainerTypeSchema("CATEGORY_SHOWCASE");
+    assert.equal(categorySchema.supportsProducts, true);
+    assert.ok(categorySchema.typeFields.some((field) => field.name === "categories" && field.source === "categories"));
+    assert.ok(categorySchema.typeFields.some((field) => field.name === "categoryCards"));
   });
 
   logger.info("script_output", { value: "All homepage container registry checks passed." });

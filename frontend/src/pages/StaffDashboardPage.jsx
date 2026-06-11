@@ -8,7 +8,6 @@ const FALLBACK_STATS = {
   users: { label: "Users", value: "Access granted", icon: UsersIcon, accent: "bg-sky-50 text-sky-700" },
   orders: { label: "Orders", value: "Access granted", icon: ReceiptIcon, accent: "bg-emerald-50 text-emerald-700" },
   products: { label: "Products", value: "Access granted", icon: PackageIcon, accent: "bg-amber-50 text-amber-700" },
-  payouts: { label: "Payouts", value: "Access granted", icon: TrendingUpIcon, accent: "bg-violet-50 text-violet-700" },
 };
 
 function formatCompact(value) {
@@ -45,7 +44,6 @@ export function StaffDashboardPage() {
   const canReadUsers = enabledModules.users !== false && hasPermission("users.read");
   const canReadOrders = enabledModules.orders !== false && hasPermission("orders.read");
   const canReadProducts = enabledModules.products !== false && hasPermission("products.read");
-  const canReadPayouts = enabledModules.payouts !== false && hasPermission("payouts.read");
 
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,10 +112,6 @@ export function StaffDashboardPage() {
         }
       }
 
-      if (canReadPayouts) {
-        nextStats.push({ key: "payouts", ...FALLBACK_STATS.payouts });
-      }
-
       setStats(nextStats);
       setLoading(false);
     }
@@ -127,7 +121,7 @@ export function StaffDashboardPage() {
     return () => {
       active = false;
     };
-  }, [canReadAnalytics, canReadUsers, canReadOrders, canReadProducts, canReadPayouts]);
+  }, [canReadAnalytics, canReadUsers, canReadOrders, canReadProducts]);
 
   return (
     <div className="space-y-6">
@@ -279,16 +273,6 @@ function PackageIcon({ className = "h-5 w-5" }) {
       <path d="m12 2 8 4.5v11L12 22 4 17.5v-11L12 2Z" />
       <path d="M12 22V11.5" />
       <path d="m20 6.5-8 5-8-5" />
-    </IconBase>
-  );
-}
-
-function TrendingUpIcon({ className = "h-5 w-5" }) {
-  return (
-    <IconBase className={className}>
-      <path d="M4 16 10 10l4 4 6-8" />
-      <path d="M20 10V6h-4" />
-      <path d="M4 20h16" />
     </IconBase>
   );
 }

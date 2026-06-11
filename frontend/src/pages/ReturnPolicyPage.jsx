@@ -11,7 +11,7 @@ const sections = [
   {
     heading: "Return Process",
     body: [
-      "Start a return from your order history with the order number, reason, and supporting evidence if requested. Approval may depend on seller validation and pickup feasibility.",
+      "Start a return from your order history with the order number, reason, and supporting evidence if requested. Approval may depend on product validation and pickup feasibility.",
       "Refunds or replacements are initiated after inspection confirms the request meets policy requirements and product condition expectations.",
     ],
   },

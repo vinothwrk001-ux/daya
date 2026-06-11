@@ -1,15 +1,5 @@
 const inventoryService = require("../services/inventory.service");
 const { AppError } = require("../utils/AppError");
-const vendorRepo = require("../repositories/vendor.repository");
-
-async function resolveVendorIdForUser(user) {
-  if (!user?.sub && !user?._id) {
-    return null;
-  }
-
-  const vendor = await vendorRepo.findByUserId(user.sub || user._id);
-  return vendor?._id || null;
-}
 
 /**
  * Get product inventory overview with all variants
@@ -17,10 +7,7 @@ async function resolveVendorIdForUser(user) {
 exports.getProductInventory = async (req, res, next) => {
   try {
     const { productId } = req.params;
-    const sellerId = await resolveVendorIdForUser(req.user);
-    const inventory = await inventoryService.getProductInventory(productId, {
-      expectedSellerId: sellerId || undefined,
-    });
+    const inventory = await inventoryService.getProductInventory(productId);
 
     res.status(200).json({
       success: true,
@@ -37,10 +24,7 @@ exports.getProductInventory = async (req, res, next) => {
 exports.getVariantInventory = async (req, res, next) => {
   try {
     const { productId, variantId } = req.params;
-    const sellerId = await resolveVendorIdForUser(req.user);
-    const inventory = await inventoryService.getVariantInventory(productId, variantId, {
-      expectedSellerId: sellerId || undefined,
-    });
+    const inventory = await inventoryService.getVariantInventory(productId, variantId);
 
     res.status(200).json({
       success: true,
@@ -57,10 +41,7 @@ exports.getVariantInventory = async (req, res, next) => {
 exports.getAvailableStock = async (req, res, next) => {
   try {
     const { productId, variantId } = req.params;
-    const sellerId = await resolveVendorIdForUser(req.user);
-    const stockInfo = await inventoryService.getAvailableStock(productId, variantId, {
-      expectedSellerId: sellerId || undefined,
-    });
+    const stockInfo = await inventoryService.getAvailableStock(productId, variantId);
 
     res.status(200).json({
       success: true,
@@ -78,14 +59,12 @@ exports.getVariantLedger = async (req, res, next) => {
   try {
     const { productId, variantId } = req.params;
     const { limit = 100, offset = 0 } = req.query;
-    const sellerId = await resolveVendorIdForUser(req.user);
 
     const ledger = await inventoryService.getVariantLedger(
       productId,
       variantId,
       parseInt(limit),
-      parseInt(offset),
-      { expectedSellerId: sellerId || undefined }
+      parseInt(offset)
     );
 
     res.status(200).json({
@@ -98,14 +77,13 @@ exports.getVariantLedger = async (req, res, next) => {
 };
 
 /**
- * Manual stock adjustment (admin/seller only)
+ * Manual stock adjustment
  */
 exports.adjustStock = async (req, res, next) => {
   try {
     const { productId, variantId } = req.params;
     const { quantityChange, reason, notes } = req.body;
     const userId = req.user?._id;
-    const sellerId = await resolveVendorIdForUser(req.user);
 
     if (!reason) {
       throw new AppError("Reason is required for stock adjustment", 400, "MISSING_REASON");
@@ -117,8 +95,7 @@ exports.adjustStock = async (req, res, next) => {
       quantityChange,
       reason,
       notes,
-      userId,
-      { expectedSellerId: sellerId || undefined }
+      userId
     );
 
     res.status(200).json({
@@ -139,15 +116,12 @@ exports.updateThreshold = async (req, res, next) => {
     const { productId, variantId } = req.params;
     const { threshold } = req.body;
     const userId = req.user?._id;
-    const sellerId = await resolveVendorIdForUser(req.user);
 
     if (threshold === undefined) {
       throw new AppError("Threshold value is required", 400, "MISSING_THRESHOLD");
     }
 
-    const result = await inventoryService.updateThreshold(productId, variantId, threshold, userId, {
-      expectedSellerId: sellerId || undefined,
-    });
+    const result = await inventoryService.updateThreshold(productId, variantId, threshold, userId);
 
     res.status(200).json({
       success: true,
@@ -160,43 +134,13 @@ exports.updateThreshold = async (req, res, next) => {
 };
 
 /**
- * Get seller's low stock variants
- */
-exports.getSellersLowStockVariants = async (req, res, next) => {
-  try {
-    const sellerId = await resolveVendorIdForUser(req.user);
-    const { limit = 50, offset = 0 } = req.query;
-
-    if (!sellerId) {
-      throw new AppError("Seller ID not found", 400, "MISSING_SELLER");
-    }
-
-    const lowStockVariants = await inventoryService.getLowStockVariants(
-      sellerId,
-      parseInt(limit),
-      parseInt(offset)
-    );
-
-    res.status(200).json({
-      success: true,
-      data: lowStockVariants,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * Export inventory as CSV (admin/seller only)
+ * Export inventory as CSV
  */
 exports.exportInventoryCSV = async (req, res, next) => {
   try {
     const { productId } = req.params;
-    const sellerId = await resolveVendorIdForUser(req.user);
 
-    const inventory = await inventoryService.getProductInventory(productId, {
-      expectedSellerId: sellerId || undefined,
-    });
+    const inventory = await inventoryService.getProductInventory(productId);
 
     // Build CSV header
     const headers = ["Variant ID", "Variant Title", "SKU", "Price", "Stock", "Reserved", "Available", "Threshold", "Status"];
@@ -225,23 +169,3 @@ exports.exportInventoryCSV = async (req, res, next) => {
   }
 };
 
-/**
- * Get all seller products' inventory summary
- */
-exports.getSellerInventorySummary = async (req, res, next) => {
-  try {
-    const sellerId = await resolveVendorIdForUser(req.user);
-
-    if (!sellerId) {
-      throw new AppError("Seller ID not found", 400, "MISSING_SELLER");
-    }
-    const summary = await inventoryService.getSellerInventorySummary(sellerId);
-
-    res.status(200).json({
-      success: true,
-      data: summary,
-    });
-  } catch (err) {
-    next(err);
-  }
-};

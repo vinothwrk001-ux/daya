@@ -9,7 +9,6 @@ function normalizeError(err) {
 export function AdminPickupsPage() {
   const [batches, setBatches] = useState([]);
   const [shipmentIdsText, setShipmentIdsText] = useState("");
-  const [vendorId, setVendorId] = useState("");
   const [loading, setLoading] = useState(true);
   const [scheduling, setScheduling] = useState(false);
   const [error, setError] = useState("");
@@ -49,12 +48,10 @@ export function AdminPickupsPage() {
     try {
       const response = await scheduleAdminPickup({
         shipmentIds,
-        ...(vendorId.trim() ? { vendorId: vendorId.trim() } : {}),
       });
       const batch = response?.data?.batch || response?.batch;
       setSuccess(batch?.batchId ? `Pickup scheduled successfully. Batch ID: ${batch.batchId}` : "Pickup scheduled successfully.");
       setShipmentIdsText("");
-      setVendorId("");
       await load();
     } catch (err) {
       setError(normalizeError(err));
@@ -67,19 +64,10 @@ export function AdminPickupsPage() {
     <div className="grid gap-4">
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Schedule Pickup</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Schedule pickup for one vendor shipment group in a single API call.</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Schedule pickup for one shipment group in a single API call.</p>
         {error ? <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
         {success ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div> : null}
-        <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
-          <label className="grid gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Vendor ID</span>
-            <input
-              value={vendorId}
-              onChange={(e) => setVendorId(e.target.value)}
-              placeholder="Optional if shipment ids already identify one vendor"
-              className="rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            />
-          </label>
+        <div className="mt-4 grid gap-4">
           <label className="grid gap-2">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Shipment IDs</span>
             <textarea
@@ -106,7 +94,7 @@ export function AdminPickupsPage() {
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Pickup Batches</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">All scheduled pickup batches across vendors.</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">All scheduled pickup batches across fulfillment operations.</p>
 
         {loading ? (
           <div className="mt-4 grid gap-3">
@@ -119,7 +107,7 @@ export function AdminPickupsPage() {
             <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
               <thead>
                 <tr>
-                  {["Batch", "Vendor", "Shipments", "Courier", "Status", "Scheduled", "Pickup Date"].map((label) => (
+                  {["Batch", "Shipments", "Courier", "Status", "Scheduled", "Pickup Date"].map((label) => (
                     <th key={label} className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                       {label}
                     </th>
@@ -130,7 +118,6 @@ export function AdminPickupsPage() {
                 {batches.map((batch) => (
                   <tr key={batch.batchId}>
                     <td className="px-3 py-3 font-semibold text-slate-950 dark:text-white">{batch.batchId}</td>
-                    <td className="px-3 py-3">{batch.vendorId?.shopName || batch.vendorId?.companyName || batch.vendorId?._id || "Unknown"}</td>
                     <td className="px-3 py-3">{batch.totalShipments}</td>
                     <td className="px-3 py-3">{batch.courier || "Pending"}</td>
                     <td className="px-3 py-3"><StatusBadge value={batch.status} /></td>

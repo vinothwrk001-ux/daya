@@ -51,7 +51,7 @@ export async function generateProductNumber(params = {}) {
 }
 
 /**
- * Create new product (seller or admin)
+ * Create new product (admin)
  */
 export async function createProduct(productData) {
   const response = await api.post("/api/products", productData);

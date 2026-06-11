@@ -61,25 +61,6 @@ const requestReturn = asyncHandler(async (req, res) => {
   return ok(res, order, "Return requested");
 });
 
-const listSeller = asyncHandler(async (req, res) => {
-  const result = await orderService.listForSeller(req.user.sub, {
-    page: req.query.page,
-    limit: req.query.limit,
-    status: req.query.status,
-  });
-  return ok(res, result, "Seller orders loaded");
-});
-
-const updateStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body || {};
-  const order = await orderService.updateStatusAsSellerOrAdmin({
-    actor: req.user,
-    orderId: req.params.id,
-    status,
-  });
-  return ok(res, order, "Order updated");
-});
-
 const updatePaymentStatus = asyncHandler(async (req, res) => {
   const { paymentStatus } = req.body || {};
   const order = await orderService.updatePaymentStatus({
@@ -97,8 +78,6 @@ module.exports = {
   track,
   cancel,
   requestReturn,
-  listSeller,
-  updateStatus,
   updatePaymentStatus,
 };
 

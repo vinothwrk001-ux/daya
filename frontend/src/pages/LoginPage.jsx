@@ -113,7 +113,7 @@ export function LoginPage() {
       <BrandLogo showName={false} className="mb-5 text-slate-950" imgClassName="h-12 w-auto object-contain" />
       <h1 className="text-2xl font-semibold tracking-tight">Login</h1>
       <p className="mt-2 text-slate-600">
-        {branding?.tagline || "Users can login with phone; vendors, admin, and staff can use email."}
+        {branding?.tagline || "Users can login with phone; admin and staff can use email."}
       </p>
 
       <form

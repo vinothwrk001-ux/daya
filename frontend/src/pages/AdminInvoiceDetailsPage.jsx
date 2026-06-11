@@ -7,7 +7,6 @@ import { downloadAdminInvoicePdf, getAdminInvoice, getAdminInvoiceAudit, updateA
 const financeTabs = [
   { label: "Invoices", to: "/admin/finance/invoices" },
   { label: "Invoice Settings", to: "/admin/finance/invoices/settings" },
-  { label: "Payout Management", to: "/admin/finance/payouts" },
 ];
 
 function normalizeError(error) {
@@ -25,7 +24,7 @@ export function AdminInvoiceDetailsPage() {
     customNotes: "",
     footerText: "",
     billingLabel: "Bill To",
-    sellerLabel: "Sold By",
+    issuerLabel: "Sold By",
     gstLabel: "GST",
     organizationOverrides: {
       organizationName: "",
@@ -48,7 +47,7 @@ export function AdminInvoiceDetailsPage() {
         customNotes: invoiceResponse.metadata?.customNotes || "",
         footerText: invoiceResponse.metadata?.footerText || "",
         billingLabel: invoiceResponse.metadata?.billingLabel || "Bill To",
-        sellerLabel: invoiceResponse.metadata?.sellerLabel || "Sold By",
+        issuerLabel: invoiceResponse.metadata?.issuerLabel || "Sold By",
         gstLabel: invoiceResponse.metadata?.gstLabel || "GST",
         organizationOverrides: {
           organizationName: invoiceResponse.organization?.organizationName || "",
@@ -99,12 +98,12 @@ export function AdminInvoiceDetailsPage() {
         <div className="grid gap-6">
           <form onSubmit={onSave} className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-950">Editable Metadata</h2>
-            <p className="mt-1 text-sm text-slate-500">These changes affect invoice presentation only. Order totals, payment values, and settlements remain immutable.</p>
+            <p className="mt-1 text-sm text-slate-500">These changes affect invoice presentation only. Order totals and payment values remain immutable.</p>
             <div className="mt-5 grid gap-4">
               <FinanceField label="Custom Notes"><FinanceTextarea rows={4} value={form.customNotes} onChange={(e) => setForm((c) => ({ ...c, customNotes: e.target.value }))} /></FinanceField>
               <FinanceField label="Footer Text"><FinanceTextarea rows={3} value={form.footerText} onChange={(e) => setForm((c) => ({ ...c, footerText: e.target.value }))} /></FinanceField>
               <FinanceField label="Billing Label"><FinanceInput value={form.billingLabel} onChange={(e) => setForm((c) => ({ ...c, billingLabel: e.target.value }))} /></FinanceField>
-              <FinanceField label="Seller Label"><FinanceInput value={form.sellerLabel} onChange={(e) => setForm((c) => ({ ...c, sellerLabel: e.target.value }))} /></FinanceField>
+              <FinanceField label="Issuer Label"><FinanceInput value={form.issuerLabel} onChange={(e) => setForm((c) => ({ ...c, issuerLabel: e.target.value }))} /></FinanceField>
               <FinanceField label="GST Label"><FinanceInput value={form.gstLabel} onChange={(e) => setForm((c) => ({ ...c, gstLabel: e.target.value }))} /></FinanceField>
             </div>
             <button type="submit" disabled={loading || saving} className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">

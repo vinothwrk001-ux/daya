@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
  * 
  * Stores platform-wide pricing rules and fees:
  * - Delivery fees (fixed, variable, free threshold)
- * - Platform fees (commission percentage)
+ * - Platform fees (percentage)
  * - Tax configurations
  * - Discount rules
  */
@@ -31,7 +31,7 @@ const pricingConfigSchema = new mongoose.Schema(
       min: 0,
       max: 100,
       default: 5,
-      description: "Platform commission as percentage of product price",
+      description: "Platform fee as percentage of product price",
     },
     platformFeeCapped: {
       type: Number,
@@ -106,7 +106,7 @@ const pricingConfigSchema = new mongoose.Schema(
       selfShipping: {
         type: Boolean,
         default: true,
-        description: "Whether sellers can use their own shipping",
+        description: "Whether self-managed shipping is available",
       },
       platformShipping: {
         type: Boolean,

@@ -11,7 +11,6 @@ const { StaffSession } = require("../models/StaffSession");
 const { StaffLoginHistory } = require("../models/StaffLoginHistory");
 const { StaffPasswordResetToken } = require("../models/StaffPasswordResetToken");
 const { normalizeStaff } = require("./staff.service");
-const vendorModuleService = require("../../../services/vendorModule.service");
 const { logger } = require("../../../utils/logger");
 
 function hashToken(token) {
@@ -43,7 +42,6 @@ async function buildStaffAuthPayload(staff) {
 
 async function createSessionTokens(staff, meta = {}) {
   const { role, permissions } = await buildStaffAuthPayload(staff);
-  const enabledModules = await vendorModuleService.getGlobalModuleEnabledMap();
 
   const session = await StaffSession.create({
     staffId: staff._id,
@@ -80,7 +78,7 @@ async function createSessionTokens(staff, meta = {}) {
       ...normalizeStaff({ ...staff.toObject(), roleId: role }),
       roleId: role?._id,
       permissions,
-      enabledModules,
+      enabledModules: {},
       authType: "staff",
     },
   };
@@ -144,7 +142,6 @@ async function refreshSession(refreshToken, meta = {}) {
   }
 
   const permissions = staff.roleId?.permissions || {};
-  const enabledModules = await vendorModuleService.getGlobalModuleEnabledMap();
   const rotatedRefreshToken = signStaffRefreshToken({
     staff,
     sessionId: session._id,
@@ -173,7 +170,7 @@ async function refreshSession(refreshToken, meta = {}) {
       ...normalizeStaff({ ...staff.toObject(), roleId: staff.roleId }),
       roleId: staff.roleId?._id,
       permissions,
-      enabledModules,
+      enabledModules: {},
       authType: "staff",
     },
   };
@@ -198,7 +195,6 @@ async function me(staffId) {
   if (staff.status !== "active") throw new AppError("Staff account suspended", 403, "ACCOUNT_SUSPENDED");
 
   const permissions = staff.roleId?.permissions || {};
-  const enabledModules = await vendorModuleService.getGlobalModuleEnabledMap();
   
   logger.debug("Staff permissions synced from role", {
     source: "staff-auth.service",
@@ -216,7 +212,7 @@ async function me(staffId) {
     ...normalizeStaff(staff),
     roleId: staff.roleId?._id,
     permissions,
-    enabledModules,
+    enabledModules: {},
     authType: "staff",
     syncedAt: new Date().toISOString(),
   };

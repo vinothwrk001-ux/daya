@@ -18,7 +18,7 @@ const sections = [
   {
     heading: "Sharing and Retention",
     body: [
-      "Information is shared only with sellers, logistics providers, payment processors, and service partners required to complete transactions or comply with legal obligations.",
+      "Information is shared only with logistics providers, payment processors, and service partners required to complete transactions or comply with legal obligations.",
       "We retain data for operational, tax, accounting, and dispute-resolution purposes only as long as necessary under business and legal requirements.",
     ],
   },

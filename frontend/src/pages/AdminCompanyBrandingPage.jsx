@@ -61,7 +61,7 @@ const EMPTY_FORM = {
       },
       {
         title: "Quick links",
-        description: "Common entry points for shoppers and sellers.",
+        description: "Common entry points for shoppers and staff.",
         links: [
           { label: "Shop", href: "/shop" },
           { label: "Login", href: "/login" },
@@ -671,7 +671,7 @@ function PreviewCard({ title, brand, footer = false, auth = false, invoice = fal
             style={{ background: `linear-gradient(135deg, ${brand.brandColors.primaryColor}, ${brand.brandColors.accentColor})` }}
           />
         </div>
-        {auth ? <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">Secure access for customers, sellers, and staff.</div> : null}
+        {auth ? <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">Secure access for customers, admin, and staff.</div> : null}
         {invoice ? <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">Invoice header, support block, and footer logo will inherit this branding.</div> : null}
         {email ? <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">Email header logo, support links, and CTA color tokens preview.</div> : null}
         {footer ? (

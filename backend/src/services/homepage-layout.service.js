@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { HomepageLayout, PAGE_CONTEXTS, VENDOR_LAYOUT_TYPES } = require("../models/HomepageLayout");
+const { HomepageLayout, PAGE_CONTEXTS } = require("../models/HomepageLayout");
 const { HomepageLayoutAssignment } = require("../models/HomepageLayoutAssignment");
 const { HomepageLayoutDraft } = require("../models/HomepageLayoutDraft");
 const { HomepageLayoutVersion } = require("../models/HomepageLayoutVersion");
@@ -23,11 +23,6 @@ const responseCache = new Map();
 function normalizePageContext(value) {
   const next = String(value || "GLOBAL_HOME").trim().toUpperCase();
   return PAGE_CONTEXTS.includes(next) ? next : "GLOBAL_HOME";
-}
-
-function normalizeVendorLayoutType(value) {
-  const next = String(value || "SHARED_ALL_VENDORS").trim().toUpperCase();
-  return VENDOR_LAYOUT_TYPES.includes(next) ? next : "SHARED_ALL_VENDORS";
 }
 
 function setCache(key, value) {
@@ -419,7 +414,6 @@ function normalizeSnapshot(payload = {}, fallback = {}) {
     name: String(payload.name || fallback.name || "").trim(),
     slug: String(payload.slug || fallback.slug || "").trim(),
     pageContext: normalizePageContext(payload.pageContext || fallback.pageContext),
-    vendorLayoutType: normalizeVendorLayoutType(payload.vendorLayoutType || fallback.vendorLayoutType),
     seo: normalizeSeo(payload.seo || fallback.seo),
     notes: String(payload.notes || fallback.notes || "").trim(),
     builder,
@@ -668,7 +662,6 @@ function toAdminLayout(layout) {
     status: layout.status,
     isDefault: Boolean(layout.isDefault),
     pageContext: layout.pageContext || "GLOBAL_HOME",
-    vendorLayoutType: layout.vendorLayoutType || "SHARED_ALL_VENDORS",
     versionCounter: Number(layout.versionCounter || 0),
     draft: layout.draft,
     publishedSnapshot: layout.publishedSnapshot,
@@ -917,7 +910,6 @@ async function buildLayoutRowsFromRows(rows = [], options = {}) {
     device: options.device || "all",
     includeProducts: options.includeProducts !== false,
     respectVisibility: false,
-    currentVendorId: options.currentVendorId || null,
   });
   const containerMap = new Map(resolved.map((item) => [String(item._id), item]));
   const now = new Date();
@@ -978,7 +970,6 @@ async function buildLayoutRowsFromLayouts(layouts = [], builder = normalizeBuild
     device: options.device || "all",
     includeProducts: options.includeProducts !== false,
     respectVisibility: false,
-    currentVendorId: options.currentVendorId || null,
   });
   const containerMap = new Map(resolved.map((item) => [String(item._id), item]));
   const now = new Date();
@@ -1053,8 +1044,7 @@ class HomepageLayoutService {
     const name = String(payload.name || "Homepage Layout").trim();
     const slug = String(payload.slug || name).trim().toLowerCase();
     const pageContext = normalizePageContext(payload.pageContext || payload.draft?.pageContext);
-    const vendorLayoutType = normalizeVendorLayoutType(payload.vendorLayoutType || payload.draft?.vendorLayoutType);
-    const snapshot = normalizeSnapshot(payload.draft || {}, { name, slug, pageContext, vendorLayoutType, rows: [], layouts: [] });
+    const snapshot = normalizeSnapshot(payload.draft || {}, { name, slug, pageContext, rows: [], layouts: [] });
     await ensureUniqueSlug(slug);
     await validateContainerReferences(snapshot, { allowMissing: true });
     assertNoVisualCollisions(snapshot.layouts, snapshot.builder);
@@ -1065,7 +1055,6 @@ class HomepageLayoutService {
       status: "draft",
       isDefault: Boolean(payload.isDefault),
       pageContext,
-      vendorLayoutType,
       draft: {
         ...snapshot,
         version: 0,
@@ -1102,12 +1091,10 @@ class HomepageLayoutService {
     const name = String(payload.name || layout.name).trim();
     const slug = String(payload.slug || layout.slug).trim().toLowerCase();
     const pageContext = normalizePageContext(payload.pageContext || payload.draft?.pageContext || layout.pageContext);
-    const vendorLayoutType = normalizeVendorLayoutType(payload.vendorLayoutType || payload.draft?.vendorLayoutType || layout.vendorLayoutType);
     const snapshot = normalizeSnapshot(payload.draft || {}, {
       name,
       slug,
       pageContext,
-      vendorLayoutType,
       seo: layout.draft?.seo,
       rows: layout.draft?.rows,
       layouts: layout.draft?.layouts,
@@ -1123,7 +1110,6 @@ class HomepageLayoutService {
     layout.slug = slug;
     layout.isDefault = payload.isDefault !== undefined ? Boolean(payload.isDefault) : layout.isDefault;
     layout.pageContext = pageContext;
-    layout.vendorLayoutType = vendorLayoutType;
     layout.updatedBy = actorId;
     layout.draft = {
       ...layout.draft,
@@ -1149,7 +1135,6 @@ class HomepageLayoutService {
       name: payload.name,
       slug: payload.slug,
       pageContext: payload.pageContext,
-      vendorLayoutType: payload.vendorLayoutType,
     });
     const referenceState = await validateContainerReferences(snapshot, { allowMissing: true });
     assertNoVisualCollisions(snapshot.layouts, snapshot.builder);
@@ -1159,13 +1144,11 @@ class HomepageLayoutService {
           device: payload.device || "desktop",
           includeProducts: true,
           respectVisibility: true,
-          currentVendorId: payload.currentVendorId || null,
         })
       : await buildLayoutRowsFromRows(snapshot.rows || [], {
           device: payload.device || "desktop",
           includeProducts: true,
           respectVisibility: true,
-          currentVendorId: payload.currentVendorId || null,
         });
 
     return {
@@ -1203,7 +1186,6 @@ class HomepageLayoutService {
       name: layout.name,
       slug: layout.slug,
       pageContext: layout.pageContext,
-      vendorLayoutType: layout.vendorLayoutType,
       seo: layout.draft?.seo,
       rows: layout.draft?.rows,
       layouts: layout.draft?.layouts,
@@ -1376,121 +1358,6 @@ class HomepageLayoutService {
         slug: layout.slug,
         version: layout.publishedSnapshot.version || 0,
         pageContext: layout.pageContext || "GLOBAL_HOME",
-        seo: normalizeSeo(snapshot.seo),
-        builder: snapshot.builder,
-        publishedAt: layout.publishedAt,
-      },
-      rows,
-      containers: flattenRows(rows),
-    };
-
-    setCache(cacheKey, result);
-    return result;
-  }
-
-  async getSharedVendorLayout({ device = "desktop", currentVendorId = null } = {}) {
-    if (!currentVendorId || !mongoose.isValidObjectId(currentVendorId)) {
-      return null;
-    }
-
-    const cacheKey = `homepage-builder:vendor:${device}:${currentVendorId}`;
-    const cached = getCache(cacheKey);
-    if (cached) return cached;
-    const redisCached = await Promise.race([
-      redisCache.getJson(cacheKey).catch(() => null),
-      new Promise((resolve) => setTimeout(() => resolve(null), 150)),
-    ]);
-    if (redisCached) {
-      setCache(cacheKey, redisCached);
-      return redisCached;
-    }
-
-    const layout = await HomepageLayout.findOne({
-      pageContext: "VENDOR_STORE",
-      vendorLayoutType: "SHARED_ALL_VENDORS",
-      isDefault: true,
-      status: "published",
-      publishedSnapshot: { $ne: null },
-    })
-      .sort({ publishedAt: -1, updatedAt: -1 })
-      .lean();
-
-    if (!layout?.publishedSnapshot) return null;
-
-    const snapshot = normalizeSnapshot(layout.publishedSnapshot, {
-      name: layout.name,
-      slug: layout.slug,
-      pageContext: layout.pageContext,
-      vendorLayoutType: layout.vendorLayoutType,
-    });
-    const rowOptions = {
-      device,
-      includeProducts: true,
-      respectVisibility: true,
-      currentVendorId,
-    };
-    const rows = snapshot.layouts?.length
-      ? await buildLayoutRowsFromLayouts(snapshot.layouts || [], snapshot.builder, rowOptions)
-      : await buildLayoutRowsFromRows(snapshot.rows || [], rowOptions);
-
-    const result = {
-      layout: {
-        _id: layout._id,
-        name: layout.name,
-        slug: layout.slug,
-        version: layout.publishedSnapshot.version || 0,
-        pageContext: "VENDOR_STORE",
-        vendorLayoutType: "SHARED_ALL_VENDORS",
-        seo: normalizeSeo(snapshot.seo),
-        builder: snapshot.builder,
-        publishedAt: layout.publishedAt,
-      },
-      rows,
-      containers: flattenRows(rows),
-    };
-
-    setCache(cacheKey, result);
-    redisCache.setJson(cacheKey, result, Math.ceil(PUBLIC_CACHE_TTL_MS / 1000)).catch(() => {});
-    return result;
-  }
-
-  async getSharedInfluencerLayout({ device = "desktop" } = {}) {
-    const cacheKey = `homepage-builder:influencer:${device}`;
-    const cached = getCache(cacheKey);
-    if (cached) return cached;
-
-    const layout = await HomepageLayout.findOne({
-      pageContext: "INFLUENCER_STORE",
-      isDefault: true,
-      status: "published",
-      publishedSnapshot: { $ne: null },
-    })
-      .sort({ publishedAt: -1, updatedAt: -1 })
-      .lean();
-
-    if (!layout?.publishedSnapshot) return null;
-
-    const snapshot = normalizeSnapshot(layout.publishedSnapshot, {
-      name: layout.name,
-      slug: layout.slug,
-      pageContext: layout.pageContext,
-    });
-    const rowOptions = {
-      device,
-      includeProducts: true,
-      respectVisibility: true,
-    };
-    const rows = snapshot.layouts?.length
-      ? await buildLayoutRowsFromLayouts(snapshot.layouts || [], snapshot.builder, rowOptions)
-      : await buildLayoutRowsFromRows(snapshot.rows || [], rowOptions);
-
-    const result = {
-      layout: {
-        _id: layout._id,
-        name: layout.name,
-        slug: layout.slug,
-        version: layout.publishedSnapshot.version || 0,
-        pageContext: "INFLUENCER_STORE",
         seo: normalizeSeo(snapshot.seo),
         builder: snapshot.builder,
         publishedAt: layout.publishedAt,

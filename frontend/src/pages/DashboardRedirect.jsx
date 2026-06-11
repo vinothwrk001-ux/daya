@@ -8,7 +8,5 @@ export function DashboardRedirect() {
   if (["admin", "super_admin", "support_admin", "finance_admin"].includes(user.role)) {
     return <Navigate to="/dashboard/admin" replace />;
   }
-  if (user.role === "vendor") return <Navigate to="/dashboard/vendor" replace />;
-  if (user.role === "influencer") return <Navigate to="/influencer/dashboard" replace />;
   return <Navigate to="/dashboard/user" replace />;
 }

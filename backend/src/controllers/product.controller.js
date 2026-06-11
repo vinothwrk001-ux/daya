@@ -1,8 +1,6 @@
 const { ok, fail } = require("../utils/apiResponse");
 const { asyncHandler } = require("../utils/asyncHandler");
 const productService = require("../services/product.service");
-const vendorStorefrontService = require("../services/vendor-storefront.service");
-const productRepo = require("../repositories/product.repository");
 
 function pickDynamicQueryFilters(query = {}) {
   const reserved = new Set([
@@ -27,35 +25,11 @@ function pickDynamicQueryFilters(query = {}) {
 /**
  * CREATE PRODUCT
  * POST /products
- * Available for: ADMIN, SELLER
- * Admin products: auto-approved
- * Seller products: require approval
+ * Available for: ADMIN
  */
 const createProduct = asyncHandler(async (req, res) => {
-  const isVendor = req.user.role === "vendor";
-  const isAdminContext = !isVendor;
-
-  // Get seller info if user is seller
-  let sellerId = null;
-  if (isVendor) {
-    // Assuming vendor profile is stored with userId reference
-    const vendorModule = require("../repositories/vendor.repository");
-    const vendor = await vendorModule.findByUserId(req.user.sub);
-    if (!vendor) {
-      return fail(res, 400, "Vendor profile not found. Please complete onboarding.");
-    }
-    sellerId = vendor._id;
-  }
-
-  const product = await productService.createProduct(req.body, req.user.sub, isAdminContext ? "admin" : "seller", sellerId);
-  if (product.status === "APPROVED") {
-    await vendorStorefrontService.notifyFollowersForProduct(product, "NEW_PRODUCT");
-  }
-
-  const statusCode = isAdminContext ? 201 : 202; // 202 Accepted for pending approval
-  const message = isAdminContext ? "Product created and approved" : "Product created and pending approval";
-
-  return ok(res, product, message);
+  const product = await productService.createProduct(req.body, req.user.sub);
+  return ok(res, product, "Product created and approved");
 });
 
 /**
@@ -63,7 +37,6 @@ const createProduct = asyncHandler(async (req, res) => {
  * GET /products
  * Filters: category, status, page, limit, search, minPrice, maxPrice, sortBy
  * For users: only shows APPROVED & ACTIVE
- * For sellers: shows their own products
  * For admins: shows all
  */
 const getProducts = asyncHandler(async (req, res) => {
@@ -81,28 +54,13 @@ const getProducts = asyncHandler(async (req, res) => {
     rawQuery: pickDynamicQueryFilters(req.query),
   };
 
-  // Enforce visibility rules based on role
   if (req.user.role === "user") {
-    // Users can only see approved and active products
     const result = await productService.getPublicProducts(filters);
     return ok(res, result, "Products retrieved");
-  } else if (req.user.role === "vendor") {
-    // Vendors see only their own products
-    const vendorModule = require("../repositories/vendor.repository");
-    const vendor = await vendorModule.findByUserId(req.user.sub);
-    if (!vendor) {
-      return fail(res, 400, "Vendor profile not found");
-    }
-
-    filters.status = req.query.status; // Vendors can filter by status
-    const result = await productService.getSellerProducts(vendor._id, filters);
-    return ok(res, result, "Your products retrieved");
-  } else {
-    // Admins see all products
-    filters.status = req.query.status;
-    const result = await productService.getProducts(filters);
-    return ok(res, result, "All products retrieved");
   }
+  filters.status = req.query.status;
+  const result = await productService.getProducts(filters);
+  return ok(res, result, "All products retrieved");
 });
 
 /**
@@ -162,28 +120,13 @@ const getProductById = asyncHandler(async (req, res) => {
 /**
  * UPDATE PRODUCT
  * PUT/PATCH /products/:id
- * Sellers can only update their own products
  * Admins can update any product
  */
 const updateProduct = asyncHandler(async (req, res) => {
-  const isVendor = req.user.role === "vendor";
-  const isAdminContext = !isVendor;
-  let sellerId = null;
-  if (isVendor) {
-    const vendorModule = require("../repositories/vendor.repository");
-    const vendor = await vendorModule.findByUserId(req.user.sub);
-    if (!vendor) {
-      return fail(res, 400, "Vendor profile not found");
-    }
-    sellerId = vendor._id;
-  }
-
   const product = await productService.updateProduct(
     req.params.id,
     req.body,
-    req.user.sub,
-    isAdminContext ? "admin" : "seller",
-    sellerId
+    req.user.sub
   );
 
   return ok(res, product, "Product updated");
@@ -195,23 +138,9 @@ const updateProduct = asyncHandler(async (req, res) => {
  * Soft delete - sets isActive to false
  */
 const deleteProduct = asyncHandler(async (req, res) => {
-  const isVendor = req.user.role === "vendor";
-  const isAdminContext = !isVendor;
-  let sellerId = null;
-  if (isVendor) {
-    const vendorModule = require("../repositories/vendor.repository");
-    const vendor = await vendorModule.findByUserId(req.user.sub);
-    if (!vendor) {
-      return fail(res, 400, "Vendor profile not found");
-    }
-    sellerId = vendor._id;
-  }
-
   const product = await productService.deleteProduct(
     req.params.id,
-    req.user.sub,
-    isAdminContext ? "admin" : "seller",
-    sellerId
+    req.user.sub
   );
 
   return ok(res, product, "Product deleted");
@@ -243,7 +172,6 @@ const getPendingProducts = asyncHandler(async (req, res) => {
  */
 const approveProduct = asyncHandler(async (req, res) => {
   const product = await productService.approveProduct(req.params.id, req.user.sub);
-  await vendorStorefrontService.notifyFollowersForProduct(product, "NEW_PRODUCT");
   return ok(res, product, "Product approved");
 });
 

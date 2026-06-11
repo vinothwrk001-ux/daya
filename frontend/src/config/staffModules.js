@@ -70,18 +70,6 @@ export const STAFF_MODULES = [
     notificationSubModule: "PAYMENTS",
   },
   {
-    key: "payouts",
-    name: "Payouts",
-    description: "Review vendor disbursements and process payout operations",
-    icon: "TrendingUp",
-    route: "/staff/payouts",
-    permission: "payouts.read",
-    section: "finance",
-    order: 6,
-    notificationModule: "FINANCE",
-    notificationSubModule: "PAYOUTS",
-  },
-  {
     key: "analytics",
     name: "Analytics",
     description: "Platform performance metrics and insights",
@@ -89,7 +77,7 @@ export const STAFF_MODULES = [
     route: "/staff/analytics",
     permission: "analytics.read",
     section: "finance",
-    order: 7,
+    order: 6,
   },
   {
     key: "settings",
@@ -99,7 +87,7 @@ export const STAFF_MODULES = [
     route: "/staff/settings",
     permission: "settings.update",
     section: "admin",
-    order: 8,
+    order: 7,
     notificationModule: "WORKSPACE",
     notificationSubModule: "SETTINGS",
   },
@@ -111,7 +99,7 @@ export const STAFF_MODULES = [
     route: "/staff/roles",
     permission: "roles.read",
     section: "admin",
-    order: 9,
+    order: 8,
   },
   {
     key: "staff",
@@ -121,7 +109,7 @@ export const STAFF_MODULES = [
     route: "/staff/staff",
     permission: "staff.read",
     section: "admin",
-    order: 10,
+    order: 9,
   },
 ];
 

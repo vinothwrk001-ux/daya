@@ -29,6 +29,3 @@ export function uploadAdminProductImages(files, metadata = {}, onUploadProgress)
   return uploadImages(adminHttp, "/api/admin/products/media", files, metadata, onUploadProgress);
 }
 
-export function uploadVendorProductImages(files, metadata = {}, onUploadProgress) {
-  return uploadImages(api, "/api/vendor/products/media", files, metadata, onUploadProgress);
-}

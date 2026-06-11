@@ -5,7 +5,6 @@ const mongoose = require("mongoose");
 const { connectDb } = require("../config/db");
 const { Order } = require("../models/Order");
 const { User } = require("../models/User");
-const { Vendor } = require("../models/Vendor");
 
 async function main() {
   try {
@@ -24,34 +23,6 @@ async function main() {
         role: "user",
         status: "active",
       });
-    }
-
-    // Get or create multiple vendors
-    let vendors = await Vendor.find({ status: "approved" }).limit(4);
-    
-    if (vendors.length < 4) {
-      logger.info("script_output", { value: "Creating test vendors..." });
-      for (let i = 0; i < 4 - vendors.length; i++) {
-        const vendorUser = await User.create({
-          name: `Vendor ${i + 1}`,
-          email: `vendor${i + 1}@test.com`,
-          phone: `998877665${i}`,
-          password: "Password123",
-          role: "vendor",
-          status: "active",
-        });
-
-        const vendor = await Vendor.create({
-          userId: vendorUser._id,
-          companyName: `Store ${i + 1}`,
-          address: `${100 + i} Business St`,
-          shopName: `Shop ${i + 1}`,
-          storeSlug: `shop-${i + 1}`,
-          status: "approved",
-          stepCompleted: 4,
-        });
-        vendors.push(vendor);
-      }
     }
 
     // Yesterday's date
@@ -110,7 +81,6 @@ async function main() {
       const order = await Order.create({
         orderNumber: `ORD-${Date.now()}-${i + 1}`,
         userId: buyer._id,
-        sellerId: vendors[i]._id,
         items,
         subtotal: data.subtotal,
         shippingFee: 150,

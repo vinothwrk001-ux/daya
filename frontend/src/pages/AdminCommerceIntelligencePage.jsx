@@ -51,7 +51,7 @@ const TAB_META = {
 
 const WEIGHT_FIELDS = [
   { key: "category", label: "Category match", description: "Prioritize products from the same category.", example: "Related products" },
-  { key: "brand", label: "Brand match", description: "Boost items from the same brand or seller.", example: "Similar products" },
+  { key: "brand", label: "Brand match", description: "Boost items from the same brand or category.", example: "Similar products" },
   { key: "attribute", label: "Attribute match", description: "Use shared attributes such as color, material, size, or model.", example: "Similar products" },
   { key: "price", label: "Price similarity", description: "Keep suggestions in a familiar price range.", example: "Upsell control" },
   { key: "sales", label: "Sales performance", description: "Give proven, high-selling products more visibility.", example: "Conversion" },
@@ -61,7 +61,7 @@ const WEIGHT_FIELDS = [
 const PRESETS = [
   { key: "balanced", label: "Balanced", description: "Good default for most stores.", weights: { category: 35, brand: 20, attribute: 15, price: 15, sales: 10, rating: 5 } },
   { key: "similar", label: "More Similar", description: "Focus on product fit, brand, and attributes.", weights: { category: 35, brand: 25, attribute: 25, price: 10, sales: 3, rating: 2 } },
-  { key: "sales", label: "Best Sellers", description: "Push products that already sell well.", weights: { category: 25, brand: 15, attribute: 10, price: 10, sales: 30, rating: 10 } },
+  { key: "sales", label: "Popular Products", description: "Push products that already sell well.", weights: { category: 25, brand: 15, attribute: 10, price: 10, sales: 30, rating: 10 } },
   { key: "quality", label: "Quality First", description: "Favor rating and product fit over sales volume.", weights: { category: 30, brand: 20, attribute: 20, price: 10, sales: 5, rating: 15 } },
 ];
 

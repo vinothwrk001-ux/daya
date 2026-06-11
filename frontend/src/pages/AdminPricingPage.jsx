@@ -284,7 +284,7 @@ export function AdminPricingPage() {
             <div className="grid gap-6 border-b border-slate-200 pb-6 dark:border-slate-800">
               <div>
                 <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Platform Fees</h2>
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Commission charged on product prices</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Platform fee applied to product prices</p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">

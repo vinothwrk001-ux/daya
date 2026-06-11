@@ -12,7 +12,6 @@ import { useCart } from "../hooks/useCart";
 import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
 import { getCartErrorMessage } from "../utils/cartErrors";
-import { SellerNameLink } from "../components/seller/SellerNavigation";
 
 
 const RESERVED_QUERY_KEYS = new Set([
@@ -220,7 +219,7 @@ export function ProductsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Shop Products</h1>
           <p className="mt-1 text-xs text-slate-600 sm:text-sm">
-            Dynamic category filters, shareable URLs, and real-time storefront facets.
+            Dynamic category filters, shareable URLs, and real-time catalog facets.
           </p>
         </div>
         <BackButton />
@@ -934,7 +933,7 @@ const ProductCard = memo(function ProductCard({ product }) {
           <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
             {product.category}
           </p>
-          <SellerNameLink seller={product?.sellerId} className="mt-1 text-[11px]" />
+          <div className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">Sold by Daya</div>
         </div>
 
         {product.ratings?.averageRating > 0 && (

@@ -237,7 +237,7 @@ export function AdminRefundsPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Order ID</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Customer</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-700">Vendor</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-700">Fulfillment</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Payment Method</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Order Amount</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Deduction</th>
@@ -254,13 +254,12 @@ export function AdminRefundsPage() {
               ) : refunds.length ? (
                 refunds.map((refund) => {
                   const customer = refund.orderId?.userId?.name || refund.orderId?.shippingAddress?.fullName || "Not available";
-                  const vendor = refund.orderId?.sellerId?.companyName || refund.orderId?.sellerId?.shopName || "Platform";
                   const isCompleted = refund.status === "PROCESSED";
                   return (
                     <tr key={refund._id}>
                       <td className="px-4 py-3 font-semibold text-slate-950">{refund.orderId?.orderNumber || refund.orderId?._id}</td>
                       <td className="px-4 py-3 text-slate-600">{customer}</td>
-                      <td className="px-4 py-3 text-slate-600">{vendor}</td>
+                      <td className="px-4 py-3 text-slate-600">Platform</td>
                       <td className="px-4 py-3 text-slate-600">{refund.paymentMethod || refund.orderId?.paymentMethod || "NA"}</td>
                       <td className="px-4 py-3 text-slate-600">{formatCurrency(refund.grossAmount || refund.orderId?.totalAmount || 0)}</td>
                       <td className="px-4 py-3 text-slate-600">{formatCurrency(refund.deductionAmount || 0)}</td>

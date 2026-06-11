@@ -73,7 +73,7 @@ export function InvoicePreviewCard({ invoice, actionBar = null, printId = "invoi
 
       <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         <section className="grid min-w-0 gap-4">
-          <SectionCard title="Parties" description="Billing and seller identity shown on the invoice.">
+          <SectionCard title="Parties" description="Billing and organization identity shown on the invoice.">
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-2xl bg-slate-50 p-4">
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{invoice.metadata?.billingLabel || "Bill To"}</div>
@@ -94,9 +94,9 @@ export function InvoicePreviewCard({ invoice, actionBar = null, printId = "invoi
                 </div>
               </div>
               <div className="rounded-2xl bg-slate-50 p-4">
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{invoice.metadata?.sellerLabel || "Sold By"}</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{invoice.metadata?.issuerLabel || "Sold By"}</div>
                 <div className="mt-2 text-sm text-slate-700">
-                  <div className="font-semibold text-slate-950">{invoice.vendors?.[0]?.name || invoice.organization?.organizationName || "-"}</div>
+                  <div className="font-semibold text-slate-950">{invoice.organization?.organizationName || "-"}</div>
                   <div>{invoice.organization?.supportPhone || "-"}</div>
                   <div>{invoice.organization?.supportEmail || "-"}</div>
                   <div className="mt-2 whitespace-pre-line">{invoice.organization?.billingAddress || invoice.organization?.registeredAddress || "-"}</div>

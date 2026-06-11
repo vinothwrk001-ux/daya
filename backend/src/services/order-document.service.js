@@ -185,7 +185,6 @@ function buildTimeline(order) {
 
 function buildOrderSnapshot(order, options = {}) {
   const user = options.user || order?.userId || {};
-  const seller = options.seller || order?.sellerId || {};
   const paymentRecord = options.paymentRecord || order?.paymentRecordId || {};
   const invoiceNumber = order?.invoiceNumber || generateInvoiceNumber(order);
   const charges = order?.pricingSnapshot?.charges || order?.chargesBreakdown || [];
@@ -223,15 +222,11 @@ function buildOrderSnapshot(order, options = {}) {
       shippingAddress,
       billingAddress,
     },
-    vendors: [
-      {
-        sellerId: String(seller?._id || seller || ""),
-        name: seller?.shopName || seller?.companyName || "Platform Store",
-        storeSlug: seller?.storeSlug || "",
-        logoUrl: seller?.logoUrl || "",
-        verified: seller?.status === "approved",
-      },
-    ],
+    issuer: {
+      name: COMPANY_NAME,
+      website: COMPANY_WEBSITE,
+      logoUrl: "",
+    },
     items,
     pricing: {
       currency,
@@ -303,7 +298,11 @@ function buildOrderSummary(order, options = {}) {
     estimatedDelivery: snapshot.shipping?.estimatedDelivery || null,
     estimatedDeliveryLabel: snapshot.shipping?.estimatedDeliveryLabel || "",
     customer: snapshot.customer,
-    vendors: snapshot.vendors || [],
+    issuer: snapshot.issuer || {
+      name: snapshot.support?.companyName || COMPANY_NAME,
+      website: snapshot.support?.website || COMPANY_WEBSITE,
+      logoUrl: "",
+    },
     items: snapshot.items || [],
     pricing: snapshot.pricing,
     payment: {
@@ -413,7 +412,7 @@ async function generateInvoicePdf(summary) {
     const taxLabel = summary.metadata?.gstLabel || org.taxLabel || support.taxLabel || COMPANY_TAX_LABEL;
     const taxId = org.gstNumber || support.taxId || COMPANY_TAX_ID;
     const billingLabel = summary.metadata?.billingLabel || "Bill To";
-    const sellerLabel = summary.metadata?.sellerLabel || "Sold By";
+    const issuerLabel = summary.metadata?.issuerLabel || "Issued By";
 
     doc.on("data", (chunk) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
@@ -498,9 +497,9 @@ async function generateInvoicePdf(summary) {
     );
     doc.text(summary.customer?.shippingAddress?.country || "", 50, 374, { width: 210 });
 
-    doc.font("Helvetica-Bold").fontSize(11).fillColor("#0f172a").text(sellerLabel, 320, 272);
+    doc.font("Helvetica-Bold").fontSize(11).fillColor("#0f172a").text(issuerLabel, 320, 272);
     doc.font("Helvetica").fontSize(10).fillColor("#334155");
-    doc.text(summary.vendors?.[0]?.name || companyName, 320, 290);
+    doc.text(summary.issuer?.name || companyName, 320, 290);
     doc.text(`Support: ${supportPhone}`, 320, 304);
     doc.text(`Email: ${supportEmail}`, 320, 318, { width: 220 });
     doc.text(`${taxLabel}: ${taxId}`, 320, 332, { width: 220 });

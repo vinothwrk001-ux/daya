@@ -44,7 +44,7 @@ export async function clearCart() {
  * @param {string} productId
  * @param {number} quantity
  * @param {string} variantId
- * @returns {Promise<Object>} Enriched item with price, image, vendor info
+ * @returns {Promise<Object>} Enriched item with price, image, and product info
  */
 export async function validateItem(productId, quantity = 1, variantId = "") {
   const { data } = await api.post("/api/cart/validate-item", {

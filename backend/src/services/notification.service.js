@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const { Notification } = require("../models/Notification");
 const { User } = require("../models/User");
-const { Vendor } = require("../models/Vendor");
 const { Staff } = require("../modules/staff/models/Staff");
 const { ADMIN_ROLES, hasPermission: hasAdminPermission, normalizeRole } = require("../utils/adminPermissions");
 const { hasStaffPermission } = require("../modules/staff/permissions");
@@ -44,8 +43,6 @@ async function getStaffRecipientIds(permissionKey) {
 class NotificationService {
   resolveRoleFromAuthUser(user = {}) {
     const normalizedRole = normalizeRole(user.role);
-    if (normalizedRole === "vendor") return "VENDOR";
-    if (normalizedRole === "influencer") return "INFLUENCER";
     if (normalizedRole === "staff") return "STAFF";
     if (ADMIN_ROLES.includes(normalizedRole)) return "ADMIN";
     return null;
@@ -106,29 +103,6 @@ class NotificationService {
         role: "STAFF",
       }))
     );
-  }
-
-  async notifyVendorUser(vendorId, payload) {
-    if (!vendorId) return [];
-    const vendor = await Vendor.findById(vendorId).select("userId").lean();
-    if (!vendor?.userId) return [];
-    return await this.createNotifications([
-      {
-        ...payload,
-        userId: vendor.userId,
-        role: "VENDOR",
-      },
-    ]);
-  }
-
-  async notifyVendorAndOperations({ vendorId, permissionKey, ...payload }) {
-    const tasks = [
-      this.notifyVendorUser(vendorId, payload),
-      this.notifyAdmins(payload, permissionKey),
-      this.notifyStaff(payload, permissionKey),
-    ];
-
-    await Promise.all(tasks);
   }
 
   async notifyOperations(payload, permissionKey = null) {

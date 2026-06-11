@@ -100,7 +100,7 @@ export function AdminProductAnalyticsDetailPage() {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <MiniStat label="Revenue" value={formatCurrency(summary.totalRevenue)} />
             <MiniStat label="Net Earnings" value={formatCurrency(summary.totalNetRevenue)} />
-            <MiniStat label="Commission" value={formatCurrency(summary.totalCommissionAmount)} />
+            <MiniStat label="Platform Fees" value={formatCurrency(summary.totalPlatformFees)} />
             <MiniStat label="Repeat Rate" value={`${Number(summary.repeatPurchaseRate || 0).toFixed(2)}%`} />
           </div>
         </div>

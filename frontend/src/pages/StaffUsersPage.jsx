@@ -188,7 +188,6 @@ export function StaffUsersPage() {
               className="max-w-xs rounded-xl border border-slate-200 px-4 py-3 text-sm"
             >
               <option value="user">User</option>
-              <option value="vendor">Vendor</option>
             </select>
           </label>
           <div className="flex gap-3 md:col-span-2">

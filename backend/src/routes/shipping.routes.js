@@ -1,68 +1,10 @@
 const express = require("express");
 const { authRequired, requireRole } = require("../middleware/auth");
-const { requireApprovedVendor } = require("../middleware/vendorApproval");
 const shippingController = require("../controllers/shipping.controller");
 const { validate } = require("../middleware/validate");
 const { body } = require("express-validator");
 
 const router = express.Router();
-const vendorAuth = [authRequired, requireRole("vendor"), requireApprovedVendor];
-
-/**
- * ==================== VENDOR ROUTES ====================
- */
-
-// Get available shipping modes for current vendor
-router.get("/vendor/modes", vendorAuth, shippingController.getVendorShippingModes);
-
-// Get vendor shipping settings
-router.get("/vendor/settings", vendorAuth, shippingController.getVendorShippingSettings);
-
-// Update vendor shipping default mode
-router.patch(
-  "/vendor/settings",
-  vendorAuth,
-  validate([
-    body("defaultShippingMode")
-      .optional()
-      .isIn(["SELF", "PLATFORM"])
-      .withMessage("Invalid shipping mode"),
-  ]),
-  shippingController.updateVendorShippingSettings
-);
-
-// Submit self-shipping tracking
-router.patch(
-  "/vendor/orders/:orderId/self",
-  vendorAuth,
-  validate([
-    body("trackingId")
-      .trim()
-      .notEmpty()
-      .withMessage("Tracking ID is required")
-      .matches(/^[A-Z0-9][A-Z0-9\-_/.]{5,39}$/i)
-      .withMessage("Invalid tracking ID format"),
-    body("courierName")
-      .trim()
-      .notEmpty()
-      .withMessage("Courier name is required")
-      .isLength({ min: 2, max: 80 })
-      .withMessage("Courier name must be 2-80 characters"),
-    body("trackingUrl")
-      .optional()
-      .trim()
-      .isURL()
-      .withMessage("Invalid tracking URL"),
-  ]),
-  shippingController.submitSelfShipping
-);
-
-// Request platform pickup
-router.patch(
-  "/vendor/orders/:orderId/platform",
-  vendorAuth,
-  shippingController.requestPlatformShipping
-);
 
 /**
  * ==================== ADMIN ROUTES ====================
@@ -122,33 +64,6 @@ router.patch(
       .trim(),
   ]),
   shippingController.updateOrderShippingStatus
-);
-
-// Get vendor shipping modes (admin view)
-router.get("/admin/vendors/:vendorId", authRequired, requireRole("admin"), shippingController.getVendorShippingModesAdmin);
-
-// Update vendor allowed shipping modes (admin control)
-router.patch(
-  "/admin/vendors/:vendorId",
-  authRequired,
-  requireRole("admin"),
-  validate([
-    body("allowedShippingModes")
-      .optional()
-      .isArray()
-      .withMessage("allowedShippingModes must be array")
-      .custom((arr) => {
-        if (arr && arr.every((mode) => ["SELF", "PLATFORM"].includes(mode))) {
-          return true;
-        }
-        throw new Error("Invalid shipping modes");
-      }),
-    body("defaultShippingMode")
-      .optional()
-      .isIn(["SELF", "PLATFORM"])
-      .withMessage("Invalid default shipping mode"),
-  ]),
-  shippingController.updateVendorShippingModesAdmin
 );
 
 /**

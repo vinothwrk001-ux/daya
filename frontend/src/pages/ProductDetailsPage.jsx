@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { ProductImageGallery } from "../components/ProductImageGallery";
 import { ProductReviewsSection } from "../components/ProductReviewsSection";
@@ -20,14 +20,11 @@ import { formatCurrency } from "../utils/formatCurrency";
 import { getDefaultVariant, getVariantGroups } from "../utils/productVariants";
 import { saveRedirectAfterLogin } from "../utils/loginRedirect";
 import { getFormattedWeight } from "../utils/weight";
-import { loadTrackingContext, saveTrackingContext } from "../utils/influencerTracking";
 import { useCart } from "../hooks/useCart";
 import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
 import pendingActionManager from "../utils/pendingActionManager";
 import { getCartErrorMessage } from "../utils/cartErrors";
-import { SellerCard, SellerNameLink, StoreRatingDisplay } from "../components/seller/SellerNavigation";
-import { trackAffiliateEvent } from "../services/influencerCommerceService";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -140,7 +137,6 @@ function isVisualSwatchGroup(group, displayType) {
 
 export function ProductDetailsPage() {
   const { productId } = useParams();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { addItem: addCartItem } = useCart();
@@ -164,35 +160,6 @@ export function ProductDetailsPage() {
   const [recommendations, setRecommendations] = useState(null);
   const [fbtBundle, setFbtBundle] = useState(null);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
-  const trackedProductViewRef = useRef("");
-
-  function trackCurrentAffiliateEvent(eventType, metadata = {}) {
-    const trackingContext = loadTrackingContext();
-    if (!trackingContext?.trackingToken || String(trackingContext.productId || "") !== String(productId || "")) return Promise.resolve(null);
-    return trackAffiliateEvent({
-      trackingToken: trackingContext.trackingToken,
-      anonymousId: trackingContext.anonymousId || "",
-      eventType,
-      metadata: { productId, ...metadata },
-    }).catch(() => null);
-  }
-
-  useEffect(() => {
-    const trackingContext = loadTrackingContext();
-    const reelId = searchParams.get("reel");
-    const trackingToken = searchParams.get("trackingToken");
-    const anonymousId = searchParams.get("anonymousId");
-    if (trackingToken || trackingContext?.productId === productId || reelId) {
-      saveTrackingContext({
-        ...trackingContext,
-        trackingToken: trackingToken || trackingContext?.trackingToken,
-        anonymousId: anonymousId || trackingContext?.anonymousId,
-        productId,
-        reelId: reelId || trackingContext?.reelId,
-      });
-    }
-  }, [productId, searchParams]);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -211,16 +178,6 @@ export function ProductDetailsPage() {
           setProduct(nextProduct);
           const defaultVariant = getDefaultVariant(nextProduct);
           setSelectedAttributes(defaultVariant?.attributes || {});
-          const trackingContext = loadTrackingContext();
-          if (trackingContext?.trackingToken && String(trackingContext.productId || "") === String(productId) && trackedProductViewRef.current !== `${productId}:${trackingContext.trackingToken}`) {
-            trackedProductViewRef.current = `${productId}:${trackingContext.trackingToken}`;
-            trackAffiliateEvent({
-              trackingToken: trackingContext.trackingToken,
-              anonymousId: trackingContext.anonymousId || "",
-              eventType: "product_view",
-              metadata: { productId },
-            }).catch(() => null);
-          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -462,7 +419,6 @@ export function ProductDetailsPage() {
       if (!isAuthenticated && redirectTo === "/checkout") {
         const added = await addCartItem(product._id, quantity, variantId);
         if (added) {
-          await trackCurrentAffiliateEvent("add_to_cart", { variantId, quantity, buyNow: true });
           pendingActionManager.initiateGuestBuyNow(product._id, quantity, variantId);
           saveRedirectAfterLogin(`${window.location.origin}/checkout`);
           navigate("/login", { state: { from: { pathname: "/checkout" } } });
@@ -474,8 +430,6 @@ export function ProductDetailsPage() {
       if (!added) {
         return;
       }
-      await trackCurrentAffiliateEvent("add_to_cart", { variantId, quantity });
-
       if (!redirectTo) {
         openDrawer(product, activeVariant, quantity);
       } else if (redirectTo === "/checkout") {
@@ -502,7 +456,6 @@ export function ProductDetailsPage() {
           selectedAttributes
         );
         setWishlistSaved(true);
-        await trackCurrentAffiliateEvent("wishlist", { variantId: activeVariant?.variantId || "" });
       }
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to update wishlist");
@@ -556,8 +509,10 @@ export function ProductDetailsPage() {
           </div>
           <h1 className="mt-2 max-w-4xl text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{product.name}</h1>
           <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 text-sm">
-            <SellerNameLink seller={product?.sellerId} />
-            <StoreRatingDisplay seller={product?.sellerId} rating={product?.sellerId?.rating || product?.ratings?.averageRating} />
+            <span className="font-semibold text-slate-700 dark:text-slate-200">Sold by Daya</span>
+            {product?.ratings?.averageRating ? (
+              <span className="text-slate-500 dark:text-slate-400">{product.ratings.averageRating.toFixed?.(1) || product.ratings.averageRating} rating</span>
+            ) : null}
           </div>
         </div>
         <BackButton fallbackTo="/shop" />
@@ -647,7 +602,10 @@ export function ProductDetailsPage() {
             </div>
 
             <div className="space-y-5 p-6">
-              <SellerCard seller={product?.sellerId} compact />
+              <div className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                <div className="font-semibold text-slate-950 dark:text-white">Platform fulfilled</div>
+                <div className="mt-1">Inventory, checkout, and support are handled directly by Daya.</div>
+              </div>
 
               {variantGroups.length ? (
                 <div className="grid gap-4">

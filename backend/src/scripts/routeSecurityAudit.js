@@ -14,12 +14,8 @@ const PUBLIC_ROUTE_ALLOWLIST = [
   "public.routes.js",
   "webhook.routes.js",
   "product-module.routes.js",
-  "routes.js:tracking",
 ];
-const PARENT_PROTECTED_ROUTE_ALLOWLIST = new Set([
-  path.join("modules", "adminInfluencerCommerce", "routes.js"),
-  path.join("modules", "influencerCommerce", "routes.js"),
-]);
+const PARENT_PROTECTED_ROUTE_ALLOWLIST = new Set([]);
 
 function routeFiles() {
   const direct = fs.readdirSync(ROUTES_DIR).filter((file) => file.endsWith(".routes.js")).map((file) => path.join(ROUTES_DIR, file));
@@ -37,7 +33,7 @@ function routeLines(source) {
 }
 
 function hasProtection(source, line) {
-  const protectedTokens = ["authRequired", "adminWorkspaceAuthRequired", "notificationAuthRequired", "privateDocumentAuth", "requireRole", "requireWorkspacePermission", "requireVendorPermission", "StaffProtectedRoute", "router.use(authRequired", "router.use(adminWorkspaceAuthRequired"];
+  const protectedTokens = ["authRequired", "adminWorkspaceAuthRequired", "notificationAuthRequired", "privateDocumentAuth", "requireRole", "requireWorkspacePermission", "StaffProtectedRoute", "router.use(authRequired", "router.use(adminWorkspaceAuthRequired"];
   return protectedTokens.some((token) => line.includes(token) || source.includes(token));
 }
 

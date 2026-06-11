@@ -12,7 +12,6 @@ const { buildExportFile } = require("../export.service");
 async function main() {
   const product = {
     _id: "prod_1",
-    sellerId: "vendor_1",
     categoryId: "cat_1",
     category: "Electronics",
     name: "Noise Cancelling Headphones",
@@ -39,10 +38,6 @@ async function main() {
           productId: "prod_1",
           quantity: 2,
           price: 2000,
-          commissionSnapshot: {
-            commissionAmount: 400,
-            vendorNetAmount: 3600,
-          },
         },
       ],
     },
@@ -58,10 +53,6 @@ async function main() {
           productId: "prod_1",
           quantity: 1,
           price: 2000,
-          commissionSnapshot: {
-            commissionAmount: 200,
-            vendorNetAmount: 1800,
-          },
         },
       ],
     },
@@ -77,10 +68,6 @@ async function main() {
           productId: "prod_1",
           quantity: 1,
           price: 2000,
-          commissionSnapshot: {
-            commissionAmount: 200,
-            vendorNetAmount: 1800,
-          },
         },
       ],
     },
@@ -109,7 +96,7 @@ async function main() {
 
   assert.equal(summary.totalUnitsSold, 3, "delivered and returned units should count as sold");
   assert.equal(summary.totalRevenue, 6000, "gross revenue should accumulate product line revenue");
-  assert.equal(summary.totalNetRevenue, 5400, "net revenue should follow commission snapshots");
+  assert.equal(summary.totalNetRevenue, 6000, "net revenue should follow product line revenue");
   assert.equal(summary.totalOrders, 2, "cancelled orders should not count as sold orders");
   assert.equal(summary.totalReturns, 1, "approved/refunded returns should count");
   assert.equal(summary.totalRefunds, 1, "refund count should reflect linked refunds");
@@ -126,7 +113,6 @@ async function main() {
   const docSummary = summarizeDocForRange(
     {
       productId: "prod_1",
-      vendorId: "vendor_1",
       categoryId: "cat_1",
       productName: "Noise Cancelling Headphones",
       categoryName: "Electronics",
@@ -134,7 +120,6 @@ async function main() {
       totalUnitsSold: summary.totalUnitsSold,
       totalRevenue: summary.totalRevenue,
       totalNetRevenue: summary.totalNetRevenue,
-      totalCommissionAmount: summary.totalCommissionAmount,
       totalOrders: summary.totalOrders,
       totalReturns: summary.totalReturns,
       totalRefunds: summary.totalRefunds,
@@ -179,7 +164,7 @@ async function main() {
       categoryId: "cat_2",
       categoryName: "Accessories",
       totalRevenue: 1000,
-      totalNetRevenue: 800,
+      totalNetRevenue: 1000,
       totalOrders: 1,
       totalReturns: 0,
       totalUnitsSold: 1,
@@ -199,12 +184,6 @@ async function main() {
     format: "csv",
   });
   assert.ok(exportFile.buffer.length > 0, "export generation should create a file buffer");
-
-  const vendorRows = [
-    { vendorId: "vendor_1", totalRevenue: 4000 },
-    { vendorId: "vendor_2", totalRevenue: 1000 },
-  ].filter((row) => row.vendorId === "vendor_1");
-  assert.equal(vendorRows.length, 1, "vendor analytics must stay isolated to one vendor scope");
 
   logger.info("script_output", { value: "Product analytics domain checks passed." });
 }

@@ -108,7 +108,7 @@ function normalizeEditorImages(images = [], fallbackAlt = "", prefix = "image") 
 }
 
 export function ProductEditor({
-  mode = "vendor",
+  mode = "admin",
   productId = "",
   title,
   createLabel,

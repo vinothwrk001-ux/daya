@@ -8,7 +8,7 @@ const mongoose = require("mongoose");
  * 
  * Examples:
  * - Delivery Fee (FIXED)
- * - Platform Commission (PERCENTAGE)
+ * - Platform Fee (PERCENTAGE)
  * - Tax/GST (PERCENTAGE)
  * - Handling Fee (FIXED)
  * - Packaging Fee (FIXED)

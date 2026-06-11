@@ -204,7 +204,7 @@ export function AdminStaffPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-slate-950 dark:text-white">{editingId ? "Edit staff" : "Create staff"}</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Accounts remain fully separate from users and vendors.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Accounts remain fully separate from customer accounts.</p>
           </div>
           <button type="button" onClick={resetForm} className="text-sm font-medium text-slate-600 hover:underline">
             Reset

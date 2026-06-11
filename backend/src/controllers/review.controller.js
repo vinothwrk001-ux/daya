@@ -35,11 +35,6 @@ const getReviewSummaries = asyncHandler(async (req, res) => {
   return ok(res, result, "Review summaries loaded");
 });
 
-const listVendorReviews = asyncHandler(async (req, res) => {
-  const result = await reviewService.listVendorReviews(req.user.sub, req.query);
-  return ok(res, result, "Vendor reviews loaded");
-});
-
 const listAdminReviews = asyncHandler(async (req, res) => {
   const result = await reviewService.listAdminReviews(req.query);
   return ok(res, result, "Reviews loaded");
@@ -60,11 +55,6 @@ const deleteReview = asyncHandler(async (req, res) => {
   return ok(res, result, "Review deleted");
 });
 
-const replyToReview = asyncHandler(async (req, res) => {
-  const result = await reviewService.reply(actor(req), req.params.id, req.body, getMeta(req));
-  return ok(res, result, "Vendor reply saved");
-});
-
 const voteReview = asyncHandler(async (req, res) => {
   const result = await reviewService.vote(req.user.sub, req.params.id, req.body);
   return ok(res, result, "Review vote saved");
@@ -79,12 +69,10 @@ module.exports = {
   createReview,
   listProductReviews,
   getReviewSummaries,
-  listVendorReviews,
   listAdminReviews,
   getAdminDashboard,
   updateReview,
   deleteReview,
-  replyToReview,
   voteReview,
   reportReview,
 };

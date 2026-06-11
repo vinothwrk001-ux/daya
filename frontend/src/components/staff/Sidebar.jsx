@@ -7,7 +7,7 @@ const ICON_MAP = {
   Users: UsersIcon,
   ShoppingCart: OrdersIcon,
   Package: PackageIcon,
-  TrendingUp: PayoutsIcon,
+  TrendingUp: TrendIcon,
   MessageCircle: MessageCircleIcon,
   CreditCard: CreditCardIcon,
   BarChart3: BarChart3Icon,
@@ -257,7 +257,7 @@ function PackageIcon({ size = 24, className = "shrink-0" }) {
   );
 }
 
-function PayoutsIcon({ size = 24, className = "shrink-0" }) {
+function TrendIcon({ size = 24, className = "shrink-0" }) {
   return (
     <IconBase size={size} className={className}>
       <path d="M4 16 10 10l4 4 6-8" />

@@ -2,7 +2,6 @@ const express = require("express");
 const { authRequired, requireRole } = require("../middleware/auth");
 const { upload } = require("../middleware/upload");
 const { validate } = require("../middleware/validate");
-const { requireVendorPermission } = require("../middleware/vendorModuleAccess");
 const productController = require("../controllers/product.controller");
 const {
   createProductSchema,
@@ -34,11 +33,11 @@ router.get("/filters", productController.getProductFilters);
  * GET /products/generate-number
  * Preview next product number for category + subcategory
  */
-router.get("/generate-number", authRequired, requireVendorPermission("products.create"), productController.generateProductNumber);
+router.get("/generate-number", authRequired, requireRole("admin"), productController.generateProductNumber);
 router.post(
   "/media",
   authRequired,
-  requireVendorPermission("products.create"),
+  requireRole("admin"),
   upload.array("images", 10),
   productController.uploadProductImages
 );
@@ -60,27 +59,24 @@ router.get("/:id", productController.getProductById);
  * GET /products
  * List products with filtering
  * - Users: see only APPROVED & ACTIVE
- * - Sellers: see only their own
  * - Admins: see all
  */
-router.get("/", authRequired, requireVendorPermission("products.read"), productController.getProducts);
+router.get("/", authRequired, requireRole("admin"), productController.getProducts);
 
 /**
  * ==========================================
- * SELLER ROUTES
+ * ADMIN PRODUCT MANAGEMENT ROUTES
  * ==========================================
  */
 
 /**
  * POST /products
  * Create a new product
- * For sellers: auto-pending approval
- * For admins: auto-approved
  */
 router.post(
   "/",
   authRequired,
-  requireVendorPermission("products.create"),
+  requireRole("admin"),
   validate(createProductSchema),
   productController.createProduct
 );
@@ -88,13 +84,11 @@ router.post(
 /**
  * PATCH /products/:id
  * Update product
- * Sellers: only their own
- * Admins: any product
  */
 router.patch(
   "/:id",
   authRequired,
-  requireVendorPermission("products.update"),
+  requireRole("admin"),
   validate(updateProductSchema),
   productController.updateProduct
 );
@@ -102,10 +96,8 @@ router.patch(
 /**
  * DELETE /products/:id
  * Delete product (soft delete)
- * Sellers: only their own
- * Admins: any product
  */
-router.delete("/:id", authRequired, requireVendorPermission("products.delete"), productController.deleteProduct);
+router.delete("/:id", authRequired, requireRole("admin"), productController.deleteProduct);
 
 /**
  * ==========================================

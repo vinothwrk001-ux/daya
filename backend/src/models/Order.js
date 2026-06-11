@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { AppError } = require("../utils/AppError");
 
 // NOTE: Keep existing statuses for backward-compatibility with current UI and stored data.
 // Admin APIs accept normalized uppercase statuses and map to these stored values.
@@ -37,24 +36,9 @@ const orderItemSchema = new mongoose.Schema(
       value: { type: Number, min: 0 },
       unit: { type: String, trim: true, default: "kg" },
     },
-    commissionSnapshot: {
-      ruleId: { type: mongoose.Schema.Types.ObjectId, ref: "CommissionRule" },
-      ruleName: { type: String, trim: true, default: "" },
-      appliesTo: { type: String, enum: ["global", "category", "vendor", "product"], default: "global" },
-      commissionType: { type: String, enum: ["percentage", "fixed"], default: "percentage" },
-      commissionValue: { type: Number, min: 0, default: 0 },
-      commissionAmount: { type: Number, min: 0, default: 0 },
-      vendorNetAmount: { type: Number, min: 0, default: 0 },
-      categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
-      calculatedAt: { type: Date, default: Date.now },
-    },
   },
   { _id: false }
 );
-
-function buildAttributionMutationError() {
-  return new AppError("Attribution is immutable after payment", 409, "ATTRIBUTION_LOCKED");
-}
 
 const orderSchema = new mongoose.Schema(
   {
@@ -76,11 +60,6 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
-    },
-    sellerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
       index: true,
     },
     items: {
@@ -140,15 +119,6 @@ const orderSchema = new mongoose.Schema(
     },
     chargesTotal: { type: Number, min: 0, default: 0 },
     totalAmount: { type: Number, required: true, min: 0, default: 0 },
-    platformCommissionRate: { type: Number, min: 0, default: 0 },
-    platformCommissionAmount: { type: Number, min: 0, default: 0 },
-    vendorEarning: { type: Number, min: 0, default: 0 },
-    commissionSummary: {
-      totalItemSubtotal: { type: Number, min: 0, default: 0 },
-      totalCommissionAmount: { type: Number, min: 0, default: 0 },
-      totalVendorNetAmount: { type: Number, min: 0, default: 0 },
-      appliedRuleIds: { type: [mongoose.Schema.Types.ObjectId], ref: "CommissionRule", default: [] },
-    },
     currency: {
       type: String,
       default: "INR",
@@ -171,12 +141,6 @@ const orderSchema = new mongoose.Schema(
       enum: ["ONLINE", "COD"],
       default: "ONLINE",
     },
-    settlementStatus: {
-      type: String,
-      enum: ["NOT_APPLICABLE", "PENDING_COLLECTION", "COLLECTED", "ON_HOLD", "SETTLED", "REVERSED", "CANCELLED"],
-      default: "NOT_APPLICABLE",
-      index: true,
-    },
     codAmount: { type: Number, min: 0, default: 0 },
     paymentRecordId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -191,62 +155,6 @@ const orderSchema = new mongoose.Schema(
     razorpayOrderId: { type: String, trim: true, index: true },
     razorpayPaymentId: { type: String, trim: true, index: true },
     paymentCapturedAt: { type: Date },
-    attribution: {
-      influencerId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "InfluencerProfile",
-        index: true,
-      },
-      campaignId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Campaign",
-        index: true,
-      },
-      reelId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Reel",
-        index: true,
-      },
-      postId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "InfluencerPost",
-        index: true,
-      },
-      storefrontId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "InfluencerStorefront",
-        index: true,
-      },
-      collectionId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "InfluencerCollection",
-        index: true,
-      },
-      surface: { type: String, trim: true, index: true },
-      trackingSessionId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "TrackingSession",
-        index: true,
-      },
-      productId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
-      },
-      lockedAt: { type: Date },
-      commission: {
-        commissionPercent: { type: Number, min: 0, max: 50, default: 0 },
-        influencerShare: { type: Number, min: 0, default: 0 },
-        platformFee: { type: Number, min: 0, default: 0 },
-        vendorNet: { type: Number, min: 0, default: 0 },
-      },
-    },
-    payoutEligibleAt: { type: Date, index: true },
-    vendorWalletReleasedAt: { type: Date, index: true },
-    vendorWalletReleaseReferenceId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Ledger",
-      index: true,
-    },
     fraudFlags: {
       type: [String],
       default: [],
@@ -372,11 +280,6 @@ const orderSchema = new mongoose.Schema(
       ref: "Shipment",
       index: true,
     },
-    vendorOrderId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "VendorOrder",
-      index: true,
-    },
     cod: {
       isEligible: { type: Boolean, default: false },
       ineligibleReasons: { type: [String], default: [] },
@@ -420,32 +323,11 @@ const orderSchema = new mongoose.Schema(
 
 // Indexes for common queries
 orderSchema.index({ userId: 1, createdAt: -1 });
-orderSchema.index({ sellerId: 1, status: 1, createdAt: -1 });
 orderSchema.index({ status: 1, paymentStatus: 1 });
-orderSchema.index({ payoutEligibleAt: 1, vendorWalletReleasedAt: 1 });
 orderSchema.index({ trackingId: 1 });
 orderSchema.index({ isActive: 1, status: 1, createdAt: -1 });
-orderSchema.index({ status: 1, paymentStatus: 1, payoutEligibleAt: 1 });
-orderSchema.index({ "attribution.influencerId": 1, createdAt: -1 });
 orderSchema.index({ "cancellation.status": 1, createdAt: -1 });
 orderSchema.index({ "refundSummary.status": 1, createdAt: -1 });
-
-orderSchema.pre("findOneAndUpdate", async function preventLockedAttributionMutation() {
-  const update = this.getUpdate() || {};
-  const directAttributionUpdate = update.attribution !== undefined;
-  const setAttributionUpdate =
-    update.$set &&
-    Object.keys(update.$set).some((key) => key === "attribution" || key.startsWith("attribution."));
-
-  if (!directAttributionUpdate && !setAttributionUpdate) {
-    return;
-  }
-
-  const existing = await this.model.findOne(this.getQuery()).select("attribution.lockedAt").lean();
-  if (existing?.attribution?.lockedAt) {
-    throw buildAttributionMutationError();
-  }
-});
 
 module.exports = {
   Order: mongoose.models.Order || mongoose.model("Order", orderSchema),

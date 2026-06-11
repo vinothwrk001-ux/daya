@@ -6,10 +6,8 @@ const { connectDb } = require("./config/db");
 const { logger } = require("./utils/logger");
 const { ensurePaymentIndexes } = require("./models/Payment");
 const { ensurePredefinedStaffRoles } = require("./modules/staff/services/role.service");
-const { initializeSettlementScheduler, shutdown } = require("./jobs/settlement.job");
 const { ensureDefaultPricingCategories } = require("./services/pricing-category.service");
 const { initializeEventBus, shutdownEventBus } = require("./modules/events/event-bus");
-const { initializeInfluencerCommerceJobs, shutdownInfluencerCommerceJobs } = require("./jobs/influencer-commerce.job");
 const {
   initializePaymentMaintenanceJobs,
   shutdownPaymentMaintenanceJobs,
@@ -29,26 +27,6 @@ async function start() {
   logger.info("Razorpay configuration validated", razorpayHealth);
 
   initializeEventBus();
-
-  // Initialize settlement scheduler
-  try {
-    const schedulerStatus = await initializeSettlementScheduler();
-    logger.info("Settlement scheduler initialized", schedulerStatus);
-  } catch (error) {
-    logger.error("Failed to initialize settlement scheduler", {
-      error: error?.message,
-    });
-    // Non-fatal error - app can continue without scheduler
-  }
-
-  try {
-    const influencerJobs = await initializeInfluencerCommerceJobs();
-    logger.info("Influencer commerce jobs initialized", influencerJobs);
-  } catch (error) {
-    logger.error("Failed to initialize influencer commerce jobs", {
-      error: error?.message,
-    });
-  }
 
   try {
     const paymentJobs = await initializePaymentMaintenanceJobs();
@@ -79,8 +57,6 @@ async function start() {
   process.on("SIGTERM", async () => {
     logger.info("SIGTERM received, shutting down gracefully");
     server.close(async () => {
-      await shutdown();
-      await shutdownInfluencerCommerceJobs();
       await shutdownPaymentMaintenanceJobs();
       await shutdownEventBus();
       process.exit(0);
@@ -90,8 +66,6 @@ async function start() {
   process.on("SIGINT", async () => {
     logger.info("SIGINT received, shutting down gracefully");
     server.close(async () => {
-      await shutdown();
-      await shutdownInfluencerCommerceJobs();
       await shutdownPaymentMaintenanceJobs();
       await shutdownEventBus();
       process.exit(0);

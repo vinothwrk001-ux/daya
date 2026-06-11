@@ -5,7 +5,7 @@ const privateDocumentSchema = new mongoose.Schema(
     ownerType: {
       type: String,
       required: true,
-      enum: ["customer", "vendor", "influencer", "admin", "staff", "system"],
+      enum: ["customer", "admin", "staff", "system"],
       index: true,
     },
     ownerId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
@@ -19,7 +19,7 @@ const privateDocumentSchema = new mongoose.Schema(
     category: {
       type: String,
       trim: true,
-      enum: ["kyc", "identity", "bank", "tax", "verification", "withdrawal", "finance", "settlement", "contract", "compliance", "supporting"],
+      enum: ["kyc", "identity", "bank", "tax", "verification", "withdrawal", "finance", "contract", "compliance", "supporting"],
       default: "supporting",
       index: true,
     },

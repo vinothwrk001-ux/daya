@@ -174,8 +174,3 @@ export function formatFinanceDateTime(value) {
   });
 }
 
-export function getPayoutAccountStatus(account) {
-  if (!account) return { label: "Not Added", tone: "created" };
-  if (account.isVerified) return { label: "Verified", tone: "approved" };
-  return { label: "Pending", tone: "pending" };
-}

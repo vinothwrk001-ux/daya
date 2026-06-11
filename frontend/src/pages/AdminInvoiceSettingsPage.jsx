@@ -6,7 +6,6 @@ import { getInvoiceSettings, updateInvoiceSettings } from "../services/invoiceSe
 const financeTabs = [
   { label: "Invoices", to: "/admin/finance/invoices" },
   { label: "Invoice Settings", to: "/admin/finance/invoices/settings" },
-  { label: "Payout Management", to: "/admin/finance/payouts" },
 ];
 
 const EMPTY_FORM = {
@@ -128,13 +127,12 @@ export function AdminInvoiceSettingsPage() {
           country: "India",
         },
       },
-      vendors: [{ name: "Preview Vendor" }],
       items: [{ lineId: "1", name: "Preview Item", variantName: "Default", variantSku: "SKU-001", quantity: 1, unitPrice: 1999, total: 1999 }],
       pricing: { currency: "INR", subtotal: 1999, deliveryFee: 50, platformFee: 20, paymentFee: 10, taxes: 0, discounts: 0, grandTotal: 2079 },
       payment: { method: "ONLINE", status: "Paid", transactionId: "pay_preview_001" },
       shipping: { shippingMethod: "Platform Shipping", courier: "Preview Courier", trackingNumber: "TRK123456" },
       organization: form,
-      metadata: { version: 1, billingLabel: "Bill To", sellerLabel: "Sold By", gstLabel: form.taxLabel || "GST", customNotes: "", footerText: form.footerNotes || "" },
+      metadata: { version: 1, billingLabel: "Bill To", issuerLabel: "Sold By", gstLabel: form.taxLabel || "GST", customNotes: "", footerText: form.footerNotes || "" },
     }),
     [form]
   );
@@ -193,7 +191,7 @@ export function AdminInvoiceSettingsPage() {
           <section className="mt-6 rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
             <div>
               <h3 className="text-base font-semibold text-slate-950">Organization Details</h3>
-              <p className="mt-1 text-sm text-slate-500">Primary legal and support information shown in invoice headers and seller sections.</p>
+              <p className="mt-1 text-sm text-slate-500">Primary legal and support information shown in invoice headers and organization sections.</p>
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <FinanceField label="Organization Name"><FinanceInput value={form.organizationName} onChange={(e) => setForm((c) => ({ ...c, organizationName: e.target.value }))} /></FinanceField>

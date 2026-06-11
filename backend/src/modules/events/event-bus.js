@@ -32,26 +32,26 @@ async function dispatch(eventName, payload) {
 function initializeEventBus() {
   if (queue) return queue;
   if (process.env.REDIS_DISABLED === "true") {
-    logger.info("Influencer event queue disabled; using in-process emitter", { source: "event-bus" });
+    logger.info("Domain event queue disabled; using in-process emitter", { source: "event-bus" });
     return null;
   }
 
   try {
-    queue = new Queue("influencer-events", getRedisConfig());
+    queue = new Queue("domain-events", getRedisConfig());
     queue.process(async (job) => {
       await dispatch(job.data.eventName, job.data.payload);
     });
     queue.on("failed", (job, error) => {
-      logger.error("Influencer event job failed", {
+      logger.error("Domain event job failed", {
         source: "event-bus",
         eventName: job?.data?.eventName,
         jobId: job?.id,
         error: error?.message,
       });
     });
-    logger.info("Influencer event queue initialized", { source: "event-bus" });
+    logger.info("Domain event queue initialized", { source: "event-bus" });
   } catch (error) {
-    logger.warn("Influencer event queue unavailable, using in-process emitter", {
+    logger.warn("Domain event queue unavailable, using in-process emitter", {
       source: "event-bus",
       error: error?.message,
     });

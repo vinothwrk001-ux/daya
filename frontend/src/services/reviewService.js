@@ -37,12 +37,3 @@ export async function reportReview(reviewId, payload) {
   return data;
 }
 
-export async function getVendorReviews(params = {}) {
-  const { data } = await api.get("/api/reviews/vendor", { params });
-  return data;
-}
-
-export async function replyToReview(reviewId, message) {
-  const { data } = await api.post(`/api/reviews/${reviewId}/reply`, { message });
-  return data;
-}

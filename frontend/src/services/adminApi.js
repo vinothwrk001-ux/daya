@@ -51,16 +51,10 @@ export async function getRevenueSummary(params = {}) {
   return data;
 }
 
-export async function getVendorRevenue(params = {}) {
-  const { data } = await adminHttp.get("/api/admin/revenue/vendors", { params });
-  return data;
-}
-
-export async function exportRevenueReport({ format, startDate, endDate, vendorId }) {
+export async function exportRevenueReport({ format, startDate, endDate }) {
   const response = await adminHttp.get("/api/admin/revenue/export", {
     params: {
       format,
-      ...(vendorId ? { vendorId } : {}),
       ...buildDateRangeParams(startDate, endDate),
     },
     responseType: "blob",
@@ -86,41 +80,6 @@ export async function toggleUserBlock(id) {
 
 export async function deleteUser(id) {
   const { data } = await adminHttp.delete(`/api/admin/users/${id}`);
-  return data;
-}
-
-export async function listSellers(params = {}) {
-  const { data } = await adminHttp.get("/api/admin/sellers", { params });
-  return data;
-}
-
-export async function listInfluencers(params = {}) {
-  const { data } = await adminHttp.get("/api/influencer/admin/list", { params });
-  return data;
-}
-
-export async function getSellerDetails(id) {
-  const { data } = await adminHttp.get(`/api/admin/sellers/${id}`);
-  return data;
-}
-
-export async function approveSeller(id) {
-  const { data } = await adminHttp.patch(`/api/admin/sellers/${id}/approve`);
-  return data;
-}
-
-export async function rejectSeller(id, reason) {
-  const { data } = await adminHttp.patch(`/api/admin/sellers/${id}/reject`, { reason });
-  return data;
-}
-
-export async function moderateVendorStore(id, payload) {
-  const { data } = await adminHttp.patch(`/api/admin/sellers/${id}/store-moderation`, payload);
-  return data;
-}
-
-export async function removeSeller(id) {
-  const { data } = await adminHttp.delete(`/api/admin/vendor/${id}`);
   return data;
 }
 
@@ -220,66 +179,6 @@ export async function listPickupBatches(params = {}) {
 
 export async function scheduleAdminPickup(payload) {
   const { data } = await adminHttp.post("/api/admin/pickups/schedule", payload);
-  return data;
-}
-
-export async function listPayouts(params = {}) {
-  const { data } = await adminHttp.get("/api/admin/payouts", { params });
-  return data;
-}
-
-export async function processPayout(orderId) {
-  const { data } = await adminHttp.post("/api/payouts/process", { orderId });
-  return data;
-}
-
-export async function queueEligiblePayouts() {
-  const { data } = await adminHttp.post("/api/payouts/queue");
-  return data;
-}
-
-export async function listPayoutRequests(params = {}) {
-  const { data } = await adminHttp.get("/api/admin/payout-requests", { params });
-  return data;
-}
-
-export async function listPayoutAccounts(params = {}) {
-  const { data } = await adminHttp.get("/api/admin/payout-accounts", { params });
-  return data;
-}
-
-export async function approvePayoutRequest(id, payload = {}) {
-  const { data } = await adminHttp.post(`/api/admin/payouts/${id}/approve`, payload);
-  return data;
-}
-
-export async function rejectPayoutRequest(id, payload) {
-  const { data } = await adminHttp.post(`/api/admin/payouts/${id}/reject`, payload);
-  return data;
-}
-
-export async function payPayoutRequest(id, payload) {
-  const { data } = await adminHttp.post(`/api/admin/payouts/${id}/pay`, payload);
-  return data;
-}
-
-export async function getAdminVendorWallet(vendorId) {
-  const { data } = await adminHttp.get(`/api/admin/vendors/${vendorId}/wallet`);
-  return data;
-}
-
-export async function getAdminVendorLedger(vendorId, params = {}) {
-  const { data } = await adminHttp.get(`/api/admin/vendors/${vendorId}/ledger`, { params });
-  return data;
-}
-
-export async function getAdminVendorPayoutAccount(vendorId) {
-  const { data } = await adminHttp.get(`/api/admin/vendors/${vendorId}/payout-account`);
-  return data;
-}
-
-export async function verifyVendorPayoutAccount(accountId) {
-  const { data } = await adminHttp.post(`/api/admin/payout-accounts/${accountId}/verify`);
   return data;
 }
 
@@ -498,32 +397,3 @@ export async function forceLogoutStaffAccount(id) {
   return data;
 }
 
-export async function listCommissionRules(params = {}) {
-  const { data } = await adminHttp.get("/api/admin/commission/rules", { params });
-  return data;
-}
-
-export async function createCommissionRule(payload) {
-  const { data } = await adminHttp.post("/api/admin/commission/rules", payload);
-  return data;
-}
-
-export async function updateCommissionRule(id, payload) {
-  const { data } = await adminHttp.put(`/api/admin/commission/rules/${id}`, payload);
-  return data;
-}
-
-export async function toggleCommissionRuleActive(id, active) {
-  const { data } = await adminHttp.patch(`/api/admin/commission/rules/${id}/active`, { active });
-  return data;
-}
-
-export async function deleteCommissionRule(id) {
-  const { data } = await adminHttp.delete(`/api/admin/commission/rules/${id}`);
-  return data;
-}
-
-export async function getCommissionAnalytics(params = {}) {
-  const { data } = await adminHttp.get("/api/admin/commission/analytics", { params });
-  return data;
-}

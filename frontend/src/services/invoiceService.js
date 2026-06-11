@@ -53,21 +53,6 @@ export async function downloadAdminInvoicePdf(orderId) {
   triggerBlobDownload(response, `invoice-${orderId}.pdf`);
 }
 
-export async function listVendorInvoices(params = {}) {
-  const { data } = await api.get("/api/invoices/vendor/orders", { params });
-  return data?.data || data;
-}
-
-export async function getVendorInvoice(orderId) {
-  const { data } = await api.get(`/api/invoices/vendor/orders/${orderId}`);
-  return data?.data || data;
-}
-
-export async function downloadVendorInvoicePdf(orderId) {
-  const response = await api.get(`/api/invoices/vendor/orders/${orderId}/pdf`, { responseType: "blob" });
-  triggerBlobDownload(response, `vendor-invoice-${orderId}.pdf`);
-}
-
 export async function getUserInvoicePreview(orderId) {
   const { data } = await api.get(`/api/invoices/user/orders/${orderId}`);
   return data?.data || data;

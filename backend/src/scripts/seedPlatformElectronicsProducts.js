@@ -8,7 +8,6 @@ const { Category } = require("../models/Category");
 const { Product } = require("../models/Product");
 const { Subcategory } = require("../models/Subcategory");
 const { User } = require("../models/User");
-const { Vendor } = require("../models/Vendor");
 const { generateNextProductNumber } = require("../services/product-number.service");
 const { generateSlug } = require("../utils/slug");
 
@@ -46,12 +45,7 @@ function imageFor(name) {
   return `${PLACEHOLDER}?text=${encodeURIComponent(name)}`;
 }
 
-async function ensurePlatformStore() {
-  let vendor = await Vendor.findOne({
-    $or: [{ shopName: /^Platform Store$/i }, { companyName: /^Platform Store$/i }, { storeSlug: "platform-store" }],
-  });
-  if (vendor) return vendor;
-
+async function ensurePlatformOwner() {
   let user = await User.findOne({ email: PLATFORM_EMAIL });
   if (!user) {
     user = await User.create({
@@ -59,24 +53,13 @@ async function ensurePlatformStore() {
       email: PLATFORM_EMAIL,
       phone: PLATFORM_PHONE,
       password: await bcrypt.hash(process.env.PLATFORM_STORE_PASSWORD || "PlatformStore123", 12),
-      role: "vendor",
+      role: "admin",
+      roles: ["admin"],
       status: "active",
     });
   }
 
-  vendor = await Vendor.create({
-    userId: user._id,
-    companyName: "Platform Store",
-    shopName: "Platform Store",
-    storeSlug: "platform-store",
-    storeDescription: "Products sold directly by the platform.",
-    status: "approved",
-    stepCompleted: 4,
-    address: "Platform fulfillment center",
-    noGst: true,
-  });
-
-  return vendor;
+  return user;
 }
 
 async function ensureElectronicsCategory() {
@@ -126,7 +109,7 @@ async function ensureSubcategories(categoryId) {
   return Object.fromEntries(entries.map((entry) => [entry.name, entry]));
 }
 
-async function upsertProduct(vendor, category, subcategoryByName, item, index) {
+async function upsertProduct(owner, category, subcategoryByName, item, index) {
   const [name, subcategoryName, price, discountPrice, stock, description] = item;
   const subcategory = subcategoryByName[subcategoryName];
   const slug = generateSlug(name);
@@ -154,9 +137,8 @@ async function upsertProduct(vendor, category, subcategoryByName, item, index) {
     lowStockThreshold: 5,
     images: [{ url: image, altText: name, isPrimary: true, sortOrder: 0 }],
     thumbnail: image,
-    sellerId: vendor._id,
-    createdBy: vendor.userId,
-    creatorType: "SELLER",
+    createdBy: owner._id,
+    creatorType: "ADMIN",
     status: "APPROVED",
     isActive: true,
     approvedAt: new Date(),
@@ -186,16 +168,16 @@ async function upsertProduct(vendor, category, subcategoryByName, item, index) {
 async function main() {
   await connectDb();
 
-  const vendor = await ensurePlatformStore();
+  const platformOwner = await ensurePlatformOwner();
   const category = await ensureElectronicsCategory();
   const subcategoryByName = await ensureSubcategories(category._id);
 
   const seeded = [];
   for (let index = 0; index < products.length; index += 1) {
-    seeded.push(await upsertProduct(vendor, category, subcategoryByName, products[index], index));
+    seeded.push(await upsertProduct(platformOwner, category, subcategoryByName, products[index], index));
   }
 
-  logger.info("script_output", { value: `Seeded ${seeded.length} electronics products under ${vendor.shopName}.` });
+  logger.info("script_output", { value: `Seeded ${seeded.length} electronics products under ${platformOwner.name}.` });
   seeded.forEach((product) => logger.info("script_output", { value: `- ${product.productNumber} | ${product.name}` }));
 
   await mongoose.disconnect();

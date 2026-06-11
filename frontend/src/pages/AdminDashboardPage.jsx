@@ -11,7 +11,7 @@ function normalizeError(err) {
 }
 
 export function AdminDashboardPage() {
-  const { basePath, isLegacyAdmin } = useAdminSession();
+  const { basePath } = useAdminSession();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboard, setDashboard] = useState(null);
@@ -60,9 +60,8 @@ export function AdminDashboardPage() {
         </div>
       ) : null}
 
-      <section className="grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid min-w-0 max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <MetricCard label="Total Users" value={loading ? "..." : totals.users ?? 0} tone="slate" />
-        <MetricCard label="Total Sellers" value={loading ? "..." : totals.sellers ?? 0} tone="blue" />
         <MetricCard label="Total Orders" value={loading ? "..." : totals.orders ?? 0} tone="amber" />
         <MetricCard
           label="Revenue"
@@ -146,7 +145,6 @@ export function AdminDashboardPage() {
           <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5">
             <h2 className="text-base font-semibold text-slate-950 dark:text-white sm:text-lg">Approval Queue</h2>
             <div className="mt-4 grid gap-3">
-              {isLegacyAdmin ? <QueueRow label="Pending sellers" value={queues.pendingSellers ?? 0} href="/admin/sellers" /> : null}
               <QueueRow label="Pending products" value={queues.pendingProducts ?? 0} href={`${basePath}/products`} />
             </div>
           </div>

@@ -20,7 +20,6 @@ import { CartDrawerOverlay } from "./CartDrawerOverlay";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useCategories } from "../hooks/useCategories";
 import { usePresentedCategories } from "../utils/categoryPresentation";
-import { PlatformFeaturesProvider } from "../context/PlatformFeaturesContext";
 import * as cartService from "../services/cartService";
 import * as wishlistService from "../services/wishlistService";
 import useGuestCartStore from "../context/guestCartStore";
@@ -28,57 +27,6 @@ import useGuestWishlistStore from "../context/guestWishlistStore";
 import { normalizeCartPayload } from "../utils/cartState";
 import { useBranding } from "../context/BrandingContext";
 import { BrandLogo } from "./BrandLogo";
-
-const VENDOR_WORKSPACE_SEGMENTS = new Set([
-  "analytics",
-  "dashboard",
-  "delivery",
-  "earnings",
-  "finance",
-  "influencer-commerce",
-  "inventory",
-  "notifications",
-  "offers",
-  "onboarding",
-  "orders",
-  "payouts",
-  "pickups",
-  "products",
-  "returns",
-  "reviews",
-  "settings",
-  "status",
-  "support",
-]);
-const INFLUENCER_WORKSPACE_SEGMENTS = new Set([
-  "affiliate-links",
-  "affiliate-products",
-  "analytics",
-  "campaigns",
-  "collections",
-  "content",
-  "dashboard",
-  "earnings",
-  "profile",
-  "reels",
-  "storefront-builder",
-  "verification",
-  "welcome",
-]);
-
-function isVendorWorkspacePath(pathname) {
-  if (pathname === "/vendor") return true;
-  if (!pathname.startsWith("/vendor/")) return false;
-  const segment = pathname.split("/").filter(Boolean)[1];
-  return VENDOR_WORKSPACE_SEGMENTS.has(segment);
-}
-
-function isInfluencerWorkspacePath(pathname) {
-  if (pathname === "/influencer") return true;
-  if (!pathname.startsWith("/influencer/")) return false;
-  const segment = pathname.split("/").filter(Boolean)[1];
-  return INFLUENCER_WORKSPACE_SEGMENTS.has(segment);
-}
 
 export function Layout() {
   const navigate = useNavigate();
@@ -98,10 +46,8 @@ export function Layout() {
   const isAdminRoute =
     location.pathname === "/dashboard/admin" ||
     location.pathname.startsWith("/admin");
-  const isVendorWorkspace = isVendorWorkspacePath(location.pathname);
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
-  const isInfluencerWorkspace = isInfluencerWorkspacePath(location.pathname);
-  const hideShopChrome = isAdminRoute || isVendorWorkspace || isStaffWorkspace || isInfluencerWorkspace;
+  const hideShopChrome = isAdminRoute || isStaffWorkspace;
   const showShopActions = !user || user?.role === "user";
 
   // Detect scroll with requestAnimationFrame for smooth performance
@@ -126,8 +72,6 @@ export function Layout() {
     { label: "Home", href: "/" },
     { label: "Shop", href: "/shop" },
     { label: "Compare", href: "/compare" },
-    { label: "Stores", href: "/stores" },
-    { label: "Influencers", href: "/influencers" },
     { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },
   ];
 
@@ -410,9 +354,7 @@ export function Layout() {
             : "w-full flex-1 px-3 py-5 sm:px-4 sm:py-7 lg:px-8 lg:py-10"
         }
       >
-        <PlatformFeaturesProvider>
-          <Outlet />
-        </PlatformFeaturesProvider>
+        <Outlet />
       </main>
 
       {!hideShopChrome ? <Footer /> : null}

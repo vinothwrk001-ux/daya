@@ -21,7 +21,6 @@ async function main() {
         country: "India",
       },
     },
-    vendors: [{ name: "Vendor Test Shop" }],
     items: [
       {
         name: "Invoice Test Product",
@@ -70,7 +69,7 @@ async function main() {
     },
     metadata: {
       billingLabel: "Billing Party",
-      sellerLabel: "Seller Entity",
+      supplierLabel: "Platform Entity",
       gstLabel: "GSTIN",
       customNotes: "Custom note for invoice rendering test",
       footerText: "Footer override from metadata",

@@ -244,39 +244,39 @@ class PricingService {
   }
 
   /**
-   * Calculate per-seller breakdown (useful for multi-seller orders)
+   * Calculate grouped breakdown for orders that need separate subtotal buckets
    * 
-   * @param {Array} sellers - Array of {sellerId, subtotal} objects
-   * @param {number} totalItemCount - Total items across all sellers
-   * @returns {Promise<Object>} Breakdown with per-seller charges
+   * @param {Array} groups - Array of {groupId, subtotal} objects
+   * @param {number} totalItemCount - Total items across all groups
+   * @returns {Promise<Object>} Breakdown with grouped charges
    */
-  async calculateSellerBreakdown(sellers, totalItemCount = 0, paymentMethod = "ALL") {
-    if (!Array.isArray(sellers) || sellers.length === 0) {
-      throw new AppError("Sellers array is required and must not be empty", 400);
+  async calculateGroupBreakdown(groups, totalItemCount = 0, paymentMethod = "ALL") {
+    if (!Array.isArray(groups) || groups.length === 0) {
+      throw new AppError("Groups array is required and must not be empty", 400);
     }
 
     const normalizedPaymentMethod = this.normalizePaymentMethod(paymentMethod);
     const rules = await this.getActiveRules(normalizedPaymentMethod);
-    const sellerBreakdowns = [];
+    const groupBreakdowns = [];
     const globalCharges = [];
     let totalAmount = 0;
 
-    // Calculate for each seller separately
-    for (const seller of sellers) {
-      const sellerSubtotal = seller.subtotal || 0;
-      const sellerCharges = [];
-      let sellerChargesTotal = 0;
+    // Calculate for each subtotal group separately.
+    for (const group of groups) {
+      const groupSubtotal = group.subtotal || 0;
+      const groupCharges = [];
+      let groupChargesTotal = 0;
 
-      // Rules with appliesTo: "ORDER" are applied to each seller
+      // Rules with appliesTo: "ORDER" are applied to each group.
       // Rules with appliesTo: "ITEM" are calculated on total items
       for (const rule of rules) {
         if (rule.appliesTo === "ITEM") {
           continue; // Handle global items later
         }
 
-        const amount = this.calculateRuleAmount(rule, sellerSubtotal, 1);
+        const amount = this.calculateRuleAmount(rule, groupSubtotal, 1);
         if (amount > 0) {
-          sellerCharges.push({
+          groupCharges.push({
             id: rule._id.toString(),
             key: rule.key,
             displayName: rule.displayName,
@@ -286,19 +286,19 @@ class PricingService {
             appliesTo: rule.appliesTo,
             paymentMethod: rule.paymentMethod || "ALL",
           });
-          sellerChargesTotal += amount;
+          groupChargesTotal += amount;
         }
       }
 
-      sellerBreakdowns.push({
-        sellerId: seller.sellerId,
-        subtotal: sellerSubtotal,
-        charges: sellerCharges,
-        chargesTotal: Math.round(sellerChargesTotal * 100) / 100,
-        total: Math.round((sellerSubtotal + sellerChargesTotal) * 100) / 100,
+      groupBreakdowns.push({
+        groupId: group.groupId,
+        subtotal: groupSubtotal,
+        charges: groupCharges,
+        chargesTotal: Math.round(groupChargesTotal * 100) / 100,
+        total: Math.round((groupSubtotal + groupChargesTotal) * 100) / 100,
       });
 
-      totalAmount += sellerSubtotal + sellerChargesTotal;
+      totalAmount += groupSubtotal + groupChargesTotal;
     }
 
     // Calculate global (ITEM-based) charges once
@@ -308,7 +308,7 @@ class PricingService {
           continue;
         }
 
-        const totalSubtotal = sellers.reduce((sum, s) => sum + s.subtotal, 0);
+        const totalSubtotal = groups.reduce((sum, item) => sum + item.subtotal, 0);
         const amount = this.calculateRuleAmount(rule, totalSubtotal, totalItemCount);
 
         if (amount > 0) {
@@ -328,7 +328,7 @@ class PricingService {
     }
 
     return {
-      sellerBreakdowns,
+      groupBreakdowns,
       globalCharges,
       grandTotal: Math.round(totalAmount * 100) / 100,
       paymentMethod: normalizedPaymentMethod,
@@ -587,19 +587,19 @@ class PricingService {
   }
 
   /**
-   * Calculate seller breakdown with shipping
+   * Calculate grouped breakdown with shipping
    * 
-   * @param {Array} sellers - Array of seller data
+   * @param {Array} groups - Array of grouped pricing data
    * @param {Array} cartItems - Cart items for shipping calculation
    * @param {Object} shippingAddress - Shipping address
    * @param {number} totalItemCount - Total items
    * @param {Object} options - Additional options
    * @returns {Promise<Object>} Breakdown with shipping included
    */
-  async calculateSellerBreakdownWithShipping(sellers, cartItems, shippingAddress, totalItemCount = 0, options = {}) {
+  async calculateGroupBreakdownWithShipping(groups, cartItems, shippingAddress, totalItemCount = 0, options = {}) {
     try {
-      const breakdown = await this.calculateSellerBreakdown(
-        sellers,
+      const breakdown = await this.calculateGroupBreakdown(
+        groups,
         totalItemCount,
         options.paymentMethod || "ALL"
       );
@@ -611,7 +611,7 @@ class PricingService {
         shippingAddress,
         state: options.state || "Tamil Nadu",
         fallbackCost: options.fallbackShippingCost || 0,
-        orderTotal: sellers.reduce((sum, seller) => sum + Number(seller.subtotal || 0), 0),
+        orderTotal: groups.reduce((sum, group) => sum + Number(group.subtotal || 0), 0),
       });
 
       // Always surface shipping in global charges, even when free.
@@ -651,7 +651,7 @@ class PricingService {
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError(
-        `Error calculating seller breakdown with shipping: ${error.message}`,
+        `Error calculating grouped breakdown with shipping: ${error.message}`,
         500
       );
     }

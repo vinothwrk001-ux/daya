@@ -120,7 +120,6 @@ export function AdminNotificationCenterPage() {
   const pages = Math.ceil(total / limit);
 
   const typeColors = {
-    vendor_approval: 'bg-blue-100 text-blue-800',
     product_approval: 'bg-purple-100 text-purple-800',
     order_alert: 'bg-emerald-100 text-emerald-800',
     payment_alert: 'bg-amber-100 text-amber-800',

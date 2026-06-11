@@ -17,7 +17,6 @@ const STATUS_STYLES = {
   refunded: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
   partially_refunded: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
   admin: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
-  vendor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   user: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
 };
 

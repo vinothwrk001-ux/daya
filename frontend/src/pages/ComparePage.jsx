@@ -93,7 +93,7 @@ export function ComparePage() {
               )} />
               <CompareRow label="Category" items={items} render={(product) => product?.category || "-"} />
               <CompareRow label="Brand" items={items} render={(product) => product?.attributes?.brand || product?.brand || "-"} />
-              <CompareRow label="Seller" items={items} render={(product) => product?.sellerId?.shopName || product?.sellerId?.companyName || "-"} />
+              <CompareRow label="Fulfillment" items={items} render={() => "Daya"} />
               <CompareRow label="Stock" items={items} render={(product) => Number(product?.stock || 0) > 0 ? `${product.stock} in stock` : "Out of stock"} />
               <CompareRow label="Rating" items={items} render={(product) => product?.ratings?.averageRating ? Number(product.ratings.averageRating).toFixed(1) : "-"} />
             </tbody>

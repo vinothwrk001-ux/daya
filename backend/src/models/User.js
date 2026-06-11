@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const USER_ROLES = ["user", "vendor", "influencer", "admin", "super_admin", "support_admin", "finance_admin"];
+const USER_ROLES = ["user", "admin", "super_admin", "support_admin", "finance_admin"];
 const USER_STATUS = ["active", "disabled"];
 
 const userSchema = new mongoose.Schema(
@@ -46,11 +46,9 @@ const userSchema = new mongoose.Schema(
         paymentAlerts: { type: Boolean, default: true },
         promotions: { type: Boolean, default: false },
         orders: { type: Boolean, default: true },
-        commissions: { type: Boolean, default: true },
         campaigns: { type: Boolean, default: true },
         payments: { type: Boolean, default: true },
         followers: { type: Boolean, default: true },
-        storefront: { type: Boolean, default: true },
         products: { type: Boolean, default: true },
         systemAlerts: { type: Boolean, default: true },
         securityAlerts: { type: Boolean, default: true },

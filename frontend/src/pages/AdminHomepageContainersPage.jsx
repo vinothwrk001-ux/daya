@@ -31,7 +31,7 @@ import {
   uploadHomepageContainerMedia,
   updateAdminHomepageContainer,
 } from "../services/homepageContainerService";
-import { listCategories, listInfluencers, listProducts, listSellers, listSubcategories } from "../services/adminApi";
+import { listCategories, listProducts, listSubcategories } from "../services/adminApi";
 import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 
@@ -74,7 +74,6 @@ const initialForm = {
   mobileVisible: true,
   layout: defaultLayout,
   filters: {
-    vendorIds: [],
     categoryIds: [],
     subCategoryIds: [],
     brandIds: [],
@@ -285,7 +284,6 @@ function buildPayload(form) {
       marginRight: Number(form.layout.marginRight || 0),
     },
     filters: {
-      vendorIds: form.filters.vendorIds,
       categoryIds: form.filters.categoryIds,
       subCategoryIds: form.filters.subCategoryIds,
       brandIds: form.filters.brandIds,
@@ -307,16 +305,6 @@ function buildPayload(form) {
 function sanitizeConfigValues(config = {}) {
   const next = {};
   for (const [key, value] of Object.entries(config || {})) {
-    if ((key === "manualVendorIds" || key === "manualInfluencerIds") && !Array.isArray(value)) {
-      next[key] = [];
-      continue;
-    }
-    if (key === "manualVendorIds" || key === "manualInfluencerIds") {
-      next[key] = value
-        .map((item) => item?.value || item?._id || item?.id || item)
-        .filter(Boolean);
-      continue;
-    }
     if (value === "") {
       next[key] = value;
       continue;
@@ -368,7 +356,6 @@ function containerToForm(container, schema) {
     mobileVisible: container?.visibility?.mobile !== false,
     layout: normalizeLayoutForm(container?.presentation?.layout, container?.presentation),
     filters: {
-      vendorIds: (container?.filters?.vendorIds || []).map((item) => item?._id || item),
       categoryIds: (container?.filters?.categoryIds || []).map((item) => item?._id || item),
       subCategoryIds: (container?.filters?.subCategoryIds || []).map((item) => item?._id || item),
       brandIds: container?.filters?.brandIds || [],
@@ -391,8 +378,6 @@ export function AdminHomepageContainersPage() {
   const [containers, setContainers] = useState([]);
   const [containerSchemas, setContainerSchemas] = useState([]);
   const [activeSchema, setActiveSchema] = useState(null);
-  const [vendors, setVendors] = useState([]);
-  const [influencers, setInfluencers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [products, setProducts] = useState([]);
@@ -483,18 +468,14 @@ export function AdminHomepageContainersPage() {
 
   const loadOptions = useCallback(async () => {
     try {
-      const [schemaRes, vendorsRes, influencersRes, categoriesRes, subcategoriesRes, productsRes] = await Promise.all([
+      const [schemaRes, categoriesRes, subcategoriesRes, productsRes] = await Promise.all([
         getHomepageContainerSchemas(),
-        listSellers({ status: "approved" }),
-        listInfluencers(),
         listCategories(),
         listSubcategories(),
         listProducts({ limit: 200, status: "APPROVED" }),
       ]);
 
       setContainerSchemas(schemaRes?.data || []);
-      setVendors(Array.isArray(vendorsRes?.data) ? vendorsRes.data : []);
-      setInfluencers(Array.isArray(influencersRes?.data) ? influencersRes.data : []);
       setCategories(Array.isArray(categoriesRes?.data) ? categoriesRes.data : []);
       const subcatsData = subcategoriesRes?.data;
       setSubcategories(Array.isArray(subcatsData) ? subcatsData : subcatsData?.subcategories || []);
@@ -665,22 +646,6 @@ export function AdminHomepageContainersPage() {
 
   const optionLoaders = useMemo(
     () => ({
-      vendors: async (query = "") =>
-        vendors
-          .filter((item) => `${item.shopName || ""} ${item.companyName || ""}`.toLowerCase().includes(query.toLowerCase()))
-          .map((item) => ({
-            value: String(item._id),
-            label: item.shopName || item.companyName || "Vendor",
-            meta: item.companyName || "",
-          })),
-      influencers: async (query = "") =>
-        influencers
-          .filter((item) => `${item.displayName || ""} ${item.storeName || ""} ${item.userId?.name || ""} ${item.influencerCode || ""}`.toLowerCase().includes(query.toLowerCase()))
-          .map((item) => ({
-            value: String(item._id),
-            label: item.displayName || item.storeName || item.userId?.name || "Influencer",
-            meta: item.influencerCode || item.userId?.email || "",
-          })),
       categories: async (query = "") =>
         categories
           .filter((item) => item.name?.toLowerCase().includes(query.toLowerCase()))
@@ -696,7 +661,7 @@ export function AdminHomepageContainersPage() {
       brands: async (query = "") => brandCatalog.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
       tags: async (query = "") => tagCatalog.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
     }),
-    [brandCatalog, categories, filteredSubcategories, influencers, productCatalog, tagCatalog, vendors]
+    [brandCatalog, categories, filteredSubcategories, productCatalog, tagCatalog]
   );
 
   const currentStepMeta = editorSteps[currentStep];
@@ -794,13 +759,6 @@ export function AdminHomepageContainersPage() {
                         <Field label="Dynamic Product Source">
                           <select value={form.dataSourceType} onChange={(event) => setForm((current) => ({ ...current, dataSourceType: event.target.value }))} className={inputClassName}>
                             <option value="DEFAULT">Default homepage rules</option>
-                            <option value="CURRENT_VENDOR_PRODUCTS">Current vendor products</option>
-                            <option value="CURRENT_VENDOR_FEATURED">Current vendor featured</option>
-                            <option value="CURRENT_VENDOR_NEW_ARRIVALS">Current vendor new arrivals</option>
-                            <option value="CURRENT_VENDOR_BEST_SELLERS">Current vendor best sellers</option>
-                            <option value="CURRENT_VENDOR_DEALS">Current vendor deals</option>
-                            <option value="CURRENT_VENDOR_TOP_RATED">Current vendor top rated</option>
-                            <option value="CURRENT_VENDOR_RECOMMENDED">Current vendor recommended</option>
                           </select>
                         </Field>
                         <Field label="Status">
@@ -845,9 +803,6 @@ export function AdminHomepageContainersPage() {
                     {hasProductRules ? (
                       <EditorSection icon={Plus} title="Product Rules" description="Configure how products are discovered, filtered, ranked, and manually overridden.">
                         <div className="grid gap-6 lg:grid-cols-2">
-                          <Field label="Vendors">
-                            <AsyncMultiSelect value={form.filters.vendorIds} onChange={(next) => setNestedField(setForm, "filters", "vendorIds", next)} loadOptions={optionLoaders.vendors} placeholder="Search vendors..." />
-                          </Field>
                           <Field label="Categories">
                             <AsyncMultiSelect value={form.filters.categoryIds} onChange={(next) => setNestedField(setForm, "filters", "categoryIds", next)} loadOptions={optionLoaders.categories} placeholder="Search categories..." />
                           </Field>
@@ -1420,7 +1375,7 @@ function LivePreviewSidebar({ form, preview, previewLoading, previewDevice, onPr
             <SummaryItem label="Desktop View" value={form.desktopVisible ? "Visible" : "Hidden"} />
             <SummaryItem label="Tablet View" value={form.tabletVisible ? "Visible" : "Hidden"} />
             <SummaryItem label="Mobile View" value={form.mobileVisible ? "Visible" : "Hidden"} />
-            <SummaryItem label="Catalog Items" value={preview?.storefrontCards?.length ? `${preview.storefrontCards.length} storefront cards` : `${preview?.products?.length || 0} products`} />
+            <SummaryItem label="Catalog Items" value={`${preview?.products?.length || 0} products`} />
           </div>
         </div>
 

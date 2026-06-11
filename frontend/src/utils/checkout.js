@@ -100,19 +100,16 @@ export function getDefaultAddress(addresses = []) {
 }
 
 export function getSummaryItems(summary) {
-  if (!Array.isArray(summary?.sellers)) return [];
-  return summary.sellers.flatMap((seller) =>
-    Array.isArray(seller?.items)
-      ? seller.items.map((item) => ({
-          ...item,
-          sellerId: seller.sellerId,
-          seller: seller.seller || seller.vendor || null,
-          sellerSubtotal: seller.subtotal,
-          variantId: item?.variantId || "",
-          variantTitle: item?.variantTitle || "",
-        }))
-      : []
-  );
+  const items = Array.isArray(summary?.items)
+    ? summary.items
+    : Array.isArray(summary?.lineItems)
+      ? summary.lineItems
+      : [];
+  return items.map((item) => ({
+    ...item,
+    variantId: item?.variantId || "",
+    variantTitle: item?.variantTitle || "",
+  }));
 }
 
 export function buildPriceBreakdown(summary) {
@@ -201,7 +198,7 @@ export function getProductHighlights(product) {
   if (highlights.length > 0) return highlights;
 
   return [
-    "Assured availability from verified sellers.",
+    "Assured availability from verified inventory.",
     "Secure checkout with COD and Razorpay.",
     "Fresh price validation before order placement.",
   ];

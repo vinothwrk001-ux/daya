@@ -13,12 +13,6 @@ const shipmentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
-    vendorId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
-      required: true,
-      index: true,
-    },
     shipmentId: { type: String, trim: true, index: true },
     paymentMethod: {
       type: String,
@@ -57,7 +51,6 @@ const shipmentSchema = new mongoose.Schema(
   }
 );
 
-shipmentSchema.index({ orderGroupId: 1, vendorId: 1 });
 shipmentSchema.index({ paymentMethod: 1, shipmentStatus: 1, createdAt: -1 });
 
 module.exports = mongoose.models.Shipment || mongoose.model("Shipment", shipmentSchema);

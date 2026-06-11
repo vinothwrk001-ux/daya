@@ -1,21 +1,21 @@
 const PlatformConfig = require("../models/PlatformConfig");
 
-const DEFAULT_COMMISSION_PERCENTAGE = 10;
+const DEFAULT_PLATFORM_FEE_PERCENTAGE = 10;
 
 function normalizePercentage(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric < 0) {
-    return DEFAULT_COMMISSION_PERCENTAGE;
+    return DEFAULT_PLATFORM_FEE_PERCENTAGE;
   }
   return numeric;
 }
 
-async function getCommissionPercentage() {
-  const config = await PlatformConfig.findOne({ key: "commission_percentage" }).select("value").lean();
+async function getPlatformFeePercentage() {
+  const config = await PlatformConfig.findOne({ key: "platform_fee_percentage" }).select("value").lean();
   return normalizePercentage(config?.value);
 }
 
 module.exports = {
-  DEFAULT_COMMISSION_PERCENTAGE,
-  getCommissionPercentage,
+  DEFAULT_PLATFORM_FEE_PERCENTAGE,
+  getPlatformFeePercentage,
 };

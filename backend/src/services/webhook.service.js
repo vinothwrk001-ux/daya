@@ -5,7 +5,6 @@ const refundRepo = require("../repositories/refund.repository");
 const webhookEventRepo = require("../repositories/webhook-event.repository");
 const orderRepo = require("../repositories/order.repository");
 const paymentService = require("./payment.service");
-const payoutService = require("./payout.service");
 const { applyShippingLifecycle } = require("./shipping.service");
 const logisticsService = require("./logistics.service");
 const { logger } = require("../utils/logger");
@@ -329,9 +328,6 @@ class WebhookService {
           ...(lifecycle.pickupStatus === "COMPLETED" ? { pickupCompletedAt: new Date() } : {}),
         });
 
-        if (updatedOrder?.status === "Delivered") {
-          await payoutService.markOrderDelivered(updatedOrder._id);
-        }
       }
 
       await webhookEventRepo.updateById(webhookRecord._id, {

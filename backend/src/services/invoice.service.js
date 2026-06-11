@@ -1,6 +1,5 @@
 const { AppError } = require("../utils/AppError");
 const orderRepo = require("../repositories/order.repository");
-const vendorRepo = require("../repositories/vendor.repository");
 const InvoiceSettings = require("../models/InvoiceSettings");
 const InvoiceMetadata = require("../models/InvoiceMetadata");
 const InvoiceAuditLog = require("../models/InvoiceAuditLog");
@@ -57,7 +56,7 @@ function sanitizeMetadataPayload(payload = {}) {
     customNotes: trimOrEmpty(payload.customNotes),
     footerText: trimOrEmpty(payload.footerText),
     billingLabel: trimOrEmpty(payload.billingLabel) || "Bill To",
-    sellerLabel: trimOrEmpty(payload.sellerLabel) || "Sold By",
+    issuerLabel: trimOrEmpty(payload.issuerLabel) || "Issued By",
     gstLabel: trimOrEmpty(payload.gstLabel) || "GST",
     organizationOverrides: {
       organizationName: trimOrEmpty(organizationOverrides.organizationName),
@@ -77,7 +76,7 @@ function toSafeInvoiceSearchItem(order, invoice) {
     orderNumber: order.orderNumber,
     invoiceNumber: invoice.invoiceNumber,
     customerName: invoice.customer?.name || order.shippingAddress?.fullName || "",
-    vendorName: invoice.vendors?.[0]?.name || "",
+    issuerName: invoice.issuer?.name || invoice.support?.companyName || "",
     paymentMethod: invoice.payment?.method || order.paymentMethod || "",
     paymentStatus: order.paymentStatus || invoice.payment?.status || "",
     orderStatus: order.status || "",
@@ -171,13 +170,12 @@ class InvoiceService {
     return metadata;
   }
 
-  async buildInvoiceView(order, { actorRole = "admin", vendorId = null } = {}) {
+  async buildInvoiceView(order) {
     if (!order) throw new AppError("Order not found", 404, "NOT_FOUND");
     const settings = await this.getSettings();
     const branding = await getPublicBranding();
     const metadata = await this.getOrCreateMetadata(order);
     const base = buildOrderSummary(order);
-    const vendor = base.vendors?.[0] || {};
 
     const organization = {
       organizationName: metadata.organizationOverrides?.organizationName || settings.organizationName || base.support?.companyName || "",
@@ -222,7 +220,7 @@ class InvoiceService {
         customNotes: metadata.customNotes || "",
         footerText: metadata.footerText || "",
         billingLabel: metadata.billingLabel || "Bill To",
-        sellerLabel: metadata.sellerLabel || "Sold By",
+        issuerLabel: metadata.issuerLabel || "Issued By",
         gstLabel: metadata.gstLabel || organization.taxLabel,
         generatedAt: metadata.generatedAt,
         generatedBy: metadata.generatedBy || "",
@@ -249,18 +247,6 @@ class InvoiceService {
       taxId: organization.gstNumber || invoiceView.support?.taxId || "",
     };
 
-    if (actorRole === "vendor") {
-      invoiceView.organization.bankDetails = {
-        accountName: "",
-        accountNumber: "",
-        ifscCode: "",
-        bankName: "",
-        branchName: "",
-        upiId: "",
-      };
-      invoiceView.vendors = vendorId && String(vendor.sellerId || "") !== String(vendorId) ? [] : [vendor];
-    }
-
     return invoiceView;
   }
 
@@ -285,44 +271,14 @@ class InvoiceService {
     };
   }
 
-  async listVendorInvoices(userId, query = {}) {
-    const vendor = await vendorRepo.findByUserId(userId);
-    if (!vendor) throw new AppError("Vendor not found", 404, "NOT_FOUND");
-    const result = await orderRepo.listBySellerId({
-      sellerId: vendor._id,
-      page: Number(query.page || 1),
-      limit: Number(query.limit || 20),
-      status: query.status,
-      sortBy: query.sortBy || "createdAt",
-      sortOrder: query.sortOrder === "asc" ? 1 : -1,
-      startDate: query.startDate,
-      endDate: query.endDate,
-    });
-    const invoices = await Promise.all((result.orders || []).map((order) => this.buildInvoiceView(order, { actorRole: "vendor", vendorId: vendor._id })));
-    return {
-      invoices: invoices.map((invoice, index) => toSafeInvoiceSearchItem(result.orders[index], invoice)),
-      pagination: result.pagination,
-    };
-  }
-
   async getAdminInvoice(orderId) {
     const order = await orderRepo.findById(orderId);
     return await this.buildInvoiceView(order);
   }
 
-  async getVendorInvoice(userId, orderId) {
-    const vendor = await vendorRepo.findByUserId(userId);
-    if (!vendor) throw new AppError("Vendor not found", 404, "NOT_FOUND");
-    const order = await orderRepo.findById(orderId);
-    if (!order || String(order.sellerId?._id || order.sellerId) !== String(vendor._id)) {
-      throw new AppError("Invoice not found", 404, "NOT_FOUND");
-    }
-    return await this.buildInvoiceView(order, { actorRole: "vendor", vendorId: vendor._id });
-  }
-
   async getUserInvoicePreview(userId, orderId) {
     const order = await orderRepo.findByIdForUser(orderId, userId);
-    return await this.buildInvoiceView(order, { actorRole: "user" });
+    return await this.buildInvoiceView(order);
   }
 
   async updateInvoiceMetadata(orderId, payload = {}, actor = {}, meta = {}) {
@@ -336,7 +292,7 @@ class InvoiceService {
       customNotes: metadata.customNotes || "",
       footerText: metadata.footerText || "",
       billingLabel: metadata.billingLabel || "Bill To",
-      sellerLabel: metadata.sellerLabel || "Sold By",
+      issuerLabel: metadata.issuerLabel || "Issued By",
       gstLabel: metadata.gstLabel || "GST",
       organizationOverrides: metadata.organizationOverrides || {},
       updatedAt: new Date(),
@@ -346,7 +302,7 @@ class InvoiceService {
     metadata.customNotes = nextValues.customNotes;
     metadata.footerText = nextValues.footerText;
     metadata.billingLabel = nextValues.billingLabel;
-    metadata.sellerLabel = nextValues.sellerLabel;
+    metadata.issuerLabel = nextValues.issuerLabel;
     metadata.gstLabel = nextValues.gstLabel;
     metadata.organizationOverrides = nextValues.organizationOverrides;
     metadata.version = Number(metadata.version || 1) + 1;
@@ -375,15 +331,6 @@ class InvoiceService {
 
   async downloadAdminInvoice(orderId) {
     const invoice = await this.getAdminInvoice(orderId);
-    return {
-      filename: `${invoice.invoiceNumber || invoice.orderNumber}.pdf`,
-      contentType: "application/pdf",
-      content: await generateInvoicePdf(invoice),
-    };
-  }
-
-  async downloadVendorInvoice(userId, orderId) {
-    const invoice = await this.getVendorInvoice(userId, orderId);
     return {
       filename: `${invoice.invoiceNumber || invoice.orderNumber}.pdf`,
       contentType: "application/pdf",

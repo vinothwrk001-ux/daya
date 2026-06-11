@@ -171,8 +171,8 @@ export function OrderSuccessPage() {
           {processing
             ? "Payment was successful. We are finishing verification and loading your order summary now."
             : isCod
-            ? `Please keep ${formatCurrency(codPayable)} ready for delivery. You can track every vendor shipment from your orders page.`
-            : "Payment status and order routing have been recorded. You can track every vendor shipment from your orders page."}
+            ? `Please keep ${formatCurrency(codPayable)} ready for delivery. You can track every shipment from your orders page.`
+            : "Payment status and order routing have been recorded. You can track every shipment from your orders page."}
         </p>
       </section>
 

@@ -4,15 +4,15 @@ const sections = [
   {
     heading: "Delivery Coverage",
     body: [
-      "Shipping availability depends on seller service regions, courier coverage, and the delivery address provided during checkout. Some products may have restricted delivery zones.",
+      "Shipping availability depends on service regions, courier coverage, and the delivery address provided during checkout. Some products may have restricted delivery zones.",
       "Estimated delivery dates are indicative and may change due to stock validation, weather, operational delays, public holidays, or address verification issues.",
     ],
   },
   {
     heading: "Processing and Dispatch",
     body: [
-      "Orders are processed after payment confirmation or cash-on-delivery validation. Dispatch times may vary by seller, inventory source, and product type.",
-      "We may split shipments across sellers or warehouses to speed up fulfillment. Each shipment can carry its own tracking status and delivery timeline.",
+      "Orders are processed after payment confirmation or cash-on-delivery validation. Dispatch times may vary by inventory source and product type.",
+      "We may split shipments across warehouses to speed up fulfillment. Each shipment can carry its own tracking status and delivery timeline.",
     ],
   },
   {

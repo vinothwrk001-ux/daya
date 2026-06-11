@@ -54,7 +54,7 @@ const logger = winston.createLogger({
 logger.audit = (message, meta = {}) => logger.info(message, { channel: "audit", ...meta });
 logger.security = (message, meta = {}) => logger.warn(message, { channel: "security", ...meta });
 logger.payment = (message, meta = {}) => logger.info(message, { channel: "payment", ...meta });
-logger.commission = (message, meta = {}) => logger.info(message, { channel: "commission", ...meta });
+logger.platformFee = (message, meta = {}) => logger.info(message, { channel: "platform_fee", ...meta });
 logger.webhook = (message, meta = {}) => logger.info(message, { channel: "webhook", ...meta });
 
 const requestLoggerStream = {

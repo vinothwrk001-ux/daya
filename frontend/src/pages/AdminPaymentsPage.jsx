@@ -195,10 +195,10 @@ export function AdminPaymentsPage() {
             />
             <input
               type="number"
-              value={codSettings.vendorHoldDays ?? 3}
-              onChange={(event) => setCodSettings((current) => ({ ...current, vendorHoldDays: Number(event.target.value || 0) }))}
+              value={codSettings.holdDays ?? 3}
+              onChange={(event) => setCodSettings((current) => ({ ...current, holdDays: Number(event.target.value || 0) }))}
               className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm"
-              placeholder="Vendor hold days"
+              placeholder="COD hold days"
             />
           </div>
           <button

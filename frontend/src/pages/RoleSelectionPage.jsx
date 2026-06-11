@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
 
 function RoleCard({ title, desc, to, state }) {
   return (
@@ -18,7 +17,6 @@ function RoleCard({ title, desc, to, state }) {
 }
 
 export function RoleSelectionPage() {
-  const { influencerCommerceEnabled, loading } = usePlatformFeatures();
   const location = useLocation();
 
   return (
@@ -27,7 +25,7 @@ export function RoleSelectionPage() {
         Choose your role
       </h1>
       <p className="mt-2 text-center text-slate-600">
-        This determines your onboarding flow and dashboard access.
+        Create a customer account to shop, track orders, and manage your profile.
       </p>
 
       <div className="mt-6 grid gap-4">
@@ -37,24 +35,6 @@ export function RoleSelectionPage() {
           to="/register?role=user"
           state={location.state}
         />
-        <RoleCard
-          title="Vendor"
-          desc="Sell on the platform. Complete onboarding and wait for approval."
-          to="/register?role=vendor"
-          state={location.state}
-        />
-        {loading || influencerCommerceEnabled ? (
-          <RoleCard
-            title="Influencer"
-            desc="Create shoppable reels, accept campaigns, and earn tracked commissions."
-            to="/register/influencer"
-            state={location.state}
-          />
-        ) : (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
-            Influencer onboarding is paused by administrators.
-          </div>
-        )}
       </div>
     </div>
   );

@@ -11,7 +11,6 @@ const adminNotificationSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: [
-        "vendor_approval",
         "product_approval",
         "order_alert",
         "payment_alert",
@@ -45,7 +44,7 @@ const adminNotificationSchema = new mongoose.Schema(
     },
     relatedEntityType: {
       type: String,
-      enum: ["vendor", "product", "order", "user", "payment"],
+      enum: ["product", "order", "user", "payment"],
     },
     isRead: {
       type: Boolean,

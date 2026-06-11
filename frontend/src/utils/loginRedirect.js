@@ -20,7 +20,6 @@ const SAFE_REDIRECT_PREFIXES = [
   "/checkout",
   "/orders",
   "/wishlist",
-  "/influencer/",
   "/user/",
   "/addresses",
   "/profile",

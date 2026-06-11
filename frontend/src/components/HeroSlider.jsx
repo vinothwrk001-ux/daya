@@ -169,7 +169,7 @@ export function HeroSlider({ slides = fallbackSlides }) {
               className="grid gap-3 rounded-[1.75rem] border border-white/10 bg-white/10 p-4 backdrop-blur-xl"
             >
               <StatCard label="Orders fulfilled" value="12k+" />
-              <StatCard label="Seller response" value="< 3 min" />
+              <StatCard label="Support response" value="< 3 min" />
               <StatCard label="Average rating" value="4.9/5" />
             </Motion.div>
           </div>

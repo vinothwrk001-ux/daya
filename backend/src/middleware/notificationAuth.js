@@ -26,9 +26,7 @@ async function notificationAuthRequired(req, res, next) {
     const normalizedRole = normalizeRole(payload.role);
     let notificationRole = null;
 
-    if (normalizedRole === "vendor") {
-      notificationRole = "VENDOR";
-    } else if (ADMIN_ROLES.includes(normalizedRole)) {
+    if (ADMIN_ROLES.includes(normalizedRole)) {
       notificationRole = "ADMIN";
     }
 

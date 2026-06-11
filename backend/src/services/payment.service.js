@@ -7,17 +7,10 @@ const { PaymentSession } = require("../models/PaymentSession");
 const PaymentGatewayConfig = require("../models/PaymentGatewayConfig");
 const orderRepo = require("../repositories/order.repository");
 const paymentRepo = require("../repositories/payment.repository");
-const payoutRepo = require("../repositories/payout.repository");
 const refundRepo = require("../repositories/refund.repository");
 const webhookEventRepo = require("../repositories/webhook-event.repository");
 const { PaymentAttempt } = require("../models/PaymentAttempt");
 const checkoutService = require("./checkout.service");
-const commissionService = require("../modules/commission/service");
-const walletService = require("./wallet.service");
-const ledgerService = require("./ledger.service");
-const platformLedgerService = require("./platform-ledger.service");
-const VendorWallet = require("../models/VendorWallet");
-const VendorOrder = require("../models/VendorOrder");
 const { emitDomainEvent } = require("../modules/events/event-bus");
 const { logger } = require("../utils/logger");
 const productAnalyticsService = require("./product-analytics.service");
@@ -434,7 +427,6 @@ class PaymentService {
         idempotencyKey: buildPaymentIdempotencyKey(paymentSession.razorpayOrderId),
         cartSnapshot: Array.isArray(paymentSession.cartSnapshot) ? paymentSession.cartSnapshot : [],
         shippingAddress: paymentSession.shippingAddress,
-        trackingToken: paymentSession.metadata?.trackingToken || undefined,
         amountBreakdown,
         gatewayFeeAmount: amountBreakdown.gatewayFee,
         fraudChecks: {
@@ -463,13 +455,12 @@ class PaymentService {
     }
   }
 
-  async createRazorpayOrder({ userId, cartId, shippingAddress, trackingToken }) {
+  async createRazorpayOrder({ userId, cartId, shippingAddress }) {
     try {
       const gatewayConfig = await this.assertGatewayEnabled();
       const summary = await checkoutService.prepare(userId, {
         shippingAddress,
         paymentMethod: "ONLINE",
-        trackingToken,
       });
 
       if (!summary?.total) {
@@ -543,7 +534,7 @@ class PaymentService {
         amount: roundMoney(summary.total || 0),
         status: "CREATED",
         idempotencyKey: buildSessionIdempotencyKey(userId, summary, shippingAddress),
-        cartSnapshot: summary.sellers.flatMap((seller) => seller.items || []),
+        cartSnapshot: Array.isArray(summary.items) ? summary.items : [],
         checkoutSnapshot: summary,
         pricingBreakdown: {
           subtotal: summary.subtotal,
@@ -557,7 +548,6 @@ class PaymentService {
         shippingAddress,
         expiresAt: new Date(Date.now() + Number(gatewayConfig.sessionTimeoutMinutes || 15) * 60 * 1000),
         metadata: {
-          trackingToken: trackingToken || "",
           receipt,
           cartId: String(cartId || "current"),
         },
@@ -747,7 +737,6 @@ class PaymentService {
           razorpayOrderId: razorpayOrderId || payment.razorpayOrderId,
           razorpayPaymentId: razorpayPaymentId || payment.razorpayPaymentId,
           fraudFlags: payment.fraudChecks?.flaggedReasons || [],
-          trackingToken: paymentSession.metadata?.trackingToken || payment.trackingToken || null,
         }
       );
 
@@ -1482,59 +1471,6 @@ class PaymentService {
     return { refunds, overview };
   }
 
-  async applyRefundWalletReversal(order, refundAmount, refundRef, { session = null } = {}) {
-    if (!order?.vendorWalletReleasedAt || !order?.sellerId) {
-      return { skipped: true, reason: "VENDOR_WALLET_NOT_RELEASED" };
-    }
-
-    let walletQuery = VendorWallet.findOne({ vendorId: order.sellerId });
-    if (session) walletQuery = walletQuery.session(session);
-    const wallet = await walletQuery;
-    if (!wallet) {
-      return { skipped: true, reason: "WALLET_NOT_FOUND" };
-    }
-
-    const vendorEarning = roundMoney(order.vendorEarning || Math.max(Number(order.totalAmount || 0) - Number(order.platformCommissionAmount || 0), 0));
-    const refundableBase = roundMoney(order.totalAmount || 0);
-    const ratio = refundableBase > 0 ? Math.min(1, roundMoney(refundAmount / refundableBase)) : 0;
-    const reversalAmount = roundMoney(vendorEarning * ratio);
-    const platformCommissionReversalAmount = roundMoney(Number(order.platformCommissionAmount || 0) * ratio);
-
-    if (reversalAmount <= 0) {
-      return { skipped: true, reason: "ZERO_REVERSAL" };
-    }
-
-    wallet.totalEarnings = Math.max(0, roundMoney(wallet.totalEarnings - reversalAmount));
-    wallet.availableBalance = Math.max(0, roundMoney(wallet.availableBalance - reversalAmount));
-    await wallet.save({ session: session || undefined });
-
-    const walletSnapshot = {
-      totalEarnings: wallet.totalEarnings,
-      availableBalance: wallet.availableBalance,
-      pendingBalance: wallet.pendingBalance,
-      withdrawnAmount: wallet.withdrawnAmount,
-    };
-
-    const ledgerEntry = await ledgerService.createEntry({
-      vendorId: order.sellerId,
-      type: "DEBIT",
-      amount: reversalAmount,
-      source: "REFUND_REVERSAL",
-      referenceId: order._id,
-      walletSnapshot,
-      meta: {
-        orderNumber: order.orderNumber,
-        refundAmount: roundMoney(refundAmount),
-      },
-      refundRef,
-      session,
-    });
-
-    await platformLedgerService.recordRefundCommissionReversal(order, platformCommissionReversalAmount, refundRef, { session });
-
-    return { reversalAmount, platformCommissionReversalAmount, ledgerEntry };
-  }
-
   async processRefund({ orderId, paymentId, amount, reason, actorRole = "system", notes }) {
     const payment = paymentId ? await paymentRepo.findById(paymentId) : null;
     const order = orderId ? await orderRepo.findById(orderId) : null;
@@ -1640,7 +1576,6 @@ class PaymentService {
         gatewayFee: roundMoney(resolvedPayment.gatewayFeeAmount || 0),
         cancellationDeduction: 0,
         shippingDeduction: 0,
-        vendorCompensation: 0,
         refundAmount,
       },
       notes,
@@ -1677,34 +1612,6 @@ class PaymentService {
       },
       fraudFlags: resolvedOrder.fraudFlags,
     });
-
-    await VendorOrder.updateOne(
-      { orderId: resolvedOrder._id },
-      {
-        $set: {
-          paymentStatus: nextOrderPaymentStatus,
-        },
-      }
-    ).catch(() => {});
-
-    const payouts = await payoutRepo.findByOrderId(resolvedOrder._id);
-    await Promise.all(
-      payouts
-        .filter((payout) => ["ON_HOLD", "PENDING", "QUEUED"].includes(payout.status))
-        .map((payout) =>
-          payoutRepo.updateById(payout._id, {
-            $set: {
-              status: "CANCELLED",
-              notes: "Cancelled because the order payment was refunded.",
-            },
-          })
-        )
-    );
-
-    await commissionService.reverseForRefund(resolvedOrder._id);
-    if (gateway === "MANUAL") {
-      await this.applyRefundWalletReversal(resolvedOrder, refundAmount, refund.refundId);
-    }
 
     await emitDomainEvent("REFUND_INITIATED", {
       refundId: refund._id,
@@ -1747,7 +1654,6 @@ class PaymentService {
             refundStatus: isFullRefund ? "FULL" : "PARTIAL",
           },
         });
-        await this.applyRefundWalletReversal(order, refund.amount, refund.refundId);
       }
 
       await emitDomainEvent("REFUND_COMPLETED", {

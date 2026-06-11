@@ -11,7 +11,6 @@ import { emitCartChanged } from "../utils/cartState";
  * [
  *   {
  *     productId: string,
- *     vendorId: string,
  *     quantity: number,
  *     price: number (snapshot),
  *     image: string,

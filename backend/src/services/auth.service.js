@@ -5,7 +5,6 @@ const { signAccessToken, signRefreshToken, verifyRefreshToken } = require("../ut
 const userRepo = require("../repositories/user.repository");
 const sessionRepo = require("../repositories/session.repository");
 const auditService = require("./audit.service");
-const { isInfluencerCommerceEnabled } = require("./influencer-commerce-config.service");
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -65,26 +64,9 @@ async function createSessionTokens(user, meta = {}) {
   };
 }
 
-async function assertInfluencerAccessAllowed(role) {
-  if (role !== "influencer") return;
-  const enabled = await isInfluencerCommerceEnabled();
-  if (!enabled) {
-    throw new AppError(
-      "Influencer registrations are paused by the platform administrator.",
-      403,
-      "INFLUENCER_COMMERCE_DISABLED"
-    );
-  }
-}
-
 async function register({ name, email, phone, password, role }, meta = {}) {
   const normalizedEmail = email ? String(email).toLowerCase() : null;
-
-  await assertInfluencerAccessAllowed(role);
-
-  if (["vendor", "influencer"].includes(role) && !normalizedEmail) {
-    throw new AppError("Email is required for vendors and influencers", 400, "VALIDATION_ERROR");
-  }
+  const normalizedRole = "user";
 
   if (normalizedEmail) {
     const existing = await userRepo.findByEmail(normalizedEmail);
@@ -100,8 +82,8 @@ async function register({ name, email, phone, password, role }, meta = {}) {
     email: normalizedEmail,
     phone: String(phone).trim(),
     password: hashed,
-    role,
-    roles: [role],
+    role: normalizedRole,
+    roles: [normalizedRole],
     status: "active",
   });
 
@@ -131,8 +113,6 @@ async function login({ identifier, password }, meta = {}) {
 
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
-
-  await assertInfluencerAccessAllowed(user.role);
 
   const auth = await createSessionTokens(user, meta);
   await auditService.log({
@@ -171,8 +151,6 @@ async function refreshSession(refreshToken, meta = {}) {
   if (!user || user.status !== "active") {
     throw new AppError("Account unavailable", 401, "UNAUTHORIZED");
   }
-
-  await assertInfluencerAccessAllowed(user.role);
 
   const rotatedRefreshToken = signRefreshToken({ user, sessionId: session._id });
   const accessToken = signAccessToken(user);

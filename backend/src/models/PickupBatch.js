@@ -11,12 +11,6 @@ const pickupBatchSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
-    vendorId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
-      required: true,
-      index: true,
-    },
     shipmentIds: {
       type: [String],
       required: true,
@@ -56,8 +50,8 @@ const pickupBatchSchema = new mongoose.Schema(
     },
     scheduledByRole: {
       type: String,
-      enum: ["VENDOR", "ADMIN", "SYSTEM"],
-      default: "VENDOR",
+      enum: ["ADMIN", "SYSTEM"],
+      default: "ADMIN",
     },
     scheduledById: {
       type: mongoose.Schema.Types.ObjectId,
@@ -66,8 +60,8 @@ const pickupBatchSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-pickupBatchSchema.index({ vendorId: 1, scheduledAt: -1 });
-pickupBatchSchema.index({ vendorId: 1, status: 1, scheduledAt: -1 });
+pickupBatchSchema.index({ scheduledAt: -1 });
+pickupBatchSchema.index({ status: 1, scheduledAt: -1 });
 
 module.exports = {
   PickupBatch: mongoose.model("PickupBatch", pickupBatchSchema),

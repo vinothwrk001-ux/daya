@@ -80,8 +80,8 @@ async function migratePricingRules() {
     // 2. Platform Fee Rule
     rulesToCreate.push({
       key: "platform_fee",
-      displayName: "Platform Commission",
-      description: "Platform commission on orders",
+      displayName: "Platform Fee",
+      description: "Platform fee on orders",
       type: "PERCENTAGE",
       value: config.platformFeePercentage || 5,
       appliesTo: "ORDER",

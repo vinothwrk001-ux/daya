@@ -1,21 +1,16 @@
-const crypto = require("crypto");
 const { AppError } = require("../utils/AppError");
 const CODConfig = require("../models/CODConfig");
 const Shipment = require("../models/Shipment");
-const VendorOrder = require("../models/VendorOrder");
 const { Order } = require("../models/Order");
 const { Payment } = require("../models/Payment");
 const productRepo = require("../repositories/product.repository");
 const userRepo = require("../repositories/user.repository");
-const walletService = require("./wallet.service");
 const { emitDomainEvent } = require("../modules/events/event-bus");
 
 const COD_EVENTS = {
   COD_ORDER_PLACED: "COD_ORDER_PLACED",
   COD_COLLECTED: "COD_COLLECTED",
   SHIPMENT_CREATED: "SHIPMENT_CREATED",
-  VENDOR_ORDER_CREATED: "VENDOR_ORDER_CREATED",
-  SETTLEMENT_TRIGGERED: "SETTLEMENT_TRIGGERED",
 };
 
 function roundMoney(value) {
@@ -30,10 +25,6 @@ function normalizeState(value = "") {
   return String(value || "").trim().toLowerCase();
 }
 
-function buildSettlementRef(order) {
-  return `cod_${String(order?._id || "")}_${crypto.randomBytes(4).toString("hex")}`;
-}
-
 class CODService {
   async getConfig() {
     let config = await CODConfig.findOne({}).sort({ updatedAt: -1 });
@@ -45,7 +36,8 @@ class CODService {
 
   async updateConfig(payload = {}, actorId = null) {
     const config = await this.getConfig();
-    Object.assign(config, payload, { updatedBy: actorId || config.updatedBy });
+    const sanitizedPayload = { ...payload };
+    Object.assign(config, sanitizedPayload, { updatedBy: actorId || config.updatedBy });
     await config.save();
     return config;
   }
@@ -99,19 +91,14 @@ class CODService {
 
     for (const item of cartItems) {
       const productId = item?.productId?._id || item?.productId;
-      const sellerId = item?.sellerId?._id || item?.sellerId;
       if (productId && (config.restrictedProductIds || []).some((id) => String(id) === String(productId))) {
         reasons.push(`PRODUCT_RESTRICTED:${productId}`);
+        continue;
       }
-      if (sellerId && (config.restrictedVendorIds || []).some((id) => String(id) === String(sellerId))) {
-        reasons.push(`VENDOR_RESTRICTED:${sellerId}`);
-      }
-
-      if (productId && !sellerId) {
+      if (productId) {
         const product = await productRepo.findById(productId);
-        const resolvedSellerId = product?.sellerId || null;
-        if (resolvedSellerId && (config.restrictedVendorIds || []).some((id) => String(id) === String(resolvedSellerId))) {
-          reasons.push(`VENDOR_RESTRICTED:${resolvedSellerId}`);
+        if (!product || product.status !== "APPROVED" || product.isActive !== true) {
+          reasons.push(`PRODUCT_UNAVAILABLE:${productId}`);
         }
       }
     }
@@ -147,12 +134,11 @@ class CODService {
         {
           orderId: order._id,
           orderGroupId: order.orderGroupId || "",
-          vendorId: order.sellerId?._id || order.sellerId,
           shipmentId: order.shipmentId || "",
           paymentMethod: order.paymentMethod,
           prepaid: order.paymentMethod === "ONLINE",
           shipmentStatus: "PENDING",
-          shippingMode: order.shippingMode || "SELF",
+          shippingMode: order.shippingMode || "PLATFORM",
           codAmountCollectable: order.paymentMethod === "COD" ? roundMoney(order.totalAmount || 0) : 0,
           shippingAddressSnapshot: order.shippingAddress || {},
         },
@@ -161,35 +147,6 @@ class CODService {
     );
 
     return shipment;
-  }
-
-  async createVendorOrderRecord(order, { session = null } = {}) {
-    const [vendorOrder] = await VendorOrder.create(
-      [
-        {
-          orderId: order._id,
-          orderGroupId: order.orderGroupId || "",
-          vendorId: order.sellerId?._id || order.sellerId,
-          userId: order.userId?._id || order.userId,
-          paymentMethod: order.paymentMethod,
-          paymentStatus: order.paymentStatus,
-          subtotal: order.subtotal,
-          totalAmount: order.totalAmount,
-          grossAmount: roundMoney(order.totalAmount || order.subtotal || 0),
-          commissionAmount: roundMoney(order.platformCommissionAmount || 0),
-          vendorNetAmount: roundMoney(order.vendorEarning || 0),
-          codAmount: order.paymentMethod === "COD" ? roundMoney(order.totalAmount || 0) : 0,
-          shipmentId: order.shipmentId || "",
-          settlementStatus:
-            order.paymentMethod === "COD" ? "PENDING_COLLECTION" : "NOT_APPLICABLE",
-          vendorSettlementStatus:
-            order.paymentMethod === "COD" ? "PENDING_COLLECTION" : "NOT_APPLICABLE",
-        },
-      ],
-      { session: session || undefined }
-    );
-
-    return vendorOrder;
   }
 
   async syncShipmentForOrder(order, changes = {}, { session = null } = {}) {
@@ -216,22 +173,18 @@ class CODService {
     const paymentRecordId = orders[0].paymentRecordId;
     const payment = paymentRecordId ? await Payment.findById(paymentRecordId) : null;
     const config = await this.getConfig();
-    const holdDays = Number(config.vendorHoldDays || 0);
+    const holdDays = Number(config.holdDays ?? 0);
     const holdUntil = new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000);
 
     for (const order of orders) {
       order.paymentStatus = "Paid";
       order.paymentCapturedAt = new Date();
-      order.settlementStatus = "COLLECTED";
+      order.cod = order.cod || {};
       order.cod.status = "collected";
       order.cod.collectedAt = new Date();
       order.cod.collectedBy = String(actor || "SYSTEM");
       order.cod.collectedReference = String(reference || "");
       order.cod.holdUntil = holdUntil;
-      order.payoutEligibleAt = holdUntil;
-      if (order.attribution && !order.attribution.lockedAt) {
-        order.attribution.lockedAt = new Date();
-      }
       order.timeline = Array.isArray(order.timeline) ? order.timeline : [];
       order.timeline.push({
         status: "Placed",
@@ -239,17 +192,6 @@ class CODService {
         timestamp: new Date(),
       });
       await order.save();
-
-      await VendorOrder.findOneAndUpdate(
-        { orderId: order._id },
-        {
-          $set: {
-            paymentStatus: "Paid",
-            settlementStatus: "COLLECTED",
-            vendorSettlementStatus: "COLLECTED",
-          },
-        }
-      );
 
       await this.syncShipmentForOrder(order, {
         shipmentStatus: order.status === "Delivered" ? "DELIVERED" : "READY",
@@ -260,6 +202,7 @@ class CODService {
     if (payment) {
       payment.status = "PAID";
       payment.paidAt = new Date();
+      payment.codDetails = payment.codDetails || {};
       payment.codDetails.status = "collected";
       payment.codDetails.collectedAt = new Date();
       payment.codDetails.collectedAmount = amountToCollect;
@@ -274,12 +217,6 @@ class CODService {
       amount: amountToCollect,
       actor,
       actorId,
-    }).catch(() => {});
-
-    await emitDomainEvent(COD_EVENTS.SETTLEMENT_TRIGGERED, {
-      orderGroupId: orders[0].orderGroupId,
-      orderIds: orders.map((order) => order._id),
-      holdUntil,
     }).catch(() => {});
 
     return {
@@ -300,7 +237,7 @@ class CODService {
     order.paymentStatus = "Failed";
     order.cancelledAt = new Date();
     order.cancelReason = reason;
-    order.settlementStatus = "CANCELLED";
+    order.cod = order.cod || {};
     order.cod.status = "cancelled";
     order.timeline = Array.isArray(order.timeline) ? order.timeline : [];
     order.timeline.push({
@@ -310,10 +247,6 @@ class CODService {
     });
     await order.save();
 
-    await VendorOrder.findOneAndUpdate(
-      { orderId: order._id },
-      { $set: { paymentStatus: "Failed", settlementStatus: "CANCELLED", vendorSettlementStatus: "CANCELLED" } }
-    );
     await this.syncShipmentForOrder(order, { shipmentStatus: "CANCELLED", codAmountCollectable: 0 });
 
     if (order.paymentRecordId) {
@@ -326,41 +259,6 @@ class CODService {
     }
 
     return order;
-  }
-
-  async settleCollectedOrder(orderId) {
-    const order = await Order.findById(orderId);
-    if (!order) throw new AppError("Order not found", 404, "NOT_FOUND");
-    if (order.paymentMethod !== "COD") return { skipped: true, reason: "NOT_COD" };
-    if (order.cod?.status !== "collected") return { skipped: true, reason: "NOT_COLLECTED" };
-
-    const result = await walletService.settleOrderEarning(orderId);
-    if (result?.skipped) return result;
-    const settlementRef = buildSettlementRef(order);
-
-    await Order.updateOne(
-      { _id: orderId },
-      { $set: { settlementStatus: "SETTLED" } }
-    );
-    await VendorOrder.updateOne(
-      { orderId },
-      { $set: { settlementStatus: "SETTLED", vendorSettlementStatus: "SETTLED" } }
-    );
-    if (result.ledgerEntry?._id) {
-      const Ledger = require("../models/Ledger").Ledger;
-      await Ledger.updateOne(
-        { _id: result.ledgerEntry._id },
-        {
-          $set: {
-            source: "COD_SETTLEMENT",
-            codFee: this.getCodFeeFromCharges(order.priceBreakdown?.charges || order.chargesBreakdown || []),
-            settlementRef,
-          },
-        }
-      );
-    }
-
-    return { settled: true, settlementRef, result };
   }
 
   async getAnalytics({ days = 30 } = {}) {

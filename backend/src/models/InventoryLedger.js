@@ -23,13 +23,6 @@ const inventoryLedgerSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
-    sellerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
-      required: true,
-      index: true,
-    },
-    
     // Transaction Details
     transactionType: {
       type: String,
@@ -112,7 +105,6 @@ const inventoryLedgerSchema = new mongoose.Schema(
 
 // Compound indexes for common queries
 inventoryLedgerSchema.index({ productId: 1, variantId: 1, createdAt: -1 });
-inventoryLedgerSchema.index({ sellerId: 1, createdAt: -1 });
 inventoryLedgerSchema.index({ transactionType: 1, createdAt: -1 });
 inventoryLedgerSchema.index({ orderId: 1, transactionType: 1 });
 

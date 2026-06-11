@@ -11,37 +11,8 @@ function normalizeError(err) {
   return err?.response?.data?.message || err?.message || "Request failed";
 }
 
-function getSellerPickupWarning(order) {
-  const pickupAddress =
-    order?.sellerId?.pickupLocations?.find?.((location) => location?.isDefault) ||
-    order?.sellerId?.pickupLocations?.[0] ||
-    order?.sellerId?.pickupAddress ||
-    null;
-
-  const missing = [];
-  if (!pickupAddress?.name) missing.push("name");
-  if (!pickupAddress?.phone) missing.push("phone");
-  if (!pickupAddress?.addressLine1) missing.push("address");
-  if (!pickupAddress?.city) missing.push("city");
-  if (!pickupAddress?.state) missing.push("state");
-  if (!pickupAddress?.pincode) missing.push("pincode");
-  if (!pickupAddress?.country) missing.push("country");
-
-  return {
-    pickupAddress,
-    missing,
-    isComplete: missing.length === 0,
-  };
-}
-
 function resolvePickupAddress(order) {
-  return (
-    order?.pickupAddressSnapshot ||
-    order?.sellerId?.pickupLocations?.find?.((location) => location?.isDefault) ||
-    order?.sellerId?.pickupLocations?.[0] ||
-    order?.sellerId?.pickupAddress ||
-    null
-  );
+  return order?.pickupAddressSnapshot || null;
 }
 
 const STATUS_OPTIONS = ["Placed", "Packed", "Shipped", "Out for Delivery", "Delivered", "Cancelled", "Returned"];
@@ -95,7 +66,6 @@ export function AdminOrderDetailsPage() {
   const items = order?.items || [];
   const user = order?.userId;
   const address = order?.shippingAddress;
-  const pickupWarning = getSellerPickupWarning(order);
   const pickupAddress = resolvePickupAddress(order);
   const paymentSummary = {
     subtotal: Number(order?.subtotal || 0),
@@ -235,12 +205,6 @@ export function AdminOrderDetailsPage() {
       {fieldError ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           {fieldError}
-        </div>
-      ) : null}
-
-      {order?.shippingMode === "PLATFORM" && !order?.pickupAddressSnapshot?.addressLine1 && !pickupWarning.isComplete ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-          Vendor pickup location is incomplete for platform shipping. Missing: {pickupWarning.missing.join(", ")}.
         </div>
       ) : null}
 

@@ -14,7 +14,6 @@ import { useCart } from "../hooks/useCart";
 import * as checkoutService from "../services/checkoutService";
 import * as paymentService from "../services/paymentService";
 import * as pricingService from "../services/pricingService";
-import { trackAffiliateEvent } from "../services/influencerCommerceService";
 import { getCheckoutRecommendations, getFbtRecommendations } from "../services/recommendationService";
 import * as userService from "../services/userService";
 import { extractProductId, extractVariantId, getCartItemKey } from "../utils/cartState";
@@ -28,7 +27,6 @@ import {
   getShippingAddressFromSavedAddress,
   getSummaryItems,
 } from "../utils/checkout";
-import { loadTrackingContext } from "../utils/influencerTracking";
 import { saveRedirectAfterLogin } from "../utils/loginRedirect";
 import pendingCheckoutManager from "../utils/pendingCheckoutManager";
 import {
@@ -160,7 +158,9 @@ function delay(ms) {
 function reconcileSummaryWithCart(summary, cartLike) {
   const cartItems = Array.isArray(cartLike?.items) ? cartLike.items : [];
   if (!cartItems.length) return null;
-  if (!summary || !Array.isArray(summary?.sellers)) return summary;
+  if (!summary) return summary;
+  const summaryItems = getSummaryItems(summary);
+  if (!summaryItems.length) return summary;
 
   const cartItemMap = new Map(
     cartItems.map((item) => [
@@ -169,46 +169,31 @@ function reconcileSummaryWithCart(summary, cartLike) {
     ])
   );
 
-  const sellers = summary.sellers
-    .map((seller) => {
-      const items = Array.isArray(seller?.items)
-        ? seller.items
-            .map((item) => {
-              const key = getCartItemKey(extractProductId(item?.productId || item), extractVariantId(item));
-              const cartItem = cartItemMap.get(key);
-              if (!cartItem) return null;
-              return {
-                ...item,
-                quantity: cartItem.quantity,
-                price: cartItem.price,
-                image: cartItem.image || item.image,
-                variantId: cartItem.variantId || item.variantId || "",
-                variantTitle: cartItem.variantTitle || item.variantTitle || "",
-              };
-            })
-            .filter(Boolean)
-        : [];
-
+  const items = summaryItems
+    .map((item) => {
+      const key = getCartItemKey(extractProductId(item?.productId || item), extractVariantId(item));
+      const cartItem = cartItemMap.get(key);
+      if (!cartItem) return null;
       return {
-        ...seller,
-        items,
-        subtotal: items.reduce((sum, item) => sum + Number(item?.price || 0) * Number(item?.quantity || 0), 0),
+        ...item,
+        quantity: cartItem.quantity,
+        price: cartItem.price,
+        image: cartItem.image || item.image,
+        variantId: cartItem.variantId || item.variantId || "",
+        variantTitle: cartItem.variantTitle || item.variantTitle || "",
       };
     })
-    .filter((seller) => seller.items.length > 0);
+    .filter(Boolean);
 
-  if (!sellers.length) return null;
+  if (!items.length) return null;
 
-  const subtotal = sellers.reduce((sum, seller) => sum + Number(seller?.subtotal || 0), 0);
+  const subtotal = items.reduce((sum, item) => sum + Number(item?.price || 0) * Number(item?.quantity || 0), 0);
   const chargesTotal = Number(summary?.chargesTotal || 0);
-  const itemCount = sellers.reduce(
-    (sum, seller) => sum + seller.items.reduce((itemSum, item) => itemSum + Number(item?.quantity || 0), 0),
-    0
-  );
+  const itemCount = items.reduce((sum, item) => sum + Number(item?.quantity || 0), 0);
 
   return {
     ...summary,
-    sellers,
+    items,
     subtotal,
     itemCount,
     total: subtotal + chargesTotal,
@@ -259,7 +244,6 @@ export function CheckoutPage() {
   const [pricingConfig, setPricingConfig] = useState(null);
   const [amountPulse, setAmountPulse] = useState(false);
   const [codAvailability, setCodAvailability] = useState(null);
-  const checkoutStartedTrackedRef = useRef(false);
   const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const didMountPaymentMethodRef = useRef(false);
   const restoredPendingCheckoutRef = useRef(false);
@@ -315,19 +299,6 @@ export function CheckoutPage() {
       cancelled = true;
     };
   }, [checkoutProductIds]);
-
-  useEffect(() => {
-    if (checkoutStartedTrackedRef.current) return;
-    const trackingContext = loadTrackingContext();
-    if (!trackingContext?.trackingToken) return;
-    checkoutStartedTrackedRef.current = true;
-    trackAffiliateEvent({
-      trackingToken: trackingContext.trackingToken,
-      anonymousId: trackingContext.anonymousId || "",
-      eventType: "checkout_started",
-      metadata: { source: "checkout" },
-    }).catch(() => null);
-  }, []);
 
   const priceBreakdown = useMemo(() => {
     if (!summary) return null;
@@ -467,16 +438,12 @@ export function CheckoutPage() {
 
   const loadPreparedCheckout = useCallback(
     async (shippingAddress, selectedPaymentMethod = paymentMethod, guestCartItems = cart?.items || []) => {
-      const trackingContext = loadTrackingContext();
       const payload = {
         paymentMethod: selectedPaymentMethod,
       };
 
       if (shippingAddress && String(shippingAddress?.fullName || "").trim()) {
         payload.shippingAddress = shippingAddress;
-      }
-      if (trackingContext?.trackingToken) {
-        payload.trackingToken = trackingContext.trackingToken;
       }
 
       if (isAuthenticated) {
@@ -781,7 +748,6 @@ export function CheckoutPage() {
     setError("");
 
     try {
-      const trackingContext = loadTrackingContext();
       if (!isAuthenticated) {
         redirectToLoginForFinalCheckout(shippingAddress);
         return;
@@ -791,7 +757,6 @@ export function CheckoutPage() {
         const response = await checkoutService.createOrder({
           shippingAddress,
           paymentMethod: "COD",
-          trackingToken: trackingContext?.trackingToken,
         });
         const orders = response?.data?.orders || [];
         const payment = response?.data?.payment || null;
@@ -805,7 +770,6 @@ export function CheckoutPage() {
         paymentService.createRazorpayOrder({
           cartId: "current",
           shippingAddress,
-          trackingToken: trackingContext?.trackingToken,
         }),
         ensureRazorpay(),
       ]);
@@ -888,7 +852,6 @@ export function CheckoutPage() {
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
             shippingAddress,
-            trackingToken: trackingContext?.trackingToken,
           };
 
           navigate("/checkout/success", {

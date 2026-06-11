@@ -6,7 +6,6 @@ const { Refund } = require("../models/Refund");
 const { ReturnRequest } = require("../models/ReturnRequest");
 const { AppError } = require("../utils/AppError");
 const { normalizeDateRange } = require("../utils/dateRange");
-const vendorRepo = require("../repositories/vendor.repository");
 
 const FULFILLED_ORDER_STATUSES = new Set(["Placed", "Packed", "Shipped", "Out for Delivery", "Delivered", "Returned"]);
 const STATUS_KEY_MAP = {
@@ -50,7 +49,6 @@ function buildEmptyBucket(key = "") {
     unitsSold: 0,
     grossRevenue: 0,
     netRevenue: 0,
-    commissionAmount: 0,
     ordersCount: 0,
     returnCount: 0,
     refundCount: 0,
@@ -67,7 +65,6 @@ function cloneBucket(bucket = {}) {
     unitsSold: Number(bucket.unitsSold || 0),
     grossRevenue: roundMoney(bucket.grossRevenue || 0),
     netRevenue: roundMoney(bucket.netRevenue || 0),
-    commissionAmount: roundMoney(bucket.commissionAmount || 0),
     ordersCount: Number(bucket.ordersCount || 0),
     returnCount: Number(bucket.returnCount || 0),
     refundCount: Number(bucket.refundCount || 0),
@@ -96,7 +93,6 @@ function addBucketMetrics(target, source) {
   next.unitsSold += Number(source.unitsSold || 0);
   next.grossRevenue = roundMoney(next.grossRevenue + Number(source.grossRevenue || 0));
   next.netRevenue = roundMoney(next.netRevenue + Number(source.netRevenue || 0));
-  next.commissionAmount = roundMoney(next.commissionAmount + Number(source.commissionAmount || 0));
   next.ordersCount += Number(source.ordersCount || 0);
   next.returnCount += Number(source.returnCount || 0);
   next.refundCount += Number(source.refundCount || 0);
@@ -244,7 +240,6 @@ function pickBucketValue(bucket, filters = {}) {
           : 0,
         grossRevenue: roundMoney(bucket.grossRevenue || 0),
         netRevenue: roundMoney(bucket.netRevenue || 0),
-        commissionAmount: roundMoney(bucket.commissionAmount || 0),
         statusBreakdown: {
           ...buildEmptyStatusBreakdown(),
           [statusKey]: Number(bucket.statusBreakdown?.[statusKey] || 0),
@@ -266,7 +261,6 @@ function summarizeDocForRange(doc, filters = {}) {
     return {
       key: String(doc.productId),
       productId: doc.productId,
-      vendorId: doc.vendorId,
       categoryId: doc.categoryId,
       productName: doc.productName,
       categoryName: doc.categoryName,
@@ -275,7 +269,6 @@ function summarizeDocForRange(doc, filters = {}) {
       totalUnitsSold: safeNumber(doc.totalUnitsSold),
       totalRevenue: roundMoney(doc.totalRevenue || 0),
       totalNetRevenue: roundMoney(doc.totalNetRevenue || 0),
-      totalCommissionAmount: roundMoney(doc.totalCommissionAmount || 0),
       totalOrders: safeNumber(doc.totalOrders),
       totalReturns: safeNumber(doc.totalReturns),
       totalRefunds: safeNumber(doc.totalRefunds),
@@ -317,7 +310,6 @@ function summarizeDocForRange(doc, filters = {}) {
   return {
     key: String(doc.productId),
     productId: doc.productId,
-    vendorId: doc.vendorId,
     categoryId: doc.categoryId,
     productName: doc.productName,
     categoryName: doc.categoryName,
@@ -326,7 +318,6 @@ function summarizeDocForRange(doc, filters = {}) {
     totalUnitsSold,
     totalRevenue: roundMoney(aggregate.grossRevenue),
     totalNetRevenue: roundMoney(aggregate.netRevenue),
-    totalCommissionAmount: roundMoney(aggregate.commissionAmount),
     totalOrders,
     totalReturns,
     totalRefunds,
@@ -430,7 +421,6 @@ function buildOverview(items = []) {
       acc.totalRefunds += Number(item.totalRefunds || 0);
       acc.totalRefundedAmount = roundMoney(acc.totalRefundedAmount + Number(item.totalRefundedAmount || 0));
       acc.totalCancelled += Number(item.totalCancelled || 0);
-      acc.totalCommissionAmount = roundMoney(acc.totalCommissionAmount + Number(item.totalCommissionAmount || 0));
       acc.currentStock += Number(item.currentStock || 0);
       acc.availableStock += Number(item.availableStock || 0);
       acc.reservedStock += Number(item.reservedStock || 0);
@@ -445,7 +435,6 @@ function buildOverview(items = []) {
       totalRefunds: 0,
       totalRefundedAmount: 0,
       totalCancelled: 0,
-      totalCommissionAmount: 0,
       currentStock: 0,
       availableStock: 0,
       reservedStock: 0,
@@ -521,14 +510,6 @@ function buildAggregateTrend(docs = [], filters = {}, type = "monthly") {
     }));
 }
 
-async function resolveVendorIdForUser(userId) {
-  const vendor = await vendorRepo.findByUserId(userId);
-  if (!vendor) {
-    throw new AppError("Vendor profile not found", 404, "VENDOR_NOT_FOUND");
-  }
-  return vendor._id;
-}
-
 function deriveInventorySnapshot(product) {
   const variants = Array.isArray(product?.variants) ? product.variants : [];
   if (!variants.length) {
@@ -568,7 +549,6 @@ function buildProductAnalyticsDocument(product, analyticsSummary) {
 
   return {
     productId: product?._id || analyticsSummary.productId,
-    vendorId: product?.sellerId || analyticsSummary.vendorId || null,
     categoryId: product?.categoryId || analyticsSummary.categoryId || null,
     subCategoryId: product?.subCategoryId || analyticsSummary.subCategoryId || null,
     productName: product?.name || analyticsSummary.productName || "Deleted product",
@@ -583,7 +563,6 @@ function buildProductAnalyticsDocument(product, analyticsSummary) {
     totalUnitsSold: safeNumber(analyticsSummary.totalUnitsSold),
     totalRevenue: roundMoney(analyticsSummary.totalRevenue || 0),
     totalNetRevenue: roundMoney(analyticsSummary.totalNetRevenue || 0),
-    totalCommissionAmount: roundMoney(analyticsSummary.totalCommissionAmount || 0),
     totalOrders: safeNumber(analyticsSummary.totalOrders),
     totalReturns: safeNumber(analyticsSummary.totalReturns),
     totalRefunds: safeNumber(analyticsSummary.totalRefunds),
@@ -622,7 +601,6 @@ function buildLifecycleSummaryFromOrders(product, orders = [], refundsByOrderId 
 
   const total = {
     productId: product?._id || null,
-    vendorId: product?.sellerId || null,
     categoryId: product?.categoryId || null,
     productName: product?.name || "Deleted product",
     productSlug: product?.slug || "",
@@ -633,7 +611,6 @@ function buildLifecycleSummaryFromOrders(product, orders = [], refundsByOrderId 
     totalUnitsSold: 0,
     totalRevenue: 0,
     totalNetRevenue: 0,
-    totalCommissionAmount: 0,
     totalOrders: 0,
     totalReturns: 0,
     totalRefunds: 0,
@@ -672,8 +649,7 @@ function buildLifecycleSummaryFromOrders(product, orders = [], refundsByOrderId 
     for (const lineItem of lineItems) {
       const quantity = safeNumber(lineItem.quantity);
       const lineRevenue = roundMoney(safeNumber(lineItem.price) * quantity);
-      const lineCommission = roundMoney(lineItem.commissionSnapshot?.commissionAmount || 0);
-      const lineNetRevenue = roundMoney(lineItem.commissionSnapshot?.vendorNetAmount || (lineRevenue - lineCommission));
+      const lineNetRevenue = lineRevenue;
       const lineShareRatio = orderSubtotal > 0 ? lineRevenue / orderSubtotal : 0;
 
       if (!dailyStats.has(dayKey)) dailyStats.set(dayKey, buildEmptyBucket(dayKey));
@@ -688,7 +664,6 @@ function buildLifecycleSummaryFromOrders(product, orders = [], refundsByOrderId 
           bucket.unitsSold += quantity;
           bucket.grossRevenue = roundMoney(bucket.grossRevenue + lineRevenue);
           bucket.netRevenue = roundMoney(bucket.netRevenue + lineNetRevenue);
-          bucket.commissionAmount = roundMoney(bucket.commissionAmount + lineCommission);
           bucket.ordersCount += 1;
           if (order.paymentMethod === "COD") {
             bucket.paymentBreakdown.codOrders += 1;
@@ -711,7 +686,6 @@ function buildLifecycleSummaryFromOrders(product, orders = [], refundsByOrderId 
         total.totalUnitsSold += quantity;
         total.totalRevenue = roundMoney(total.totalRevenue + lineRevenue);
         total.totalNetRevenue = roundMoney(total.totalNetRevenue + lineNetRevenue);
-        total.totalCommissionAmount = roundMoney(total.totalCommissionAmount + lineCommission);
         total.totalOrders += 1;
         if (order.paymentMethod === "COD") {
           total.paymentBreakdown.codOrders += 1;
@@ -774,7 +748,6 @@ class ProductAnalyticsService {
     if (!product?._id) return null;
     const empty = buildProductAnalyticsDocument(product, {
       productId: product._id,
-      vendorId: product.sellerId || null,
       categoryId: product.categoryId || null,
       productName: product.name || "",
       productSlug: product.slug || "",
@@ -785,7 +758,6 @@ class ProductAnalyticsService {
       totalUnitsSold: 0,
       totalRevenue: 0,
       totalNetRevenue: 0,
-      totalCommissionAmount: 0,
       totalOrders: 0,
       totalReturns: 0,
       totalRefunds: 0,
@@ -910,19 +882,15 @@ class ProductAnalyticsService {
 
   async listAnalyticsDocs(filters = {}) {
     const query = {};
-    if (filters.vendorId) query.vendorId = filters.vendorId;
     if (filters.categoryId && mongoose.isValidObjectId(filters.categoryId)) query.categoryId = filters.categoryId;
     if (filters.productId && mongoose.isValidObjectId(filters.productId)) query.productId = filters.productId;
     if (filters.includeDeleted !== true) query.productDeleted = { $ne: true };
-    if (filters.vendorIds?.length) query.vendorId = { $in: filters.vendorIds };
     return await ProductAnalytics.find(query).sort({ totalRevenue: -1, totalUnitsSold: -1, updatedAt: -1 }).lean();
   }
 
   async getAdminDashboard(filters = {}) {
     const docs = await this.listAnalyticsDocs(filters);
-    const items = docs
-      .map((doc) => summarizeDocForRange(doc, filters))
-      .filter((item) => !filters.vendorId || String(item.vendorId || "") === String(filters.vendorId));
+    const items = docs.map((doc) => summarizeDocForRange(doc, filters));
     const overview = buildOverview(items);
     const categoryPerformance = buildCategoryPerformance(items);
     const topSellingProducts = [...items].sort((a, b) => b.totalUnitsSold - a.totalUnitsSold).slice(0, 10);
@@ -941,7 +909,6 @@ class ProductAnalyticsService {
         range: filters.range || "",
         startDate: filters.startDate || "",
         endDate: filters.endDate || "",
-        vendorId: filters.vendorId || "",
         categoryId: filters.categoryId || "",
         paymentMethod: filters.paymentMethod || "",
         orderStatus: filters.orderStatus || "",
@@ -964,32 +931,7 @@ class ProductAnalyticsService {
     };
   }
 
-  async getVendorDashboard(userId, filters = {}) {
-    const vendorId = filters.vendorId || await resolveVendorIdForUser(userId);
-    const docs = await this.listAnalyticsDocs({ ...filters, vendorId });
-    const items = docs.map((doc) => summarizeDocForRange(doc, filters));
-    const overview = buildOverview(items);
-
-    return {
-      scope: "vendor",
-      vendorId,
-      overview: {
-        ...overview,
-        topProduct: [...items].sort((a, b) => b.totalRevenue - a.totalRevenue)[0] || null,
-      },
-      insights: deriveInsightRows(items),
-      topProducts: [...items].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 10),
-      lowestProducts: [...items].sort((a, b) => a.totalRevenue - b.totalRevenue).slice(0, 10),
-      inventoryPerformance: items
-        .map((item) => ({ ...item, inventory: buildInventoryInsight(item) }))
-        .sort((a, b) => b.inventory.stockVelocity - a.inventory.stockVelocity)
-        .slice(0, 20),
-      categoryPerformance: buildCategoryPerformance(items),
-      productRows: items.slice(0, 100),
-    };
-  }
-
-  async getProductDetail(productId, filters = {}, { vendorScoped = false, userId = null } = {}) {
+  async getProductDetail(productId, filters = {}) {
     if (!mongoose.isValidObjectId(productId)) {
       throw new AppError("Invalid product id", 400, "VALIDATION_ERROR");
     }
@@ -1002,18 +944,10 @@ class ProductAnalyticsService {
       throw new AppError("Product analytics not found", 404, "NOT_FOUND");
     }
 
-    if (vendorScoped) {
-      const vendorId = await resolveVendorIdForUser(userId);
-      if (String(doc.vendorId || "") !== String(vendorId)) {
-        throw new AppError("Forbidden", 403, "FORBIDDEN");
-      }
-    }
-
     const summary = summarizeDocForRange(doc, filters);
     return {
       product: {
         productId: doc.productId,
-        vendorId: doc.vendorId,
         categoryId: doc.categoryId,
         productName: doc.productName,
         categoryName: doc.categoryName,
@@ -1033,10 +967,8 @@ class ProductAnalyticsService {
     };
   }
 
-  async buildExportRows({ scope = "admin", userId = null, filters = {} } = {}) {
-    const data = scope === "vendor"
-      ? await this.getVendorDashboard(userId, filters)
-      : await this.getAdminDashboard(filters);
+  async buildExportRows({ filters = {} } = {}) {
+    const data = await this.getAdminDashboard(filters);
 
     return (data.productRows || []).map((row) => ({
       Product: row.productName,

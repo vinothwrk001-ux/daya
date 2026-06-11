@@ -26,18 +26,6 @@ function normalizeVariantId(variantId = "") {
   return String(variantId || "").trim();
 }
 
-function normalizeRefId(value) {
-  if (!value) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "object") {
-    if (value._id) return String(value._id);
-    if (typeof value.toString === "function" && value.toString !== Object.prototype.toString) {
-      return String(value.toString());
-    }
-  }
-  return String(value);
-}
-
 function isLegacyVariantId(variantId = "") {
   const normalized = normalizeVariantId(variantId);
   return !normalized || normalized === LEGACY_VARIANT_ID;
@@ -102,24 +90,6 @@ class InventoryService {
     return product;
   }
 
-  assertOwnership(product, expectedSellerId = null) {
-    if (!expectedSellerId) {
-      return;
-    }
-
-    // Platform-managed products can be routed through a synthetic vendor record
-    // during checkout even when the legacy product document does not store sellerId.
-    if (!product?.sellerId) {
-      return;
-    }
-
-    const actualSellerId = normalizeRefId(product?.sellerId);
-    const requiredSellerId = normalizeRefId(expectedSellerId);
-    if (actualSellerId !== requiredSellerId) {
-      throw new AppError("Forbidden", 403, "FORBIDDEN");
-    }
-  }
-
   async buildLegacyVariant(product) {
     const ledgerState = await this.getLatestLedgerState(product._id, LEGACY_VARIANT_ID);
     return {
@@ -133,7 +103,6 @@ class InventoryService {
       stock: toNumber(product.stock),
       reservedStock: ledgerState.reservedStock,
       threshold: toNumber(product.lowStockThreshold, DEFAULT_THRESHOLD),
-      sellerId: product.sellerId,
       source: "LEGACY",
     };
   }
@@ -181,7 +150,6 @@ class InventoryService {
         stock: toNumber(variant.stock),
         reservedStock: toNumber(variant.reservedStock),
         threshold: toNumber(variant.threshold, DEFAULT_THRESHOLD),
-        sellerId: product.sellerId,
         source: "VARIANT",
       },
       variant,
@@ -199,7 +167,6 @@ class InventoryService {
       productId: product._id,
       productName: product.name,
       productSku: product.SKU,
-      sellerId: product.sellerId,
       variantId: inventoryRecord.variantId,
       variantTitle: inventoryRecord.variantTitle,
       sku: inventoryRecord.sku,
@@ -221,7 +188,6 @@ class InventoryService {
 
   async getAvailableStock(productId, variantId = "", options = {}) {
     const product = await this.getProductOrFail(productId);
-    this.assertOwnership(product, options.expectedSellerId);
 
     const { record } = await this.resolveInventoryRecord(product, variantId);
     const summary = this.buildInventoryView(product, record);
@@ -241,7 +207,6 @@ class InventoryService {
 
   async getVariantInventory(productId, variantId, options = {}) {
     const product = await this.getProductOrFail(productId);
-    this.assertOwnership(product, options.expectedSellerId);
 
     const { record } = await this.resolveInventoryRecord(product, variantId, { requireExplicit: true });
     return this.buildInventoryView(product, record);
@@ -249,7 +214,6 @@ class InventoryService {
 
   async getProductInventory(productId, options = {}) {
     const product = await this.getProductOrFail(productId);
-    this.assertOwnership(product, options.expectedSellerId);
 
     const activeVariants = getActiveVariantList(product);
     const variantRecords = activeVariants.length
@@ -264,7 +228,6 @@ class InventoryService {
           stock: toNumber(variant.stock),
           reservedStock: toNumber(variant.reservedStock),
           threshold: toNumber(variant.threshold, DEFAULT_THRESHOLD),
-          sellerId: product.sellerId,
           source: "VARIANT",
         }))
       : [await this.buildLegacyVariant(product)];
@@ -289,14 +252,13 @@ class InventoryService {
     };
   }
 
-  async reserveStock(productId, variantId, quantity, orderId, sellerId, userId, options = {}) {
+  async reserveStock(productId, variantId, quantity, orderId, userId, options = {}) {
     const normalizedQuantity = toNumber(quantity);
     if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
       throw new AppError("Quantity must be greater than 0", 400, "INVALID_QUANTITY");
     }
 
     const product = await this.getProductOrFail(productId, options);
-    this.assertOwnership(product, sellerId);
 
     const resolved = await this.resolveInventoryRecord(product, variantId);
     const currentAvailable = calculateAvailableStock(resolved.record.stock, resolved.record.reservedStock);
@@ -319,7 +281,6 @@ class InventoryService {
       productId,
       variantId: resolved.record.variantId,
       variantSku: resolved.record.sku,
-      sellerId: product.sellerId,
       transactionType: "RESERVED",
       quantityChange: normalizedQuantity,
       stockBefore: resolved.record.stock,
@@ -341,14 +302,13 @@ class InventoryService {
     };
   }
 
-  async deductStock(productId, variantId, quantity, shipmentId, orderId, sellerId, userId, options = {}) {
+  async deductStock(productId, variantId, quantity, shipmentId, orderId, userId, options = {}) {
     const normalizedQuantity = toNumber(quantity);
     if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
       throw new AppError("Quantity must be greater than 0", 400, "INVALID_QUANTITY");
     }
 
     const product = await this.getProductOrFail(productId, options);
-    this.assertOwnership(product, sellerId);
 
     const resolved = await this.resolveInventoryRecord(product, variantId);
     const currentStock = resolved.record.stock;
@@ -387,7 +347,6 @@ class InventoryService {
       productId,
       variantId: resolved.record.variantId,
       variantSku: resolved.record.sku,
-      sellerId: product.sellerId,
       transactionType: "SALE",
       quantityChange: -normalizedQuantity,
       stockBefore: currentStock,
@@ -411,14 +370,13 @@ class InventoryService {
     };
   }
 
-  async restoreStock(productId, variantId, quantity, returnId, orderId, sellerId, userId, reason = "Return processed", options = {}) {
+  async restoreStock(productId, variantId, quantity, returnId, orderId, userId, reason = "Return processed", options = {}) {
     const normalizedQuantity = toNumber(quantity);
     if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
       throw new AppError("Quantity must be greater than 0", 400, "INVALID_QUANTITY");
     }
 
     const product = await this.getProductOrFail(productId, options);
-    this.assertOwnership(product, sellerId);
 
     const resolved = await this.resolveInventoryRecord(product, variantId);
     const currentStock = resolved.record.stock;
@@ -440,7 +398,6 @@ class InventoryService {
       productId,
       variantId: resolved.record.variantId,
       variantSku: resolved.record.sku,
-      sellerId: product.sellerId,
       transactionType: "RETURN",
       quantityChange: normalizedQuantity,
       stockBefore: currentStock,
@@ -464,14 +421,13 @@ class InventoryService {
     };
   }
 
-  async unreserveStock(productId, variantId, quantity, orderId, sellerId, userId, options = {}) {
+  async unreserveStock(productId, variantId, quantity, orderId, userId, options = {}) {
     const normalizedQuantity = toNumber(quantity);
     if (!Number.isFinite(normalizedQuantity) || normalizedQuantity <= 0) {
       throw new AppError("Quantity must be greater than 0", 400, "INVALID_QUANTITY");
     }
 
     const product = await this.getProductOrFail(productId, options);
-    this.assertOwnership(product, sellerId);
 
     const resolved = await this.resolveInventoryRecord(product, variantId);
     const currentReserved = resolved.record.reservedStock;
@@ -494,7 +450,6 @@ class InventoryService {
       productId,
       variantId: resolved.record.variantId,
       variantSku: resolved.record.sku,
-      sellerId: product.sellerId,
       transactionType: "UNRESERVED",
       quantityChange: 0,
       stockBefore: resolved.record.stock,
@@ -523,7 +478,6 @@ class InventoryService {
     }
 
     const product = await this.getProductOrFail(productId);
-    this.assertOwnership(product, options.expectedSellerId);
 
     const resolved = await this.resolveInventoryRecord(product, variantId, { requireExplicit: true });
     const currentStock = resolved.record.stock;
@@ -559,7 +513,6 @@ class InventoryService {
       productId,
       variantId: resolved.record.variantId,
       variantSku: resolved.record.sku,
-      sellerId: product.sellerId,
       transactionType: normalizedChange > 0 ? "RESTOCK" : "MANUAL_ADJUSTMENT",
       quantityChange: normalizedChange,
       stockBefore: currentStock,
@@ -587,7 +540,6 @@ class InventoryService {
     }
 
     const product = await this.getProductOrFail(productId);
-    this.assertOwnership(product, options.expectedSellerId);
 
     const resolved = await this.resolveInventoryRecord(product, variantId, { requireExplicit: true });
     const oldThreshold = resolved.record.threshold;
@@ -611,7 +563,6 @@ class InventoryService {
 
   async getVariantLedger(productId, variantId, limit = 100, offset = 0, options = {}) {
     const product = await this.getProductOrFail(productId);
-    this.assertOwnership(product, options.expectedSellerId);
 
     const { record } = await this.resolveInventoryRecord(product, variantId, { requireExplicit: true });
     const normalizedLimit = Math.max(1, Math.min(toNumber(limit, 100), 500));
@@ -648,66 +599,11 @@ class InventoryService {
     };
   }
 
-  async getLowStockVariants(sellerId, limit = 50, offset = 0) {
-    const products = await Product.find({ sellerId }).select("_id name SKU stock lowStockThreshold variants sellerId");
-    const lowStockVariants = [];
-
-    for (const product of products) {
-      const inventory = await this.getProductInventory(product._id, { expectedSellerId: sellerId });
-      for (const variant of inventory.variants) {
-        if (variant.isLowStock) {
-          lowStockVariants.push({
-            productId: product._id,
-            productName: product.name,
-            variantId: variant.variantId,
-            variantTitle: variant.variantTitle,
-            sku: variant.sku,
-            stock: variant.stock,
-            reserved: variant.reserved,
-            available: variant.available,
-            threshold: variant.threshold,
-            status: variant.status,
-          });
-        }
-      }
-    }
-
-    const normalizedOffset = Math.max(0, toNumber(offset, 0));
-    const normalizedLimit = Math.max(1, Math.min(toNumber(limit, 50), 500));
-    return {
-      sellerId,
-      total: lowStockVariants.length,
-      limit: normalizedLimit,
-      offset: normalizedOffset,
-      items: lowStockVariants.slice(normalizedOffset, normalizedOffset + normalizedLimit),
-    };
-  }
-
-  async getSellerInventorySummary(sellerId) {
-    const products = await Product.find({ sellerId }).select("_id name SKU sellerId stock lowStockThreshold variants");
-    const inventorySummary = [];
-
-    for (const product of products) {
-      inventorySummary.push(await this.getProductInventory(product._id, { expectedSellerId: sellerId }));
-    }
-
-    return {
-      sellerId,
-      totalProducts: inventorySummary.length,
-      totalStock: inventorySummary.reduce((sum, product) => sum + toNumber(product.totalStock), 0),
-      totalReservedStock: inventorySummary.reduce((sum, product) => sum + toNumber(product.totalReservedStock), 0),
-      totalAvailableStock: inventorySummary.reduce((sum, product) => sum + toNumber(product.totalAvailableStock), 0),
-      lowStockVariants: inventorySummary.reduce((sum, product) => sum + toNumber(product.lowStockVariants), 0),
-      products: inventorySummary,
-    };
-  }
-
   async commitOrderInventory(order, { shipmentId = null, performedBy = null, session = null } = {}) {
     if (!order || order.inventoryCommittedAt) {
       return order;
     }
 
-    const sellerId = order.sellerId?._id || order.sellerId;
     for (const item of order.items || []) {
       await this.deductStock(
         item.productId?._id || item.productId,
@@ -715,7 +611,6 @@ class InventoryService {
         toNumber(item.quantity),
         shipmentId || order.shipmentId || undefined,
         order._id,
-        sellerId,
         performedBy,
         { session }
       );
@@ -731,7 +626,6 @@ class InventoryService {
         productId: data.productId,
         variantId: data.variantId,
         variantSku: data.variantSku,
-        sellerId: data.sellerId,
         transactionType: data.transactionType,
         status: "COMPLETED",
         quantityChange: data.quantityChange,

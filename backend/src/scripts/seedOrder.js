@@ -5,7 +5,6 @@ const mongoose = require("mongoose");
 const { connectDb } = require("../config/db");
 const { Order } = require("../models/Order");
 const { User } = require("../models/User");
-const { Vendor } = require("../models/Vendor");
 
 async function main() {
   try {
@@ -27,36 +26,10 @@ async function main() {
       logger.info("Test buyer created:", { value: buyer._id });
     }
 
-    // Find an existing vendor (seller)
-    let vendor = await Vendor.findOne({ status: "approved" });
-    if (!vendor) {
-      // Create a test user for vendor
-      const vendorUser = await User.create({
-        name: "Test Vendor",
-        email: "vendor@test.com",
-        phone: "9988776655",
-        password: "Password123",
-        role: "vendor",
-        status: "active",
-      });
-
-      vendor = await Vendor.create({
-        userId: vendorUser._id,
-        companyName: "Test Store",
-        address: "123 Business St",
-        shopName: "Test Shop",
-        storeSlug: "test-shop",
-        status: "approved",
-        stepCompleted: 4,
-      });
-      logger.info("Test vendor created:", { value: vendor._id });
-    }
-
     // Create a test order
     const order = await Order.create({
       orderNumber: `ORD-${Date.now()}-TEST`,
       userId: buyer._id,
-      sellerId: vendor._id,
       items: [
         {
           productId: new mongoose.Types.ObjectId(),
@@ -106,7 +79,6 @@ async function main() {
     logger.info("- Order ID:", { value: order._id });
     logger.info("- Order Number:", { value: order.orderNumber });
     logger.info("- Buyer:", { value: buyer.email });
-    logger.info("- Seller:", { value: vendor.shopName });
     logger.info("- Total Amount: ₹", { value: order.totalAmount });
     logger.info("- Status:", { value: order.status });
 

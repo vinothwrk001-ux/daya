@@ -19,7 +19,6 @@ const { ProductReviewSummary } = require("../models/ProductReviewSummary");
 const { Product } = require("../models/Product");
 const { ReturnRequest } = require("../models/ReturnRequest");
 const { AuditLog } = require("../models/AuditLog");
-const notificationService = require("./notification.service");
 const orderLifecycleService = require("./order.service");
 const {
   buildOrderSnapshot,
@@ -105,7 +104,7 @@ async function resolveDeliveredOrderForReview(userId, productId, orderId) {
     query._id = orderId;
   }
 
-  const order = await Order.findOne(query).select("_id sellerId items.productId");
+  const order = await Order.findOne(query).select("_id items.productId");
   if (!order) {
     throw new AppError("Only delivered products can be reviewed", 400, "INVALID_OPERATION");
   }
@@ -200,7 +199,6 @@ class UserService {
       ]),
       Wishlist.countDocuments({ userId }),
       Order.find({ userId })
-        .populate("sellerId", "companyName")
         .sort({ createdAt: -1 })
         .limit(5)
         .select("orderNumber totalAmount status paymentStatus createdAt"),
@@ -386,7 +384,6 @@ class UserService {
             },
             {
               user,
-              seller: order.sellerId,
               paymentRecord: order.paymentRecordId,
             }
           );
@@ -403,10 +400,8 @@ class UserService {
     return {
       ...buildOrderSummary(order, {
         user,
-        seller: order.sellerId,
         paymentRecord: order.paymentRecordId,
       }),
-      sellerId: order.sellerId,
       totalAmount: order.totalAmount,
     };
   }
@@ -476,7 +471,6 @@ class UserService {
     }
 
     const request = await ReturnRequest.create({
-      vendorId: order.sellerId?._id || order.sellerId,
       orderId: order._id,
       customerId: userId,
       reason: payload.reason,
@@ -491,19 +485,6 @@ class UserService {
       message: `Return request submitted for order ${order.orderNumber}.`,
       entityType: "ReturnRequest",
       entityId: request._id,
-    });
-    await notificationService.notifyVendorAndOperations({
-      vendorId: order.sellerId?._id || order.sellerId,
-      permissionKey: "orders.read",
-      module: "MANAGEMENT",
-      subModule: "RETURNS",
-      type: "RETURN_REQUEST",
-      title: "Return requested",
-      message: `A return was requested for order ${order.orderNumber}.`,
-      referenceId: request._id,
-      meta: {
-        orderNumber: order.orderNumber,
-      },
     });
     return request;
   }
@@ -535,11 +516,7 @@ class UserService {
       .sort({ createdAt: -1 })
       .populate({
         path: "productId",
-        select: "name category price discountPrice images stock status isActive slug variants sellerId ratings",
-        populate: {
-          path: "sellerId",
-          select: "companyName shopName storeSlug logoUrl status isStoreVisible",
-        },
+        select: "name category price discountPrice images stock status isActive slug variants ratings",
       });
 
     return items
@@ -638,7 +615,7 @@ class UserService {
       isActive: { $ne: false },
     })
       .populate("items.productId", "name images price discountPrice")
-      .select("_id orderNumber status createdAt updatedAt sellerId items")
+      .select("_id orderNumber status createdAt updatedAt items")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -687,7 +664,6 @@ class UserService {
     return await ProductReview.find({ customerId: userId, status: { $ne: "deleted" } })
       .populate("productId", "name images")
       .populate("orderId", "orderNumber")
-      .populate("vendorId", "shopName companyName")
       .sort({ createdAt: -1 });
   }
 
@@ -696,14 +672,10 @@ class UserService {
     if (payload.orderId) assertObjectId(payload.orderId, "orderId");
     assertReviewPhotoFiles(files);
 
-    const product = await Product.findById(payload.productId).select("_id sellerId");
+    const product = await Product.findById(payload.productId).select("_id");
     if (!product) throw new AppError("Product not found", 404, "NOT_FOUND");
 
     const deliveredOrder = await resolveDeliveredOrderForReview(userId, payload.productId, payload.orderId);
-    const vendorId = deliveredOrder.sellerId?._id || deliveredOrder.sellerId || product.sellerId;
-    if (!vendorId) {
-      throw new AppError("Vendor not found for reviewed product", 400, "INVALID_OPERATION");
-    }
 
     const existing = await ProductReview.findOne({
       customerId: userId,
@@ -715,7 +687,6 @@ class UserService {
 
     const photos = await uploadMany(files, { folder: "reviews" });
     const review = await ProductReview.create({
-      vendorId,
       productId: payload.productId,
       orderId: deliveredOrder._id,
       customerId: userId,

@@ -65,14 +65,13 @@ async function main() {
     },
     timeline: [
       { status: "Placed", note: "Order placed", timestamp: new Date("2026-05-09T10:00:00.000Z") },
-      { status: "Packed", note: "Seller confirmed", timestamp: new Date("2026-05-09T12:00:00.000Z") },
+      { status: "Packed", note: "Order confirmed", timestamp: new Date("2026-05-09T12:00:00.000Z") },
       { status: "Shipped", note: "Handed to courier", timestamp: new Date("2026-05-10T08:00:00.000Z") },
     ],
   };
 
   const snapshot = buildOrderSnapshot(baseOrder, {
     user: { name: "Asha Verma", email: "asha@example.com", phone: "9999999999" },
-    seller: { _id: "681dd52f0000000000000201", companyName: "Vendor One", supportPhone: "8888888888" },
   });
 
   assert.equal(snapshot.items[0].variantName, "Black / M");
@@ -109,7 +108,6 @@ async function main() {
       paymentStatus: "Pending",
     }, {
       user: { name: "Asha Verma", email: "asha@example.com", phone: "9999999999" },
-      seller: { _id: "681dd52f0000000000000201", companyName: "Vendor One", supportPhone: "8888888888" },
     }),
   });
   assert.equal(codSummary.payment.method, "COD");

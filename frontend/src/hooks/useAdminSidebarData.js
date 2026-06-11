@@ -1,44 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ADMIN_PRIMARY_ITEM, ADMIN_SECTION_ITEMS } from "../config/sidebarModules";
 import { useAdminSession } from "./useAdminSession";
-import vendorModuleService from "../services/vendorModule.service";
 
 export function useAdminSidebarData(summary = { modules: {}, subModules: {} }) {
   const { isLegacyAdmin, canAccess } = useAdminSession();
-  const [enabledModules, setEnabledModules] = useState({});
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadModuleFlags() {
-      if (!isLegacyAdmin) {
-        setEnabledModules({});
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const modules = await vendorModuleService.getAllModules();
-        if (!active) return;
-        setEnabledModules(
-          Object.fromEntries(modules.map((module) => [module.key, module.enabled === true]))
-        );
-      } catch {
-        if (!active) return;
-        setEnabledModules({});
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadModuleFlags();
-    return () => {
-      active = false;
-    };
-  }, [isLegacyAdmin]);
 
   const sections = useMemo(() => {
     function canShowItem(item) {
@@ -47,10 +12,6 @@ export function useAdminSidebarData(summary = { modules: {}, subModules: {} }) {
       }
 
       if (item.permission && !canAccess(item.permission)) {
-        return false;
-      }
-
-      if (item.moduleKey && enabledModules[item.moduleKey] === false) {
         return false;
       }
 
@@ -82,14 +43,14 @@ export function useAdminSidebarData(summary = { modules: {}, subModules: {} }) {
       badgeCount: Number(summary.modules?.[section.notificationModule] || 0),
       items: section.items.map(normalizeItem).filter(Boolean),
     })).filter((section) => section.items.length > 0);
-  }, [canAccess, enabledModules, isLegacyAdmin, summary.modules, summary.subModules]);
+  }, [canAccess, isLegacyAdmin, summary.modules, summary.subModules]);
 
   return {
     title: "Admin Hub",
     subtitle: "Accordion navigation",
     primaryItem: ADMIN_PRIMARY_ITEM,
     sections,
-    loading,
+    loading: false,
     error: "",
   };
 }

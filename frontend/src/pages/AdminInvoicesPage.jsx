@@ -9,7 +9,6 @@ import { formatCurrency } from "../utils/formatCurrency";
 const financeTabs = [
   { label: "Invoices", to: "/admin/finance/invoices" },
   { label: "Invoice Settings", to: "/admin/finance/invoices/settings" },
-  { label: "Payout Management", to: "/admin/finance/payouts" },
 ];
 
 function normalizeError(error) {
@@ -101,7 +100,7 @@ export function AdminInvoicesPage() {
               <tr>
                 <th className="px-4 py-3 font-semibold">Invoice</th>
                 <th className="px-4 py-3 font-semibold">Customer</th>
-                <th className="px-4 py-3 font-semibold">Vendor</th>
+                <th className="px-4 py-3 font-semibold">Fulfillment</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold text-right">Total</th>
                 <th className="px-4 py-3 font-semibold">Action</th>
@@ -118,7 +117,7 @@ export function AdminInvoicesPage() {
                       <div className="text-xs text-slate-500">{invoice.orderNumber}</div>
                     </td>
                     <td className="px-4 py-3 text-slate-700">{invoice.customerName}</td>
-                    <td className="px-4 py-3 text-slate-700">{invoice.vendorName || "Platform Store"}</td>
+                    <td className="px-4 py-3 text-slate-700">Platform Store</td>
                     <td className="px-4 py-3 text-slate-700">{invoice.paymentStatus} / {invoice.orderStatus}</td>
                     <td className="px-4 py-3 text-right font-semibold text-slate-950">{formatCurrency(invoice.totalAmount, { currency: invoice.currency })}</td>
                     <td className="px-4 py-3">

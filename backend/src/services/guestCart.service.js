@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const { AppError } = require("../utils/AppError");
 const productRepo = require("../repositories/product.repository");
-const vendorRepo = require("../repositories/vendor.repository");
 const { resolveBestVariant } = require("./variantResolver.service");
 
 /**
@@ -45,21 +44,6 @@ function getItemKey(productId, variantId = "") {
   return `${String(productId)}::${String(variantId || "")}`;
 }
 
-async function resolveSellerIdForProduct(product) {
-  if (product?.sellerId) return product.sellerId;
-  if (product?.creatorType === "ADMIN" && product?.createdBy?._id) {
-    const vendor = await vendorRepo.upsertByUserId(product.createdBy._id, {
-      status: "approved",
-      stepCompleted: 4,
-      companyName: "Platform Store",
-      shopName: "Platform Store",
-      storeDescription: "Products sold directly by the platform.",
-    });
-    return vendor._id;
-  }
-  return null;
-}
-
 class GuestCartService {
   /**
    * Validate and enrich an item being added to guest cart
@@ -91,14 +75,10 @@ class GuestCartService {
       throw new AppError(`Only ${availableStock} item${availableStock === 1 ? "" : "s"} available`, 400, "INSUFFICIENT_STOCK");
     }
 
-    const resolvedSellerId = await resolveSellerIdForProduct(product);
-    if (!resolvedSellerId) throw new AppError("Seller not found for product", 400, "INVALID_PRODUCT");
-
     const unitPrice = Number(variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0);
 
     return {
       productId,
-      vendorId: resolvedSellerId,
       quantity: qty,
       name: product.name,
       price: unitPrice,
@@ -160,12 +140,6 @@ class GuestCartService {
           continue;
         }
 
-        const resolvedSellerId = await resolveSellerIdForProduct(product);
-        if (!resolvedSellerId) {
-          errors.push({ productId: item.productId, error: "Seller not found" });
-          continue;
-        }
-
         // Refresh price from DB
         const currentPrice = Number(
           variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0
@@ -175,7 +149,6 @@ class GuestCartService {
           ...item,
           name: product.name,
           price: currentPrice,
-          vendorId: resolvedSellerId,
           stock: availableStock,
           image:
             variant?.images?.find((image) => image.isPrimary)?.url ||
@@ -209,7 +182,6 @@ class GuestCartService {
         productId: item.productId,
         quantity: item.quantity,
         price: item.price,
-        vendorId: item.vendorId,
       })),
       errors: validation.errors,
     };

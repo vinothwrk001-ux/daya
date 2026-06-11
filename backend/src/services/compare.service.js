@@ -40,8 +40,7 @@ async function listCompareItems(userId) {
     .sort({ createdAt: -1 })
     .populate({
       path: "productId",
-      select: "name category price discountPrice images stock status isActive slug attributes brand sellerId ratings",
-      populate: { path: "sellerId", select: "shopName companyName" },
+      select: "name category price discountPrice images stock status isActive slug attributes brand ratings",
     });
 
   return {

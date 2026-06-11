@@ -15,10 +15,6 @@ const pageMeta = {
     title: "Users",
     subtitle: "Manage user accounts, access, and lifecycle actions.",
   },
-  "/admin/sellers": {
-    title: "Sellers",
-    subtitle: "Control category visibility, ordering, and storefront presentation.",
-  },
   "/admin/orders": {
     title: "Orders",
     subtitle: "Track fulfillment progress and update order statuses.",
@@ -30,14 +26,6 @@ const pageMeta = {
   "/admin/refunds": {
     title: "Refunds",
     subtitle: "Approve, reject, and reconcile refund operations.",
-  },
-  "/admin/payouts": {
-    title: "Payouts",
-    subtitle: "Manage vendor settlements, payout queues, and transfer outcomes.",
-  },
-  "/admin/finance/payouts": {
-    title: "Payout Management",
-    subtitle: "Review, approve, reject, and settle vendor payout requests safely.",
   },
   "/admin/finance/invoices": {
     title: "Invoices",
@@ -62,14 +50,6 @@ const pageMeta = {
   "/admin/marketing/homepage-builder": {
     title: "Homepage Builder",
     subtitle: "Visually build, preview, publish, and roll back homepage layouts with shared storefront rendering.",
-  },
-  "/admin/vendor-access": {
-    title: "Vendor Module Access",
-    subtitle: "Control which modules are accessible to vendors globally.",
-  },
-  "/admin/vendor-access/shipping": {
-    title: "Shipping Access",
-    subtitle: "Control which shipping modes vendors can use across the marketplace.",
   },
   "/admin/shipping": {
     title: "Shipping Configuration",
@@ -117,7 +97,7 @@ const pageMeta = {
   },
   "/admin/revenue": {
     title: "Revenue",
-    subtitle: "Track platform sales, commission, and vendor earnings with export-ready reporting.",
+    subtitle: "Track platform sales and export-ready revenue reporting.",
   },
   "/admin/audit-logs": {
     title: "Audit Logs",
@@ -135,10 +115,6 @@ const pageMeta = {
     title: "Pricing Configuration",
     subtitle: "Manage platform-wide pricing rules, fees, and discounts.",
   },
-  "/admin/commission": {
-    title: "Commission Management",
-    subtitle: "Configure dynamic commission rules and track platform commission revenue.",
-  },
   "/admin/pricing-categories": {
     title: "Pricing Categories",
     subtitle: "Create and manage pricing categories to organize your fees and charges.",
@@ -150,102 +126,6 @@ const pageMeta = {
   "/admin/staff": {
     title: "Staff Accounts",
     subtitle: "Provision staff access, assign roles, and control account status.",
-  },
-  "/admin/influencer-commerce": {
-    title: "Influencer Commerce",
-    subtitle: "Control campaigns, creators, vendors, payouts, analytics, fraud, and reporting.",
-  },
-  "/admin/influencer-commerce/influencers": {
-    title: "Influencer Commerce",
-    subtitle: "Manage creator profiles, verification, KYC, earnings, and audit history.",
-  },
-  "/admin/influencer-commerce/vendors": {
-    title: "Influencer Commerce",
-    subtitle: "Monitor vendor participation, campaign performance, escrow usage, and risks.",
-  },
-  "/admin/influencer-commerce/campaigns": {
-    title: "Influencer Commerce",
-    subtitle: "Review, feature, pause, and audit influencer commerce campaigns.",
-  },
-  "/admin/influencer-commerce/applications": {
-    title: "Influencer Commerce",
-    subtitle: "Oversee creator applications and campaign approval workflows.",
-  },
-  "/admin/influencer-commerce/matching": {
-    title: "Influencer Commerce",
-    subtitle: "Review recommendation-powered creator, vendor, product, and campaign matches.",
-  },
-  "/admin/influencer-commerce/affiliate-products": {
-    title: "Influencer Commerce",
-    subtitle: "Track promoted products, attribution, commissions, and conversion quality.",
-  },
-  "/admin/influencer-commerce/tracking": {
-    title: "Influencer Commerce",
-    subtitle: "Inspect affiliate click sessions, attribution, token expiry, and risk signals.",
-  },
-  "/admin/influencer-commerce/content": {
-    title: "Influencer Commerce",
-    subtitle: "Moderate creator content using the existing content and reel workflow.",
-  },
-  "/admin/influencer-commerce/promotions": {
-    title: "Influencer Commerce",
-    subtitle: "Monitor product promotions across campaigns, vendors, and creators.",
-  },
-  "/admin/influencer-commerce/commission-engine": {
-    title: "Influencer Commerce",
-    subtitle: "Configure rule-driven creator commissions, settlements, payout preparation, simulation, and audit.",
-  },
-  "/admin/influencer-commerce/commissions": {
-    title: "Influencer Commerce",
-    subtitle: "Manage affiliate, campaign, bonus, reversed, and paid commissions.",
-  },
-  "/admin/influencer-commerce/settlements": {
-    title: "Influencer Commerce",
-    subtitle: "Control escrow holds, settlement release, reversal, and ledger visibility.",
-  },
-  "/admin/influencer-commerce/payouts": {
-    title: "Influencer Commerce",
-    subtitle: "Review creator wallets, payout readiness, and account verification.",
-  },
-  "/admin/influencer-commerce/withdrawals": {
-    title: "Influencer Commerce",
-    subtitle: "Approve, reject, process, and audit influencer withdrawal requests.",
-  },
-  "/admin/influencer-commerce/creator-performance": {
-    title: "Influencer Commerce",
-    subtitle: "Rank creators by revenue, conversions, engagement, ROI, and growth.",
-  },
-  "/admin/influencer-commerce/vendor-performance": {
-    title: "Influencer Commerce",
-    subtitle: "Rank vendors by campaign revenue, ROI, creator retention, and spend.",
-  },
-  "/admin/influencer-commerce/campaign-analytics": {
-    title: "Influencer Commerce",
-    subtitle: "Analyze campaign revenue, spend, funnels, products, and creator performance.",
-  },
-  "/admin/influencer-commerce/revenue-analytics": {
-    title: "Influencer Commerce",
-    subtitle: "Track gross revenue, influencer revenue, vendor net, escrow, and commissions.",
-  },
-  "/admin/influencer-commerce/fraud": {
-    title: "Influencer Commerce",
-    subtitle: "Investigate suspicious attribution, withdrawal, KYC, and commission patterns.",
-  },
-  "/admin/influencer-commerce/communication": {
-    title: "Influencer Commerce",
-    subtitle: "Monitor vendor, influencer, campaign, and escalation conversations.",
-  },
-  "/admin/influencer-commerce/reports": {
-    title: "Influencer Commerce",
-    subtitle: "Export and schedule campaign, creator, vendor, revenue, commission, and fraud reports.",
-  },
-  "/admin/influencer-commerce/configuration": {
-    title: "Influencer Tier & Score",
-    subtitle: "Configure dynamic scoring, tiers, subscription limits, ranking rules, and budget protection.",
-  },
-  "/admin/influencer-commerce/settings": {
-    title: "Influencer Commerce",
-    subtitle: "Configure platform-wide commerce rules using existing settings infrastructure.",
   },
   "/staff/dashboard": {
     title: "Staff Dashboard",
@@ -293,20 +173,10 @@ export function AdminLayout() {
   const sidebarData = useAdminSidebarData(summary);
 
   let meta = pageMeta[location.pathname] || pageMeta["/admin/dashboard"];
-  if (location.pathname.startsWith("/admin/sellers/")) {
-    meta = {
-      title: "Seller Details",
-      subtitle: "Inspect onboarding details and decision history.",
-    };
-  } else if (location.pathname.startsWith("/admin/analytics/products/")) {
+  if (location.pathname.startsWith("/admin/analytics/products/")) {
     meta = {
       title: "Product Analytics Detail",
       subtitle: "Inspect revenue, returns, refunds, and inventory velocity for a single product.",
-    };
-  } else if (location.pathname.startsWith("/admin/vendors/") && location.pathname.endsWith("/finance")) {
-    meta = {
-      title: "Vendor Finance",
-      subtitle: "Review wallet balances, payout requests, and ledger activity for a seller.",
     };
   } else if (location.pathname.startsWith("/admin/payment-details/")) {
     meta = pageMeta["/admin/payment-details"];

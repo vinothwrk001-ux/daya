@@ -4,19 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../context/authStore";
 import { Portal } from "./Portal";
 import * as authService from "../services/authService";
-import * as vendorService from "../services/vendorService";
-import { usePlatformFeatures } from "../context/PlatformFeaturesContext";
-import { getVendorAccessRedirect } from "../utils/vendorAccess";
 
 export function UserMenu() {
-  const { influencerCommerceEnabled, loading: commerceLoading } = usePlatformFeatures();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
 
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
-  const [vendorAccess, setVendorAccess] = useState({ loading: false, redirect: "" });
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -73,32 +68,6 @@ export function UserMenu() {
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    let alive = true;
-
-    async function loadVendorAccess() {
-      if (!user || user.role !== "vendor") {
-        if (alive) setVendorAccess({ loading: false, redirect: "" });
-        return;
-      }
-
-      setVendorAccess({ loading: true, redirect: "" });
-      try {
-        const response = await vendorService.getVendorMe();
-        if (!alive) return;
-        setVendorAccess({ loading: false, redirect: getVendorAccessRedirect(response.data) });
-      } catch {
-        if (alive) setVendorAccess({ loading: false, redirect: "/vendor/onboarding" });
-      }
-    }
-
-    loadVendorAccess();
-
-    return () => {
-      alive = false;
-    };
-  }, [user?.id, user?._id, user?.email, user?.role]);
-
   const handleLogout = async () => {
     try {
       await authService.logout();
@@ -127,25 +96,11 @@ export function UserMenu() {
 
   const roleColors = {
     admin: "bg-purple-500",
-    vendor: "bg-blue-500",
-    influencer: "bg-amber-500",
     user: "bg-slate-500",
   };
   const avatarBg = roleColors[user.role] || "bg-slate-500";
 
   const menuItemsByRole = {
-    influencer: [
-      { label: "Dashboard", path: "/influencer/dashboard", icon: "D" },
-      { label: "Profile", path: "/influencer/profile", icon: "P" },
-      { label: "Campaigns", path: "/influencer/campaigns", icon: "C" },
-      { label: "Upload reel", path: "/influencer/reels/upload", icon: "U" },
-      { label: "Reels", path: "/influencer/reels", icon: "R" },
-      { label: "Earnings", path: "/influencer/earnings", icon: "E" },
-    ],
-    vendor: [
-      { label: "Dashboard", path: "/dashboard/vendor", icon: "D" },
-      { label: "Influencer Commerce", path: "/vendor/influencer-commerce", icon: "I" },
-    ],
     user: [
       { label: "Dashboard", path: "/dashboard/user", icon: "D" },
       { label: "Orders", path: "/orders", icon: "O" },
@@ -158,26 +113,6 @@ export function UserMenu() {
   };
 
   let menuItems = menuItemsByRole[user.role] || [{ label: "Dashboard", path: "/dashboard", icon: "D" }];
-  if (user.role === "vendor" && vendorAccess.loading) {
-    menuItems = [{ label: "Checking vendor access", path: "", icon: "V", disabled: true }];
-  } else if (user.role === "vendor" && vendorAccess.redirect) {
-    menuItems = [
-      {
-        label: vendorAccess.redirect === "/vendor/status" ? "Vendor status" : "Continue registration",
-        path: vendorAccess.redirect,
-        icon: "V",
-      },
-    ];
-  }
-  if (!commerceLoading && user.role === "vendor") {
-    menuItems = menuItems.filter(
-      (item) => influencerCommerceEnabled || item.path !== "/vendor/influencer-commerce"
-    );
-  }
-  if (!commerceLoading && user.role === "influencer" && !influencerCommerceEnabled) {
-    menuItems = [{ label: "Home", path: "/", icon: "H" }];
-  }
-
   return (
     <div className="relative">
       <button

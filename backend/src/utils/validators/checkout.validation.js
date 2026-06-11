@@ -27,13 +27,11 @@ const checkoutPrepareSchema = Joi.object({
   currency: Joi.string().valid("USD", "EUR", "INR", "GBP").default("INR"),
   shippingAddress: shippingAddressSchemaOptional.optional(),
   paymentMethod: Joi.string().valid("ONLINE", "COD").optional(),
-  trackingToken: Joi.string().allow("", null),
 });
 
 const checkoutCreateSchema = Joi.object({
   shippingAddress: shippingAddressSchema.required(),
   paymentMethod: Joi.string().valid("ONLINE", "COD").default("ONLINE"),
-  trackingToken: Joi.string().allow("", null),
 });
 
 module.exports = {

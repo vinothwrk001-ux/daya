@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const PRODUCT_STATUS = ["PENDING", "APPROVED", "REJECTED"];
-const CREATOR_TYPE = ["ADMIN", "SELLER"];
+const CREATOR_TYPE = ["ADMIN"];
 
 const variantOptionSchema = new mongoose.Schema(
   {
@@ -212,12 +212,7 @@ const productSchema = new mongoose.Schema(
     },
     thumbnail: String,
 
-    // Vendor Info
-    sellerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
-      index: true,
-    },
+    // Ownership
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -228,7 +223,7 @@ const productSchema = new mongoose.Schema(
       type: String,
       enum: CREATOR_TYPE,
       required: true,
-      default: "SELLER",
+      default: "ADMIN",
     },
 
     // Status & Visibility
@@ -382,9 +377,6 @@ productSchema.methods.getWeightInKg = function () {
 productSchema.index({ name: "text", description: "text" });
 productSchema.index({ category: 1, isActive: 1, status: 1 });
 productSchema.index({ categoryId: 1, subCategoryId: 1, createdAt: -1 });
-productSchema.index({ sellerId: 1, isActive: 1 });
-productSchema.index({ sellerId: 1, isFeatured: 1, featuredRank: 1, status: 1, isActive: 1 });
-productSchema.index({ sellerId: 1, featured: 1, status: 1, isActive: 1 });
 productSchema.index({ createdBy: 1, status: 1 });
 productSchema.index({ isActive: 1, status: 1, "ratings.averageRating": -1 });
 productSchema.index({ createdAt: -1 });

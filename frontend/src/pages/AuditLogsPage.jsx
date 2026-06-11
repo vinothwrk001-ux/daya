@@ -199,7 +199,6 @@ export function AuditLogsPage() {
           >
             <option value="">All entities</option>
             <option value="User">User</option>
-            <option value="Vendor">Vendor</option>
             <option value="Product">Product</option>
             <option value="Order">Order</option>
             <option value="Payment">Payment</option>

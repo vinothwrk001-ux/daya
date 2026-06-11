@@ -45,7 +45,6 @@ export function AdminRefundDetailsPage() {
   const { refund, order, payment, inventoryLogs = [], auditLogs = [] } = details;
   const breakdown = refund?.breakdown || {};
   const customer = order?.userId?.name || order?.shippingAddress?.fullName || "Not available";
-  const vendor = order?.sellerId?.companyName || order?.sellerId?.shopName || "Platform";
 
   return (
     <div className="space-y-6">
@@ -109,7 +108,7 @@ export function AdminRefundDetailsPage() {
             <h2 className="text-lg font-semibold text-slate-950">Order Details</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <DetailRow label="Customer" value={customer} />
-              <DetailRow label="Vendor" value={vendor} />
+              <DetailRow label="Fulfillment" value="Platform" />
               <DetailRow label="Payment Method" value={order?.paymentMethod || refund?.paymentMethod} />
               <DetailRow label="Payment Status" value={order?.paymentStatus} />
               <DetailRow label="Order Status" value={order?.status} />
@@ -168,11 +167,11 @@ export function AdminRefundDetailsPage() {
                 <div className="mt-2 text-sm text-slate-600">{inventoryLogs.length ? `${inventoryLogs.length} inventory movement(s)` : "No inventory logs found"}</div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="text-sm font-semibold text-slate-950">Settlement Rollback Logs</div>
+                <div className="text-sm font-semibold text-slate-950">Finance Rollback Logs</div>
                 <div className="mt-2 text-sm text-slate-600">
-                  {order?.settlementStatus === "REVERSED" || order?.settlementStatus === "CANCELLED"
-                    ? `Settlement status: ${order.settlementStatus}`
-                    : "No settlement rollback recorded"}
+                  {refund?.financeSnapshot?.rollbackStatus
+                    ? `Rollback status: ${refund.financeSnapshot.rollbackStatus}`
+                    : "No finance rollback recorded"}
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

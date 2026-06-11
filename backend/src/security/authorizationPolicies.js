@@ -5,7 +5,7 @@ const { hasStaffPermission } = require("../modules/staff/permissions");
 const ADMIN_ROLES = new Set(["admin", "super_admin"]);
 const FINANCE_ROLES = new Set(["finance_admin"]);
 const SUPPORT_ROLES = new Set(["support_admin"]);
-const FINANCIAL_DOCUMENT_CATEGORIES = new Set(["bank", "tax", "withdrawal", "finance", "settlement"]);
+const FINANCIAL_DOCUMENT_CATEGORIES = new Set(["bank", "tax", "withdrawal", "finance"]);
 const COMPLIANCE_DOCUMENT_CATEGORIES = new Set(["kyc", "identity", "verification", "compliance"]);
 
 function actor(input = {}) {
@@ -46,43 +46,12 @@ const policies = {
       return action === "read" || action === "update" || action === "cancel";
     }
     if (currentActor.role === "user") return owns(currentActor, resource.userId || resource.customerId);
-    if (currentActor.role === "vendor") {
-      return (resource.items || []).some((item) => owns(currentActor, item.sellerId || item.vendorId)) || owns(currentActor, resource.sellerId || resource.vendorId);
-    }
     return false;
   },
 
   product(currentActor, action, resource = {}) {
     if (canAdmin(currentActor, action === "delete" ? "products:delete" : "products:read")) return true;
-    if (currentActor.role === "vendor") return owns(currentActor, resource.sellerId || resource.vendorId);
     return action === "read" && resource.status === "APPROVED" && resource.isActive !== false;
-  },
-
-  campaign(currentActor, action, resource = {}) {
-    if (canAdmin(currentActor, "influencerCommerce:manage")) return true;
-    if (currentActor.role === "vendor") return owns(currentActor, resource.vendorId || resource.ownerId);
-    if (currentActor.role === "influencer") {
-      return (
-        owns(currentActor, resource.influencerId) ||
-        (resource.applications || []).some((application) => owns(currentActor, application.influencerId))
-      );
-    }
-    return false;
-  },
-
-  influencerOwned(currentActor, action, resource = {}) {
-    if (canAdmin(currentActor, "influencerCommerce:manage")) return true;
-    return currentActor.role === "influencer" && owns(currentActor, resource.influencerId || resource.creatorId || resource.ownerId);
-  },
-
-  commission(currentActor, action, resource = {}) {
-    if (hasAnyRole(currentActor, ["super_admin", "admin", "finance_admin"])) return true;
-    return currentActor.role === "influencer" && owns(currentActor, resource.influencerId);
-  },
-
-  withdrawal(currentActor, action, resource = {}) {
-    if (hasAnyRole(currentActor, ["super_admin", "admin", "finance_admin"])) return true;
-    return currentActor.role === "influencer" && owns(currentActor, resource.influencerId || resource.userId);
   },
 
   document(currentActor, action, resource = {}) {
@@ -94,8 +63,6 @@ const policies = {
     const category = String(resource.category || resource.documentType || "").toLowerCase();
     if (hasAnyRole(currentActor, Array.from(FINANCE_ROLES)) && FINANCIAL_DOCUMENT_CATEGORIES.has(category)) return true;
     if (hasAnyRole(currentActor, Array.from(SUPPORT_ROLES)) && COMPLIANCE_DOCUMENT_CATEGORIES.has(category)) return true;
-    if (canStaff(currentActor, "payouts.read") && FINANCIAL_DOCUMENT_CATEGORIES.has(category)) return true;
-    if (canStaff(currentActor, "influencerCommerce.applications") && COMPLIANCE_DOCUMENT_CATEGORIES.has(category)) return true;
     return false;
   },
 

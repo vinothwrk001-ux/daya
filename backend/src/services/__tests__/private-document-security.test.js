@@ -15,7 +15,7 @@ const OTHER_ID = "507f1f77bcf86cd799439013";
 function doc(overrides = {}) {
   return {
     _id: DOCUMENT_ID,
-    ownerType: "influencer",
+    ownerType: "customer",
     ownerId: OWNER_ID,
     documentType: "passport",
     category: "identity",
@@ -38,25 +38,25 @@ function req(actor = {}) {
 
 test("owner can access only their own private document", () => {
   assert.doesNotThrow(() =>
-    assertDocumentAccess({ id: OWNER_ID, role: "influencer", roles: ["influencer"], authType: "user" }, doc())
+    assertDocumentAccess({ id: OWNER_ID, role: "user", roles: ["user"], authType: "user" }, doc())
   );
 
   assert.throws(
-    () => assertDocumentAccess({ id: OTHER_ID, role: "influencer", roles: ["influencer"], authType: "user" }, doc()),
+    () => assertDocumentAccess({ id: OTHER_ID, role: "user", roles: ["user"], authType: "user" }, doc()),
     /Access denied/
   );
 });
 
-test("cross-workspace vendor/influencer access is denied", () => {
+test("cross-customer private document access is denied", () => {
   assert.throws(
-    () => assertDocumentAccess({ id: OTHER_ID, role: "vendor", roles: ["vendor"], authType: "user" }, doc()),
+    () => assertDocumentAccess({ id: OTHER_ID, role: "user", roles: ["user"], authType: "user" }, doc()),
     /Access denied/
   );
 });
 
 test("finance admin access is limited to financial document categories", () => {
   assert.doesNotThrow(() =>
-    assertDocumentAccess({ id: OTHER_ID, role: "finance_admin", roles: ["finance_admin"], authType: "user" }, doc({ category: "settlement", documentType: "settlement_report" }))
+    assertDocumentAccess({ id: OTHER_ID, role: "finance_admin", roles: ["finance_admin"], authType: "user" }, doc({ category: "finance", documentType: "finance_report" }))
   );
 
   assert.throws(
@@ -65,10 +65,10 @@ test("finance admin access is limited to financial document categories", () => {
   );
 });
 
-test("staff permissions enforce compliance and financial boundaries", () => {
+test("support and staff permissions enforce compliance and financial boundaries", () => {
   assert.doesNotThrow(() =>
     assertDocumentAccess(
-      { id: OTHER_ID, role: "staff", authType: "staff", permissions: { influencerCommerce: { applications: true } } },
+      { id: OTHER_ID, role: "support_admin", roles: ["support_admin"], authType: "user" },
       doc({ category: "identity" })
     )
   );
@@ -109,7 +109,7 @@ test("document access logs failed enumeration attempts", async () => {
   };
 
   await assert.rejects(
-    () => getAuthorizedDocumentAccess(DOCUMENT_ID, req({ user: { sub: OTHER_ID, role: "vendor", roles: ["vendor"] } }), deps),
+    () => getAuthorizedDocumentAccess(DOCUMENT_ID, req({ user: { sub: OTHER_ID, role: "user", roles: ["user"] } }), deps),
     /Access denied/
   );
 

@@ -37,8 +37,6 @@ function getBrandValue(product = {}) {
     product?.attributes?.brand ||
       product?.extraDetails?.brand ||
       product?.modulesData?.brand ||
-      product?.sellerId?._id ||
-      product?.sellerId ||
       ""
   )
     .trim()
@@ -268,7 +266,6 @@ class RecommendationService {
       $or: [
         { categoryId: baseProduct.categoryId || null },
         { category: baseProduct.category || "" },
-        { sellerId: baseProduct.sellerId || null },
       ],
     };
 

@@ -1,11 +1,6 @@
 const mongoose = require("mongoose");
 const { Order } = require("../models/Order");
 const { normalizeDateRange, applyDateRange } = require("../utils/dateRange");
-const { emitDomainEvent } = require("../modules/events/event-bus");
-const { INFLUENCER_EVENTS } = require("../modules/shared/constants");
-
-const SELLER_POPULATE_FIELDS = "companyName shopName storeSlug logoUrl bannerUrl status isStoreVisible supportPhone pickupAddress pickupLocations";
-const SELLER_PUBLIC_FIELDS = "companyName shopName storeSlug logoUrl bannerUrl status isStoreVisible";
 
 function escapeRegex(value = "") {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -85,7 +80,6 @@ class OrderRepository {
     const [orders, total] = await Promise.all([
       Order.find(query)
         .populate("userId", "name email phone")
-        .populate("sellerId", SELLER_POPULATE_FIELDS)
         .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
         .populate("items.productId", "name slug")
         .sort(sort)
@@ -122,7 +116,6 @@ class OrderRepository {
   async findById(id) {
     return await Order.findById(id)
       .populate("userId", "name email phone")
-      .populate("sellerId", SELLER_POPULATE_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
       .populate("items.productId", "name slug")
       .exec();
@@ -130,7 +123,6 @@ class OrderRepository {
 
   async findByIdForUser(id, userId) {
     return await Order.findOne({ _id: id, userId, isActive: true })
-      .populate("sellerId", SELLER_PUBLIC_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
       .populate("items.productId", "name slug images")
       .exec();
@@ -139,7 +131,6 @@ class OrderRepository {
   async findByGroupId(orderGroupId) {
     return await Order.find({ orderGroupId })
       .populate("userId", "name email phone")
-      .populate("sellerId", SELLER_POPULATE_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
       .populate("items.productId", "name slug images")
       .sort({ createdAt: -1 })
@@ -171,53 +162,6 @@ class OrderRepository {
 
     const [orders, total] = await Promise.all([
       Order.find(query)
-        .populate("sellerId", SELLER_PUBLIC_FIELDS)
-        .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-        .populate("items.productId", "name slug images")
-        .sort(sort)
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      Order.countDocuments(query),
-    ]);
-
-    return {
-      orders,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  async listBySellerId({
-    sellerId,
-    page = 1,
-    limit = 20,
-    status,
-    shippingMode,
-    shippingStatus,
-    pickupStatus,
-    sortBy = "createdAt",
-    sortOrder = -1,
-    startDate,
-    endDate,
-  } = {}) {
-    const query = { sellerId, isActive: true };
-    if (status) query.status = status;
-    if (shippingMode) query.shippingMode = shippingMode;
-    if (shippingStatus) query.shippingStatus = shippingStatus;
-    if (pickupStatus) query.pickupStatus = pickupStatus;
-    applyDateRange(query, normalizeDateRange({ startDate, endDate }));
-
-    const skip = (page - 1) * limit;
-    const sort = { [sortBy]: sortOrder };
-
-    const [orders, total] = await Promise.all([
-      Order.find(query)
-        .populate("userId", "name email phone")
         .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
         .populate("items.productId", "name slug images")
         .sort(sort)
@@ -245,7 +189,6 @@ class OrderRepository {
         $set: {
           paymentStatus,
           ...(paymentStatus === "Paid" ? { paymentCapturedAt: new Date() } : {}),
-          ...(paymentStatus === "Paid" ? { "attribution.lockedAt": new Date() } : {}),
         },
         $push: {
           timeline: {
@@ -276,14 +219,9 @@ class OrderRepository {
 
     const updated = await Order.findByIdAndUpdate(id, update, { returnDocument: "after" })
       .populate("userId", "name email phone")
-      .populate("sellerId", SELLER_POPULATE_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
       .populate("items.productId", "name slug")
       .exec();
-    if (updated && status === "Delivered") {
-      await emitDomainEvent(INFLUENCER_EVENTS.ORDER_DELIVERED, { orderId: updated._id });
-      await emitDomainEvent(INFLUENCER_EVENTS.ORDER_ELIGIBLE_FOR_SETTLEMENT, { orderId: updated._id });
-    }
     return updated;
   }
 
@@ -353,7 +291,6 @@ class OrderRepository {
 
     return await Order.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true })
       .populate("userId", "name email phone")
-      .populate("sellerId", SELLER_POPULATE_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
       .populate("items.productId", "name slug")
       .exec();
@@ -366,7 +303,6 @@ class OrderRepository {
       { returnDocument: "after" }
     )
       .populate("userId", "name email phone")
-      .populate("sellerId", SELLER_POPULATE_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
       .populate("items.productId", "name slug")
       .exec();
@@ -389,7 +325,6 @@ class OrderRepository {
     };
     return await Order.findByIdAndUpdate(id, update, { returnDocument: "after" })
       .populate("userId", "name email phone")
-      .populate("sellerId", SELLER_POPULATE_FIELDS)
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
       .populate("items.productId", "name slug")
       .exec();

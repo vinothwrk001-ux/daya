@@ -72,7 +72,6 @@ const LAYOUT_TYPES = [
   "Text Content",
   "Custom HTML",
   "Newsletter",
-  "Vendor Showcase",
   "Multi Banner Grid",
   "Product Grid",
   "Product Slider",
@@ -146,7 +145,6 @@ function createEmptyDraft(name = "Homepage Layout") {
     name,
     slug: slugify(name),
     pageContext: "GLOBAL_HOME",
-    vendorLayoutType: "SHARED_ALL_VENDORS",
     seo: {
       metaTitle: "",
       metaDescription: "",
@@ -166,7 +164,6 @@ function createEmptyDraft(name = "Homepage Layout") {
       mobile: true,
       guest: true,
       customer: true,
-      vendor: true,
       admin: true,
       country: "",
       language: "",
@@ -264,7 +261,6 @@ function normalizeDraft(input, fallbackName = "Homepage Layout") {
     name: input?.name || fallbackName,
     slug: input?.slug || slugify(input?.name || fallbackName),
     pageContext: input?.pageContext || "GLOBAL_HOME",
-    vendorLayoutType: input?.vendorLayoutType || "SHARED_ALL_VENDORS",
     seo: { ...base.seo, ...(input?.seo || {}) },
     visibility: { ...base.visibility, ...(input?.visibility || {}) },
     scheduling: { ...base.scheduling, ...(input?.scheduling || {}) },
@@ -304,21 +300,19 @@ function createLayoutSlot(type = "Hero Banner", desktopSpan = 12, index = 0) {
   );
 }
 
-function buildSavePayload(layoutName, draft, isDefault, updatedAt, pageContext = "GLOBAL_HOME", vendorLayoutType = "SHARED_ALL_VENDORS") {
+function buildSavePayload(layoutName, draft, isDefault, updatedAt, pageContext = "GLOBAL_HOME") {
   const normalized = normalizeDraft(draft, layoutName);
   return {
     name: layoutName || normalized.name,
     slug: normalized.slug || slugify(layoutName || normalized.name),
     isDefault,
     pageContext,
-    vendorLayoutType,
     lastKnownUpdatedAt: updatedAt || undefined,
     draft: {
       ...normalized,
       name: layoutName || normalized.name,
       slug: normalized.slug || slugify(layoutName || normalized.name),
       pageContext,
-      vendorLayoutType,
       rows: [],
     },
   };
@@ -374,7 +368,6 @@ export function AdminHomepageBuilderPage() {
   const [layoutName, setLayoutName] = useState("Homepage Layout");
   const [layoutUpdatedAt, setLayoutUpdatedAt] = useState("");
   const [pageContext, setPageContext] = useState("GLOBAL_HOME");
-  const [vendorLayoutType, setVendorLayoutType] = useState("SHARED_ALL_VENDORS");
   const [draft, setDraft] = useState(createEmptyDraft());
   const [preview, setPreview] = useState({ layout: null, rows: [], containers: [], warnings: [] });
   const [selectedDevice, setSelectedDevice] = useState("desktop");
@@ -456,7 +449,6 @@ export function AdminHomepageBuilderPage() {
         setLayoutName(layout?.name || nextDraft.name);
         setLayoutUpdatedAt(layout?.updatedAt || "");
         setPageContext(layout?.pageContext || nextDraft.pageContext || "GLOBAL_HOME");
-        setVendorLayoutType(layout?.vendorLayoutType || nextDraft.vendorLayoutType || "SHARED_ALL_VENDORS");
         setIsDefault(Boolean(layout?.isDefault));
         setDraft(nextDraft);
         setSelectedSlotId(nextDraft.layouts[0]?.id || "");
@@ -487,7 +479,6 @@ export function AdminHomepageBuilderPage() {
       } else {
         setDraft(createEmptyDraft());
         setPageContext("GLOBAL_HOME");
-        setVendorLayoutType("SHARED_ALL_VENDORS");
       }
     } catch (loadError) {
       setError(normalizeError(loadError));
@@ -523,7 +514,7 @@ export function AdminHomepageBuilderPage() {
       setSaving(true);
       setError("");
       try {
-        const response = await saveHomepageBuilderDraft(activeLayoutId, buildSavePayload(layoutName, nextDraft, isDefault, layoutUpdatedAt, pageContext, vendorLayoutType));
+        const response = await saveHomepageBuilderDraft(activeLayoutId, buildSavePayload(layoutName, nextDraft, isDefault, layoutUpdatedAt, pageContext));
         const saved = response?.data;
         setLayoutUpdatedAt(saved?.updatedAt || saved?.draft?.savedAt || "");
         setSaveState("saved");
@@ -537,7 +528,7 @@ export function AdminHomepageBuilderPage() {
         setSaving(false);
       }
     },
-    [activeLayoutId, canEdit, draft, hasAuth, isDefault, layoutName, layoutUpdatedAt, pageContext, refreshLayouts, vendorLayoutType]
+    [activeLayoutId, canEdit, draft, hasAuth, isDefault, layoutName, layoutUpdatedAt, pageContext, refreshLayouts]
   );
 
   useEffect(() => {
@@ -552,7 +543,7 @@ export function AdminHomepageBuilderPage() {
   useEffect(() => {
     if (!activeLayoutId || !hasAuth) return undefined;
     // build a stable JSON snapshot of the draft we send to preview
-    const draftSnapshot = buildSavePayload(layoutName, draft, isDefault, layoutUpdatedAt, pageContext, vendorLayoutType).draft;
+    const draftSnapshot = buildSavePayload(layoutName, draft, isDefault, layoutUpdatedAt, pageContext).draft;
     let draftJson;
     try {
       draftJson = JSON.stringify(draftSnapshot);
@@ -595,7 +586,7 @@ export function AdminHomepageBuilderPage() {
       active = false;
       window.clearTimeout(timeoutId);
     };
-  }, [activeLayoutId, draft, hasAuth, isDefault, layoutName, layoutUpdatedAt, pageContext, selectedDevice, vendorLayoutType]);
+  }, [activeLayoutId, draft, hasAuth, isDefault, layoutName, layoutUpdatedAt, pageContext, selectedDevice]);
 
   const handleCreateLayoutDocument = useCallback(async () => {
     if (!canEdit) return;
@@ -607,7 +598,6 @@ export function AdminHomepageBuilderPage() {
         name,
         slug: slugify(name),
         pageContext: "GLOBAL_HOME",
-        vendorLayoutType: "SHARED_ALL_VENDORS",
         isDefault: layouts.length === 0,
         draft: createEmptyDraft(name),
       });
@@ -827,7 +817,6 @@ export function AdminHomepageBuilderPage() {
         setActiveLayoutId("");
         setDraft(createEmptyDraft());
         setPageContext("GLOBAL_HOME");
-        setVendorLayoutType("SHARED_ALL_VENDORS");
         setSelectedSlotId("");
         setVersions([]);
       }
@@ -877,7 +866,7 @@ export function AdminHomepageBuilderPage() {
               <IconButton label="Save Draft" onClick={() => persistDraft(draft)} disabled={!canEdit || saving || !activeLayoutId}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               </IconButton>
-              <IconButton label={pageContext === "VENDOR_STORE" ? "Publish Vendor Layout" : "Publish Homepage"} onClick={handlePublish} disabled={!canEdit || publishing || !activeLayoutId || validationMessages.length > 0} primary>
+              <IconButton label="Publish Homepage" onClick={handlePublish} disabled={!canEdit || publishing || !activeLayoutId || validationMessages.length > 0} primary>
                 {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               </IconButton>
               <IconButton label="Delete Layout" onClick={handleDeleteLayout} disabled={!canEdit || !activeLayoutId} danger>
@@ -894,42 +883,16 @@ export function AdminHomepageBuilderPage() {
                 onChange={(event) => {
                   const next = event.target.value;
                   setPageContext(next);
-                  const nextVendorLayoutType = next === "VENDOR_STORE" ? "SHARED_ALL_VENDORS" : vendorLayoutType;
-                  setVendorLayoutType(nextVendorLayoutType);
-                  commitDraft((current) => ({ ...current, pageContext: next, vendorLayoutType: nextVendorLayoutType }));
+                  commitDraft((current) => ({ ...current, pageContext: next }));
                 }}
                 disabled={!canEdit}
                 className="min-h-[40px] rounded-lg border border-slate-200 px-3 text-sm text-slate-800"
               >
                 <option value="GLOBAL_HOME">Global Homepage</option>
-                <option value="VENDOR_STORE">Vendor Storefront Layout</option>
-                <option value="INFLUENCER_STORE">Influencer Storefront Layout</option>
                 <option value="BRAND_STORE">Brand Page Layout</option>
                 <option value="CUSTOM_PAGE">Custom Page Layout</option>
               </select>
             </label>
-            {pageContext === "VENDOR_STORE" ? (
-              <div className="grid min-w-[320px] max-w-xl gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                <label className="grid gap-1">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Vendor Layout</span>
-                  <select
-                    value={vendorLayoutType}
-                    onChange={(event) => {
-                      const next = event.target.value;
-                      setVendorLayoutType(next);
-                      commitDraft((current) => ({ ...current, pageContext, vendorLayoutType: next }));
-                    }}
-                    disabled={!canEdit}
-                    className="min-h-[40px] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800"
-                  >
-                    <option value="SHARED_ALL_VENDORS">Shared layout for all vendors</option>
-                  </select>
-                </label>
-                <p className="text-xs leading-5 text-slate-500">
-                  One layout structure will be used by every vendor storefront. Containers automatically load products belonging to the current vendor.
-                </p>
-              </div>
-            ) : null}
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input type="checkbox" checked={isDefault} onChange={(event) => setIsDefault(event.target.checked)} disabled={!canEdit} />
               Default for this usage
@@ -1368,7 +1331,7 @@ function SeoTab({ seo, canEdit, onChange }) {
 }
 
 function VisibilityTab({ values, canEdit, onChange }) {
-  const toggles = ["desktop", "tablet", "mobile", "guest", "customer", "vendor", "admin"];
+  const toggles = ["desktop", "tablet", "mobile", "guest", "customer", "admin"];
   return (
     <div className="space-y-3">
       {toggles.map((field) => (

@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, BadgeCheck, BadgePercent, Clock3, CreditCard, Eye, Flame, Gift, Heart, Megaphone, ShoppingCart, Star, Store, Truck, Users, Wallet, Zap } from "lucide-react";
+import { ArrowRight, BadgePercent, Clock3, CreditCard, Eye, Flame, Gift, Heart, Megaphone, ShoppingCart, Star, Truck, Wallet, Zap } from "lucide-react";
 import { ProductCard } from "../ProductCard";
 import { ProductCarousel } from "../ProductCarousel";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
@@ -9,10 +9,6 @@ import { formatCurrency } from "../../utils/formatCurrency";
 import { useCartDrawer } from "../../hooks/useCartDrawer";
 import { useCompare } from "../../hooks/useCompare";
 import { useWishlist } from "../../hooks/useWishlist";
-import {
-  isInfluencerStorefrontContainerType,
-  isStorefrontDiscoveryContainerType,
-} from "../../config/homepageContainerTypes";
 
 const DEFAULT_CANVAS_WIDTH = {
   desktop: 1440,
@@ -480,10 +476,6 @@ function resolveContainerBackgroundMedia(layout) {
 }
 
 function renderContainer(container, options = {}) {
-  if (isStorefrontDiscoveryContainerType(container.containerType)) {
-    return <StorefrontDiscoveryContainer container={container} renderContext={options.renderContext} />;
-  }
-
   switch (container.containerType) {
     case "BANNER":
       return <BannerContainer container={container} />;
@@ -501,7 +493,6 @@ function renderContainer(container, options = {}) {
     case "TRENDING":
     case "NEW_ARRIVALS":
     case "TOP_RATED":
-    case "VENDOR_SPOTLIGHT":
       return <GridFamilyContainer container={container} />;
     case "COMBO_DEALS":
       return <ComboDealsContainer container={container} />;
@@ -543,177 +534,6 @@ function SectionHeader({ container, eyebrow, actionLabel = "View all" }) {
       ) : null}
     </div>
   );
-}
-
-function StorefrontDiscoveryContainer({ container, renderContext }) {
-  const config = container.config || {};
-  const cards = Array.isArray(container.storefrontCards) ? container.storefrontCards : [];
-  const type = container.containerType;
-  const isInfluencer = isInfluencerStorefrontContainerType(type);
-  const displayType = String(config.storefrontDisplayType || (type.includes("CAROUSEL") ? "CAROUSEL" : "GRID")).toUpperCase();
-  const count =
-    renderContext?.device === "mobile"
-      ? Number(config.mobileCardCount || 1)
-      : renderContext?.device === "tablet"
-        ? Number(config.tabletCardCount || 2)
-        : Number(config.desktopCardCount || 4);
-  const gridStyle = {
-    display: displayType === "MASONRY" ? "block" : "grid",
-    gridTemplateColumns: displayType === "MASONRY" ? undefined : `repeat(${Math.max(1, Math.min(count, 8))}, minmax(0, 1fr))`,
-    gap: `${Number(config.gapSize || 18)}px`,
-  };
-  const rail = ["CAROUSEL", "SLIDER"].includes(displayType);
-
-  return (
-    <div className="p-5 sm:p-6 lg:p-8">
-      <SectionHeader container={container} eyebrow={isInfluencer ? "Creator discovery" : "Storefront discovery"} actionLabel={isInfluencer ? "Explore creators" : "Explore stores"} />
-      {cards.length ? (
-        rail ? (
-          <div className="mt-6 flex gap-4 overflow-x-auto pb-3">
-            {cards.map((card, index) => (
-              <div key={card._id || card.slug || index} className="w-[280px] shrink-0 sm:w-[320px]">
-                <StorefrontDiscoveryCard containerId={container._id} card={card} config={config} isInfluencer={isInfluencer} />
-              </div>
-            ))}
-          </div>
-        ) : displayType === "MASONRY" ? (
-          <div className="mt-6 columns-1 gap-4 sm:columns-2 lg:columns-3">
-            {cards.map((card, index) => (
-              <div key={card._id || card.slug || index} className="mb-4 break-inside-avoid">
-                <StorefrontDiscoveryCard containerId={container._id} card={card} config={config} isInfluencer={isInfluencer} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="mt-6" style={gridStyle}>
-            {cards.map((card, index) => (
-              <StorefrontDiscoveryCard key={card._id || card.slug || index} containerId={container._id} card={card} config={config} isInfluencer={isInfluencer} />
-            ))}
-          </div>
-        )
-      ) : (
-        <div className="mt-6">
-          <EmptyState label={isInfluencer ? "No creator storefronts are ready for this container." : "No vendor storefronts are ready for this container."} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StorefrontDiscoveryCard({ containerId, card, config = {}, isInfluencer = false }) {
-  const style = String(config.storefrontCardStyle || (isInfluencer ? "CREATOR" : "MODERN")).toUpperCase();
-  const layout = String(config.storefrontCardLayout || "VERTICAL").toUpperCase();
-  const href = card.href || (isInfluencer ? `/influencer/${card.slug}` : `/vendor/${card.slug}`);
-  const bannerUrl = resolveApiAssetUrl(card.banner || "");
-  const logoUrl = resolveApiAssetUrl(card.logo || "");
-  const ctaText = config.cardCtaText || (isInfluencer ? "View Storefront" : "View Store");
-  const premium = style === "PREMIUM";
-  const overlay = layout === "OVERLAY";
-
-  const handleClick = () => {
-    if (containerId && containerId !== "preview") {
-      trackHomepageContainerEvent(containerId, { eventType: "card_click", entityType: card.entityType, entityId: card._id }).catch(() => {});
-    }
-  };
-
-  return (
-    <Link
-      to={href}
-      onClick={handleClick}
-      className={`group relative block h-full overflow-hidden rounded-2xl border bg-white shadow-sm transition dark:bg-slate-950 ${
-        premium ? "border-amber-200 shadow-amber-100/60 dark:border-amber-400/30" : "border-slate-200 dark:border-slate-800"
-      } ${config.hoverEffect !== false ? "hover:-translate-y-1 hover:shadow-xl" : ""} ${config.animatedEntry !== false ? "motion-safe:animate-[fadeIn_0.35s_ease-out]" : ""}`}
-    >
-      {config.showStoreBanner !== false ? (
-        <div className={`${overlay ? "h-72" : layout === "HORIZONTAL" ? "h-36" : "h-40"} relative bg-slate-100 dark:bg-slate-900`}>
-          {bannerUrl ? (
-            <img src={bannerUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-700 to-amber-500">
-              <Store className="h-10 w-10 text-white/80" />
-            </div>
-          )}
-          <div className={`absolute inset-0 ${overlay ? "bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" : "bg-gradient-to-t from-slate-950/35 to-transparent"}`} />
-        </div>
-      ) : null}
-
-      <div className={`${overlay ? "absolute inset-x-0 bottom-0 text-white" : ""} p-5`}>
-        <div className="flex items-start gap-3">
-          {config.showStoreLogo !== false ? (
-            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/70 bg-slate-100 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              {logoUrl ? (
-                <img src={logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-slate-950 text-base font-black uppercase text-white">
-                  {String(card.name || "S").slice(0, 1)}
-                </div>
-              )}
-            </div>
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              {config.showStoreName !== false ? (
-                <h3 className={`line-clamp-1 text-lg font-semibold tracking-[-0.03em] ${overlay ? "text-white" : "text-slate-950 dark:text-white"}`}>
-                  {card.name}
-                </h3>
-              ) : null}
-              {config.showVerifiedBadge !== false && card.verified ? <BadgeCheck className="h-4 w-4 text-sky-500" aria-label="Verified" /> : null}
-            </div>
-            {isInfluencer && card.username ? <p className={`${overlay ? "text-white/70" : "text-slate-500 dark:text-slate-400"} mt-1 text-xs`}>@{String(card.username).replace(/^@/, "")}</p> : null}
-          </div>
-        </div>
-
-        {config.showStoreDescription !== false && card.description ? (
-          <p className={`${overlay ? "text-white/80" : "text-slate-600 dark:text-slate-300"} mt-4 line-clamp-2 text-sm leading-6`}>
-            {card.description}
-          </p>
-        ) : null}
-
-        {config.showStoreCategory !== false && card.category ? (
-          <div className={`${overlay ? "text-white/75" : "text-slate-500 dark:text-slate-400"} mt-3 line-clamp-1 text-xs font-semibold uppercase tracking-[0.16em]`}>
-            {card.category}
-          </div>
-        ) : null}
-
-        <div className={`mt-4 grid grid-cols-3 gap-2 text-xs ${overlay ? "text-white/85" : "text-slate-600 dark:text-slate-300"}`}>
-          {config.showFollowersCount !== false ? <Metric icon={<Users className="h-3.5 w-3.5" />} value={compactNumber(card.followersCount)} label="Followers" /> : null}
-          {config.showProductsCount !== false ? <Metric icon={<Store className="h-3.5 w-3.5" />} value={compactNumber(card.productsCount)} label="Products" /> : null}
-          {config.showStoreRating !== false ? <Metric icon={<Star className="h-3.5 w-3.5" />} value={Number(card.rating || 0).toFixed(card.rating > 5 ? 1 : 1)} label={isInfluencer ? "Score" : "Rating"} /> : null}
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {config.showFeaturedBadge !== false && card.featured ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">Featured</span> : null}
-          {isInfluencer && config.showTopCreatorBadge !== false && card.topCreator ? <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-800">Top Creator</span> : null}
-          {config.showYearsActive !== false && card.yearsActive ? <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{card.yearsActive}+ years</span> : null}
-        </div>
-
-        {config.showStorefrontCta !== false ? (
-          <div className={`mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
-            overlay ? "bg-white text-slate-950" : "bg-slate-950 text-white group-hover:bg-amber-500 dark:bg-white dark:text-slate-950"
-          }`}>
-            {ctaText}
-            <ArrowRight className="h-4 w-4" />
-          </div>
-        ) : null}
-      </div>
-    </Link>
-  );
-}
-
-function Metric({ icon, value, label }) {
-  return (
-    <div className="min-w-0 rounded-xl bg-slate-100/80 px-2 py-2 text-center dark:bg-slate-900/80">
-      <div className="flex items-center justify-center gap-1 font-bold">{icon}{value}</div>
-      <div className="mt-0.5 truncate opacity-70">{label}</div>
-    </div>
-  );
-}
-
-function compactNumber(value) {
-  const number = Number(value || 0);
-  if (number >= 1000000) return `${(number / 1000000).toFixed(1)}M`;
-  if (number >= 1000) return `${(number / 1000).toFixed(1)}K`;
-  return String(number);
 }
 
 function CarouselContainer({ container, bareContainers = false, bareOuterLayout = false, bareCarouselShell = false }) {
@@ -969,7 +789,7 @@ function FeaturedProductTile({ product, config = {}, hero = false }) {
   const imageUrl = resolveApiAssetUrl(product?.images?.[0]?.url || "");
   const price = product.discountPrice || product.price || 0;
   const discount = product.discountPrice && product.price ? Math.round(((product.price - product.discountPrice) / product.price) * 100) : 0;
-  const brand = product?.attributes?.brand || product?.brand || product?.sellerId?.shopName || "";
+  const brand = product?.attributes?.brand || product?.brand || "";
   const lowStock = Number(product.stock || 0) > 0 && Number(product.stock || 0) <= 10;
   const cardStyle = {
     borderRadius: `${Number(config.cardRadius ?? 18)}px`,
@@ -1048,7 +868,7 @@ function FeaturedProductTile({ product, config = {}, hero = false }) {
       <div className={hero ? "flex flex-1 flex-col gap-3 p-5" : "flex flex-1 flex-col gap-2 p-4"}>
         <div className="flex flex-wrap gap-2">
           {config.showDiscountBadge !== false && discount > 0 ? <span className="rounded-full bg-orange-500 px-2.5 py-1 text-xs font-bold text-white">{discount}% OFF</span> : null}
-          {config.showBestSellerBadge ? <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">Best Seller</span> : null}
+          {config.showPopularBadge ? <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">Popular Pick</span> : null}
           {config.showNewArrivalBadge ? <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white">New</span> : null}
           {config.showLimitedStockBadge !== false && lowStock ? <span className="rounded-full bg-rose-600 px-2.5 py-1 text-xs font-bold text-white">Limited</span> : null}
           {config.showDeliveryBadge ? <span className="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-bold text-white">Fast Delivery</span> : null}
@@ -1156,7 +976,6 @@ function isContentSizedContainer(container) {
     "RECOMMENDED",
     "TOP_RATED",
     "TRENDING",
-    "VENDOR_SPOTLIGHT",
     "VIDEO_PRODUCTS",
   ].includes(container?.containerType);
 }
@@ -1459,7 +1278,6 @@ function GridFamilyContainer({ container }) {
           <video src={resolveApiAssetUrl(container.config.videoUpload)} autoPlay={container.config.autoplay !== false} muted={container.config.mute !== false} loop playsInline className="h-[260px] w-full object-cover" />
         </div>
       ) : null}
-      {type === "VENDOR_SPOTLIGHT" ? <VendorSpotlightHero container={container} /> : null}
       <div className={`mt-6 grid gap-4 ${gridClass}`}>
         {items.length ? items.map((product) => <TrackedProductCard key={product._id} containerId={container._id} product={product} cardStyle={container?.config?.cardStyle} compact={type === "DEALS_STRIP" || type === "LIST"} />) : <EmptyState />}
       </div>
@@ -1809,30 +1627,6 @@ function TrackedProductCard({ containerId, product, cardStyle = "DEFAULT", compa
   );
 }
 
-function VendorSpotlightHero({ container }) {
-  const vendor = container?.products?.[0]?.sellerId;
-  if (!vendor) return null;
-
-  return (
-    <div className="mt-6 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 p-5 text-white dark:border-slate-800">
-      <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white/10">
-          {vendor.logoUrl ? (
-            <img src={resolveApiAssetUrl(vendor.logoUrl)} alt={vendor.shopName || vendor.companyName} className="h-full w-full object-cover" />
-          ) : (
-            <Store className="h-6 w-6" />
-          )}
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/65">Vendor spotlight</p>
-          <h3 className="mt-1 text-xl font-semibold">{vendor.shopName || vendor.companyName || "Featured vendor"}</h3>
-          <p className="mt-1 text-sm text-white/75">Curated picks from one of the marketplace’s strongest storefronts.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function EmptyState({ compact = false, label = "No items available in this container right now." }) {
   return (
     <div className={`rounded-[1.5rem] border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400 ${compact ? "" : "col-span-full"}`}>
@@ -1869,7 +1663,6 @@ function resolveEyebrow(type) {
     CATEGORY_SHOWCASE: "Category spotlight",
     BRAND_SHOWCASE: "Brand moment",
     COMBO_DEALS: "Bundle savings",
-    VENDOR_SPOTLIGHT: "Seller focus",
   };
   return map[type] || type.replace(/_/g, " ");
 }

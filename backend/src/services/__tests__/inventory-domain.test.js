@@ -53,7 +53,6 @@ async function run() {
   try {
     const product = registerProduct({
       _id: "product_1",
-      sellerId: "vendor_1",
       name: "Warehouse Tee",
       SKU: "TEE-001",
       stock: 15,
@@ -74,35 +73,29 @@ async function run() {
       ],
     });
 
-    const initial = await inventoryService.getAvailableStock(product._id, "tee-black-m", {
-      expectedSellerId: "vendor_1",
-    });
+    const initial = await inventoryService.getAvailableStock(product._id, "tee-black-m");
     assert.equal(initial.available, 15, "initial available stock should match stock");
 
-    await inventoryService.reserveStock(product._id, "tee-black-m", 4, "order_1", "vendor_1", "user_1");
+    await inventoryService.reserveStock(product._id, "tee-black-m", 4, "order_1", "user_1");
     assert.equal(product.variants[0].reservedStock, 4, "reserve should increase reserved stock");
     assert.equal(product.variants[0].stock, 15, "reserve should not reduce actual stock");
 
-    const afterReserve = await inventoryService.getAvailableStock(product._id, "tee-black-m", {
-      expectedSellerId: "vendor_1",
-    });
+    const afterReserve = await inventoryService.getAvailableStock(product._id, "tee-black-m");
     assert.equal(afterReserve.available, 11, "available stock should subtract reserved stock");
 
-    await inventoryService.deductStock(product._id, "tee-black-m", 4, "shipment_1", "order_1", "vendor_1", "user_1");
+    await inventoryService.deductStock(product._id, "tee-black-m", 4, "shipment_1", "order_1", "user_1");
     assert.equal(product.variants[0].stock, 11, "shipment should deduct actual stock");
     assert.equal(product.variants[0].reservedStock, 0, "shipment should release reserved stock");
     assert.equal(product.stock, 11, "product aggregate stock should remain backward compatible");
 
-    await inventoryService.restoreStock(product._id, "tee-black-m", 2, "return_1", "order_1", "vendor_1", "user_1");
+    await inventoryService.restoreStock(product._id, "tee-black-m", 2, "return_1", "order_1", "user_1");
     assert.equal(product.variants[0].stock, 13, "return should restore stock");
     assert.equal(product.stock, 13, "aggregate stock should reflect restored variant stock");
 
     let blockedAdjustment = false;
-    await inventoryService.reserveStock(product._id, "tee-black-m", 5, "order_2", "vendor_1", "user_1");
+    await inventoryService.reserveStock(product._id, "tee-black-m", 5, "order_2", "user_1");
     try {
-      await inventoryService.adjustStock(product._id, "tee-black-m", -10, "Damage", "", "user_1", {
-        expectedSellerId: "vendor_1",
-      });
+      await inventoryService.adjustStock(product._id, "tee-black-m", -10, "Damage", "", "user_1");
     } catch (error) {
       blockedAdjustment = error.code === "RESERVED_CONFLICT";
     }

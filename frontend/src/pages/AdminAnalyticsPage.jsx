@@ -11,7 +11,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { getAnalytics, listCategories, listSellers } from "../services/adminApi";
+import { getAnalytics, listCategories } from "../services/adminApi";
 import { ReportingToolbar } from "../components/ReportingToolbar";
 import { InlineToast } from "../components/commerce/InlineToast";
 import { useReporting } from "../hooks/useReporting";
@@ -23,7 +23,6 @@ function normalizeError(error) {
 }
 
 const DEFAULT_FILTERS = {
-  vendorId: "",
   categoryId: "",
   paymentMethod: "",
   orderStatus: "",
@@ -75,7 +74,6 @@ export function AdminAnalyticsPage() {
   const [draftFilters, setDraftFilters] = useState(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
   const [analytics, setAnalytics] = useState(null);
-  const [vendors, setVendors] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -86,10 +84,9 @@ export function AdminAnalyticsPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([listSellers(), listCategories()])
-      .then(([vendorsResponse, categoriesResponse]) => {
+    listCategories()
+      .then((categoriesResponse) => {
         if (!active) return;
-        setVendors(Array.isArray(vendorsResponse?.data) ? vendorsResponse.data : []);
         setCategories(Array.isArray(categoriesResponse?.data) ? categoriesResponse.data : []);
       })
       .catch(() => {});
@@ -190,7 +187,7 @@ export function AdminAnalyticsPage() {
           <div>
             <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Global product filters</h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Narrow performance by vendor, category, payment mode, and operational status.
+              Narrow performance by category, payment mode, and operational status.
             </p>
           </div>
           <button
@@ -202,16 +199,7 @@ export function AdminAnalyticsPage() {
           </button>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <FilterSelect
-            label="Vendor"
-            value={draftFilters.vendorId}
-            onChange={(value) => setDraftFilters((current) => ({ ...current, vendorId: value }))}
-            options={vendors.map((vendor) => ({
-              value: vendor._id,
-              label: vendor.shopName || vendor.companyName || vendor.userId?.name || vendor.vendorCode || vendor._id,
-            }))}
-          />
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <FilterSelect
             label="Category"
             value={draftFilters.categoryId}
@@ -248,7 +236,7 @@ export function AdminAnalyticsPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Total Product Revenue" value={formatCurrency(overview.totalProductRevenue)} hint="Gross product revenue across the active filter set" />
-        <MetricCard label="Net Revenue" value={formatCurrency(overview.totalNetRevenue)} hint="Vendor net after commission deductions" />
+        <MetricCard label="Net Revenue" value={formatCurrency(overview.totalNetRevenue)} hint="Revenue after discounts, refunds, and fees" />
         <MetricCard label="Units Sold" value={overview.unitsSold || 0} hint="Aggregated item quantity sold" />
         <MetricCard label="Avg Order Value" value={formatCurrency(overview.avgOrderValue)} hint="Revenue divided by product order volume" />
         <MetricCard label="Return Rate" value={`${Number(overview.returnRate || 0).toFixed(2)}%`} hint="Orders affected by approved or refunded returns" />

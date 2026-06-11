@@ -21,8 +21,6 @@ const updateInvoiceMetadata = asyncHandler(async (req, res) =>
 const getInvoiceAuditHistory = asyncHandler(async (req, res) =>
   ok(res, await invoiceService.getInvoiceAuditHistory(req.params.orderId), "Invoice audit history loaded")
 );
-const listVendorInvoices = asyncHandler(async (req, res) => ok(res, await invoiceService.listVendorInvoices(req.user.sub, req.query), "Vendor invoices loaded"));
-const getVendorInvoice = asyncHandler(async (req, res) => ok(res, await invoiceService.getVendorInvoice(req.user.sub, req.params.orderId), "Vendor invoice loaded"));
 const getUserInvoice = asyncHandler(async (req, res) => ok(res, await invoiceService.getUserInvoicePreview(req.user.sub, req.params.orderId), "Invoice loaded"));
 
 async function sendPdf(res, promise) {
@@ -33,7 +31,6 @@ async function sendPdf(res, promise) {
 }
 
 const downloadAdminInvoice = asyncHandler(async (req, res) => sendPdf(res, invoiceService.downloadAdminInvoice(req.params.orderId)));
-const downloadVendorInvoice = asyncHandler(async (req, res) => sendPdf(res, invoiceService.downloadVendorInvoice(req.user.sub, req.params.orderId)));
 const downloadUserInvoice = asyncHandler(async (req, res) => sendPdf(res, invoiceService.downloadUserInvoice(req.user.sub, req.params.orderId)));
 
 module.exports = {
@@ -43,10 +40,7 @@ module.exports = {
   getAdminInvoice,
   updateInvoiceMetadata,
   getInvoiceAuditHistory,
-  listVendorInvoices,
-  getVendorInvoice,
   getUserInvoice,
   downloadAdminInvoice,
-  downloadVendorInvoice,
   downloadUserInvoice,
 };

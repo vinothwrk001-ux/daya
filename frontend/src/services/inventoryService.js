@@ -36,24 +36,6 @@ export async function getVariantLedger(productId, variantId, limit = 100, offset
 }
 
 /**
- * Get seller's inventory summary (all products)
- */
-export async function getSellerInventorySummary() {
-  const { data } = await api.get("/api/inventory/seller/summary");
-  return data;
-}
-
-/**
- * Get seller's low stock variants
- */
-export async function getSellersLowStockVariants(limit = 50, offset = 0) {
-  const { data } = await api.get("/api/inventory/seller/low-stock", {
-    params: { limit, offset },
-  });
-  return data;
-}
-
-/**
  * Manual stock adjustment
  */
 export async function adjustStock(productId, variantId, quantityChange, reason, notes = "") {

@@ -373,9 +373,9 @@ export function ReviewsPage() {
                   ))}
                 </div>
               ) : null}
-              {review.vendorReply || review.sellerResponse?.message ? (
+              {review.platformReply ? (
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-                  Seller response: {review.vendorReply || review.sellerResponse.message}
+                  Platform response: {review.platformReply}
                 </div>
               ) : null}
               {review.status ? <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-emerald-600">{review.status}</div> : null}

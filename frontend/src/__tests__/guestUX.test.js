@@ -19,7 +19,6 @@ describe('Guest Cart Store', () => {
     const { getState } = useGuestCartStore;
     const item = {
       productId: '123',
-      vendorId: '456',
       quantity: 1,
       price: 100,
       image: 'image.jpg',
@@ -39,7 +38,6 @@ describe('Guest Cart Store', () => {
     const { getState } = useGuestCartStore;
     const item = {
       productId: '123',
-      vendorId: '456',
       quantity: 1,
       price: 100,
       image: 'image.jpg',
@@ -63,7 +61,6 @@ describe('Guest Cart Store', () => {
     act(() => {
       getState().addItem({
         productId: '123',
-        vendorId: '456',
         quantity: 1,
         price: 100,
         variantId: '',
@@ -81,7 +78,6 @@ describe('Guest Cart Store', () => {
     act(() => {
       getState().addItem({
         productId: '123',
-        vendorId: '456',
         quantity: 2,
         price: 100,
         variantId: '',
@@ -99,7 +95,6 @@ describe('Guest Cart Store', () => {
     act(() => {
       getState().addItem({
         productId: '123',
-        vendorId: '456',
         quantity: 1,
         price: 100,
         variantId: '',
@@ -116,14 +111,12 @@ describe('Guest Cart Store', () => {
     const { getState } = useGuestCartStore;
     const item1 = {
       productId: '123',
-      vendorId: '456',
       quantity: 1,
       price: 100,
       variantId: 'v1',
     };
     const item2 = {
       productId: '123',
-      vendorId: '456',
       quantity: 1,
       price: 150,
       variantId: 'v2',

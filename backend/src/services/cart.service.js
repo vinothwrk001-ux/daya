@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 const { AppError } = require("../utils/AppError");
 const cartRepo = require("../repositories/cart.repository");
 const productRepo = require("../repositories/product.repository");
-const vendorRepo = require("../repositories/vendor.repository");
 const { resolveBestVariant, resolveNextAvailableVariant } = require("./variantResolver.service");
 
 function computeTotal(items = []) {
@@ -56,21 +55,6 @@ function getVariantForProduct(product, variantId) {
   return variants.find((item) => item.variantId === variantId && item.isActive) || null;
 }
 
-async function resolveSellerIdForProduct(product) {
-  if (product?.sellerId) return product.sellerId;
-  if (product?.creatorType === "ADMIN" && product?.createdBy?._id) {
-    const vendor = await vendorRepo.upsertByUserId(product.createdBy._id, {
-      status: "approved",
-      stepCompleted: 4,
-      companyName: "Platform Store",
-      shopName: "Platform Store",
-      storeDescription: "Products sold directly by the platform.",
-    });
-    return vendor._id;
-  }
-  return null;
-}
-
 function invalidatePreparedCheckoutCacheForUser(userId) {
   try {
     const checkoutService = require("./checkout.service");
@@ -119,9 +103,6 @@ class CartService {
     if (availableStock < qty) {
       throw new AppError(`Only ${availableStock} item${availableStock === 1 ? "" : "s"} available`, 400, "INSUFFICIENT_STOCK");
     }
-    const resolvedSellerId = await resolveSellerIdForProduct(product);
-    if (!resolvedSellerId) throw new AppError("Seller not found for product", 400, "INVALID_PRODUCT");
-
     const itemImage =
       variant?.images?.find((image) => image.isPrimary)?.url ||
       variant?.images?.[0]?.url ||
@@ -131,7 +112,6 @@ class CartService {
     const itemPrice = Number(variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0);
     const newItem = {
       productId,
-      sellerId: resolvedSellerId,
       quantity: qty,
       price: itemPrice,
       image: itemImage,
@@ -153,7 +133,6 @@ class CartService {
         ...cart.items[existingIdx],
         quantity: nextQty,
         price: itemPrice,
-        sellerId: resolvedSellerId,
         image: itemImage,
         variantId: variant?.variantId || "",
         variantSku: variant?.sku || "",
@@ -208,12 +187,8 @@ class CartService {
     if (qty > maxAllowedQuantity) {
       throw new AppError(`Only ${maxAllowedQuantity} item${maxAllowedQuantity === 1 ? "" : "s"} available`, 400, "INSUFFICIENT_STOCK");
     }
-    const resolvedSellerId = await resolveSellerIdForProduct(product);
-    if (!resolvedSellerId) throw new AppError("Seller not found for product", 400, "INVALID_PRODUCT");
-
     cart.items[idx].quantity = qty;
     cart.items[idx].price = Number(variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0);
-    cart.items[idx].sellerId = resolvedSellerId;
     cart.items[idx].image =
       variant?.images?.find((image) => image.isPrimary)?.url ||
       variant?.images?.[0]?.url ||

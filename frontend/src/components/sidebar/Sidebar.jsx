@@ -29,7 +29,6 @@ export function Sidebar({
     growth: Megaphone,
     content: Clapperboard,
     campaigns: Megaphone,
-    "influencer-commerce": Megaphone,
     verification: Settings,
     profileSettings: Users,
   };

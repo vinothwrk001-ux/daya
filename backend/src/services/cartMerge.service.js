@@ -1,4 +1,3 @@
-const { AppError } = require("../utils/AppError");
 const cartRepo = require("../repositories/cart.repository");
 const guestCartService = require("./guestCart.service");
 
@@ -94,7 +93,6 @@ class CartMergeService {
           // New item - add to user cart
           userCart.items.push({
             productId: guestItem.productId,
-            sellerId: guestItem.vendorId,
             quantity: guestItem.quantity,
             price: guestItem.price,
             image: guestItem.image,

@@ -4,12 +4,6 @@ const RETURN_REQUEST_STATUS = ["REQUESTED", "APPROVED", "REJECTED", "REFUNDED"];
 
 const returnRequestSchema = new mongoose.Schema(
   {
-    vendorId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
-      required: true,
-      index: true,
-    },
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
@@ -37,7 +31,7 @@ const returnRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-returnRequestSchema.index({ vendorId: 1, status: 1, createdAt: -1 });
+returnRequestSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = {
   ReturnRequest: mongoose.model("ReturnRequest", returnRequestSchema),

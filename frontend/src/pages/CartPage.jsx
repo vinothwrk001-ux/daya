@@ -7,7 +7,6 @@ import { getCartRecommendations, getFbtRecommendations } from "../services/recom
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatWeight, getFormattedWeight, getWeightUnit, getWeightValue } from "../utils/weight";
 import { useCart } from "../hooks/useCart";
-import { SellerNameLink } from "../components/seller/SellerNavigation";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -105,7 +104,7 @@ export function CartPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Cart</h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300">Review items from multiple sellers in one place</p>
+          <p className="mt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300">Review your items before checkout</p>
         </div>
         <div className="flex-shrink-0">
           <BackButton fallbackTo="/shop" />
@@ -147,7 +146,6 @@ export function CartPage() {
               const img = item.image || (Array.isArray(p?.images) && p.images.length ? p.images[0]?.url : "");
               const qty = Number(item.quantity || 1);
               const price = Number(item.price || 0);
-              const seller = item?.sellerId || p?.sellerId;
               const variantLabel = item?.variantTitle || "";
               const variantId = item?.variantId || "";
               const itemWeight = getWeightValue(p || item);
@@ -184,16 +182,14 @@ export function CartPage() {
                             {name}
                           </h3>
 
-                          {/* Variant and Seller Info */}
+                          {/* Variant and fulfillment info */}
                           <div className="mt-2 space-y-1">
                             {variantLabel && (
                               <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
                                 <span className="font-medium">{variantLabel}</span>
                               </div>
                             )}
-                            <div className="flex flex-wrap items-center gap-2 text-xs">
-                              <SellerNameLink seller={seller} showPrefix={false} />
-                            </div>
+                            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Sold by Daya</div>
                             {productWeightLabel && (
                               <div className="text-xs text-slate-500 dark:text-slate-400">
                                 <span className="font-medium">Weight:</span> {productWeightLabel}

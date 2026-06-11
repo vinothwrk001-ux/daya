@@ -5,7 +5,6 @@ import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { useWishlist } from "../hooks/useWishlist";
 import { useCart } from "../hooks/useCart";
 import { getCartErrorMessage } from "../utils/cartErrors";
-import { SellerNameLink, VisitStoreButton } from "../components/seller/SellerNavigation";
 
 function normalizeError(err, fallback = "Failed to load wishlist.") {
   return getCartErrorMessage(err, fallback);
@@ -108,10 +107,7 @@ export function WishlistPage() {
                         Selected: {variantTitle}
                       </div>
                     )}
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                      <SellerNameLink seller={product?.sellerId} />
-                      <VisitStoreButton seller={product?.sellerId}>Visit Seller Store</VisitStoreButton>
-                    </div>
+                    <div className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">Sold by Daya</div>
                     <div className="mt-2 text-base font-bold text-slate-950 dark:text-white">
                       {discountPrice ? (
                         <>

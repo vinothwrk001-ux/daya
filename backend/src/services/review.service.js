@@ -12,7 +12,6 @@ const { Product } = require("../models/Product");
 const { Order } = require("../models/Order");
 const { User } = require("../models/User");
 const { UserNotification } = require("../models/UserNotification");
-const vendorRepo = require("../repositories/vendor.repository");
 const auditService = require("./audit.service");
 const notificationService = require("./notification.service");
 
@@ -150,7 +149,7 @@ async function notifySafely(task) {
   try {
     await task();
   } catch {
-    // Notifications are best-effort so review mutations are not blocked by enum/config drift.
+    // Notifications are best-effort.
   }
 }
 
@@ -162,7 +161,7 @@ async function resolveEligibleDeliveredOrder(customerId, productId, orderId) {
   };
   if (orderId) query._id = orderId;
 
-  const orders = await Order.find(query).sort({ createdAt: -1 }).select("_id sellerId status items.productId orderNumber").lean();
+  const orders = await Order.find(query).sort({ createdAt: -1 }).select("_id status items.productId orderNumber").lean();
   const deliveredOrder = orders.find(isDelivered);
   if (!deliveredOrder) {
     throw new AppError("Only verified customers with delivered orders can review this product", 403, "REVIEW_NOT_ELIGIBLE");
@@ -218,18 +217,18 @@ async function refreshProductSummary(productId) {
 
   const [summary] = await Promise.all([
     ProductReviewSummary.findOneAndUpdate(
-    { productId },
-    {
-      $set: {
-        productId,
-        averageRating,
-        totalRatings: totalReviews,
-        totalReviews,
-        ratingBreakdown: breakdown,
-        refreshedAt: new Date(),
+      { productId },
+      {
+        $set: {
+          productId,
+          averageRating,
+          totalRatings: totalReviews,
+          totalReviews,
+          ratingBreakdown: breakdown,
+          refreshedAt: new Date(),
+        },
       },
-    },
-    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     ),
     Product.findByIdAndUpdate(productId, {
       $set: {
@@ -287,7 +286,6 @@ class ReviewService {
     const [reviews, total, summary] = await Promise.all([
       ProductReview.find(filter)
         .populate("customerId", "name avatarUrl")
-        .populate("vendorId", "shopName companyName")
         .sort(normalizeSort(query))
         .skip((page - 1) * limit)
         .limit(limit)
@@ -324,13 +322,10 @@ class ReviewService {
     }
 
     const [product, deliveredOrder] = await Promise.all([
-      Product.findById(payload.productId).select("_id sellerId name").lean(),
+      Product.findById(payload.productId).select("_id name").lean(),
       resolveEligibleDeliveredOrder(customerId, payload.productId, payload.orderId),
     ]);
     if (!product) throw new AppError("Product not found", 404, "NOT_FOUND");
-
-    const vendorId = deliveredOrder.sellerId || product.sellerId;
-    if (!vendorId) throw new AppError("Vendor not found for reviewed product", 400, "INVALID_OPERATION");
 
     const duplicate = await ProductReview.findOne({
       productId: payload.productId,
@@ -345,7 +340,6 @@ class ReviewService {
     const media = await uploadReviewFiles(files);
     const review = await ProductReview.create({
       productId: payload.productId,
-      vendorId,
       customerId,
       orderId: deliveredOrder._id,
       rating: normalizeRating(payload.rating),
@@ -377,16 +371,17 @@ class ReviewService {
     });
 
     await notifySafely(() =>
-      notificationService.notifyVendorAndOperations({
-        vendorId,
-        permissionKey: "reviews.read",
-        module: "MANAGEMENT",
-        subModule: "REVIEWS",
-        type: "SYSTEM_ALERT",
-        title: "New review submitted",
-        message: `${product.name} received a new published review.`,
-        referenceId: review._id,
-      })
+      notificationService.notifyOperations(
+        {
+          module: "MANAGEMENT",
+          subModule: "REVIEWS",
+          type: "SYSTEM_ALERT",
+          title: "New review submitted",
+          message: `${product.name} received a new published review.`,
+          referenceId: review._id,
+        },
+        "reviews.read"
+      )
     );
 
     return review;
@@ -412,6 +407,10 @@ class ReviewService {
       }
       if (payload.rejectionReason !== undefined) review.rejectionReason = normalizeString(payload.rejectionReason, 500);
       if (payload.featured !== undefined) review.featured = Boolean(payload.featured);
+      if (payload.platformReply !== undefined || payload.reply !== undefined) {
+        review.platformReply = normalizeString(payload.platformReply || payload.reply, 1200);
+        review.platformReplyDate = new Date();
+      }
     } else {
       throw new AppError("Forbidden", 403, "FORBIDDEN");
     }
@@ -450,10 +449,6 @@ class ReviewService {
     assertObjectId(reviewId, "reviewId");
     const filter = { _id: reviewId, status: { $ne: "deleted" } };
     if (actor.role === "user") filter.customerId = actor.sub;
-    if (actor.role === "vendor") {
-      const vendor = await vendorRepo.findByUserId(actor.sub);
-      filter.vendorId = vendor?._id;
-    }
 
     const review = await ProductReview.findOneAndUpdate(
       filter,
@@ -473,44 +468,6 @@ class ReviewService {
       userAgent: meta.userAgent,
     });
     return { _id: review._id };
-  }
-
-  async reply(actor, reviewId, payload = {}, meta = {}) {
-    assertObjectId(reviewId, "reviewId");
-    const vendor = await vendorRepo.findByUserId(actor.sub);
-    if (!vendor) throw new AppError("Vendor profile not found", 404, "VENDOR_NOT_FOUND");
-
-    const message = normalizeString(payload.message || payload.vendorReply, 1200);
-    if (!message) throw new AppError("Vendor reply is required", 400, "VALIDATION_ERROR");
-
-    const review = await ProductReview.findOneAndUpdate(
-      { _id: reviewId, vendorId: vendor._id, status: { $ne: "deleted" } },
-      { $set: { vendorReply: message, vendorReplyDate: new Date() } },
-      { returnDocument: "after" }
-    );
-    if (!review) throw new AppError("Review not found", 404, "NOT_FOUND");
-
-    await auditService.log({
-      actor,
-      action: "review.vendor_replied",
-      entityType: "ProductReview",
-      entityId: review._id,
-      ipAddress: meta.ipAddress,
-      userAgent: meta.userAgent,
-    });
-
-    await notifySafely(() =>
-      UserNotification.create({
-        userId: review.customerId,
-        type: "SYSTEM",
-        title: "Vendor replied to your review",
-        message: "The vendor responded to your product review.",
-        entityType: "ProductReview",
-        entityId: review._id,
-      })
-    );
-
-    return review;
   }
 
   async vote(customerId, reviewId, payload = {}) {
@@ -599,40 +556,16 @@ class ReviewService {
     return report;
   }
 
-  async listVendorReviews(userId, query = {}) {
-    const vendor = await vendorRepo.findByUserId(userId);
-    if (!vendor) throw new AppError("Vendor profile not found", 404, "VENDOR_NOT_FOUND");
-    const { page, limit } = normalizePagination(query);
-    const filter = { vendorId: vendor._id, status: { $ne: "deleted" } };
-    if (query.status) filter.status = query.status;
-    if (query.rating) filter.rating = normalizeRating(query.rating);
-
-    const [reviews, total] = await Promise.all([
-      ProductReview.find(filter)
-        .populate("productId", "name images")
-        .populate("customerId", "name")
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),
-      ProductReview.countDocuments(filter),
-    ]);
-
-    return { reviews, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
-  }
-
   async listAdminReviews(query = {}) {
     const { page, limit } = normalizePagination(query);
     const filter = {};
     if (query.status) filter.status = query.status;
     if (query.rating) filter.rating = normalizeRating(query.rating);
-    if (query.vendorId) filter.vendorId = query.vendorId;
     if (query.productId) filter.productId = query.productId;
 
     const [reviews, total] = await Promise.all([
       ProductReview.find(filter)
         .populate("productId", "name images")
-        .populate("vendorId", "shopName companyName")
         .populate("customerId", "name email phone")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
@@ -654,7 +587,6 @@ class ReviewService {
       this.rankProducts({ byCount: true }),
       ProductReview.find({ status: { $ne: "deleted" } })
         .populate("productId", "name")
-        .populate("vendorId", "shopName companyName")
         .populate("customerId", "name")
         .sort({ createdAt: -1 })
         .limit(8)

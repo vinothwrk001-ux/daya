@@ -12,32 +12,11 @@ const BOOTSTRAP_VERSION = "1.0.0";
 
 const DEFAULT_PLATFORM_CONFIGS = Object.freeze([
   {
-    key: "commission_percentage",
+    key: "platform_fee_percentage",
     value: 10,
-    description: "Platform commission percentage for sellers",
-    category: "commission",
+    description: "Platform fee percentage applied to orders",
+    category: "platform_fee",
     type: "number",
-  },
-  {
-    key: "min_vendor_earnings",
-    value: 1000,
-    description: "Minimum earning threshold for payout",
-    category: "commission",
-    type: "number",
-  },
-  {
-    key: "payout_frequency_days",
-    value: 14,
-    description: "Payout frequency in days",
-    category: "commission",
-    type: "number",
-  },
-  {
-    key: "auto_approve_vendors",
-    value: false,
-    description: "Automatically approve vendor applications",
-    category: "feature",
-    type: "boolean",
   },
   {
     key: "auto_approve_products",
@@ -73,18 +52,9 @@ const DEFAULT_PLATFORM_CONFIGS = Object.freeze([
       selfShipping: true,
       platformShipping: true,
     },
-    description: "Controls which shipping modes vendors can access",
+    description: "Controls which shipping modes are available",
     category: "shipping",
     type: "object",
-  },
-  {
-    key: "influencer_commerce_enabled",
-    value: true,
-    description:
-      "When false, influencer sign-in/register, storefront reels, influencer APIs, vendors' Influencer Commerce, and tracking attribution are disabled. Admin moderation routes stay available.",
-    category: "feature",
-    type: "boolean",
-    isPublic: true,
   },
 ]);
 

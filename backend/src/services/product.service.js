@@ -1,7 +1,5 @@
 const { AppError } = require("../utils/AppError");
 const productRepo = require("../repositories/product.repository");
-const { Vendor } = require("../models/Vendor");
-const vendorRepo = require("../repositories/vendor.repository");
 const { generateSlug } = require("../utils/slug");
 const {
   generateNextProductNumber,
@@ -278,77 +276,16 @@ async function prepareDynamicProductData({
   };
 }
 
-async function ensureAdminVendor(userId) {
-  // Admin-created products must still map to a Vendor because cart/order schemas require it.
-  // We create (or reuse) an approved vendor profile for the admin user.
-  const vendor = await vendorRepo.upsertByUserId(userId, {
-    status: "approved",
-    stepCompleted: 4,
-    companyName: "Platform Store",
-    shopName: "Platform Store",
-    storeDescription: "Products sold directly by the platform.",
-    supportEmail: undefined,
-    supportPhone: undefined,
-  });
-  return vendor;
-}
-
 class ProductService {
-  getReferenceId(value) {
-    if (!value) return null;
-    if (typeof value === "string") return value;
-    if (typeof value === "object") {
-      if (value._id) return String(value._id);
-      if (typeof value.toString === "function" && value.toString() !== "[object Object]") {
-        return String(value);
-      }
-    }
-    return null;
-  }
-
-  isSellerProductOwner(product, userId, sellerId) {
-    const productSellerId = this.getReferenceId(product?.sellerId);
-    const productCreatorId = this.getReferenceId(product?.createdBy);
-    const matchesSeller = productSellerId && sellerId && productSellerId === String(sellerId);
-    const matchesCreator = productCreatorId && userId && productCreatorId === String(userId);
-    const isSellerCreatedProduct = String(product?.creatorType || "").toUpperCase() === "SELLER";
-
-    return Boolean(matchesSeller || (isSellerCreatedProduct && matchesCreator));
-  }
-
   /**
    * Create a new product
    * @param {Object} productData - Product details
    * @param {String} userId - User ID (who is creating)
-   * @param {String} userRole - User role (admin or seller)
-   * @param {String} sellerId - Vendor/Seller ID (required for sellers)
    */
-  async createProduct(productData, userId, userRole, sellerId = null) {
+  async createProduct(productData, userId) {
     // Validate inputs
     if (!productData.name || !productData.description || !productData.categoryId || !productData.subCategoryId) {
       throw new AppError("Missing required fields: name, description, category, subcategory", 400, "VALIDATION_ERROR");
-    }
-
-    if (userRole === "seller" && !sellerId) {
-      throw new AppError("Seller ID is required for seller products", 400, "INVALID_SELLER");
-    }
-
-    if (userRole === "seller") {
-      // Verify vendor exists and belongs to user
-      const vendor = await Vendor.findOne({ _id: sellerId, userId });
-      if (!vendor) {
-        throw new AppError("Vendor not found or does not belong to you", 403, "FORBIDDEN");
-      }
-
-      // Check vendor approval status
-      if (vendor.status !== "approved") {
-        throw new AppError("Your vendor account is not approved yet", 403, "VENDOR_NOT_APPROVED");
-      }
-    }
-
-    if (userRole === "admin" && !sellerId) {
-      const vendor = await ensureAdminVendor(userId);
-      sellerId = vendor._id;
     }
 
     // Generate slug from name
@@ -379,10 +316,6 @@ class ProductService {
     });
     await assertUniqueProductNumber(generatedProductNumber);
 
-    // Determine status based on role
-    const status = userRole === "admin" ? "APPROVED" : "PENDING";
-    const isActive = userRole === "admin" ? true : false;
-
     const productPayload = {
       ...productData,
       weight: normalizeProductWeight(productData.weight, { required: true }),
@@ -404,16 +337,12 @@ class ProductService {
       extraDetails: normalizedModulesData,
       variantConfig: variantState.variantConfig,
       variants: variantState.variants,
-      status,
-      isActive,
+      status: "APPROVED",
+      isActive: true,
       createdBy: userId,
-      creatorType: userRole === "admin" ? "ADMIN" : "SELLER",
-      ...(sellerId && { sellerId }),
-      // Auto-approve admin products
-      ...(userRole === "admin" && {
-        approvedAt: new Date(),
-        approvedBy: userId,
-      }),
+      creatorType: "ADMIN",
+      approvedAt: new Date(),
+      approvedBy: userId,
     };
 
     const product = await productRepo.create(productPayload);
@@ -428,33 +357,18 @@ class ProductService {
    * @param {String} userId - User ID (who is updating)
    * @param {String} userRole - User role
    */
-  async updateProduct(productId, updateData, userId, userRole, sellerId = null) {
+  async updateProduct(productId, updateData, userId) {
     const product = await productRepo.findById(productId);
     if (!product) {
       throw new AppError("Product not found", 404, "NOT_FOUND");
-    }
-
-    // Authorization check
-    if (userRole === "seller") {
-      // Sellers can only edit their own products
-      if (!this.isSellerProductOwner(product, userId, sellerId)) {
-        throw new AppError("You can only edit your own products", 403, "FORBIDDEN");
-      }
-
-      if (!product.sellerId && sellerId) {
-        updateData.sellerId = sellerId;
-      }
-
-      // Sellers cannot change status
-      delete updateData.status;
-      delete updateData.creatorType;
-      delete updateData.createdBy;
     }
 
     // Don't allow changing immutable identifiers
     delete updateData.slug;
     delete updateData.SKU;
     delete updateData.productNumber;
+    delete updateData.creatorType;
+    delete updateData.createdBy;
 
     if (Object.prototype.hasOwnProperty.call(updateData, "weight")) {
       updateData.weight = normalizeProductWeight(updateData.weight);
@@ -513,23 +427,14 @@ class ProductService {
    * Delete product permanently
    * @param {String} productId - Product ID
    * @param {String} userId - User ID
-   * @param {String} userRole - User role
-   * @param {String} sellerId - Seller ID
    */
-  async deleteProduct(productId, userId, userRole, sellerId = null) {
+  async deleteProduct(productId, userId) {
+    void userId;
     const product = await productRepo.findById(productId);
     if (!product) {
       throw new AppError("Product not found", 404, "NOT_FOUND");
     }
 
-    // Authorization check
-    if (userRole === "seller") {
-      if (!this.isSellerProductOwner(product, userId, sellerId)) {
-        throw new AppError("You can only delete your own products", 403, "FORBIDDEN");
-      }
-    }
-
-    // Admin and vendor deletes permanently remove the product.
     const deletedProduct = await productRepo.deleteById(productId);
     await productAnalyticsService.markProductDeleted(productId);
     return deletedProduct;
@@ -547,7 +452,7 @@ class ProductService {
   }
 
   /**
-   * Get all products with filters (admin/seller view)
+   * Get all products with filters (admin view)
    */
   async getProducts(filters) {
     return await productRepo.list(filters);
@@ -584,13 +489,6 @@ class ProductService {
       filterDefs,
       filterDefMap,
     });
-  }
-
-  /**
-   * Get seller's products
-   */
-  async getSellerProducts(sellerId, filters) {
-    return await productRepo.getSellerProducts(sellerId, filters);
   }
 
   /**

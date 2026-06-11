@@ -1,40 +1,23 @@
 const mongoose = require("mongoose");
 const { HomepageContainer } = require("../models/HomepageContainer");
 const { Product } = require("../models/Product");
-const { Vendor } = require("../models/Vendor");
 const { Category } = require("../models/Category");
 const { Subcategory } = require("../models/Subcategory");
-const { InfluencerProfile, InfluencerStorefront, InfluencerCollection } = require("../modules/influencer/model");
 const { AppError } = require("../utils/AppError");
 const { uploadMany } = require("../utils/upload");
 const {
   normalizeContainerType,
   getContainerTypeSchema,
   listContainerTypeSchemas,
-  VENDOR_STOREFRONT_TYPES,
-  INFLUENCER_STOREFRONT_TYPES,
 } = require("../config/homepageContainerRegistry");
 
 const DEFAULT_PREVIEW_LIMIT = 12;
-const DEFAULT_VENDOR_LAYOUT_LIMIT = 20;
 const CACHE_TTL_MS = 60 * 1000;
 const responseCache = new Map();
-const VENDOR_DATA_SOURCE_TYPES = new Set([
-  "CURRENT_VENDOR_PRODUCTS",
-  "CURRENT_VENDOR_FEATURED",
-  "CURRENT_VENDOR_NEW_ARRIVALS",
-  "CURRENT_VENDOR_BEST_SELLERS",
-  "CURRENT_VENDOR_DEALS",
-  "CURRENT_VENDOR_TOP_RATED",
-  "CURRENT_VENDOR_RECOMMENDED",
-]);
-const VENDOR_STOREFRONT_TYPE_SET = new Set(VENDOR_STOREFRONT_TYPES);
-const INFLUENCER_STOREFRONT_TYPE_SET = new Set(INFLUENCER_STOREFRONT_TYPES);
 
 function normalizeDataSourceType(value) {
   const next = String(value || "DEFAULT").trim().toUpperCase();
-  if (next === "DEFAULT" || VENDOR_DATA_SOURCE_TYPES.has(next)) return next;
-  return "DEFAULT";
+  return next === "DEFAULT" ? next : "DEFAULT";
 }
 
 function setCache(key, value) {
@@ -307,7 +290,6 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
       end: normalizeDate(payload.scheduleEnd ?? payload.endDate ?? schedule.end, null),
     },
     filters: {
-      vendorIds: toObjectIdArray(payload.vendorIds ?? filters.vendorIds ?? []),
       categoryIds: toObjectIdArray(payload.categoryIds ?? filters.categoryIds ?? []),
       subCategoryIds: toObjectIdArray(payload.subCategoryIds ?? filters.subCategoryIds ?? []),
       brandIds: toStringArray(payload.brandIds ?? filters.brandIds ?? []),
@@ -343,7 +325,6 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
 
   if (!schema.supportsProductFilters) {
     normalized.filters = {
-      vendorIds: [],
       categoryIds: [],
       subCategoryIds: [],
       brandIds: [],
@@ -382,16 +363,7 @@ async function validateReferences(payload = {}, existingId = null) {
       : [];
   const comboProductIds = payload.containerType === "COMBO_DEALS" ? extractConfigIds(config.bundleProducts) : [];
   const showcaseCategoryIds = payload.containerType === "CATEGORY_SHOWCASE" ? extractConfigIds(config.categories) : [];
-  const manualVendorIds = isVendorStorefrontContainer(payload.containerType) && String(config.storefrontSelectionMode || "AUTO").toUpperCase() === "MANUAL"
-    ? extractConfigIds(config.manualVendorIds).filter((id) => mongoose.isValidObjectId(id))
-    : [];
-  const manualInfluencerIds = isInfluencerStorefrontContainer(payload.containerType) && String(config.storefrontSelectionMode || "AUTO").toUpperCase() === "MANUAL"
-    ? extractConfigIds(config.manualInfluencerIds).filter((id) => mongoose.isValidObjectId(id))
-    : [];
-  const [vendors, categories, subcategories, manualProducts, featuredProducts, comboProducts, showcaseCategories, manualStoreVendors, manualStoreInfluencers, slugConflict] = await Promise.all([
-    filters.vendorIds?.length
-      ? Vendor.find({ _id: { $in: filters.vendorIds }, status: "approved" }).select("_id").lean()
-      : Promise.resolve([]),
+  const [categories, subcategories, manualProducts, featuredProducts, comboProducts, showcaseCategories, slugConflict] = await Promise.all([
     filters.categoryIds?.length
       ? Category.find({ _id: { $in: filters.categoryIds }, isActive: true }).select("_id").lean()
       : Promise.resolve([]),
@@ -404,7 +376,7 @@ async function validateReferences(payload = {}, existingId = null) {
           status: "APPROVED",
           isActive: true,
         })
-          .select("_id sellerId categoryId subCategoryId")
+          .select("_id categoryId subCategoryId")
           .lean()
       : Promise.resolve([]),
     featuredProductIds.length
@@ -428,12 +400,6 @@ async function validateReferences(payload = {}, existingId = null) {
     showcaseCategoryIds.length
       ? Category.find({ _id: { $in: showcaseCategoryIds }, isActive: true }).select("_id").lean()
       : Promise.resolve([]),
-    manualVendorIds.length
-      ? Vendor.find({ _id: { $in: manualVendorIds }, status: "approved", isStoreVisible: { $ne: false } }).select("_id").lean()
-      : Promise.resolve([]),
-    manualInfluencerIds.length
-      ? InfluencerProfile.find({ _id: { $in: manualInfluencerIds }, state: { $in: ["verified", "active"] } }).select("_id").lean()
-      : Promise.resolve([]),
     payload.slug
       ? HomepageContainer.findOne({
           slug: payload.slug,
@@ -446,10 +412,6 @@ async function validateReferences(payload = {}, existingId = null) {
 
   if (slugConflict) {
     throw new AppError("Homepage container slug already exists", 409, "SLUG_EXISTS");
-  }
-
-  if (filters.vendorIds?.length && vendors.length !== filters.vendorIds.length) {
-    throw new AppError("One or more selected vendors are invalid or not approved", 400, "INVALID_VENDOR_SCOPE");
   }
 
   if (filters.categoryIds?.length && categories.length !== filters.categoryIds.length) {
@@ -481,14 +443,6 @@ async function validateReferences(payload = {}, existingId = null) {
 
   if (showcaseCategoryIds.length && showcaseCategories.length !== new Set(showcaseCategoryIds).size) {
     throw new AppError("One or more showcase categories are invalid", 400, "INVALID_SHOWCASE_CATEGORIES");
-  }
-
-  if (manualVendorIds.length && manualStoreVendors.length !== new Set(manualVendorIds).size) {
-    throw new AppError("One or more selected storefront vendors are invalid or unavailable", 400, "INVALID_STOREFRONT_VENDORS");
-  }
-
-  if (manualInfluencerIds.length && manualStoreInfluencers.length !== new Set(manualInfluencerIds).size) {
-    throw new AppError("One or more selected storefront influencers are invalid or unavailable", 400, "INVALID_STOREFRONT_INFLUENCERS");
   }
 
   validateTypeSpecificRules(payload);
@@ -544,23 +498,12 @@ function matchesDevice(container = {}, device = "all") {
   return true;
 }
 
-function buildProductBaseMatch(container = {}, approvedVendorIds = []) {
+function buildProductBaseMatch(container = {}) {
   const filters = container.filters || {};
-  const currentVendorId = container.__currentVendorId;
   const match = {
     status: "APPROVED",
     isActive: true,
   };
-
-  if (currentVendorId && mongoose.isValidObjectId(currentVendorId)) {
-    match.sellerId = new mongoose.Types.ObjectId(currentVendorId);
-  } else if (approvedVendorIds.length) {
-    match.sellerId = { $in: approvedVendorIds };
-  }
-
-  if (!currentVendorId && filters.vendorIds?.length) {
-    match.sellerId = { $in: filters.vendorIds.map((item) => new mongoose.Types.ObjectId(item)) };
-  }
 
   if (filters.categoryIds?.length) {
     match.categoryId = { $in: filters.categoryIds.map((item) => new mongoose.Types.ObjectId(item)) };
@@ -690,30 +633,9 @@ function resolveFeaturedSortBy(container = {}) {
   return container?.filters?.sortBy || "TRENDING";
 }
 
-function resolveVendorSortBy(container = {}) {
-  const source = String(container.dataSourceType || "DEFAULT").toUpperCase();
-  const configured = String(container.config?.orderBy || container.config?.sortBy || container.filters?.sortBy || "").toUpperCase();
-  const aliases = {
-    POPULARITY: "MOST_POPULAR",
-    SALES: "BEST_SELLING",
-    RATING: "TOP_RATED",
-    NEWEST: "NEWEST",
-  };
-
-  if (source === "CURRENT_VENDOR_FEATURED") return "FEATURED";
-  if (source === "CURRENT_VENDOR_NEW_ARRIVALS") return "NEWEST";
-  if (source === "CURRENT_VENDOR_BEST_SELLERS") return "BEST_SELLING";
-  if (source === "CURRENT_VENDOR_DEALS") return "HIGHEST_DISCOUNT";
-  if (source === "CURRENT_VENDOR_TOP_RATED") return "TOP_RATED";
-  if (source === "CURRENT_VENDOR_RECOMMENDED") return "TRENDING";
-  return aliases[configured] || configured || (container.containerType === "GRID" ? "NEWEST" : "TRENDING");
-}
-
 async function hydrateProductsByIds(ids = []) {
   if (!ids.length) return [];
-  const products = await Product.find({ _id: { $in: ids } })
-    .populate("sellerId", "companyName shopName logoUrl storeSlug bannerUrl")
-    .lean();
+  const products = await Product.find({ _id: { $in: ids } }).lean();
   const orderMap = new Map(ids.map((id, index) => [String(id), index]));
   return products.sort((a, b) => orderMap.get(String(a._id)) - orderMap.get(String(b._id)));
 }
@@ -728,33 +650,6 @@ function extractConfigIds(items = []) {
     })
     .filter(Boolean)
     .map(String);
-}
-
-function isVendorStorefrontContainer(type) {
-  return VENDOR_STOREFRONT_TYPE_SET.has(normalizeContainerType(type));
-}
-
-function isInfluencerStorefrontContainer(type) {
-  return INFLUENCER_STOREFRONT_TYPE_SET.has(normalizeContainerType(type));
-}
-
-function isStorefrontDiscoveryContainer(type) {
-  return isVendorStorefrontContainer(type) || isInfluencerStorefrontContainer(type);
-}
-
-function normalizeStorefrontSelectionMode(config = {}) {
-  return String(config.storefrontSelectionMode || "AUTO").trim().toUpperCase() === "MANUAL" ? "MANUAL" : "AUTO";
-}
-
-function clampStorefrontLimit(config = {}) {
-  return Math.min(Math.max(Number(config.maxStorefrontCards || config.maxCards || 8), 1), 48);
-}
-
-function yearsActiveFrom(date) {
-  if (!date) return 0;
-  const created = new Date(date);
-  if (Number.isNaN(created.getTime())) return 0;
-  return Math.max(0, Math.floor((Date.now() - created.getTime()) / (365 * 24 * 60 * 60 * 1000)));
 }
 
 function normalizeCategoryCards(cards = []) {
@@ -830,161 +725,6 @@ async function withCategoryShowcaseData(container = {}) {
   };
 }
 
-async function buildVendorStorefrontCards(container = {}) {
-  const config = container.config || {};
-  const limit = clampStorefrontLimit(config);
-  const selectionMode = normalizeStorefrontSelectionMode(config);
-  const manualIds = extractConfigIds(config.manualVendorIds).filter((id) => mongoose.isValidObjectId(id));
-  const query = { status: "approved", isStoreVisible: { $ne: false }, storeSlug: { $nin: ["", null] } };
-  let sort = { isStoreFeatured: -1, lastActiveAt: -1, createdAt: -1 };
-
-  if (selectionMode === "MANUAL" && manualIds.length) {
-    query._id = { $in: manualIds.map((id) => new mongoose.Types.ObjectId(id)) };
-  } else {
-    const rule = String(config.vendorAutoRule || "").toUpperCase();
-    if (container.containerType === "VENDOR_FEATURED_STORES" || rule === "VERIFIED") query.isStoreFeatured = true;
-    if (container.containerType === "VENDOR_NEW_STORES" || rule === "NEWEST") sort = { createdAt: -1 };
-    if (rule === "RECENTLY_ACTIVE") sort = { lastActiveAt: -1, createdAt: -1 };
-    if (rule === "RANDOM") sort = null;
-  }
-
-  const vendors = sort
-    ? await Vendor.find(query).sort(sort).limit(limit).lean()
-    : await Vendor.aggregate([{ $match: query }, { $sample: { size: limit } }]);
-  const orderedVendors =
-    selectionMode === "MANUAL" && manualIds.length
-      ? vendors.sort((left, right) => manualIds.indexOf(String(left._id)) - manualIds.indexOf(String(right._id)))
-      : vendors;
-  const vendorIds = orderedVendors.map((vendor) => vendor._id);
-  const productCounts = vendorIds.length
-    ? await Product.aggregate([
-        { $match: { sellerId: { $in: vendorIds }, status: "APPROVED", isActive: true } },
-        { $group: { _id: "$sellerId", count: { $sum: 1 }, sales: { $sum: { $ifNull: ["$analytics.salesCount", 0] } }, revenue: { $sum: { $ifNull: ["$analytics.revenue", 0] } } } },
-      ])
-    : [];
-  const countMap = new Map(productCounts.map((item) => [String(item._id), item]));
-
-  return orderedVendors.map((vendor) => {
-    const counts = countMap.get(String(vendor._id)) || {};
-    return {
-      _id: vendor._id,
-      entityType: "vendor",
-      slug: vendor.storeSlug,
-      href: `/vendor/${vendor.storeSlug}`,
-      name: vendor.shopName || vendor.companyName || "Vendor Store",
-      description: vendor.storeDescription || "",
-      category: (vendor.storeCategories || []).join(", "),
-      logo: vendor.logoUrl || "",
-      banner: vendor.bannerUrl || "",
-      productsCount: Number(counts.count || 0),
-      followersCount: Number(vendor.followersCount || vendor.followers || 0),
-      rating: Number(vendor.rating || vendor.averageRating || 0),
-      reviewsCount: Number(vendor.reviewsCount || vendor.reviewCount || 0),
-      yearsActive: yearsActiveFrom(vendor.createdAt),
-      verified: vendor.status === "approved",
-      featured: vendor.isStoreFeatured === true,
-      metrics: {
-        sales: Number(counts.sales || 0),
-        revenue: Number(counts.revenue || 0),
-      },
-    };
-  });
-}
-
-async function buildInfluencerStorefrontCards(container = {}) {
-  const config = container.config || {};
-  const limit = clampStorefrontLimit(config);
-  const selectionMode = normalizeStorefrontSelectionMode(config);
-  const manualIds = extractConfigIds(config.manualInfluencerIds).filter((id) => mongoose.isValidObjectId(id));
-  const profileQuery = { state: { $in: ["verified", "active"] } };
-  let sort = { verified: -1, followers: -1, createdAt: -1 };
-
-  if (selectionMode === "MANUAL" && manualIds.length) {
-    profileQuery._id = { $in: manualIds.map((id) => new mongoose.Types.ObjectId(id)) };
-  } else {
-    const rule = String(config.influencerAutoRule || "").toUpperCase();
-    if (container.containerType === "INFLUENCER_VERIFIED_CREATORS" || rule === "VERIFIED") profileQuery.verified = true;
-    if (container.containerType === "INFLUENCER_NEW_CREATORS" || rule === "NEWEST") sort = { createdAt: -1 };
-    if (container.containerType === "INFLUENCER_TRENDING_CREATORS" || rule === "TRENDING" || rule === "MOST_VIEWED") sort = { "stats.views": -1, followers: -1, createdAt: -1 };
-    if (rule === "MOST_REVENUE_GENERATED") sort = { "stats.revenue": -1, followers: -1, createdAt: -1 };
-    if (rule === "TOP_CONVERTING") sort = { "stats.sales": -1, "stats.clicks": -1, createdAt: -1 };
-    if (rule === "RANDOM") sort = null;
-  }
-
-  const profiles = sort
-    ? await InfluencerProfile.find(profileQuery).sort(sort).limit(limit).lean()
-    : await InfluencerProfile.aggregate([{ $match: profileQuery }, { $sample: { size: limit } }]);
-  const orderedProfiles =
-    selectionMode === "MANUAL" && manualIds.length
-      ? profiles.sort((left, right) => manualIds.indexOf(String(left._id)) - manualIds.indexOf(String(right._id)))
-      : profiles;
-  const profileIds = orderedProfiles.map((profile) => profile._id);
-  const [storefronts, collectionCounts] = await Promise.all([
-    profileIds.length ? InfluencerStorefront.find({ influencerId: { $in: profileIds }, status: { $in: ["active", "published"] } }).lean() : [],
-    profileIds.length
-      ? InfluencerCollection.aggregate([
-          { $match: { influencerId: { $in: profileIds }, status: "active" } },
-          { $group: { _id: "$influencerId", count: { $sum: 1 }, productIds: { $push: "$productIds" } } },
-        ])
-      : [],
-  ]);
-  const storefrontMap = new Map(storefronts.map((item) => [String(item.influencerId), item]));
-  const collectionMap = new Map(collectionCounts.map((item) => [String(item._id), item]));
-
-  return orderedProfiles
-    .map((profile) => {
-      const storefront = storefrontMap.get(String(profile._id));
-      const slug = storefront?.slug || profile.storeSlug;
-      if (!slug) return null;
-      const collectionStats = collectionMap.get(String(profile._id)) || {};
-      const productsCount = (collectionStats.productIds || []).flat().filter(Boolean).length || Number(storefront?.featuredProductIds?.length || 0);
-      const clicks = Number(profile.stats?.clicks || 0);
-      const sales = Number(profile.stats?.sales || 0);
-      return {
-        _id: profile._id,
-        entityType: "influencer",
-        slug,
-        href: `/influencer/${slug}`,
-        name: storefront?.name || profile.displayName || profile.storeName || "Creator Storefront",
-        username: profile.socialHandles?.instagram || profile.influencerCode || slug,
-        description: storefront?.description || profile.shortBio || profile.bio || "",
-        category: profile.primaryCategory || (profile.categories || []).join(", "),
-        logo: storefront?.profileImage || storefront?.logo || profile.profilePicture || "",
-        banner: storefront?.banner || profile.coverBanner || "",
-        followersCount: Number(profile.followers || 0),
-        collectionsCount: Number(collectionStats.count || 0),
-        productsCount,
-        rating: clicks > 0 ? Number(((sales / clicks) * 100).toFixed(2)) : Number(profile.rating || 0),
-        reviewsCount: Number(profile.rating ? Math.round(profile.rating * 10) : 0),
-        verified: profile.verified === true,
-        featured: container.containerType === "INFLUENCER_FEATURED_CREATORS",
-        topCreator: Number(profile.followers || 0) >= 10000 || Number(profile.stats?.revenue || 0) > 0,
-        metrics: {
-          views: Number(profile.stats?.views || 0),
-          clicks,
-          sales,
-          revenue: Number(profile.stats?.revenue || 0),
-        },
-      };
-    })
-    .filter(Boolean);
-}
-
-async function resolveStorefrontCards(container = {}) {
-  if (isVendorStorefrontContainer(container.containerType)) {
-    return buildVendorStorefrontCards(container);
-  }
-  if (isInfluencerStorefrontContainer(container.containerType)) {
-    return buildInfluencerStorefrontCards(container);
-  }
-  return [];
-}
-
-async function getApprovedVendorIds() {
-  const vendors = await Vendor.find({ status: "approved" }).select("_id").lean();
-  return vendors.map((vendor) => new mongoose.Types.ObjectId(vendor._id));
-}
-
 function applyTypeSpecificProductConstraints(container = {}) {
   const filters = container.filters || {};
   const config = container.config || {};
@@ -1008,90 +748,7 @@ function applyTypeSpecificProductConstraints(container = {}) {
   return constraint;
 }
 
-function applyVendorDataSourceConstraints(container = {}) {
-  const source = String(container.dataSourceType || "DEFAULT").toUpperCase();
-  if (source === "CURRENT_VENDOR_FEATURED") {
-    return { $or: [{ isFeatured: true }, { featured: true }] };
-  }
-  if (source === "CURRENT_VENDOR_DEALS") {
-    return { discountPrice: { $gt: 0 } };
-  }
-  if (source === "CURRENT_VENDOR_TOP_RATED") {
-    return {
-      "ratings.averageRating": { $gte: Number(container.config?.minimumRating || 4) },
-      "ratings.totalReviews": { $gte: Number(container.config?.minimumReviews || 0) },
-    };
-  }
-  return {};
-}
-
-function shouldUseVendorProducts(container = {}, options = {}) {
-  return Boolean(options.currentVendorId && mongoose.isValidObjectId(options.currentVendorId));
-}
-
-function inferVendorDataSourceType(container = {}) {
-  const configured = normalizeDataSourceType(container.dataSourceType || "DEFAULT");
-  if (configured !== "DEFAULT") return configured;
-  switch (container.containerType) {
-    case "FEATURED_PRODUCTS":
-      return "CURRENT_VENDOR_FEATURED";
-    case "NEW_ARRIVALS":
-      return "CURRENT_VENDOR_NEW_ARRIVALS";
-    case "TOP_RATED":
-      return "CURRENT_VENDOR_TOP_RATED";
-    case "TRENDING":
-    case "CAROUSEL":
-      return "CURRENT_VENDOR_PRODUCTS";
-    case "DEALS_STRIP":
-    case "FLASH_SALE":
-    case "COMBO_DEALS":
-      return "CURRENT_VENDOR_DEALS";
-    case "RECOMMENDED":
-      return "CURRENT_VENDOR_RECOMMENDED";
-    case "GRID":
-    default:
-      return "CURRENT_VENDOR_PRODUCTS";
-  }
-}
-
-function withVendorProductContext(container = {}, options = {}) {
-  if (!shouldUseVendorProducts(container, options)) return container;
-  const source = inferVendorDataSourceType(container);
-  return {
-    ...container,
-    __currentVendorId: String(options.currentVendorId),
-    dataSourceType: source,
-    filters: {
-      ...(container.filters || {}),
-      productSelectionMode: "AUTO",
-      manualProductIds: [],
-      vendorIds: [],
-      maxProductsToShow: Number(container.filters?.maxProductsToShow || DEFAULT_VENDOR_LAYOUT_LIMIT),
-    },
-  };
-}
-
 async function resolveContainerProducts(container, options = {}) {
-  container = withVendorProductContext(container, options);
-  if (isStorefrontDiscoveryContainer(container.containerType)) {
-    const storefrontCards = await resolveStorefrontCards(container);
-    return {
-      products: [],
-      storefrontCards,
-      storefrontPagination: {
-        total: storefrontCards.length,
-        page: 1,
-        limit: storefrontCards.length,
-        pages: 1,
-      },
-      pagination: {
-        total: 0,
-        page: 1,
-        limit: 0,
-        pages: 0,
-      },
-    };
-  }
   const schema = getContainerTypeSchema(container.containerType);
   if (!schema.supportsProducts) {
     return {
@@ -1108,10 +765,8 @@ async function resolveContainerProducts(container, options = {}) {
   const filters = container.filters || {};
   const config = container.config || {};
   const page = Math.max(Number(options.page || 1), 1);
-  const limitFallback = container.__currentVendorId ? DEFAULT_VENDOR_LAYOUT_LIMIT : DEFAULT_PREVIEW_LIMIT;
-  const limit = Math.min(Math.max(Number(options.limit || filters.maxProductsToShow || limitFallback), 1), 100);
+  const limit = Math.min(Math.max(Number(options.limit || filters.maxProductsToShow || DEFAULT_PREVIEW_LIMIT), 1), 100);
   const skip = (page - 1) * limit;
-  const approvedVendorIds = options.approvedVendorIds || (await getApprovedVendorIds());
   const featuredIds =
     container.containerType === "FEATURED_PRODUCTS"
       ? [
@@ -1120,7 +775,7 @@ async function resolveContainerProducts(container, options = {}) {
         ].filter(Boolean)
       : [];
 
-  if (!container.__currentVendorId && container.containerType === "FEATURED_PRODUCTS" && featuredIds.length && String(config.productSourceMode || "MANUAL").toUpperCase() === "MANUAL") {
+  if (container.containerType === "FEATURED_PRODUCTS" && featuredIds.length && String(config.productSourceMode || "MANUAL").toUpperCase() === "MANUAL") {
     const uniqueIds = [...new Set(featuredIds.map(String))].slice(0, limit);
     const products = await hydrateProductsByIds(uniqueIds);
     return {
@@ -1134,7 +789,7 @@ async function resolveContainerProducts(container, options = {}) {
     };
   }
 
-  if (!container.__currentVendorId && container.containerType === "COMBO_DEALS") {
+  if (container.containerType === "COMBO_DEALS") {
     const comboIds = extractConfigIds(config.bundleProducts);
     if (comboIds.length) {
       const uniqueIds = [...new Set(comboIds)].slice(0, Math.min(Number(config.comboMaxProducts || limit), limit));
@@ -1152,9 +807,8 @@ async function resolveContainerProducts(container, options = {}) {
   }
 
   const pipeline = [
-    { $match: buildProductBaseMatch(container, approvedVendorIds) },
+    { $match: buildProductBaseMatch(container) },
     { $match: applyTypeSpecificProductConstraints(container) },
-    ...(container.__currentVendorId ? [{ $match: applyVendorDataSourceConstraints(container) }] : []),
     { $addFields: buildComputedFields() },
   ];
 
@@ -1187,11 +841,7 @@ async function resolveContainerProducts(container, options = {}) {
     pipeline.push({ $match: expressionMatch });
   }
 
-  const sortBy = container.__currentVendorId
-    ? resolveVendorSortBy(container)
-    : container.containerType === "FEATURED_PRODUCTS"
-      ? resolveFeaturedSortBy(container)
-      : filters.sortBy;
+  const sortBy = container.containerType === "FEATURED_PRODUCTS" ? resolveFeaturedSortBy(container) : filters.sortBy;
   pipeline.push(...buildSortStages(sortBy));
 
   const countPipeline = pipeline.filter((stage) => !stage.$sample && !stage.$sort).concat({ $count: "total" });
@@ -1236,7 +886,6 @@ function mapContainerDocument(container, productsPayload = null) {
     presentation: container.presentation || {},
     schedule: container.schedule || { enabled: false, start: null, end: null },
     filters: {
-      vendorIds: filters.vendorIds || [],
       categoryIds: filters.categoryIds || [],
       subCategoryIds: filters.subCategoryIds || [],
       brandIds: filters.brandIds || [],
@@ -1275,15 +924,6 @@ function mapContainerDocument(container, productsPayload = null) {
   if (productsPayload) {
     mapped.products = productsPayload.products;
     mapped.productPagination = productsPayload.pagination;
-    if (Array.isArray(productsPayload.storefrontCards)) {
-      mapped.storefrontCards = productsPayload.storefrontCards;
-      mapped.storefrontPagination = productsPayload.storefrontPagination || {
-        total: productsPayload.storefrontCards.length,
-        page: 1,
-        limit: productsPayload.storefrontCards.length,
-        pages: 1,
-      };
-    }
   }
 
   return mapped;
@@ -1339,7 +979,6 @@ class HomepageContainerService {
         .sort({ priority: 1, createdAt: -1 })
         .skip(skip)
         .limit(safeLimit)
-        .populate("filters.vendorIds", "companyName shopName logoUrl")
         .populate("filters.categoryIds", "name slug")
         .populate("filters.subCategoryIds", "name categoryId")
         .populate("filters.manualProductIds", "name slug price discountPrice")
@@ -1365,7 +1004,6 @@ class HomepageContainerService {
       throw new AppError("Invalid homepage container id", 400, "INVALID_ID");
     }
     const container = await HomepageContainer.findById(id)
-      .populate("filters.vendorIds", "companyName shopName logoUrl bannerUrl storeSlug")
       .populate("filters.categoryIds", "name slug")
       .populate("filters.subCategoryIds", "name categoryId")
       .populate("filters.manualProductIds", "name slug price discountPrice")
@@ -1516,14 +1154,12 @@ class HomepageContainerService {
       return result;
     }
 
-    const approvedVendorIds = await getApprovedVendorIds();
     const resolved = await Promise.all(
       visible.map(async (container) => {
         const displayContainer = await withCategoryShowcaseData(container);
         const productsPayload = await resolveContainerProducts(container, {
           page,
           limit: limit || container.filters?.maxProductsToShow || DEFAULT_PREVIEW_LIMIT,
-          approvedVendorIds,
         });
         return mapContainerDocument(displayContainer, productsPayload);
       })
@@ -1613,7 +1249,7 @@ class HomepageContainerService {
 
   async getResolvedContainersByIds(
     ids = [],
-    { device = "all", includeProducts = true, page = 1, limit, respectVisibility = true, currentVendorId = null } = {}
+    { device = "all", includeProducts = true, page = 1, limit, respectVisibility = true } = {}
   ) {
     const objectIds = ids
       .map((item) => String(item || "").trim())
@@ -1637,14 +1273,11 @@ class HomepageContainerService {
       return filtered.map((item) => mapContainerDocument(item));
     }
 
-    const approvedVendorIds = await getApprovedVendorIds();
     const resolved = await Promise.all(
       filtered.map(async (container) => {
         const productsPayload = await resolveContainerProducts(container, {
           page,
-          limit: limit || container.filters?.maxProductsToShow || (currentVendorId ? DEFAULT_VENDOR_LAYOUT_LIMIT : DEFAULT_PREVIEW_LIMIT),
-          approvedVendorIds,
-          currentVendorId,
+          limit: limit || container.filters?.maxProductsToShow || DEFAULT_PREVIEW_LIMIT,
         });
         return mapContainerDocument(container, productsPayload);
       })

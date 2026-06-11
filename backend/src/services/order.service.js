@@ -1,9 +1,6 @@
 const mongoose = require("mongoose");
 const { AppError } = require("../utils/AppError");
 const orderRepo = require("../repositories/order.repository");
-const payoutRepo = require("../repositories/payout.repository");
-const vendorRepo = require("../repositories/vendor.repository");
-const productService = require("./product.service");
 const { ORDER_STATUS, PAYMENT_STATUS } = require("../models/Order");
 const checkoutService = require("./checkout.service");
 const inventoryService = require("./inventory.service");
@@ -76,15 +73,6 @@ class OrderService {
     if (order.status !== "Delivered") {
       throw new AppError("Only delivered orders can be returned", 400, "INVALID_OPERATION");
     }
-    const payouts = await payoutRepo.findByOrderId(order._id);
-    if (payouts.some((payout) => ["PROCESSING", "PAID"].includes(payout.status))) {
-      throw new AppError(
-        "This delivered order has already entered vendor settlement and needs manual support review",
-        400,
-        "MANUAL_REVIEW_REQUIRED"
-      );
-    }
-
     if (order.paymentStatus === "Partially Refunded") {
       throw new AppError("This order already has a partial refund and needs manual review", 400, "MANUAL_REVIEW_REQUIRED");
     }
@@ -109,25 +97,11 @@ class OrderService {
           Number(item.quantity || 0),
           order.returnId || null,
           order._id,
-          order.sellerId?._id || order.sellerId,
           userId,
           "Customer return processed"
         );
       }
     }
-
-    await Promise.all(
-      payouts
-        .filter((payout) => ["ON_HOLD", "PENDING", "QUEUED"].includes(payout.status))
-        .map((payout) =>
-          payoutRepo.updateById(payout._id, {
-            $set: {
-              status: "CANCELLED",
-              notes: "Cancelled because the order was returned before payout settlement.",
-            },
-          })
-        )
-    );
 
     const updated = await orderRepo.updateById(orderId, {
       status: "Returned",
@@ -135,45 +109,6 @@ class OrderService {
     });
     await productAnalyticsService.refreshForOrder(orderId);
     return updated;
-  }
-
-  async listForSeller(userId, { page, limit, status } = {}) {
-    const vendor = await vendorRepo.findByUserId(userId);
-    if (!vendor) throw new AppError("Vendor profile not found", 400, "VENDOR_NOT_FOUND");
-
-    return await orderRepo.listBySellerId({
-      sellerId: vendor._id,
-      page: Number(page || 1),
-      limit: Number(limit || 20),
-      ...(status ? { status } : {}),
-    });
-  }
-
-  async updateStatusAsSellerOrAdmin({ actor, orderId, status }) {
-    asObjectId(orderId, "orderId");
-    if (!ORDER_STATUS.includes(status)) throw new AppError("Invalid order status", 400, "VALIDATION_ERROR");
-
-    const order = await orderRepo.findById(orderId);
-    if (!order) throw new AppError("Order not found", 404, "NOT_FOUND");
-
-    if (actor.role === "admin") {
-      const updated = await orderRepo.updateStatus(orderId, status);
-      await productAnalyticsService.refreshForOrder(orderId);
-      return updated;
-    }
-
-    if (actor.role === "vendor") {
-      const vendor = await vendorRepo.findByUserId(actor.sub);
-      if (!vendor) throw new AppError("Vendor profile not found", 400, "VENDOR_NOT_FOUND");
-      if (String(order.sellerId) !== String(vendor._id)) {
-        throw new AppError("Forbidden", 403, "FORBIDDEN");
-      }
-      const updated = await orderRepo.updateStatus(orderId, status);
-      await productAnalyticsService.refreshForOrder(orderId);
-      return updated;
-    }
-
-    throw new AppError("Forbidden", 403, "FORBIDDEN");
   }
 
   async updatePaymentStatus({ userId, orderId, paymentStatus }) {

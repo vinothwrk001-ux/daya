@@ -29,7 +29,6 @@ const statsBucketSchema = new mongoose.Schema(
     unitsSold: { type: Number, default: 0, min: 0 },
     grossRevenue: { type: Number, default: 0, min: 0 },
     netRevenue: { type: Number, default: 0, min: 0 },
-    commissionAmount: { type: Number, default: 0, min: 0 },
     ordersCount: { type: Number, default: 0, min: 0 },
     returnCount: { type: Number, default: 0, min: 0 },
     refundCount: { type: Number, default: 0, min: 0 },
@@ -56,11 +55,6 @@ const productAnalyticsSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
-    vendorId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vendor",
-      index: true,
-    },
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
@@ -83,7 +77,6 @@ const productAnalyticsSchema = new mongoose.Schema(
     totalUnitsSold: { type: Number, default: 0, min: 0 },
     totalRevenue: { type: Number, default: 0, min: 0 },
     totalNetRevenue: { type: Number, default: 0, min: 0 },
-    totalCommissionAmount: { type: Number, default: 0, min: 0 },
     totalOrders: { type: Number, default: 0, min: 0 },
     totalReturns: { type: Number, default: 0, min: 0 },
     totalRefunds: { type: Number, default: 0, min: 0 },
@@ -129,9 +122,7 @@ const productAnalyticsSchema = new mongoose.Schema(
   }
 );
 
-productAnalyticsSchema.index({ vendorId: 1, categoryId: 1, updatedAt: -1 });
 productAnalyticsSchema.index({ categoryId: 1, updatedAt: -1 });
-productAnalyticsSchema.index({ vendorId: 1, productDeleted: 1, updatedAt: -1 });
 productAnalyticsSchema.index({ "dailyStats.key": 1 });
 productAnalyticsSchema.index({ "monthlyStats.key": 1 });
 

@@ -3,16 +3,11 @@ require("../config/env");
 
 const { connectDb } = require("../config/db");
 const { PaymentSession } = require("../models/PaymentSession");
-const { TrackingSession } = require("../modules/tracking/model");
 
 const TARGETS = [
   {
     model: PaymentSession,
     expectedName: "payment_session_ttl",
-  },
-  {
-    model: TrackingSession,
-    expectedName: "tracking_session_ttl",
   },
 ];
 

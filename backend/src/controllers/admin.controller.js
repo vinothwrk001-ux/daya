@@ -15,7 +15,6 @@ const analytics = asyncHandler(async (req, res) => {
     range: req.query.range,
     startDate: req.query.startDate,
     endDate: req.query.endDate,
-    vendorId: req.query.vendorId,
     categoryId: req.query.categoryId,
     paymentMethod: req.query.paymentMethod,
     orderStatus: req.query.orderStatus,
@@ -32,20 +31,6 @@ const productAnalyticsDetail = asyncHandler(async (req, res) => {
     orderStatus: req.query.orderStatus,
   });
   return ok(res, result, "Product analytics loaded");
-});
-
-const listVendors = asyncHandler(async (req, res) => {
-  const vendors = await adminService.listVendors({
-    status: req.query.status,
-    startDate: req.query.startDate,
-    endDate: req.query.endDate,
-  });
-  return ok(res, vendors, "OK");
-});
-
-const getVendorDetails = asyncHandler(async (req, res) => {
-  const vendor = await adminService.getVendorDetails(req.params.id);
-  return ok(res, vendor, "OK");
 });
 
 const listUsers = asyncHandler(async (req, res) => {
@@ -105,34 +90,6 @@ const deleteUser = asyncHandler(async (req, res) => {
   return ok(res, result, "User deleted");
 });
 
-const approveVendor = asyncHandler(async (req, res) => {
-  const vendor = await adminService.approveVendor(req.params.id, req.user, {
-    ipAddress: req.ip,
-    userAgent: req.get("user-agent"),
-  });
-  return ok(res, vendor, "Vendor approved");
-});
-
-const rejectVendor = asyncHandler(async (req, res) => {
-  const reason = req.body?.reason;
-  if (reason && typeof reason !== "string") {
-    throw new AppError("Invalid rejection reason", 400, "VALIDATION_ERROR");
-  }
-  const vendor = await adminService.rejectVendor(req.params.id, { reason }, req.user, {
-    ipAddress: req.ip,
-    userAgent: req.get("user-agent"),
-  });
-  return ok(res, vendor, "Vendor rejected");
-});
-
-const removeVendor = asyncHandler(async (req, res) => {
-  const result = await adminService.removeVendor(req.params.id, req.user, {
-    ipAddress: req.ip,
-    userAgent: req.get("user-agent"),
-  });
-  return ok(res, result, "Vendor removed and privileges revoked");
-});
-
 const listOrders = asyncHandler(async (req, res) => {
   const result = await adminService.listOrders({
     page: Number(req.query.page || 1),
@@ -181,15 +138,6 @@ const updateAdminInventoryThreshold = asyncHandler(async (req, res) => {
   if (threshold === undefined) throw new AppError("Threshold value is required", 400, "VALIDATION_ERROR");
   const result = await adminService.updateAdminInventoryThreshold(req.params.id, req.params.variantId, threshold, req.user);
   return ok(res, result, "Admin inventory threshold updated");
-});
-
-const listPayouts = asyncHandler(async (req, res) => {
-  const result = await adminService.listPayouts({
-    status: req.query.status,
-    startDate: req.query.startDate,
-    endDate: req.query.endDate,
-  });
-  return ok(res, result, "Payouts loaded");
 });
 
 const listReviews = asyncHandler(async (req, res) => {
@@ -355,17 +303,12 @@ module.exports = {
   analytics,
   productAnalyticsDetail,
   dailyRevenue,
-  listVendors,
-  getVendorDetails,
   listUsers,
   createUser,
   listAuditLogs,
   setUserStatus,
   toggleUserBlocked,
   deleteUser,
-  approveVendor,
-  rejectVendor,
-  removeVendor,
   listOrders,
   getAdminInventorySummary,
   getAdminInventoryProduct,
@@ -382,7 +325,6 @@ module.exports = {
   markManualRefundCase,
   markWalletRefundCase,
   retryRefundCase,
-  listPayouts,
   listReviews,
   getOrderById,
   createOrder,

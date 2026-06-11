@@ -115,10 +115,6 @@ const paymentSchema = new mongoose.Schema(
     shippingAddress: {
       type: mongoose.Schema.Types.Mixed,
     },
-    trackingToken: {
-      type: String,
-      trim: true,
-    },
     gatewayResponse: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

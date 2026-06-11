@@ -55,7 +55,6 @@ const recommendationSettingsSchema = new mongoose.Schema(
       attribute: { type: Boolean, default: true },
       price: { type: Boolean, default: true },
       inventory: { type: Boolean, default: true },
-      vendor: { type: Boolean, default: false },
       rating: { type: Boolean, default: true },
       popularity: { type: Boolean, default: true },
       newArrival: { type: Boolean, default: false },

@@ -9,16 +9,7 @@ const {
   getContainerTypeSchema,
 } = require("../config/homepageContainerRegistry");
 
-const DATA_SOURCE_TYPES = [
-  "DEFAULT",
-  "CURRENT_VENDOR_PRODUCTS",
-  "CURRENT_VENDOR_FEATURED",
-  "CURRENT_VENDOR_NEW_ARRIVALS",
-  "CURRENT_VENDOR_BEST_SELLERS",
-  "CURRENT_VENDOR_DEALS",
-  "CURRENT_VENDOR_TOP_RATED",
-  "CURRENT_VENDOR_RECOMMENDED",
-];
+const DATA_SOURCE_TYPES = ["DEFAULT"];
 
 const visibilitySchema = new mongoose.Schema(
   {
@@ -88,10 +79,6 @@ const scheduleSchema = new mongoose.Schema(
 
 const filtersSchema = new mongoose.Schema(
   {
-    vendorIds: {
-      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Vendor" }],
-      default: [],
-    },
     categoryIds: {
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }],
       default: [],
