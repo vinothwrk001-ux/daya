@@ -56,25 +56,25 @@ export function StaffSidebar({ permissions, enabledModules = {}, summary = { mod
       <button
         type="button"
         onClick={onToggle}
-        className="fixed right-4 top-4 z-40 rounded-xl border border-slate-200 bg-white p-2 shadow-lg lg:hidden"
+        className="enterprise-icon-button fixed right-4 top-4 z-40 rounded-xl p-2 lg:hidden"
         aria-label="Toggle staff navigation"
       >
         {isOpen ? <CloseIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
       </button>
 
       <aside
-        className={`fixed left-0 top-0 z-40 flex h-screen w-64 min-w-[16rem] max-w-[16rem] flex-col transform border-r border-slate-200 bg-white transition-transform duration-300 lg:relative lg:translate-x-0 ${
+        className={`fixed left-0 top-0 z-40 flex h-screen w-64 min-w-[16rem] max-w-[16rem] flex-col transform border-r border-black bg-brand-secondary text-white transition-transform duration-300 lg:relative lg:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="sticky top-0 border-b border-slate-200 bg-white px-5 py-5">
+        <div className="sticky top-0 border-b border-white/10 bg-brand-secondary px-5 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-bold text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-brandMd bg-brand-primary text-sm font-bold text-white">
               GRM
             </div>
             <div>
-              <div className="text-sm font-semibold text-slate-950">GRM Staff</div>
-              <div className="text-xs text-slate-500">Dynamic role workspace</div>
+              <div className="text-sm font-semibold text-white">GRM Staff</div>
+              <div className="text-xs text-white/60">Dynamic role workspace</div>
             </div>
           </div>
         </div>
@@ -86,7 +86,7 @@ export function StaffSidebar({ permissions, enabledModules = {}, summary = { mod
                 <button
                   type="button"
                   onClick={() => toggleSection(section)}
-                  className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
+                  className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/50"
                 >
                   <span>{SIDEBAR_SECTIONS[section] || section}</span>
                   <span className="ml-auto mr-2 inline-flex items-center gap-2">
@@ -134,14 +134,14 @@ export function StaffSidebar({ permissions, enabledModules = {}, summary = { mod
                         to={module.route}
                         className={`group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm transition ${
                           active
-                            ? "bg-slate-950 text-white shadow-sm"
-                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                            ? "bg-brand-primary text-white shadow-sm"
+                            : "text-white/72 hover:bg-white/10 hover:text-white"
                         }`}
                       >
                         {Icon ? <Icon size={24} className="shrink-0 text-current" /> : null}
                         <div className="min-w-0">
                           <div className="font-medium">{module.name}</div>
-                          <div className={`truncate text-xs ${active ? "text-slate-300" : "text-slate-400"}`}>
+                          <div className={`truncate text-xs ${active ? "text-white/75" : "text-white/45"}`}>
                             {module.description}
                           </div>
                         </div>
@@ -159,8 +159,8 @@ export function StaffSidebar({ permissions, enabledModules = {}, summary = { mod
           ))}
         </nav>
 
-        <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
-          <p className="text-xs text-slate-500">
+        <div className="border-t border-white/10 bg-black/20 px-4 py-3">
+          <p className="text-xs text-white/55">
             {visibleModules.length} module{visibleModules.length === 1 ? "" : "s"} available
           </p>
         </div>

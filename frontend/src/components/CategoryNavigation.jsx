@@ -93,7 +93,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
   return (
     <>
       <nav
-        className="sticky top-16 z-30 border-b border-slate-200/40 bg-white/95 backdrop-blur-md will-change-none dark:border-slate-800/50 dark:bg-slate-950/95"
+        className="sticky top-20 z-30 border-b border-brand-border bg-brand-secondary text-white backdrop-blur-md will-change-none"
         style={{ height: "48px" }}
       >
         <div className="w-full px-2 lg:px-4 h-full flex items-center relative">
@@ -102,10 +102,10 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
             <button
               type="button"
               onClick={() => scroll("left")}
-              className="hidden lg:flex absolute left-0 z-10 h-full w-12 items-center justify-center bg-gradient-to-r from-white to-transparent dark:from-slate-950 hover:from-slate-50 dark:hover:from-slate-900 transition-colors duration-200 flex-shrink-0"
+              className="hidden lg:flex absolute left-0 z-10 h-full w-12 items-center justify-center bg-gradient-to-r from-brand-secondary to-transparent transition-colors duration-200 flex-shrink-0"
               aria-label="Scroll categories left"
             >
-              <ChevronLeft className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+              <ChevronLeft className="h-4 w-4 text-white" />
             </button>
           )}
 
@@ -132,18 +132,18 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
                       onClick={() => handleCategorySelect(category)}
                       className={`flex items-center gap-2 px-3 py-2 h-full text-xs sm:text-sm font-medium transition-all duration-200 relative group/btn ${
                         isSelected
-                          ? "text-slate-900 dark:text-white"
-                          : "text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                          ? "text-white"
+                          : "text-white/78 hover:text-white"
                       }`}
                     >
                       <span className="flex-shrink-0">{category.name}</span>
 
                       {isSelected && (
-                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full" />
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary rounded-full" />
                       )}
 
                       {!isSelected && (
-                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-300 dark:bg-slate-600 rounded-full transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-center" />
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary rounded-full transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-center" />
                       )}
                     </button>
 
@@ -158,7 +158,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
                         }}
                         onMouseLeave={handleHoverLeave}
                       >
-                        <div className="bg-white dark:bg-slate-900 shadow-lg border border-slate-100 dark:border-slate-800 rounded-b-lg min-w-[200px] overflow-hidden">
+                        <div className="bg-white shadow-brandMd border border-brand-border rounded-b-lg min-w-[200px] overflow-hidden">
                           {loadingSubcategories === category.id ? (
                             <div className="px-4 py-6 text-center text-xs text-slate-500">
                               Loading...
@@ -173,7 +173,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
                                     onSelect?.(sub);
                                     setHoveredCategoryId(null);
                                   }}
-                                  className="px-4 py-2 text-xs sm:text-sm text-left text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800/50 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-150 font-medium"
+                                  className="px-4 py-2 text-xs sm:text-sm text-left text-slate-700 hover:bg-red-50 hover:text-brand-primary transition-colors duration-150 font-medium"
                                 >
                                   {sub.name}
                                 </button>
@@ -198,10 +198,10 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
             <button
               type="button"
               onClick={() => scroll("right")}
-              className="hidden lg:flex absolute right-0 z-10 h-full w-12 items-center justify-center bg-gradient-to-l from-white to-transparent dark:from-slate-950 hover:from-slate-50 dark:hover:from-slate-900 transition-colors duration-200 flex-shrink-0"
+              className="hidden lg:flex absolute right-0 z-10 h-full w-12 items-center justify-center bg-gradient-to-l from-brand-secondary to-transparent transition-colors duration-200 flex-shrink-0"
               aria-label="Scroll categories right"
             >
-              <ChevronRight className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+              <ChevronRight className="h-4 w-4 text-white" />
             </button>
           )}
         </div>

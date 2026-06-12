@@ -41,22 +41,22 @@ export function Sidebar({
 
   return (
     <aside
-      className="group fixed inset-y-0 left-0 z-40 flex flex-col border-r border-slate-200 bg-slate-50/95 backdrop-blur transition-all duration-300 ease-out dark:border-slate-800 dark:bg-slate-950/95 w-20 hover:w-80 lg:w-20 lg:hover:w-80"
+      className="group fixed inset-y-0 left-0 z-40 flex flex-col border-r border-black bg-brand-secondary text-white backdrop-blur transition-all duration-300 ease-out w-20 hover:w-80 lg:w-20 lg:hover:w-80"
     >
-      <div className="flex flex-shrink-0 items-center gap-3 border-b border-slate-200 px-3 py-4 dark:border-slate-800">
+      <div className="flex flex-shrink-0 items-center gap-3 border-b border-white/10 px-3 py-4">
         <BrandLogo showName={false} imgClassName="h-7 w-auto max-w-[44px] object-contain" />
-        <div className="hidden truncate text-base font-semibold text-slate-950 dark:text-white sm:text-lg group-hover:block">
+        <div className="hidden truncate text-base font-semibold text-white sm:text-lg group-hover:block">
           {title}
-          {subtitle ? <span className="block truncate text-xs font-medium text-slate-500 dark:text-slate-400">{subtitle}</span> : null}
+          {subtitle ? <span className="block truncate text-xs font-medium text-white/60">{subtitle}</span> : null}
           {planLabel ? (
-            <span className="mt-1 inline-flex max-w-full truncate rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-200 dark:ring-indigo-900/50">
+            <span className="mt-1 inline-flex max-w-full truncate rounded-full bg-red-500/15 px-2 py-0.5 text-[11px] font-semibold text-white ring-1 ring-red-500/30">
               {planLabel}
             </span>
           ) : null}
         </div>
       </div>
 
-      <div className="border-b border-slate-200 px-2 py-3 dark:border-slate-800">
+      <div className="border-b border-white/10 px-2 py-3">
         <NavLink
           to={primaryItem.path}
           onClick={() => {
@@ -66,8 +66,8 @@ export function Sidebar({
             [
               "flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold transition-colors",
               isActive
-                ? "bg-indigo-500 text-white"
-                : "bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800",
+                ? "bg-brand-primary text-white"
+                : "bg-white/5 text-white/78 hover:bg-white/10 hover:text-white",
             ].join(" ")
           }
         >
@@ -78,14 +78,14 @@ export function Sidebar({
 
         <nav className="flex-1 space-y-3 overflow-y-auto px-3 py-4">
           {loading ? (
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70">
               <Loader className="h-4 w-4 animate-spin" />
               <span>Loading navigation...</span>
             </div>
           ) : null}
 
           {error ? (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-200">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-3 text-sm text-white">
               {error}
             </div>
           ) : null}

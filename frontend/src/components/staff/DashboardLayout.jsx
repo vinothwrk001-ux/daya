@@ -114,9 +114,9 @@ export function StaffDashboardLayout({ children }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+      <div className="enterprise-shell flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-amber-500" />
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-brand-primary" />
           <p className="mt-4 text-sm text-slate-600">Loading staff workspace...</p>
           {lastSyncTime && (
             <p className="mt-2 text-xs text-slate-400">
@@ -130,7 +130,7 @@ export function StaffDashboardLayout({ children }) {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+      <div className="enterprise-shell flex min-h-screen items-center justify-center px-4">
         <div className="max-w-md rounded-[1.5rem] border border-rose-200 bg-white p-6 text-center shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">Unable to load workspace</h2>
           <p className="mt-2 text-sm text-slate-600">{error}</p>
@@ -138,14 +138,14 @@ export function StaffDashboardLayout({ children }) {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="w-full rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              className="enterprise-primary-button w-full rounded-xl px-4 py-2 text-sm font-semibold"
             >
               Retry
             </button>
             <button
               type="button"
               onClick={() => logout()}
-              className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="enterprise-secondary-button w-full rounded-xl px-4 py-2 text-sm font-semibold"
             >
               Logout
             </button>
@@ -161,7 +161,7 @@ export function StaffDashboardLayout({ children }) {
   }
 
   return (
-    <div className="flex min-h-screen overflow-hidden bg-slate-100">
+    <div className="enterprise-shell flex min-h-screen overflow-hidden">
       <StaffSidebar
         permissions={user?.permissions || {}}
         enabledModules={user?.enabledModules || {}}
@@ -179,7 +179,7 @@ export function StaffDashboardLayout({ children }) {
           onMenuToggle={() => setSidebarOpen((current) => !current)}
         />
 
-        <main className="flex-1 overflow-auto bg-slate-100">
+        <main className="flex-1 overflow-auto">
           <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">{children || <Outlet />}</div>
         </main>
       </div>

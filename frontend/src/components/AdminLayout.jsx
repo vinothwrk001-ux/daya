@@ -189,7 +189,7 @@ export function AdminLayout() {
   }
 
   return (
-    <div className={`flex min-h-screen max-w-full overflow-x-hidden bg-slate-100 dark:bg-slate-950 ${sidebarOpen ? "lg:ml-20" : "lg:ml-0"}`}>
+    <div className={`enterprise-shell flex min-h-screen max-w-full overflow-x-hidden ${sidebarOpen ? "lg:ml-20" : "lg:ml-0"}`}>
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

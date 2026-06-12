@@ -2,6 +2,7 @@ import { logger } from "../services/logger/logger.js";
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { ChevronDown, Heart, ShoppingCart } from "lucide-react";
+import { ProductCard as PremiumProductCard } from "../components/ProductCard";
 import * as productService from "../services/productService";
 import * as subcategoryService from "../services/subcategoryService";
 import { formatCurrency } from "../utils/formatCurrency";
@@ -237,13 +238,11 @@ export function ShopPage() {
       {/* Products Grid */}
       {products.length > 0 ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {products.map((product) => (
-              <ProductCard 
+              <PremiumProductCard
                 key={product._id} 
                 product={product}
-                isInWishlist={wishlist.has(product._id)}
-                onToggleWishlist={toggleWishlist}
               />
             ))}
           </div>

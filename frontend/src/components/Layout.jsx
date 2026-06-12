@@ -159,21 +159,21 @@ export function Layout() {
 
   return (
     <CartDrawerProvider>
-      <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.16),_transparent_34%),linear-gradient(to_bottom,_#ffffff,_#f8fafc_32%,_#eef2ff_100%)] text-slate-900 transition-colors dark:bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.16),_transparent_30%),linear-gradient(to_bottom,_#020617,_#020617_28%,_#0f172a_100%)] dark:text-white">
+      <div className="enterprise-shell flex min-h-screen flex-col transition-colors">
       {!hideShopChrome ? (
-        <header className="sticky top-0 z-30 border-b border-white/50 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/60">
+        <header className="enterprise-header sticky top-0 z-30 backdrop-blur-xl">
           <div className="w-full px-3 py-3 sm:px-4 lg:px-8">
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
                 <Link
                   to="/"
-                  className={`inline-flex min-w-fit items-center gap-2 rounded-lg border border-white/60 bg-white/75 px-3 py-2 font-semibold tracking-[-0.03em] text-slate-950 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur dark:border-white/10 dark:bg-slate-900/70 dark:text-white transition hover:shadow-lg ${
+                  className={`enterprise-nav-pill inline-flex min-w-fit items-center gap-2 rounded-lg px-3 py-2 font-semibold tracking-normal backdrop-blur transition hover:shadow-lg ${
                     isScrolled ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
                   }`}
                 >
                   <BrandLogo
                     showName={false}
-                    className="text-slate-950 dark:text-white"
+                    className="text-slate-950"
                     imgClassName="h-8 w-auto max-w-[140px] object-contain"
                   />
                 </Link>
@@ -184,7 +184,7 @@ export function Layout() {
                   </div>
                 </div>
 
-                <nav className="hidden items-center gap-1 rounded-full border border-white/60 bg-white/70 p-1 backdrop-blur dark:border-white/10 dark:bg-slate-900/65 lg:flex">
+                <nav className="enterprise-nav-pill hidden items-center gap-1 rounded-full p-1 backdrop-blur lg:flex">
                   {navItems.map((item) => {
                     const isActive =
                       location.pathname === item.href ||
@@ -196,8 +196,8 @@ export function Layout() {
                         to={item.href}
                         className={`group relative rounded-full px-4 py-2 text-sm font-medium transition ${
                           isActive
-                            ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
-                            : "text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+                            ? "bg-brand-primary text-white"
+                            : "text-slate-700 hover:text-brand-primary"
                         }`}
                       >
                         {item.label}
@@ -213,14 +213,14 @@ export function Layout() {
                   <button
                     type="button"
                     onClick={() => setIsDarkMode(!isDarkMode)}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-slate-600 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur transition hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+                    className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
                     aria-label={isDarkMode ? "Enable light mode" : "Enable dark mode"}
                   >
                     {isDarkMode ? <SunMedium className="h-4.5 w-4.5" /> : <MoonStar className="h-4.5 w-4.5" />}
                   </button>
 
                   <div className="hidden xl:block xl:w-[280px]">
-                    <div className="rounded-full border border-white/60 bg-white/75 p-1 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur dark:border-white/10 dark:bg-slate-900/70">
+                    <div className="enterprise-nav-pill rounded-full p-1 backdrop-blur">
                       <LocationSelector />
                     </div>
                   </div>
@@ -248,15 +248,15 @@ export function Layout() {
                         <ShoppingCart className="h-4.5 w-4.5" />
                       </HeaderIconLink>
                       <Link
-                        className="hidden rounded-full px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-white/60 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-white sm:inline-flex"
+                        className="hidden rounded-full px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-brand-primary sm:inline-flex"
                         to="/login"
                       >
                         Login
                       </Link>
                       <Link
-                        className="inline-flex rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_40px_-20px_rgba(129,140,248,0.9)] transition hover:shadow-[0_24px_60px_-20px_rgba(129,140,248,0.95)] active:scale-95"
+                        className="enterprise-primary-button inline-flex rounded-full px-4 py-2.5 text-sm font-semibold shadow-brandMd transition hover:shadow-brandLg active:scale-95"
                         to="/role"
-                        style={{ backgroundImage: `linear-gradient(90deg, ${branding?.brandColors?.primaryColor || "#6366f1"}, ${branding?.brandColors?.accentColor || "#ec4899"})` }}
+                        style={{ background: branding?.brandColors?.primaryColor || "var(--color-primary)" }}
                       >
                         Start
                       </Link>
@@ -266,13 +266,13 @@ export function Layout() {
               </div>
 
               <div className="flex items-center justify-between gap-3 xl:hidden">
-                <div className="min-w-0 flex-1 rounded-full border border-white/60 bg-white/75 p-1 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur dark:border-white/10 dark:bg-slate-900/70">
+                <div className="enterprise-nav-pill min-w-0 flex-1 rounded-full p-1 backdrop-blur">
                   <LocationSelector />
                 </div>
                 {user ? (
                   <Link
                     to={showShopActions ? "/wishlist" : "/profile"}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-slate-600 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur transition hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+                    className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
                     aria-label={showShopActions ? "Saved items" : "Profile"}
                   >
                     {showShopActions ? <Heart className="h-4.5 w-4.5" /> : <UserRound className="h-4.5 w-4.5" />}
@@ -281,21 +281,21 @@ export function Layout() {
                   <div className="flex items-center gap-2">
                     <Link
                       to="/wishlist"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-slate-600 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur transition hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+                      className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
                       aria-label="Wishlist"
                     >
                       <Heart className="h-4.5 w-4.5" />
                     </Link>
                     <Link
                       to="/cart"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-slate-600 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur transition hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+                      className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
                       aria-label="Cart"
                     >
                       <ShoppingCart className="h-4.5 w-4.5" />
                     </Link>
                     <Link
                       to="/login"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-slate-600 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur transition hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+                      className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
                       aria-label="Login"
                     >
                       <MapPin className="h-4.5 w-4.5" />
@@ -304,7 +304,7 @@ export function Layout() {
                 )}
               </div>
 
-              <nav className="flex gap-2 overflow-x-auto rounded-full border border-white/60 bg-white/70 p-1 backdrop-blur dark:border-white/10 dark:bg-slate-900/65 lg:hidden">
+              <nav className="enterprise-nav-pill flex gap-2 overflow-x-auto rounded-full p-1 backdrop-blur lg:hidden">
                 {navItems.map((item) => {
                   const isActive =
                     location.pathname === item.href ||
@@ -315,8 +315,8 @@ export function Layout() {
                       to={item.href}
                       className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
                         isActive
-                          ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
-                          : "text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+                          ? "bg-brand-primary text-white"
+                          : "text-slate-700 hover:text-brand-primary"
                       }`}
                     >
                       {item.label}
@@ -372,11 +372,11 @@ function HeaderIconLink({ to, label, badge, children }) {
     <Link
       to={to}
       aria-label={label}
-      className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-white/75 text-slate-600 shadow-[0_10px_40px_-28px_rgba(15,23,42,0.55)] backdrop-blur transition hover:-translate-y-0.5 hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white"
+      className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition hover:-translate-y-0.5 active:scale-95"
     >
       {children}
       {badge ? (
-        <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-1 text-[10px] font-semibold text-white">
+        <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
           {badge}
         </span>
       ) : null}

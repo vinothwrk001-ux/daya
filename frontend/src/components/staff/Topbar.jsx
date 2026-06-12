@@ -83,13 +83,13 @@ export function StaffTopbar({ user, role, permissions, module, onMenuToggle }) {
     .toUpperCase();
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-brand-border bg-white/95 shadow-brandSm backdrop-blur">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-4">
           <button
             type="button"
             onClick={onMenuToggle}
-            className="rounded-xl p-2 hover:bg-slate-100 lg:hidden"
+            className="enterprise-icon-button rounded-xl p-2 lg:hidden"
             aria-label="Toggle staff navigation"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,21 +98,21 @@ export function StaffTopbar({ user, role, permissions, module, onMenuToggle }) {
           </button>
 
           <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Staff workspace</div>
-            <h1 className="truncate text-xl font-semibold text-slate-950">{module?.name || "Dashboard"}</h1>
-            <p className="truncate text-sm text-slate-500">{module?.description || "Permission-based internal operations"}</p>
+            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-primary">Staff workspace</div>
+            <h1 className="truncate text-xl font-bold text-brand-textPrimary">{module?.name || "Dashboard"}</h1>
+            <p className="truncate text-sm text-brand-textSecondary">{module?.description || "Permission-based internal operations"}</p>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-3 sm:gap-4">
-          <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 md:flex">
+          <div className="hidden items-center gap-2 rounded-full border border-brand-border bg-brand-surfaceSecondary px-3 py-1.5 md:flex">
             <ShieldIcon className="h-4 w-4 text-emerald-600" />
             <span className="text-xs font-medium text-slate-600">{activePermissionCount} active permissions</span>
           </div>
 
-          <button type="button" className="relative rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+          <button type="button" className="relative rounded-lg p-2 text-slate-600 hover:bg-red-50 hover:text-brand-primary">
             <BellIcon className="h-5 w-5" />
-            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-500" />
+            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-brand-primary" />
           </button>
 
           <div className="relative" ref={dropdownRef}>
@@ -120,9 +120,9 @@ export function StaffTopbar({ user, role, permissions, module, onMenuToggle }) {
               ref={triggerRef}
               type="button"
               onClick={() => setDropdownOpen((current) => !current)}
-              className="flex items-center gap-2 rounded-xl px-3 py-2 hover:bg-slate-100"
+              className="flex items-center gap-2 rounded-xl px-3 py-2 hover:bg-red-50"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-800">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-secondary text-sm font-semibold text-white">
                 {initials}
               </div>
               <div className="hidden text-left sm:block">
@@ -141,7 +141,7 @@ export function StaffTopbar({ user, role, permissions, module, onMenuToggle }) {
                   left: `${dropdownPosition.left}px`,
                   zIndex: 9999,
                 }}
-                className="w-64 rounded-2xl border border-slate-200 bg-white shadow-xl ring-1 ring-black/5"
+                className="w-64 rounded-brandMd border border-brand-border bg-white shadow-brandLg ring-1 ring-black/5"
               >
                 <div className="border-b border-slate-200 px-4 py-3">
                   <div className="text-sm font-medium text-slate-950">{user?.name || "Staff"}</div>

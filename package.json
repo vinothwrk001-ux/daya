@@ -1,0 +1,13 @@
+{
+  "name": "grm-project",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "start": "npm --prefix backend run start",
+    "test": "npm --prefix backend run test"
+  }
+}

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, memo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronDown, Heart, ShoppingCart } from "lucide-react";
 import { BackButton } from "../components/BackButton";
+import { ProductCard as PremiumProductCard } from "../components/ProductCard";
 import { useCategories } from "../hooks/useCategories";
 import { getSubcategoriesByCategory } from "../services/subcategoryService";
 import * as productService from "../services/productService";
@@ -472,9 +473,9 @@ export function ProductsPage() {
                 Showing {products.length} of {pagination.total} products
               </div>
 
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:gap-3 lg:grid-cols-5 xl:grid-cols-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {products.map((product) => (
-                  <ProductCard key={product._id} product={product} />
+                  <PremiumProductCard key={product._id} product={product} />
                 ))}
               </div>
 

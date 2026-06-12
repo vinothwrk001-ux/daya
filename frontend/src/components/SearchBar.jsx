@@ -57,7 +57,7 @@ export function SearchBar({ className = "" }) {
   return (
     <div ref={searchRef} className={`group relative mx-auto w-full max-w-4xl ${className}`.trim()}>
       <div className="relative">
-        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition group-focus-within:text-indigo-500" aria-hidden="true">
+        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 transition group-focus-within:text-brand-primary" aria-hidden="true">
           <Search className="h-4 w-4" />
         </span>
         <input
@@ -66,7 +66,7 @@ export function SearchBar({ className = "" }) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => searchQuery.trim().length > 0 && setShowResults(true)}
-          className="w-full rounded-full border border-slate-200/80 bg-white/95 py-3.5 pl-11 pr-12 text-sm text-slate-900 shadow-[0_14px_40px_-28px_rgba(15,23,42,0.5)] outline-none transition duration-300 placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100 dark:border-white/10 dark:bg-slate-900/80 dark:text-white dark:focus:border-indigo-400/30 dark:focus:ring-indigo-500/10"
+          className="w-full rounded-full border border-brand-secondary bg-white py-3.5 pl-11 pr-12 text-sm text-brand-textPrimary shadow-brandSm outline-none transition duration-300 placeholder:text-slate-400 focus:border-brand-primary focus:bg-white focus:ring-4 focus:ring-red-100"
         />
         {searchQuery && (
           <button
@@ -76,7 +76,7 @@ export function SearchBar({ className = "" }) {
               setResults([]);
               setShowResults(false);
             }}
-            className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700"
+            className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-brand-primary"
           >
             <X className="h-4 w-4" />
           </button>
@@ -84,7 +84,7 @@ export function SearchBar({ className = "" }) {
       </div>
 
       {showResults && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-[5.25rem] max-h-[28rem] overflow-y-auto rounded-[1.75rem] border border-slate-200/80 bg-white/95 p-2 shadow-[0_35px_100px_-45px_rgba(15,23,42,0.5)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/95">
+        <div className="absolute left-0 right-0 top-full z-50 mt-[5.25rem] max-h-[28rem] overflow-y-auto rounded-brandLg border border-brand-border bg-white/95 p-2 shadow-brandLg backdrop-blur-xl">
           {loading && (
             <div className="p-4 text-center text-sm text-slate-500">
               Searching...
@@ -109,9 +109,9 @@ export function SearchBar({ className = "" }) {
                       setResults([]);
                       setShowResults(false);
                     }}
-                    className="flex min-h-14 items-center gap-3 rounded-2xl p-3 transition hover:bg-slate-50 dark:hover:bg-slate-800"
+                    className="flex min-h-14 items-center gap-3 rounded-brandMd p-3 transition hover:bg-red-50"
                   >
-                    <div className="h-14 w-14 flex-none overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
+                    <div className="h-14 w-14 flex-none overflow-hidden rounded-brandMd border border-brand-border bg-brand-surfaceSecondary">
                       {product.images?.[0]?.url ? (
                         <img
                           src={resolveApiAssetUrl(product.images[0].url)}
@@ -140,7 +140,7 @@ export function SearchBar({ className = "" }) {
                   setResults([]);
                   setShowResults(false);
                 }}
-                className="mt-2 block rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                className="enterprise-primary-button mt-2 block rounded-brandMd px-4 py-3 text-center text-sm font-semibold transition"
               >
                 View all results
               </Link>

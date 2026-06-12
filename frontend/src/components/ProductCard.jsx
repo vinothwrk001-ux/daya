@@ -2,7 +2,7 @@ import { logger } from "../services/logger/logger.js";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
-import { Heart, ShoppingCart, Star } from "lucide-react";
+import { Eye, Heart, ShoppingCart, Star } from "lucide-react";
 import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { useCart } from "../hooks/useCart";
@@ -28,7 +28,50 @@ function reportProductCardError(message, details = {}) {
   window.dispatchEvent(new CustomEvent("app:error", { detail: payload }));
 }
 
-export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[4/5]", onProductClick }) {
+const FALLBACK_SWATCHES = ["#111111", "#E53935", "#6B7280"];
+
+function getProductBrand(product) {
+  return product?.brand || product?.vendorName || product?.sellerName || product?.category || "Daya";
+}
+
+function getProductSwatches(product) {
+  const candidates = [
+    product?.colors,
+    product?.availableColors,
+    product?.colorOptions,
+    product?.variants?.map((variant) => variant.color || variant.colorName || variant.attributes?.color),
+  ];
+
+  const values = candidates
+    .flat()
+    .filter(Boolean)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+  const unique = [...new Set(values)].slice(0, 5);
+  return unique.length ? unique : FALLBACK_SWATCHES;
+}
+
+function swatchClass(value) {
+  const normalized = String(value).trim().toLowerCase();
+  const classes = {
+    "#111111": "bg-[#111111]",
+    "#e53935": "bg-[#E53935]",
+    "#6b7280": "bg-[#6B7280]",
+    black: "bg-[#111111]",
+    red: "bg-[#E53935]",
+    green: "bg-[#16A34A]",
+    blue: "bg-[#2563EB]",
+    gray: "bg-[#9CA3AF]",
+    grey: "bg-[#9CA3AF]",
+    white: "bg-white",
+    maroon: "bg-[#7F1D1D]",
+  };
+
+  return classes[normalized] || "bg-[#9CA3AF]";
+}
+
+export function PremiumProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[4/5]", onProductClick }) {
   const navigate = useNavigate();
   const { cart, addItem: addCartItem } = useCart();
   const { openDrawer, showToast } = useCartDrawer();
@@ -43,9 +86,12 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
     [cart?.items, product]
   );
 
-  const discountPercent = product?.discountPrice && product?.price
-    ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
+  const salePrice = product?.discountPrice || product?.discountedPrice || null;
+  const discountPercent = salePrice && product?.price
+    ? Math.round(((product.price - salePrice) / product.price) * 100)
     : 0;
+  const brandName = getProductBrand(product);
+  const swatches = getProductSwatches(product);
 
   useEffect(() => {
     let active = true;
@@ -120,26 +166,26 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
   const styleKey = String(cardStyle || "DEFAULT").toUpperCase();
   const isEditorial = styleKey === "EDITORIAL";
   const cardStyleClass = {
-    DEFAULT: "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm hover:shadow-lg dark:hover:shadow-lg dark:hover:shadow-slate-950/50 hover:border-blue-300 dark:hover:border-blue-600",
-    ELEVATED: "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl hover:shadow-[0_30px_90px_-45px_rgba(15,23,42,0.35)]",
-    MINIMAL: "border border-slate-200/50 dark:border-slate-700/50 bg-white/95 dark:bg-slate-950/80 shadow-none hover:shadow-sm",
-    EDITORIAL: "rounded-[2rem] border border-slate-900 bg-slate-950 text-white shadow-2xl ring-1 ring-slate-900/10",
-  }[styleKey] || "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm hover:shadow-lg dark:hover:shadow-lg dark:hover:shadow-slate-950/50 transition-all duration-300 hover:border-blue-300 dark:hover:border-blue-600";
-  const categoryTextClass = isEditorial
-    ? "text-[11px] font-semibold uppercase tracking-wide text-slate-300 line-clamp-1"
-    : "text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 line-clamp-1";
+    DEFAULT: "border border-[#eeeeee] bg-white shadow-brandSm hover:shadow-brandMd hover:border-brand-primary",
+    ELEVATED: "border border-[#eeeeee] bg-white shadow-brandLg hover:shadow-brandMd",
+    MINIMAL: "border border-[#eeeeee] bg-white shadow-none hover:shadow-brandSm",
+    EDITORIAL: "border border-brand-secondary bg-brand-secondary text-white shadow-brandLg ring-1 ring-black/10",
+  }[styleKey] || "border border-[#eeeeee] bg-white shadow-brandSm hover:shadow-brandMd transition-all duration-300 hover:border-brand-primary";
+  const brandTextClass = isEditorial
+    ? "text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300 line-clamp-1"
+    : "text-[11px] font-semibold uppercase tracking-[0.14em] text-[#777777] line-clamp-1";
   const titleTextClass = isEditorial
-    ? "line-clamp-2 text-sm font-semibold text-white transition group-hover:text-slate-100 leading-tight"
-    : "line-clamp-2 text-sm font-semibold text-slate-900 dark:text-white transition group-hover:text-blue-600 dark:group-hover:text-blue-400 leading-tight";
+    ? "line-clamp-2 text-base font-semibold text-white transition group-hover:text-slate-100 leading-snug"
+    : "line-clamp-2 text-base font-semibold text-[#111111] transition group-hover:text-brand-primary leading-snug";
   const ratingTextClass = isEditorial
     ? "text-xs font-semibold text-slate-100"
     : "text-xs font-semibold text-slate-600 dark:text-slate-400";
   const priceCurrentClass = isEditorial
-    ? "text-sm font-bold text-white"
-    : "text-sm font-bold text-slate-900 dark:text-white";
+    ? "text-base font-bold text-white"
+    : "text-base font-bold text-brand-primary";
   const priceOriginalClass = isEditorial
     ? "text-xs text-slate-400 line-through"
-    : "text-xs text-slate-500 dark:text-slate-400 line-through";
+    : "text-sm text-[#999999] line-through";
   const stockClass = isEditorial ? "text-emerald-300" : "text-green-600 dark:text-green-400";
   const stockOutClass = isEditorial ? "text-rose-300" : "text-red-600 dark:text-red-400";
   const inStock = hasAvailableVariants && availableStock > 0;
@@ -162,15 +208,15 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
       }}
       role="link"
       tabIndex={0}
-      className={`group relative flex flex-col h-full overflow-hidden rounded-2xl transition-all duration-300 ${cardStyleClass}`}
+      className={`enterprise-card group relative mx-auto flex h-full w-full max-w-[320px] flex-col overflow-hidden rounded-brandLg p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 ${cardStyleClass}`}
     >
-      <div className={`relative w-full ${imageAspectClass} bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-800 overflow-hidden flex-shrink-0`}>
+      <div className={`relative h-[320px] w-full ${imageAspectClass} flex-shrink-0 overflow-hidden rounded-brandMd bg-gradient-to-br from-brand-surfaceSecondary to-white`}>
         {/* Product Image */}
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={product?.name || "Product image"}
-            className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-110"
+            className="h-full w-full object-cover object-center transition duration-300 ease-out group-hover:scale-105"
             loading="lazy"
           />
         ) : (
@@ -180,23 +226,32 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
         )}
 
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 via-transparent to-white/5 opacity-40 transition duration-500 group-hover:opacity-60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 transition duration-300 group-hover:opacity-100" />
 
         {/* Discount Badge */}
         {discountPercent > 0 && (
-          <div className="absolute top-3 left-3 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 px-2.5 py-1.5 shadow-lg">
-            <div className="text-xs font-bold text-white">{discountPercent}%</div>
-            <div className="text-[10px] font-semibold text-white">OFF</div>
+          <div className="absolute left-3 top-3 rounded-full bg-brand-primary px-3 py-1.5 shadow-lg">
+            <div className="text-xs font-bold leading-none text-white">{discountPercent}% OFF</div>
           </div>
         )}
 
-        {/* Premium Vertical Action Stack - Top Right */}
-        <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-out z-10">
-          {/* Wishlist Button */}
+        <div className="absolute right-3 top-3 z-10 flex flex-col gap-2 translate-y-2 opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
+          <button
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              navigateToProduct();
+            }}
+            className="enterprise-icon-button flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm hover:scale-110 active:scale-95 disabled:opacity-60"
+            title="View product"
+            aria-label="View product"
+          >
+            <Eye size={18} strokeWidth={1.8} />
+          </button>
           <button
             onClick={handleWishlist}
             disabled={isSubmitting}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60"
+            className="enterprise-icon-button flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm hover:scale-110 active:scale-95 disabled:opacity-60"
             title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
             aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
           >
@@ -211,11 +266,10 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
             />
           </button>
 
-          {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart}
             disabled={isSubmitting || !productId || !inStock}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="enterprise-primary-button flex h-10 w-10 items-center justify-center rounded-full shadow-lg hover:scale-110 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             title={inStock ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
             aria-label={inStock ? `Add ${selectedVariant?.title || "item"} to cart` : "Out of stock"}
           >
@@ -224,22 +278,13 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
         </div>
       </div>
 
-      {/* Product Info Section */}
-      <div className="flex flex-col flex-grow p-4 gap-2">
-        {/* Category */}
-        <p className={categoryTextClass}>{product.category || "Featured"}</p>
+      <div className="flex flex-grow flex-col gap-3 pt-4">
+        <p className={brandTextClass}>{brandName}</p>
 
-        {/* Product Name */}
         <h3 className={titleTextClass}>{product.name}</h3>
 
-        <div className={`text-xs font-semibold ${inStock ? stockClass : stockOutClass}`}>
-          {inStock ? `${availableStock} in stock` : "Out of stock"}
-        </div>
-
-        {/* Spacer */}
         <div className="flex-grow" />
 
-        {/* Rating */}
         {product?.ratings?.averageRating > 0 ? (
           <div className="flex items-center gap-1">
             <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
@@ -249,20 +294,35 @@ export function ProductCard({ product, cardStyle = "DEFAULT", imageAspectClass =
           </div>
         ) : null}
 
-        {/* Pricing */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={priceCurrentClass}>
-              {formatCurrency(product.discountPrice || product.price)}
+              {formatCurrency(salePrice || product.price)}
             </span>
-            {product.discountPrice && (
+            {salePrice && (
               <span className={priceOriginalClass}>
                 {formatCurrency(product.price)}
               </span>
             )}
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5" aria-label="Available colors">
+              {swatches.map((color, index) => (
+                <span
+                  key={`${color}-${index}`}
+                  className={`h-3.5 w-3.5 rounded-full border border-black/10 ring-1 ring-white ${swatchClass(color)}`}
+                  title={String(color)}
+                />
+              ))}
+            </div>
+            <div className={`text-xs font-semibold ${inStock ? stockClass : stockOutClass}`}>
+              {inStock ? "In stock" : "Out of stock"}
+            </div>
           </div>
         </div>
       </div>
     </Motion.article>
   );
 }
+
+export { PremiumProductCard as ProductCard };
