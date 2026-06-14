@@ -136,6 +136,13 @@ function pickNumber(value, fallback = 0) {
   return Number.isFinite(next) ? next : fallback;
 }
 
+function clampNumber(value, fallback, { min = Number.NEGATIVE_INFINITY, max = Number.POSITIVE_INFINITY, integer = false } = {}) {
+  const next = Number(value);
+  const finite = Number.isFinite(next) ? next : fallback;
+  const rounded = integer ? Math.round(finite) : finite;
+  return Math.min(Math.max(rounded, min), max);
+}
+
 function createUniqueId(prefix = "id") {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -252,7 +259,7 @@ function resolveLayoutHeight(layout = {}) {
   }
 }
 
-function buildPayload(form) {
+function buildPayload(form, schema) {
   const width = resolveLayoutWidth(form.layout);
   const height = resolveLayoutHeight(form.layout);
   return {
@@ -290,21 +297,37 @@ function buildPayload(form) {
       tags: form.filters.tags,
       minPrice: form.filters.minPrice === "" ? null : Number(form.filters.minPrice),
       maxPrice: form.filters.maxPrice === "" ? null : Number(form.filters.maxPrice),
-      minDiscountPercentage: Number(form.filters.minDiscountPercentage || 0),
-      minimumRating: Number(form.filters.minimumRating || 0),
+      minDiscountPercentage: clampNumber(form.filters.minDiscountPercentage, 0, { min: 0, max: 100 }),
+      minimumRating: clampNumber(form.filters.minimumRating, 0, { min: 0, max: 5 }),
       showOnlyInStock: Boolean(form.filters.showOnlyInStock),
       sortBy: form.filters.sortBy,
-      maxProductsToShow: Number(form.filters.maxProductsToShow || 12),
+      maxProductsToShow: clampNumber(form.filters.maxProductsToShow, 12, { min: 1, max: 100, integer: true }),
       productSelectionMode: form.filters.productSelectionMode,
       manualProductIds: form.filters.manualProductIds,
     },
-    config: sanitizeConfigValues(form.config),
+    config: sanitizeConfigValues(form.config, schema),
   };
 }
 
-function sanitizeConfigValues(config = {}) {
+function sanitizeConfigValues(config = {}, schema = null) {
   const next = {};
+  const fieldMap = new Map((schema?.typeFields || []).map((field) => [field.name, field]));
+
+  for (const field of schema?.typeFields || []) {
+    if (field.defaultValue !== undefined && config?.[field.name] === undefined) {
+      next[field.name] = field.defaultValue;
+    }
+  }
+
   for (const [key, value] of Object.entries(config || {})) {
+    const field = fieldMap.get(key);
+    if (field?.type === "number") {
+      next[key] = clampNumber(value, field.defaultValue ?? field.min ?? 0, {
+        min: field.min ?? Number.NEGATIVE_INFINITY,
+        max: field.max ?? Number.POSITIVE_INFINITY,
+      });
+      continue;
+    }
     if (value === "") {
       next[key] = value;
       continue;
@@ -551,7 +574,7 @@ export function AdminHomepageContainersPage() {
     setSaving(true);
     setError("");
     try {
-      const payload = buildPayload(form);
+      const payload = buildPayload(form, activeSchema);
       if (editingId) {
         await updateAdminHomepageContainer(editingId, payload);
       } else {
@@ -570,7 +593,7 @@ export function AdminHomepageContainersPage() {
     setPreviewLoading(true);
     setError("");
     try {
-      const response = await previewAdminHomepageContainer(buildPayload(form));
+      const response = await previewAdminHomepageContainer(buildPayload(form, activeSchema));
       setPreview(response?.data || null);
       setCurrentStep(3);
     } catch (err) {
@@ -841,7 +864,15 @@ export function AdminHomepageContainersPage() {
 
                         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
                           <Field label="Maximum Products">
-                            <input type="number" min="1" max="100" value={form.filters.maxProductsToShow} onChange={(event) => setNestedField(setForm, "filters", "maxProductsToShow", event.target.value)} className={inputClassName} />
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={form.filters.maxProductsToShow}
+                              onChange={(event) => setNestedField(setForm, "filters", "maxProductsToShow", event.target.value)}
+                              onBlur={(event) => setNestedField(setForm, "filters", "maxProductsToShow", clampNumber(event.target.value, 12, { min: 1, max: 100, integer: true }))}
+                              className={inputClassName}
+                            />
                           </Field>
                           <Field label="Selection Mode">
                             <select value={form.filters.productSelectionMode} onChange={(event) => setNestedField(setForm, "filters", "productSelectionMode", event.target.value)} className={inputClassName}>
@@ -884,7 +915,7 @@ export function AdminHomepageContainersPage() {
                             <div key={field.name} className={field.type === "textarea" || field.type === "array" || field.type === "category-cards" ? "lg:col-span-2" : ""}>
                               <FieldRenderer
                                 field={field}
-                                value={form.config[field.name] ?? ""}
+                                value={form.config[field.name] ?? field.defaultValue ?? ""}
                                 onChange={(value) => setForm((current) => ({ ...current, config: { ...current.config, [field.name]: value } }))}
                                 loadOptions={optionLoaders[field.source]}
                               />
@@ -1478,6 +1509,17 @@ function FieldRenderer({ field, value, onChange, loadOptions }) {
         step={field.step}
         value={value ?? ""}
         onChange={(event) => onChange(event.target.value)}
+        onBlur={
+          field.type === "number"
+            ? (event) =>
+                onChange(
+                  clampNumber(event.target.value, field.defaultValue ?? field.min ?? 0, {
+                    min: field.min ?? Number.NEGATIVE_INFINITY,
+                    max: field.max ?? Number.POSITIVE_INFINITY,
+                  })
+                )
+            : undefined
+        }
         className={inputClassName}
       />
     </Field>

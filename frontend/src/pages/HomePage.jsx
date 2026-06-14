@@ -66,6 +66,7 @@ export function HomePage() {
         rows={builderLayout?.rows || []}
         containers={builderLayout?.containers || []}
         loading={loading}
+        bareOuterLayout
         bareCarouselShell
         device={device}
       />

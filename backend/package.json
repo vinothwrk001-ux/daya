@@ -26,6 +26,7 @@
     "bootstrap:platform": "node src/scripts/bootstrapPlatformConfig.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
     "seed:shipping": "node src/scripts/seedShippingRule.js",
+    "seed:demo-products": "node src/scripts/seedDemoProductsSameCategory.js",
     "seed:order": "node src/scripts/seedOrder.js",
     "seed:orders:yesterday": "node src/scripts/seedOrdersYesterday.js",
     "seed:orders:dates": "node src/scripts/seedOrdersByDate.js",

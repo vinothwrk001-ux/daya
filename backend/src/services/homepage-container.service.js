@@ -87,6 +87,12 @@ function normalizeInteger(value, fallback = 0, { min = Number.NEGATIVE_INFINITY,
   return Math.min(Math.max(Math.round(next), min), max);
 }
 
+function normalizeNumber(value, fallback = 0, { min = Number.NEGATIVE_INFINITY, max = Number.POSITIVE_INFINITY } = {}) {
+  const next = Number(value);
+  const finite = Number.isFinite(next) ? next : fallback;
+  return Math.min(Math.max(finite, min), max);
+}
+
 function extractNumericValue(value, fallback = 0) {
   if (value === undefined || value === null || value === "") return fallback;
   const match = String(value).match(/-?\d+(\.\d+)?/);
@@ -210,7 +216,13 @@ function getDefaultConfig(type, input = {}) {
   const schema = getContainerTypeSchema(type);
   return (schema.typeFields || []).reduce((acc, field) => {
     if (input[field.name] !== undefined) {
-      acc[field.name] = input[field.name];
+      acc[field.name] =
+        field.type === "number"
+          ? normalizeNumber(input[field.name], field.defaultValue ?? field.min ?? 0, {
+              min: field.min ?? Number.NEGATIVE_INFINITY,
+              max: field.max ?? Number.POSITIVE_INFINITY,
+            })
+          : input[field.name];
     } else if (field.defaultValue !== undefined) {
       acc[field.name] = field.defaultValue;
     }
@@ -305,10 +317,7 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
             ? Boolean(filters.showOnlyInStock)
             : true,
       sortBy: String(payload.sortBy ?? filters.sortBy ?? schema.defaultSortBy ?? "TRENDING").trim().toUpperCase(),
-      maxProductsToShow: Math.min(
-        Math.max(Number(payload.maxProductsToShow ?? filters.maxProductsToShow ?? DEFAULT_PREVIEW_LIMIT), 1),
-        100
-      ),
+      maxProductsToShow: normalizeInteger(payload.maxProductsToShow ?? filters.maxProductsToShow, DEFAULT_PREVIEW_LIMIT, { min: 1, max: 100 }),
       productSelectionMode: String(
         payload.productSelectionMode ?? filters.productSelectionMode ?? "AUTO"
       ).trim().toUpperCase(),
@@ -319,7 +328,13 @@ function normalizePayload(payload = {}, actorId = null, { partial = false } = {}
 
   for (const field of schema.typeFields || []) {
     if (payload[field.name] !== undefined) {
-      normalized.config[field.name] = payload[field.name];
+      normalized.config[field.name] =
+        field.type === "number"
+          ? normalizeNumber(payload[field.name], field.defaultValue ?? field.min ?? 0, {
+              min: field.min ?? Number.NEGATIVE_INFINITY,
+              max: field.max ?? Number.POSITIVE_INFINITY,
+            })
+          : payload[field.name];
     }
   }
 

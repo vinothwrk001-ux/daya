@@ -23,6 +23,9 @@ const DEVICE_COLUMNS = {
   mobile: 1,
 };
 
+const BANNER_HEIGHT_SCALE = 0.85;
+const DEFAULT_BANNER_HEIGHT = 685;
+
 export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
   rows = [],
   containers = [],
@@ -62,7 +65,7 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
 
   if (Array.isArray(resolvedRows) && resolvedRows.length) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-0">
         {resolvedRows.map((row) => (
           <DynamicHomepageRow
             key={row.id || row.order}
@@ -91,34 +94,43 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
 
 const DynamicHomepageRow = memo(function DynamicHomepageRow({ row, bareContainers = false, bareOuterLayout = false, bareCarouselShell = false, renderContext }) {
   const columnCount = DEVICE_COLUMNS[renderContext.device] || DEVICE_COLUMNS.desktop;
+  const backdropUrl = resolveRowBackdropUrl(row);
 
   return (
-    <div
-      className="grid gap-6"
-      style={{
-        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-        gridAutoFlow: "row dense",
-      }}
-    >
-      {(row.columns || []).map((column, columnIndex) => {
-        const columnStyle = resolveColumnStyle(column, renderContext);
+    <div className="relative overflow-hidden">
+      {backdropUrl ? (
+        <>
+          <img src={backdropUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-white/65 dark:bg-slate-950/55" />
+        </>
+      ) : null}
+      <div
+        className={`relative z-10 grid ${bareOuterLayout ? "gap-0" : "gap-6"}`}
+        style={{
+          gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+          gridAutoFlow: "row dense",
+        }}
+      >
+        {(row.columns || []).map((column, columnIndex) => {
+          const columnStyle = resolveColumnStyle(column, renderContext);
 
-        return (
-          <div key={column.id || `${row.id || row.order || "row"}-column-${column.order ?? columnIndex}`} style={columnStyle} className="min-w-0 space-y-6">
-            {(column.containers || []).map((container, containerIndex) => (
-              <DynamicHomepageSection
-                key={container.instanceId || container._id || `${column.id || column.order || columnIndex}-container-${containerIndex}`}
-                container={container}
-                inline
-                bareContainers={bareContainers}
-                bareOuterLayout={bareOuterLayout}
-                bareCarouselShell={bareCarouselShell}
-                renderContext={renderContext}
-              />
-            ))}
-          </div>
-        );
-      })}
+          return (
+            <div key={column.id || `${row.id || row.order || "row"}-column-${column.order ?? columnIndex}`} style={columnStyle} className={`min-w-0 ${bareOuterLayout ? "space-y-0" : "space-y-6"}`}>
+              {(column.containers || []).map((container, containerIndex) => (
+                <DynamicHomepageSection
+                  key={container.instanceId || container._id || `${column.id || column.order || columnIndex}-container-${containerIndex}`}
+                  container={container}
+                  inline
+                  bareContainers={bareContainers}
+                  bareOuterLayout={bareOuterLayout}
+                  bareCarouselShell={bareCarouselShell}
+                  renderContext={renderContext}
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 });
@@ -141,12 +153,16 @@ const DynamicHomepageSection = memo(function DynamicHomepageSection({ container,
   const layout = resolveContainerLayout(container);
   const themeStyles = resolveContainerThemeStyles(layout.theme || container?.presentation?.containerTheme);
   const contentSized = isContentSizedContainer(container);
-  const widthStyles = resolveContainerDimensionStyle(layout, renderContext, { inline, contentSized });
+  const widthStyles = resolveContainerDimensionStyle(layout, renderContext, {
+    inline,
+    contentSized,
+    containerType: container?.containerType,
+  });
   const previewBare = container?.previewBare === true || bareContainers;
   const stripOuterLayout = bareOuterLayout && !previewBare;
 
   const style = {
-    ...(stripOuterLayout ? { width: "100%" } : widthStyles),
+    ...widthStyles,
     ...(previewBare || stripOuterLayout
       ? {}
       : {
@@ -190,6 +206,29 @@ const DynamicHomepageSection = memo(function DynamicHomepageSection({ container,
     </div>
   );
 });
+
+function resolveRowBackdropUrl(row) {
+  const containers = (row?.columns || [])
+    .flatMap((column) => column?.containers || [])
+    .filter(Boolean);
+  const source =
+    containers.find((container) => ["BANNER", "SLIDER"].includes(container?.containerType)) ||
+    containers.find((container) => resolveContainerBackgroundMedia(resolveContainerLayout(container)));
+
+  if (!source) return "";
+
+  const config = source.config || {};
+  const firstMedia = Array.isArray(config.bannerMedia) ? config.bannerMedia.find((item) => item?.url) : null;
+  const raw =
+    firstMedia?.url ||
+    config.bannerImage ||
+    config.bannerVideo ||
+    config.slides?.find?.((slide) => slide?.image || slide?.url)?.image ||
+    config.slides?.find?.((slide) => slide?.image || slide?.url)?.url ||
+    resolveContainerBackgroundMedia(resolveContainerLayout(source));
+
+  return raw ? resolveApiAssetUrl(raw) : "";
+}
 
 function resolveContainerVisibilityClasses(container) {
   const desktopVisible = container?.visibility?.desktop ?? container?.desktopVisible ?? true;
@@ -238,7 +277,7 @@ function resolveContainerThemeStyles(themeValue) {
 
 function resolveContainerDimensionStyle(layout, renderContext, options = {}) {
   const width = resolveConfiguredWidth(layout, renderContext.canvasWidth);
-  const height = resolveConfiguredHeight(layout);
+  const height = resolveConfiguredHeight(layout, options);
   const exactSize = resolveResponsiveSize(width, height, renderContext);
   const styles = {};
   const applyHeight = (value) => {
@@ -364,27 +403,31 @@ function resolveConfiguredWidth(layout, canvasWidth) {
   }
 }
 
-function resolveConfiguredHeight(layout) {
+function resolveConfiguredHeight(layout, options = {}) {
+  const isBanner = options.containerType === "BANNER";
+  const scale = isBanner ? BANNER_HEIGHT_SCALE : 1;
+  const scaleHeight = (value) => (value ? Math.round(value * scale) : value);
+
   if (layout.heightType === "auto") {
-    return null;
+    return isBanner ? scaleHeight(DEFAULT_BANNER_HEIGHT) : null;
   }
   if (pickFinite(layout.height)) {
-    return pickFinite(layout.height);
+    return scaleHeight(pickFinite(layout.height));
   }
   if (pickFinite(layout.customHeight)) {
-    return pickFinite(layout.customHeight);
+    return scaleHeight(pickFinite(layout.customHeight));
   }
   switch (layout.heightType) {
     case "small":
-      return 250;
+      return scaleHeight(250);
     case "medium":
-      return 450;
+      return scaleHeight(450);
     case "large":
-      return 650;
+      return scaleHeight(650);
     case "extraLarge":
-      return 850;
+      return scaleHeight(850);
     default:
-      return null;
+      return isBanner ? scaleHeight(DEFAULT_BANNER_HEIGHT) : null;
   }
 }
 
@@ -510,12 +553,44 @@ function renderContainer(container, options = {}) {
 }
 
 function SectionHeader({ container, eyebrow, actionLabel = "View all" }) {
+  const config = container.config || {};
+  const headerEyebrow = config.headerEyebrowText || eyebrow || container.containerType.replace(/_/g, " ");
+  const headerTitle = config.headerHeadingText || container.title;
+  const headerAction = config.headerCtaText || actionLabel;
+  const headerHref = config.headerCtaUrl || (container.slug ? `/collections/${container.slug}` : "");
+  const centeredFancy = String(config.headerStyle || "").toUpperCase() === "CENTERED_FANCY";
+
+  if (centeredFancy) {
+    return (
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="mx-auto inline-flex rounded-full border border-red-200 px-9 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-red-400">{headerEyebrow}</p>
+        <h2 className="mt-6 text-3xl font-bold leading-tight text-slate-950 dark:text-white lg:text-4xl">
+          {headerTitle}
+        </h2>
+        {container.description ? (
+          <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-300 lg:text-base">
+            {container.description}
+          </p>
+        ) : null}
+        {headerHref ? (
+          <Link
+            to={headerHref}
+            onClick={() => trackHomepageContainerEvent(container._id, { eventType: "click" }).catch(() => {})}
+            className="mt-5 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-red-200 hover:text-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+          >
+            {headerAction}
+          </Link>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="max-w-3xl">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-500">{eyebrow || container.containerType.replace(/_/g, " ")}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-500">{headerEyebrow}</p>
         <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white lg:text-3xl">
-          {container.title}
+          {headerTitle}
         </h2>
         {container.description ? (
           <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300 lg:text-base">
@@ -523,13 +598,13 @@ function SectionHeader({ container, eyebrow, actionLabel = "View all" }) {
           </p>
         ) : null}
       </div>
-      {container.slug ? (
+      {headerHref ? (
         <Link
-          to={`/collections/${container.slug}`}
+          to={headerHref}
           onClick={() => trackHomepageContainerEvent(container._id, { eventType: "click" }).catch(() => {})}
           className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
         >
-          {actionLabel}
+          {headerAction}
           <ArrowRight className="h-4 w-4" />
         </Link>
       ) : null}
@@ -543,9 +618,11 @@ function CarouselContainer({ container, bareContainers = false, bareOuterLayout 
     <div className={bareContainers || bareOuterLayout || container?.previewBare === true ? "" : "p-5 sm:p-6 lg:p-8"}>
       <ProductCarousel
         items={container.products || []}
-        title={container.title}
+        title={config.headerHeadingText || container.title}
         subtitle={container.description}
-        viewAllHref={container.slug ? `/collections/${container.slug}` : undefined}
+        viewAllHref={config.headerCtaUrl || (container.slug ? `/collections/${container.slug}` : undefined)}
+        eyebrowText={config.headerEyebrowText || "Trending now"}
+        actionLabel={config.headerCtaText || "View all"}
         bare={container?.previewBare === true || bareContainers || bareCarouselShell}
         showArrows={config.showArrows !== false}
         showDots={config.showDots !== false}

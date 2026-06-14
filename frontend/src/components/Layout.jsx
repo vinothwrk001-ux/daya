@@ -47,6 +47,7 @@ export function Layout() {
     location.pathname === "/dashboard/admin" ||
     location.pathname.startsWith("/admin");
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
+  const isHomePage = location.pathname === "/";
   const hideShopChrome = isAdminRoute || isStaffWorkspace;
   const showShopActions = !user || user?.role === "user";
 
@@ -351,13 +352,15 @@ export function Layout() {
         className={
           hideShopChrome
             ? "flex-1"
-            : "w-full flex-1 px-3 py-5 sm:px-4 sm:py-7 lg:px-8 lg:py-10"
+            : isHomePage
+              ? "w-full flex-1 p-0"
+              : "w-full flex-1 px-3 py-5 sm:px-4 sm:py-7 lg:px-8 lg:py-10"
         }
       >
         <Outlet />
       </main>
 
-      {!hideShopChrome ? <Footer /> : null}
+      {!hideShopChrome && !isHomePage ? <Footer /> : null}
 
       {/* Cart Drawer System */}
       <CartDrawerOverlay />

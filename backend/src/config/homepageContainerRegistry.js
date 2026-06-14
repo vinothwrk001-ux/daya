@@ -54,6 +54,11 @@ const FIELD_LIBRARY = {
   mobileColumns: { type: "number", min: 1, max: 3, defaultValue: 1 },
   gapSize: { type: "number", min: 0, max: 48, defaultValue: 16 },
   cardStyle: { type: "select", options: ["DEFAULT", "ELEVATED", "MINIMAL", "EDITORIAL"], defaultValue: "ELEVATED" },
+  headerStyle: { type: "select", options: ["DEFAULT", "CENTERED_FANCY"], defaultValue: "DEFAULT" },
+  headerEyebrowText: { type: "text", defaultValue: "" },
+  headerHeadingText: { type: "text", defaultValue: "" },
+  headerCtaText: { type: "text", defaultValue: "View all" },
+  headerCtaUrl: { type: "text", defaultValue: "" },
   featuredHeading: { type: "text", defaultValue: "" },
   featuredSubHeading: { type: "text", defaultValue: "" },
   featuredDescription: { type: "textarea", defaultValue: "" },
@@ -159,16 +164,24 @@ const PRODUCT_TYPE_DEFAULTS = {
   supportsProductFilters: true,
 };
 
+const HEADER_FIELDS = [
+  field("headerStyle", { label: "Header Style" }),
+  field("headerEyebrowText", { label: "Fancy Small Text" }),
+  field("headerHeadingText", { label: "Fancy Heading" }),
+  field("headerCtaText", { label: "Button Text" }),
+  field("headerCtaUrl", { label: "Button Link" }),
+];
+
 const REGISTRY = {
   CAROUSEL: {
     ...PRODUCT_TYPE_DEFAULTS,
     label: "Carousel",
-    fields: [field("autoSlide"), field("slideSpeed"), field("showArrows"), field("showDots"), field("infiniteLoop"), field("productsPerView"), field("swipeEnabled")],
+    fields: [...HEADER_FIELDS, field("autoSlide"), field("slideSpeed"), field("showArrows"), field("showDots"), field("infiniteLoop"), field("productsPerView"), field("swipeEnabled")],
   },
   GRID: {
     ...PRODUCT_TYPE_DEFAULTS,
     label: "Grid",
-    fields: [field("desktopColumns"), field("tabletColumns"), field("mobileColumns"), field("gapSize"), field("cardStyle")],
+    fields: [...HEADER_FIELDS, field("desktopColumns"), field("tabletColumns"), field("mobileColumns"), field("gapSize"), field("cardStyle")],
   },
   FEATURED_PRODUCTS: {
     ...PRODUCT_TYPE_DEFAULTS,
@@ -264,7 +277,7 @@ const REGISTRY = {
     ...PRODUCT_TYPE_DEFAULTS,
     label: "Trending",
     defaultSortBy: "TRENDING",
-    fields: [field("viewThreshold"), field("salesThreshold"), field("trendingLogic")],
+    fields: [...HEADER_FIELDS, field("viewThreshold"), field("salesThreshold"), field("trendingLogic")],
   },
   NEW_ARRIVALS: {
     ...PRODUCT_TYPE_DEFAULTS,
