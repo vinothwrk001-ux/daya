@@ -56,31 +56,26 @@ export function SearchBar({ className = "" }) {
 
   return (
     <div ref={searchRef} className={`group relative mx-auto w-full max-w-4xl ${className}`.trim()}>
-      <div className="relative">
-        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 transition group-focus-within:text-brand-primary" aria-hidden="true">
-          <Search className="h-4 w-4" />
-        </span>
+      <div className="relative flex items-center">
         <input
           type="text"
-          placeholder="Search for curated essentials, trending drops, and more"
+          placeholder="Search product"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => searchQuery.trim().length > 0 && setShowResults(true)}
-          className="w-full rounded-full border border-brand-secondary bg-white py-3.5 pl-11 pr-12 text-sm text-brand-textPrimary shadow-brandSm outline-none transition duration-300 placeholder:text-slate-400 focus:border-brand-primary focus:bg-white focus:ring-4 focus:ring-red-100"
+          className="w-full rounded-full bg-gray-100 py-3 pl-6 pr-16 text-sm text-slate-900 outline-none transition duration-300 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-gray-300"
         />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => {
-              setSearchQuery("");
-              setResults([]);
-              setShowResults(false);
-            }}
-            className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-brand-primary"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            if (searchQuery.trim()) {
+              // Optionally redirect to search results or trigger search
+            }
+          }}
+          className="absolute right-1.5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white transition hover:bg-gray-900"
+        >
+          <Search className="h-5 w-5" />
+        </button>
       </div>
 
       {showResults && (

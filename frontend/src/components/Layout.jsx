@@ -160,7 +160,7 @@ export function Layout() {
   return (
     <CartDrawerProvider>
       <div className="enterprise-shell flex min-h-screen flex-col transition-colors">
-      {!hideShopChrome ? (
+      {!hideShopChrome && location.pathname !== "/" ? (
         <header className="enterprise-header sticky top-0 z-30 backdrop-blur-xl">
           <div className="w-full px-3 py-3 sm:px-4 lg:px-8">
             <div className="flex flex-col gap-4">
@@ -329,7 +329,7 @@ export function Layout() {
         </header>
       ) : null}
 
-      {!hideShopChrome ? (
+      {!hideShopChrome && location.pathname !== "/" ? (
         <CategoryNavigation 
           categories={presentedCategories}
           onSelect={(item) => {

@@ -1,8 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, BadgePercent, Clock3, CreditCard, Eye, Flame, Gift, Heart, Megaphone, ShoppingCart, Star, Truck, Wallet, Zap } from "lucide-react";
+import { ArrowRight, BadgePercent, Clock3, CreditCard, Eye, Flame, Gift, Heart, Megaphone, ShoppingCart, Star, Truck, User, Wallet, Zap } from "lucide-react";
 import { ProductCard } from "../ProductCard";
 import { ProductCarousel } from "../ProductCarousel";
+import { SearchBar } from "../SearchBar";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { trackHomepageContainerEvent } from "../../services/homepageContainerService";
 import { formatCurrency } from "../../utils/formatCurrency";
@@ -618,7 +619,52 @@ function BannerContainer({ container }) {
           style={{ background: `rgba(15, 23, 42, ${Number(config.overlayOpacity ?? 0.35)})` }}
         />
       ) : null}
-      <div className="absolute inset-0 z-10 flex items-center p-6 sm:p-8 lg:p-10">
+      <div className="absolute inset-0 z-10 flex flex-col items-start pt-10 p-6 sm:p-8 lg:p-10">
+        <div className="w-full flex justify-between items-center mb-8 sm:mb-12 gap-6">
+          <div className="flex-1 flex justify-center pl-60">
+            <div className="w-full max-w-sm">
+              <SearchBar />
+            </div>
+          </div>
+          <div className="flex items-center gap-4 sm:gap-6 flex-shrink-0 pr-8">
+            <Link to="/login" className="flex items-center gap-2 text-slate-900 hover:text-slate-700 transition">
+              <User className="h-5 w-5 sm:h-6 sm:w-6" />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Login</span>
+            </Link>
+            <Link to="/wishlist" className="flex items-center gap-2 text-slate-900 hover:text-red-500 transition">
+              <Heart className="h-5 w-5 sm:h-6 sm:w-6" />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Wishlist</span>
+            </Link>
+            <Link to="/cart" className="flex items-center gap-2 text-slate-900 hover:text-slate-700 transition">
+              <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Cart</span>
+            </Link>
+          </div>
+        </div>
+        
+        <nav className="w-full flex justify-center mb-8 sm:mb-12">
+          <div className="flex gap-6 sm:gap-8 lg:gap-10">
+            <Link to="/" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
+              HOME
+            </Link>
+            <a href="#" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
+              ABOUT US
+            </a>
+            <a href="#" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
+              SERVICES
+            </a>
+            <a href="#" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
+              OUR WORKS
+            </a>
+            <a href="#" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
+              BLOG
+            </a>
+            <a href="#" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
+              CONTACT US
+            </a>
+          </div>
+        </nav>
+        
         <div className={`max-w-2xl transition duration-300 ${resolveTextAlign(config.textPosition)} ${config.showCtaOnHover ? "opacity-0 translate-y-3 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto" : ""}`}>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Marketplace campaign</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">
