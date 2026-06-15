@@ -7,6 +7,7 @@ import { SearchBar } from "../SearchBar";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { trackHomepageContainerEvent } from "../../services/homepageContainerService";
 import { formatCurrency } from "../../utils/formatCurrency";
+import { getPublicBranding } from "../../services/companyBrandingService";
 import { useCartDrawer } from "../../hooks/useCartDrawer";
 import { useCompare } from "../../hooks/useCompare";
 import { useWishlist } from "../../hooks/useWishlist";
@@ -638,6 +639,7 @@ function CarouselContainer({ container, bareContainers = false, bareOuterLayout 
 
 function BannerContainer({ container }) {
   const config = container.config || {};
+  const [branding, setBranding] = useState(null);
   const mediaItems = Array.isArray(config.bannerMedia) && config.bannerMedia.length
     ? config.bannerMedia
     : [
@@ -653,6 +655,18 @@ function BannerContainer({ container }) {
   const autoSlide = config.autoSlide !== false;
   const showArrows = config.showArrows !== false;
   const showDots = config.showDots !== false;
+
+  useEffect(() => {
+    const fetchBranding = async () => {
+      try {
+        const brandingData = await getPublicBranding();
+        setBranding(brandingData);
+      } catch (error) {
+        console.error("Failed to fetch branding:", error);
+      }
+    };
+    fetchBranding();
+  }, []);
 
   useEffect(() => {
     if (!autoSlide || mediaItems.length <= 1) return undefined;
@@ -698,7 +712,18 @@ function BannerContainer({ container }) {
       ) : null}
       <div className="absolute inset-0 z-10 flex flex-col items-start pt-10 p-6 sm:p-8 lg:p-10">
         <div className="w-full flex justify-between items-center mb-8 sm:mb-12 gap-6">
-          <div className="flex-1 flex justify-center pl-60">
+          <div className="flex items-center flex-shrink-0">
+            {branding?.logos?.primary && (
+              <Link to="/" className="transition hover:opacity-80">
+                <img 
+                  src={resolveApiAssetUrl(branding.logos.primary)} 
+                  alt="Logo" 
+                  className="h-12 sm:h-14 lg:h-16 w-auto"
+                />
+              </Link>
+            )}
+          </div>
+          <div className="flex-1 flex justify-center pl-20 sm:pl-24 lg:pl-32">
             <div className="w-full max-w-sm">
               <SearchBar />
             </div>
@@ -719,25 +744,19 @@ function BannerContainer({ container }) {
           </div>
         </div>
         
-        <nav className="w-full flex justify-center mb-8 sm:mb-12">
-          <div className="flex gap-6 sm:gap-8 lg:gap-10">
-            <Link to="/" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
+        <nav className="w-full flex justify-center mb-8 sm:mb-12 -mt-10">
+          <div className="flex gap-3 sm:gap-4 lg:gap-6">
+            <Link to="/" className="text-xs sm:text-sm font-semibold text-slate-900 hover:text-slate-700 transition">
               HOME
             </Link>
-            <a href="#" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
-              ABOUT US
+            <a href="#" className="text-xs sm:text-sm font-semibold text-slate-900 hover:text-slate-700 transition">
+              SHOP
             </a>
-            <a href="#" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
+            <a href="#" className="text-xs sm:text-sm font-semibold text-slate-900 hover:text-slate-700 transition">
               SERVICES
             </a>
-            <a href="#" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
-              OUR WORKS
-            </a>
-            <a href="#" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
-              BLOG
-            </a>
-            <a href="#" className="text-sm sm:text-base font-semibold text-slate-900 hover:text-slate-700 transition">
-              CONTACT US
+            <a href="#" className="text-xs sm:text-sm font-semibold text-slate-900 hover:text-slate-700 transition">
+              BLOGS
             </a>
           </div>
         </nav>

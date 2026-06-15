@@ -360,7 +360,7 @@ export function Layout() {
         <Outlet />
       </main>
 
-      {!hideShopChrome && !isHomePage ? <Footer /> : null}
+      {!hideShopChrome ? <Footer /> : null}
 
       {/* Cart Drawer System */}
       <CartDrawerOverlay />
