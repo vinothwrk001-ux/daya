@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { ProductImageGallery } from "../components/ProductImageGallery";
 import { ProductReviewsSection } from "../components/ProductReviewsSection";
@@ -25,6 +25,7 @@ import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
 import pendingActionManager from "../utils/pendingActionManager";
 import { getCartErrorMessage } from "../utils/cartErrors";
+import { getReelAttribution, getReelSessionId, trackReelProductView } from "../services/reelService";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -137,6 +138,8 @@ function isVisualSwatchGroup(group, displayType) {
 
 export function ProductDetailsPage() {
   const { productId } = useParams();
+  const [searchParams] = useSearchParams();
+  const reelIdFromQuery = searchParams.get("reel");
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { addItem: addCartItem } = useCart();
@@ -194,6 +197,17 @@ export function ProductDetailsPage() {
       cancelled = true;
     };
   }, [productId]);
+
+  useEffect(() => {
+    const attribution = getReelAttribution();
+    const reelId = reelIdFromQuery || attribution?.reelId;
+    if (!reelId || !productId) return;
+
+    trackReelProductView(reelId, {
+      productId,
+      sessionId: attribution?.sessionId || getReelSessionId(),
+    }).catch(() => {});
+  }, [productId, reelIdFromQuery]);
 
   useEffect(() => {
     let cancelled = false;

@@ -210,6 +210,15 @@ const productSchema = new mongoose.Schema(
       type: [productImageSchema],
       default: [],
     },
+    hoverImage: {
+      type: [productImageSchema],
+      default: [],
+    },
+    cardType: {
+      type: String,
+      enum: ["NORMAL", "HOVER"],
+      default: "NORMAL",
+    },
     thumbnail: String,
 
     // Ownership

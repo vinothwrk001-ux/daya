@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DynamicHomepageRenderer } from "../components/homepage/DynamicHomepageRenderer";
+import { ReelsSection } from "../components/reels/ReelComponents";
 import { getHomepageBuilderPublicLayout } from "../services/homepageBuilderService";
 
 export function HomePage() {
@@ -70,6 +71,15 @@ export function HomePage() {
         bareCarouselShell
         device={device}
       />
+
+      {!loading ? (
+        <>
+          <ReelsSection title="Trending Reels" sort="trending" />
+          <ReelsSection title="Latest Reels" sort="latest" />
+          <ReelsSection title="Popular Reels" sort="popular" />
+          <ReelsSection title="Recommended Reels" sort="recommended" />
+        </>
+      ) : null}
     </div>
   );
 }

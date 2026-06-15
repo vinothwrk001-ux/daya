@@ -316,6 +316,11 @@ class ProductService {
     });
     await assertUniqueProductNumber(generatedProductNumber);
 
+    // Normalize hover images
+    const normalizedHoverImage = (Array.isArray(productData.hoverImage) ? productData.hoverImage : [])
+      .map(normalizeImage)
+      .filter((item) => item.url);
+
     const productPayload = {
       ...productData,
       weight: normalizeProductWeight(productData.weight, { required: true }),
@@ -332,6 +337,8 @@ class ProductService {
           : {}),
       stock: variantState.aggregate?.stock ?? Number(productData.stock || 0),
       images: normalizedImages,
+      hoverImage: normalizedHoverImage,
+      cardType: productData.cardType || "NORMAL",
       modulesData: normalizedModulesData,
       attributes: normalizedAttributes,
       extraDetails: normalizedModulesData,
@@ -372,6 +379,11 @@ class ProductService {
 
     if (Object.prototype.hasOwnProperty.call(updateData, "weight")) {
       updateData.weight = normalizeProductWeight(updateData.weight);
+    }
+
+    // Normalize hover images if provided
+    if (Array.isArray(updateData.hoverImage)) {
+      updateData.hoverImage = updateData.hoverImage.map(normalizeImage).filter((item) => item.url);
     }
 
     const nextCategoryId = updateData.categoryId || product.categoryId;

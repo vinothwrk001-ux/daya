@@ -47,8 +47,9 @@ export function Layout() {
     location.pathname === "/dashboard/admin" ||
     location.pathname.startsWith("/admin");
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
+  const isReelsPage = location.pathname === "/reels" || location.pathname.startsWith("/reels/");
   const isHomePage = location.pathname === "/";
-  const hideShopChrome = isAdminRoute || isStaffWorkspace;
+  const hideShopChrome = isAdminRoute || isStaffWorkspace || isReelsPage;
   const showShopActions = !user || user?.role === "user";
 
   // Detect scroll with requestAnimationFrame for smooth performance
@@ -71,7 +72,11 @@ export function Layout() {
 
   const navItems = [
     { label: "Home", href: "/" },
-    { label: "Shop", href: "/shop" },
+    { label: "Products", href: "/shop" },
+    { label: "Categories", href: "/shop" },
+    { label: "Reels", href: "/reels" },
+    { label: "Campaigns", href: "/collections/deals" },
+    { label: "About Us", href: "/terms-and-conditions" },
     { label: "Compare", href: "/compare" },
     { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },
   ];
@@ -186,14 +191,14 @@ export function Layout() {
                 </div>
 
                 <nav className="enterprise-nav-pill hidden items-center gap-1 rounded-full p-1 backdrop-blur lg:flex">
-                  {navItems.map((item) => {
+                  {navItems.map((item, index) => {
                     const isActive =
                       location.pathname === item.href ||
                       (item.href !== "/" && location.pathname.startsWith(item.href));
 
                     return (
                       <Link
-                        key={item.href}
+                        key={index}
                         to={item.href}
                         className={`group relative rounded-full px-4 py-2 text-sm font-medium transition ${
                           isActive
@@ -230,24 +235,60 @@ export function Layout() {
                     <>
                       {showShopActions ? (
                         <>
-                          <HeaderIconLink to="/wishlist" label="Wishlist" badge={wishlistCount}>
+                          <Link
+                            to="/wishlist"
+                            className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
+                            aria-label="Wishlist"
+                          >
                             <Heart className="h-4.5 w-4.5" />
-                          </HeaderIconLink>
-                          <HeaderIconLink to="/cart" label="Cart" badge={cartCount}>
+                            {wishlistCount > 0 ? (
+                              <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
+                                {wishlistCount}
+                              </span>
+                            ) : null}
+                          </Link>
+                          <Link
+                            to="/cart"
+                            className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
+                            aria-label="Cart"
+                          >
                             <ShoppingCart className="h-4.5 w-4.5" />
-                          </HeaderIconLink>
+                            {cartCount > 0 ? (
+                              <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
+                                {cartCount}
+                              </span>
+                            ) : null}
+                          </Link>
                         </>
                       ) : null}
                       <UserMenu />
                     </>
                   ) : (
                     <>
-                      <HeaderIconLink to="/wishlist" label="Wishlist" badge={wishlistCount}>
+                      <Link
+                        to="/wishlist"
+                        className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
+                        aria-label="Wishlist"
+                      >
                         <Heart className="h-4.5 w-4.5" />
-                      </HeaderIconLink>
-                      <HeaderIconLink to="/cart" label="Cart" badge={cartCount}>
+                        {wishlistCount > 0 ? (
+                          <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
+                            {wishlistCount}
+                          </span>
+                        ) : null}
+                      </Link>
+                      <Link
+                        to="/cart"
+                        className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
+                        aria-label="Cart"
+                      >
                         <ShoppingCart className="h-4.5 w-4.5" />
-                      </HeaderIconLink>
+                        {cartCount > 0 ? (
+                          <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
+                            {cartCount}
+                          </span>
+                        ) : null}
+                      </Link>
                       <Link
                         className="hidden rounded-full px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-brand-primary sm:inline-flex"
                         to="/login"
@@ -306,13 +347,13 @@ export function Layout() {
               </div>
 
               <nav className="enterprise-nav-pill flex gap-2 overflow-x-auto rounded-full p-1 backdrop-blur lg:hidden">
-                {navItems.map((item) => {
+                {navItems.map((item, index) => {
                   const isActive =
                     location.pathname === item.href ||
                     (item.href !== "/" && location.pathname.startsWith(item.href));
                   return (
                     <Link
-                      key={item.href}
+                      key={index}
                       to={item.href}
                       className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
                         isActive
@@ -351,7 +392,9 @@ export function Layout() {
       <main
         className={
           hideShopChrome
-            ? "flex-1"
+            ? isReelsPage
+              ? "flex-1 p-0"
+              : "flex-1"
             : isHomePage
               ? "w-full flex-1 p-0"
               : "w-full flex-1 px-3 py-5 sm:px-4 sm:py-7 lg:px-8 lg:py-10"
@@ -367,22 +410,5 @@ export function Layout() {
       <CartDrawer />
     </div>
     </CartDrawerProvider>
-  );
-}
-
-function HeaderIconLink({ to, label, badge, children }) {
-  return (
-    <Link
-      to={to}
-      aria-label={label}
-      className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition hover:-translate-y-0.5 active:scale-95"
-    >
-      {children}
-      {badge ? (
-        <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
-          {badge}
-        </span>
-      ) : null}
-    </Link>
   );
 }

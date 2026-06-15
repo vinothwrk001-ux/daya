@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { getReelAttribution } from "./reelService";
 
 export async function prepareCheckout(payload = {}) {
   const { data } = await api.post("/api/checkout/prepare", payload, { timeout: 15000 });
@@ -11,7 +12,12 @@ export async function prepareGuestCheckout(payload = {}) {
 }
 
 export async function createOrder(payload) {
-  const { data } = await api.post("/api/checkout/create", payload, { timeout: 15000 });
+  const reelAttribution = getReelAttribution();
+  const requestPayload = {
+    ...payload,
+    ...(reelAttribution?.sessionId ? { reelAttributionSessionId: reelAttribution.sessionId } : {}),
+  };
+  const { data } = await api.post("/api/checkout/create", requestPayload, { timeout: 15000 });
   return data;
 }
 

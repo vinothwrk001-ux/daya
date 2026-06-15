@@ -37,6 +37,8 @@ function getInitialForm() {
     productNumber: "",
     lowStockThreshold: 10,
     images: [],
+    hoverImage: [],
+    cardType: "NORMAL",
     tags: "",
     weight: "",
     returnPolicy: "",
@@ -198,6 +200,8 @@ export function ProductEditor({
           productNumber: product.productNumber || product.SKU || "",
           lowStockThreshold: product.lowStockThreshold || 10,
           images: normalizeEditorImages(product.images || [], product.name || "Product image", "product-image"),
+          hoverImage: normalizeEditorImages(product.hoverImage || [], (product.name || "Product") + " hover image", "product-hover-image"),
+          cardType: product.cardType || "NORMAL",
           tags: product.tags?.join(", ") || "",
           weight:
             product.weight && typeof product.weight === "object"
@@ -426,6 +430,13 @@ export function ProductEditor({
     }));
   }
 
+  function handleHoverImageChange(newImages) {
+    setFormData((prev) => ({
+      ...prev,
+      hoverImage: normalizeEditorImages(newImages, (prev.name || "Product") + " hover image", "product-hover-image"),
+    }));
+  }
+
   function handleVariantSelectionChange(def, rawValue) {
     if (def.type === "multi-select" || def.options?.length) {
       setVariantSelections((prev) => ({
@@ -481,6 +492,8 @@ export function ProductEditor({
     if (!formData.subCategoryId) return setError("Subcategory is required");
     if (formData.images.length === 0) return setError("At least one product image is required");
     if (formData.images.some((image) => image?.status === "uploading")) return setError("Wait for product image uploads to finish");
+    if (formData.cardType === "HOVER" && formData.hoverImage.length === 0) return setError("At least one hover image is required for Hover card type");
+    if (formData.hoverImage.some((image) => image?.status === "uploading")) return setError("Wait for hover image uploads to finish");
     if (!formData.productNumber.trim()) return setError("Product number is required");
     if (!formData.weight || Number(formData.weight) <= 0) return setError("Product weight is required");
 
@@ -526,6 +539,7 @@ export function ProductEditor({
 
     try {
       const processedImages = buildImagePayload(formData.images, formData.name || "Product image");
+      const processedHoverImages = formData.hoverImage.length > 0 ? buildImagePayload(formData.hoverImage, (formData.name || "Product") + " hover image") : [];
 
       const payload = {
         name: formData.name,
@@ -554,6 +568,8 @@ export function ProductEditor({
         variants: normalizedVariantRows,
         lowStockThreshold: Number(formData.lowStockThreshold || 10),
         images: processedImages,
+        hoverImage: processedHoverImages,
+        cardType: formData.cardType || "NORMAL",
         tags: formData.tags
           .split(",")
           .map((tag) => tag.trim().toLowerCase())
@@ -686,6 +702,70 @@ export function ProductEditor({
               title="Drag & drop generic product images"
               description="These images act as the fallback gallery for every variant and appear after variant-specific media."
             />
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Product card display</h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            Choose how the product card appears on the storefront.
+          </p>
+          <div className="mt-4 grid gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Card type *</label>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <input
+                    type="radio"
+                    id="cardType-normal"
+                    name="cardType"
+                    value="NORMAL"
+                    checked={formData.cardType === "NORMAL"}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, cardType: e.target.value }))}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="cardType-normal" className="ml-2 text-sm text-slate-700 dark:text-slate-300">
+                    <span className="font-medium">Normal Card</span>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">Shows main image with zoom effect on hover</p>
+                  </label>
+                </div>
+                <div>
+                  <input
+                    type="radio"
+                    id="cardType-hover"
+                    name="cardType"
+                    value="HOVER"
+                    checked={formData.cardType === "HOVER"}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, cardType: e.target.value }))}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="cardType-hover" className="ml-2 text-sm text-slate-700 dark:text-slate-300">
+                    <span className="font-medium">Hover Card</span>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">Swaps to hover image on mouse over</p>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {formData.cardType === "HOVER" && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Hover image *</label>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                  Upload an image to display when users hover over the product card.
+                </p>
+                <div className="mt-3">
+                  <ProductImageUploader
+                    images={formData.hoverImage}
+                    onChange={handleHoverImageChange}
+                    uploadImages={uploadImages}
+                    productName={(formData.name || "Product") + " hover"}
+                    maxImages={1}
+                    title="Drag & drop hover image"
+                    description="This image will replace the main image on hover."
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </section>
 

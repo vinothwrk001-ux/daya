@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { FbtBundleSection } from "../components/FbtBundleSection";
@@ -21,6 +21,7 @@ export function CartPage() {
   const [recommendations, setRecommendations] = useState(null);
   const [fbtBundle, setFbtBundle] = useState(null);
   const { cart, isGuest, loading, refreshCart, addItem, updateItem, removeItem, validateCart } = useCart();
+  const hasInitialized = useRef(false);
 
   const refresh = useCallback(async () => {
     setError("");
@@ -35,9 +36,13 @@ export function CartPage() {
     }
   }, [isGuest, refreshCart, validateCart]);
 
+  // Only refresh once on component mount
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      refresh();
+    }
+  }, []); // Empty dependency array - only runs once on mount
 
   const items = useMemo(() => (Array.isArray(cart?.items) ? cart.items : []), [cart]);
   const total = Number(cart?.totalAmount || 0);
@@ -45,6 +50,9 @@ export function CartPage() {
     () => items.map((item) => item?.productId?._id || item?.productId).filter(Boolean).map(String),
     [items]
   );
+
+  // Only show skeleton loaders if we have items and are actively loading (not on initial empty state)
+  const shouldShowSkeletons = loading && items.length > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -117,7 +125,7 @@ export function CartPage() {
         </div>
       ) : null}
 
-      {loading ? (
+      {shouldShowSkeletons ? (
         <div className="grid gap-3 sm:gap-4">
           {Array.from({ length: 4 }).map((_, idx) => (
             <div key={idx} className="h-20 sm:h-24 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />

@@ -45,6 +45,7 @@ const systemRoutes = require("./routes/system.routes");
 const privateDocumentRoutes = require("./routes/private-document.routes");
 const invoiceRoutes = require("./routes/invoice.routes");
 const recommendationRoutes = require("./modules/recommendation/routes");
+const reelRoutes = require("./modules/reels/routes");
 const { assertNoProductionBootstrapRoutes } = require("./utils/bootstrapRouteScanner");
 
 function createLimiter({
@@ -234,6 +235,7 @@ function createApp() {
   app.use("/api/private-documents", privateDocumentRoutes);
   app.use("/api/invoices", invoiceRoutes);
   app.use("/api/recommendations", recommendationRoutes);
+  app.use("/api/reels", reelRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

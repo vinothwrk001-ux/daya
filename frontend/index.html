@@ -7,12 +7,13 @@
     <meta name="theme-color" content="#0f172a" />
     <title>UChooseMe</title>
     <!-- Optimize external script loading -->
-    <link rel="preconnect" href="https://checkout.razorpay.com" />
+    <link rel="preconnect" href="https://checkout.razorpay.com" crossorigin />
     <link rel="dns-prefetch" href="https://checkout-static-next.razorpay.com" />
+    <link rel="preload" href="https://checkout.razorpay.com/v1/checkout.js" as="script" />
   </head>
   <body>
     <div id="root"></div>
-    <script defer src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script async src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -34,6 +34,22 @@ const add = asyncHandler(async (req, res) => {
 
   const result = await cartService.addItem(req.user.sub, itemPayload);
   const responsePayload = result && result.cart ? { ...result.cart, addedItem: result.addedItem } : result;
+
+  const { reelId, sessionId } = raw.reelAttribution || {};
+  if (reelId && sessionId && productId) {
+    try {
+      const reelService = require("../modules/reels/service");
+      await reelService.trackAddToCart({
+        reelId,
+        productId,
+        sessionId,
+        userId: req.user.sub,
+      });
+    } catch {
+      // Non-blocking attribution tracking
+    }
+  }
+
   return ok(res, responsePayload, "Added to cart");
 });
 

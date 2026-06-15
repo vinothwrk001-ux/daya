@@ -1,5 +1,6 @@
 import { api } from "./api";
 import { emitCartChanged, normalizeCartPayload } from "../utils/cartState";
+import { getReelAttribution } from "./reelService";
 
 // ===== AUTHENTICATED USER ENDPOINTS =====
 
@@ -9,7 +10,21 @@ export async function getCart() {
 }
 
 export async function addToCart(productId, quantity = 1, variantId = "") {
-  const { data } = await api.post("/api/cart/add", { productId, quantity, variantId });
+  const reelAttribution = getReelAttribution();
+  const requestBody = {
+    productId,
+    quantity,
+    variantId,
+    ...(reelAttribution?.productId === String(productId)
+      ? {
+          reelAttribution: {
+            reelId: reelAttribution.reelId,
+            sessionId: reelAttribution.sessionId,
+          },
+        }
+      : {}),
+  };
+  const { data } = await api.post("/api/cart/add", requestBody);
   const payload = data?.data || data;
   const cart = normalizeCartPayload(payload);
   emitCartChanged(cart);

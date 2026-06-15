@@ -424,7 +424,7 @@ class CheckoutService {
     return summary;
   }
 
-  async createOrder(userId, { shippingAddress, paymentMethod = "ONLINE", paymentRecordId = null, paymentStatus = null, razorpayOrderId = null, razorpayPaymentId = null, fraudFlags = [] } = {}) {
+  async createOrder(userId, { shippingAddress, paymentMethod = "ONLINE", paymentRecordId = null, paymentStatus = null, razorpayOrderId = null, razorpayPaymentId = null, fraudFlags = [], reelAttributionSessionId = null } = {}) {
     const cart = await cartRepo.findByUserId(userId);
     if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
       throw new AppError("Cart is empty", 400, "EMPTY_CART");
@@ -680,6 +680,15 @@ class CheckoutService {
           Promise.all(orders.map((order) => productAnalyticsService.refreshForOrder(order._id)))
         );
         await runNonBlocking(`clear cart for user ${userId}`, () => cartRepo.clear(userId));
+
+        if (reelAttributionSessionId) {
+          await runNonBlocking("process reel attribution", () => {
+            const reelService = require("../modules/reels/service");
+            return reelService.processOrderAttribution(userId, orders, {
+              sessionId: reelAttributionSessionId,
+            });
+          });
+        }
 
         await runNonBlocking("emit shipment events", () =>
           Promise.all(

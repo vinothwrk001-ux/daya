@@ -76,6 +76,12 @@ const AdminPricingPage = lazyNamed(() => import("./pages/AdminPricingPage"), "Ad
 const AdminPricingCategoriesPage = lazyNamed(() => import("./pages/AdminPricingCategoriesPage"), "AdminPricingCategoriesPage");
 const AdminRolesPage = lazyNamed(() => import("./pages/AdminRolesPage"), "AdminRolesPage");
 const AdminStaffPage = lazyNamed(() => import("./pages/AdminStaffPage"), "AdminStaffPage");
+const ReelsPage = lazyNamed(() => import("./pages/ReelsPage"), "ReelsPage");
+const SavedReelsPage = lazyNamed(() => import("./pages/SavedReelsPage"), "SavedReelsPage");
+const AdminReelsPage = lazyNamed(() => import("./pages/AdminReelsPage"), "AdminReelsPage");
+const AdminReelFormPage = lazyNamed(() => import("./pages/AdminReelFormPage"), "AdminReelFormPage");
+const AdminReelAnalyticsPage = lazyNamed(() => import("./pages/AdminReelAnalyticsPage"), "AdminReelAnalyticsPage");
+const AdminReelAttributionPage = lazyNamed(() => import("./pages/AdminReelAttributionPage"), "AdminReelAttributionPage");
 const StaffDashboardPage = lazyNamed(() => import("./pages/StaffDashboardPage"), "StaffDashboardPage");
 const StaffUnauthorizedPage = lazyNamed(() => import("./pages/StaffUnauthorizedPage"), "StaffUnauthorizedPage");
 const StaffUsersPage = lazyNamed(() => import("./pages/StaffUsersPage"), "StaffUsersPage");
@@ -101,6 +107,7 @@ export default function App() {
         <Route path="/staff/login" element={<Navigate to="/login" replace />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/shop" element={<ProductsPage />} />
+        <Route path="/reels" element={<ReelsPage />} />
         <Route path="/collections/:slug" element={<HomepageContainerProductsPage />} />
         <Route path="/product/:productId" element={<ProductDetailsPage />} />
         <Route path="/cart" element={<CartPage />} />
@@ -128,6 +135,7 @@ export default function App() {
               <Route path="/support" element={<SupportPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/saved-reels" element={<SavedReelsPage />} />
             </Route>
             <Route path="/checkout/success" element={<OrderSuccessPage />} />
           </Route>
@@ -182,6 +190,11 @@ export default function App() {
               <Route path="pricing-categories" element={<AdminPricingCategoriesPage />} />
               <Route path="roles" element={<AdminRolesPage />} />
               <Route path="staff" element={<AdminStaffPage />} />
+              <Route path="reels" element={<AdminReelsPage />} />
+              <Route path="reels/create" element={<AdminReelFormPage />} />
+              <Route path="reels/:reelId/edit" element={<AdminReelFormPage />} />
+              <Route path="reels/analytics" element={<AdminReelAnalyticsPage />} />
+              <Route path="reels/attribution" element={<AdminReelAttributionPage />} />
             </Route>
           </Route>
         </Route>
