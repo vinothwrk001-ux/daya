@@ -76,6 +76,7 @@ const AdminPricingPage = lazyNamed(() => import("./pages/AdminPricingPage"), "Ad
 const AdminPricingCategoriesPage = lazyNamed(() => import("./pages/AdminPricingCategoriesPage"), "AdminPricingCategoriesPage");
 const AdminRolesPage = lazyNamed(() => import("./pages/AdminRolesPage"), "AdminRolesPage");
 const AdminStaffPage = lazyNamed(() => import("./pages/AdminStaffPage"), "AdminStaffPage");
+const CategoryPage = lazyNamed(() => import("./pages/CategoryPage"), "CategoryPage");
 const ReelsPage = lazyNamed(() => import("./pages/ReelsPage"), "ReelsPage");
 const SavedReelsPage = lazyNamed(() => import("./pages/SavedReelsPage"), "SavedReelsPage");
 const AdminReelsPage = lazyNamed(() => import("./pages/AdminReelsPage"), "AdminReelsPage");
@@ -107,6 +108,7 @@ export default function App() {
         <Route path="/staff/login" element={<Navigate to="/login" replace />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/shop" element={<ProductsPage />} />
+        <Route path="/category/:slug" element={<CategoryPage />} />
         <Route path="/reels" element={<ReelsPage />} />
         <Route path="/collections/:slug" element={<HomepageContainerProductsPage />} />
         <Route path="/product/:productId" element={<ProductDetailsPage />} />

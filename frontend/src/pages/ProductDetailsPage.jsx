@@ -24,6 +24,7 @@ import { useCart } from "../hooks/useCart";
 import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
 import pendingActionManager from "../utils/pendingActionManager";
+import buyNowSessionService from "../services/buyNowSessionService";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { getReelAttribution, getReelSessionId, trackReelProductView } from "../services/reelService";
 
@@ -153,6 +154,7 @@ export function ProductDetailsPage() {
   const [error, setError] = useState("");
   const [product, setProduct] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
   const [wishlistSaved, setWishlistSaved] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
@@ -423,22 +425,12 @@ export function ProductDetailsPage() {
   }, [activeTab, tabs]);
 
   async function handleAddToCart(redirectTo = null) {
-    if (adding) return;
+    if (adding || buyingNow) return;
     setAdding(true);
     setError("");
     try {
       const quantity = 1;
       const variantId = activeVariant?.variantId || "";
-
-      if (!isAuthenticated && redirectTo === "/checkout") {
-        const added = await addCartItem(product._id, quantity, variantId);
-        if (added) {
-          pendingActionManager.initiateGuestBuyNow(product._id, quantity, variantId);
-          saveRedirectAfterLogin(`${window.location.origin}/checkout`);
-          navigate("/login", { state: { from: { pathname: "/checkout" } } });
-        }
-        return;
-      }
 
       const added = await addCartItem(product._id, quantity, variantId);
       if (!added) {
@@ -446,13 +438,48 @@ export function ProductDetailsPage() {
       }
       if (!redirectTo) {
         openDrawer(product, activeVariant, quantity);
-      } else if (redirectTo === "/checkout") {
-        navigate(redirectTo);
       }
     } catch (err) {
       setError(getCartErrorMessage(err, "Failed to add to cart"));
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function handleBuyNow() {
+    if (buyingNow || adding || !product?._id) return;
+    setBuyingNow(true);
+    setError("");
+    try {
+      const quantity = 1;
+      const variantId = activeVariant?.variantId || "";
+
+      if (!isAuthenticated) {
+        const guestToken = buyNowSessionService.getOrCreateGuestToken();
+        const session = await buyNowSessionService.createBuyNowSession(product._id, quantity, variantId, {
+          guestToken,
+        });
+        pendingActionManager.initiateGuestBuyNow(product._id, quantity, variantId, session.sessionId);
+        saveRedirectAfterLogin(
+          `${window.location.origin}/checkout?mode=buy-now&session=${encodeURIComponent(session.sessionId)}`
+        );
+        navigate("/login", {
+          state: {
+            from: {
+              pathname: "/checkout",
+              search: `?mode=buy-now&session=${encodeURIComponent(session.sessionId)}`,
+            },
+          },
+        });
+        return;
+      }
+
+      const session = await buyNowSessionService.createBuyNowSession(product._id, quantity, variantId);
+      navigate(`/checkout?mode=buy-now&session=${encodeURIComponent(session.sessionId)}`);
+    } catch (err) {
+      setError(getCartErrorMessage(err, "Failed to start checkout"));
+    } finally {
+      setBuyingNow(false);
     }
   }
 
@@ -687,8 +714,8 @@ export function ProductDetailsPage() {
                 <button type="button" disabled={stock === 0 || adding} onClick={() => handleAddToCart()} className="rounded-2xl bg-[color:var(--commerce-accent)] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:translate-y-[-1px] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60">
                   {adding ? "Adding to cart..." : "Add to Cart"}
                 </button>
-                <button type="button" disabled={stock === 0 || adding} onClick={() => handleAddToCart("/checkout")} className="rounded-2xl bg-[color:var(--commerce-accent-warm)] px-5 py-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:translate-y-[-1px] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60">
-                  Buy Now
+                <button type="button" disabled={stock === 0 || buyingNow || adding} onClick={handleBuyNow} className="rounded-2xl bg-[color:var(--commerce-accent-warm)] px-5 py-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:translate-y-[-1px] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60">
+                  {buyingNow ? "Starting checkout..." : "Buy Now"}
                 </button>
                 <button type="button" disabled={stock === 0 || wishlistLoading} onClick={handleWishlistToggle} className="rounded-2xl border border-slate-300 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800">
                   {stock === 0 ? "Out of Stock" : wishlistLoading ? "Updating..." : wishlistSaved ? "Saved to Wishlist" : "Save to Wishlist"}

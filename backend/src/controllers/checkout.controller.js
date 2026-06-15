@@ -22,11 +22,17 @@ const createOrder = asyncHandler(async (req, res) => {
     throw new AppError("Login required to create order", 401, "AUTH_REQUIRED");
   }
 
-  const { shippingAddress, paymentMethod, reelAttributionSessionId } = req.body;
+  const { shippingAddress, reelAttributionSessionId, idempotencyKey } = req.body;
   const result = await checkoutService.createOrder(req.user.sub, {
     shippingAddress,
-    paymentMethod,
+    paymentMethod: "COD",
     reelAttributionSessionId,
+    idempotencyKey,
+    auditMeta: {
+      actor: req.user,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    },
   });
   return ok(res, result, "Order created");
 });

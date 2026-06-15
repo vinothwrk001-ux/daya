@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DynamicHomepageRenderer } from "../components/homepage/DynamicHomepageRenderer";
+import { CategoryCarousel } from "../components/homepage/CategoryCarousel";
 import { ReelsSection } from "../components/reels/ReelComponents";
 import { getHomepageBuilderPublicLayout } from "../services/homepageBuilderService";
 
@@ -70,6 +71,7 @@ export function HomePage() {
         bareOuterLayout
         bareCarouselShell
         device={device}
+        insertAfterFeaturedProducts={!loading ? <CategoryCarousel /> : null}
       />
 
       {!loading ? (

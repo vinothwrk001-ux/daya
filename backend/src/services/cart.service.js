@@ -8,8 +8,16 @@ function computeTotal(items = []) {
   return items.reduce((sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0), 0);
 }
 
+function normalizeProductId(productId) {
+  if (!productId) return "";
+  if (typeof productId === "object") {
+    return String(productId._id || productId.id || "");
+  }
+  return String(productId);
+}
+
 function getItemKey(productId, variantId = "") {
-  return `${String(productId)}::${String(variantId || "")}`;
+  return `${normalizeProductId(productId)}::${String(variantId || "")}`;
 }
 
 function buildCartItemCounts(cartItems = []) {
@@ -64,10 +72,22 @@ function invalidatePreparedCheckoutCacheForUser(userId) {
   }
 }
 
+function sanitizeCartItems(items = []) {
+  return (Array.isArray(items) ? items : []).filter((item) => Boolean(normalizeProductId(item?.productId)));
+}
+
 class CartService {
   async getCart(userId) {
     await cartRepo.upsertEmpty(userId);
     const cart = await cartRepo.findByUserId(userId);
+    if (cart && Array.isArray(cart.items)) {
+      const sanitizedItems = sanitizeCartItems(cart.items);
+      if (sanitizedItems.length !== cart.items.length) {
+        cart.items = sanitizedItems;
+        cart.totalAmount = computeTotal(cart.items);
+        await cartRepo.save(cart);
+      }
+    }
     return cart;
   }
 
@@ -83,6 +103,7 @@ class CartService {
     }
 
     const cart = await cartRepo.upsertEmpty(userId);
+    cart.items = sanitizeCartItems(cart.items);
     const resolverResult = variantId
       ? {
           variant: getVariantForProduct(product, variantId),
@@ -129,16 +150,15 @@ class CartService {
       if (availableStock < nextQty) {
         throw new AppError(`Only ${availableStock} item${availableStock === 1 ? "" : "s"} available`, 400, "INSUFFICIENT_STOCK");
       }
-      cart.items[existingIdx] = {
-        ...cart.items[existingIdx],
-        quantity: nextQty,
-        price: itemPrice,
-        image: itemImage,
-        variantId: variant?.variantId || "",
-        variantSku: variant?.sku || "",
-        variantTitle: variant?.title || "",
-        variantAttributes: variant?.attributes || {},
-      };
+      // Mutate the subdocument in place — replacing it via object spread drops productId on save.
+      const existingItem = cart.items[existingIdx];
+      existingItem.quantity = nextQty;
+      existingItem.price = itemPrice;
+      existingItem.image = itemImage;
+      existingItem.variantId = variant?.variantId || "";
+      existingItem.variantSku = variant?.sku || "";
+      existingItem.variantTitle = variant?.title || "";
+      existingItem.variantAttributes = variant?.attributes || {};
       newItem.quantity = nextQty;
     } else {
       cart.items.push(newItem);
@@ -157,6 +177,7 @@ class CartService {
     if (!Number.isFinite(qty)) throw new AppError("Quantity is required", 400, "VALIDATION_ERROR");
 
     const cart = await cartRepo.upsertEmpty(userId);
+    cart.items = sanitizeCartItems(cart.items);
     const idx = cart.items.findIndex((x) => getItemKey(x.productId, x.variantId) === getItemKey(productId, variantId));
     if (idx < 0) throw new AppError("Item not found in cart", 404, "NOT_FOUND");
 
@@ -172,33 +193,59 @@ class CartService {
     if (product.status !== "APPROVED" || product.isActive !== true) {
       throw new AppError("Product not available", 400, "NOT_AVAILABLE");
     }
-    const variant = getVariantForProduct(product, variantId || cart.items[idx].variantId);
-    if (!variant) {
+
+    const resolvedVariantId = variantId || cart.items[idx].variantId || "";
+    const variant = getVariantForProduct(product, resolvedVariantId);
+    const hasVariants = Array.isArray(product?.variants) && product.variants.length > 0;
+
+    if (hasVariants && !variant) {
       throw new AppError("Selected variant is not available", 400, "NOT_AVAILABLE");
     }
 
     const currentQty = Number(cart.items[idx].quantity || 0);
-    const availableExtra = getVariantAvailableQuantity(productId, variant, cart.items);
-    const maxAllowedQuantity = currentQty + availableExtra;
+    let maxAllowedQuantity = currentQty;
+    let itemPrice = Number(cart.items[idx].price || 0);
+    let itemImage = cart.items[idx].image || "";
 
-    if (availableExtra <= 0 && qty > currentQty) {
-      throw new AppError("Product is out of stock", 400, "OUT_OF_STOCK");
+    if (variant) {
+      const availableExtra = getVariantAvailableQuantity(productId, variant, cart.items);
+      maxAllowedQuantity = currentQty + availableExtra;
+      if (availableExtra <= 0 && qty > currentQty) {
+        throw new AppError("Product is out of stock", 400, "OUT_OF_STOCK");
+      }
+      itemPrice = Number(variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0);
+      itemImage =
+        variant?.images?.find((image) => image.isPrimary)?.url ||
+        variant?.images?.[0]?.url ||
+        product.images?.find((image) => image.isPrimary)?.url ||
+        product.images?.[0]?.url ||
+        itemImage;
+    } else {
+      const availableLegacy = getAvailableLegacyQuantity(product, cart.items);
+      maxAllowedQuantity = currentQty + availableLegacy;
+      if (availableLegacy <= 0 && qty > currentQty) {
+        throw new AppError("Product is out of stock", 400, "OUT_OF_STOCK");
+      }
+      itemPrice = Number(product.discountPrice || product.price || 0);
+      itemImage =
+        product.images?.find((image) => image.isPrimary)?.url ||
+        product.images?.[0]?.url ||
+        itemImage;
     }
+
     if (qty > maxAllowedQuantity) {
       throw new AppError(`Only ${maxAllowedQuantity} item${maxAllowedQuantity === 1 ? "" : "s"} available`, 400, "INSUFFICIENT_STOCK");
     }
+
     cart.items[idx].quantity = qty;
-    cart.items[idx].price = Number(variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0);
-    cart.items[idx].image =
-      variant?.images?.find((image) => image.isPrimary)?.url ||
-      variant?.images?.[0]?.url ||
-      product.images?.find((image) => image.isPrimary)?.url ||
-      product.images?.[0]?.url ||
-      "";
-    cart.items[idx].variantId = variant?.variantId || "";
-    cart.items[idx].variantSku = variant?.sku || "";
-    cart.items[idx].variantTitle = variant?.title || "";
-    cart.items[idx].variantAttributes = variant?.attributes || {};
+    cart.items[idx].price = itemPrice;
+    cart.items[idx].image = itemImage;
+    if (variant) {
+      cart.items[idx].variantId = variant.variantId || "";
+      cart.items[idx].variantSku = variant.sku || "";
+      cart.items[idx].variantTitle = variant.title || "";
+      cart.items[idx].variantAttributes = variant.attributes || {};
+    }
 
     cart.totalAmount = computeTotal(cart.items);
     await cartRepo.save(cart);
@@ -210,6 +257,7 @@ class CartService {
     asObjectId(productId, "productId");
 
     const cart = await cartRepo.upsertEmpty(userId);
+    cart.items = sanitizeCartItems(cart.items);
     const before = cart.items.length;
     cart.items = cart.items.filter((x) => getItemKey(x.productId, x.variantId) !== getItemKey(productId, variantId));
     if (cart.items.length === before) throw new AppError("Item not found in cart", 404, "NOT_FOUND");

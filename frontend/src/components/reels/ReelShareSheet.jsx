@@ -1,12 +1,12 @@
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion as Motion } from "framer-motion";
-import { Copy, Share2, MessageCircle, Send, X } from "lucide-react";
+import { Copy, Facebook, MessageCircle, Send, Twitter, X } from "lucide-react";
 
 const PLATFORMS = [
   { id: "whatsapp", label: "WhatsApp", icon: MessageCircle, color: "bg-emerald-600" },
-  { id: "facebook", label: "Facebook", icon: Share2, color: "bg-blue-600" },
+  { id: "facebook", label: "Facebook", icon: Facebook, color: "bg-blue-600" },
   { id: "telegram", label: "Telegram", icon: Send, color: "bg-sky-500" },
-  { id: "twitter", label: "Twitter / X", icon: X, color: "bg-black" },
+  { id: "twitter", label: "Twitter / X", icon: Twitter, color: "bg-black" },
   { id: "copy_link", label: "Copy Link", icon: Copy, color: "bg-zinc-700" },
 ];
 

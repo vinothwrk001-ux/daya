@@ -3,6 +3,8 @@ const { shippingAddressSchema } = require("./checkout.validation");
 
 const createRazorpayOrderSchema = Joi.object({
   cartId: Joi.alternatives().try(Joi.string().trim(), Joi.valid(null)).optional(),
+  checkoutSessionId: Joi.string().trim().allow("").optional(),
+  guestToken: Joi.string().trim().allow("").optional(),
   shippingAddress: shippingAddressSchema.required(),
 });
 

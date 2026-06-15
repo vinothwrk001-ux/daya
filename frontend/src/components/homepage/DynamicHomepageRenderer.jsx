@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgePercent, Clock3, CreditCard, Eye, Flame, Gift, Heart, Megaphone, ShoppingCart, Star, Truck, User, Wallet, Zap } from "lucide-react";
 import { ProductCard } from "../ProductCard";
@@ -11,6 +11,7 @@ import { getPublicBranding } from "../../services/companyBrandingService";
 import { useCartDrawer } from "../../hooks/useCartDrawer";
 import { useCompare } from "../../hooks/useCompare";
 import { useWishlist } from "../../hooks/useWishlist";
+import { CategoryHeroBannerInBanner } from "./CategoryHeroBanner";
 
 const DEFAULT_CANVAS_WIDTH = {
   desktop: 1440,
@@ -37,7 +38,14 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
   device = "desktop",
   canvasWidth,
   renderContext: externalRenderContext = {},
+  insertAfterFeaturedProducts = null,
 }) {
+  const heroBannerRowRef = useRef(false);
+
+  useEffect(() => {
+    heroBannerRowRef.current = false;
+  }, [rows, containers, loading]);
+
   const renderContext = useMemo(
     () => ({
       ...(externalRenderContext || {}),
@@ -65,37 +73,124 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
   }
 
   if (Array.isArray(resolvedRows) && resolvedRows.length) {
+    let featuredSlotInserted = false;
+
     return (
       <div className="space-y-0">
-        {resolvedRows.map((row) => (
-          <DynamicHomepageRow
-            key={row.id || row.order}
-            row={row}
-            bareContainers={bareContainers}
-            bareOuterLayout={bareOuterLayout}
-            bareCarouselShell={bareCarouselShell}
-            renderContext={renderContext}
-          />
-        ))}
+        {resolvedRows.flatMap((row) => {
+          const isHeroBannerRow = !heroBannerRowRef.current && rowHasBanner(row);
+          if (isHeroBannerRow) heroBannerRowRef.current = true;
+
+          const rowNode = (
+            <DynamicHomepageRow
+              key={row.id || row.order}
+              row={row}
+              bareContainers={bareContainers}
+              bareOuterLayout={bareOuterLayout}
+              bareCarouselShell={bareCarouselShell}
+              renderContext={renderContext}
+              isHeroBannerRow={isHeroBannerRow}
+            />
+          );
+
+          if (!featuredSlotInserted && insertAfterFeaturedProducts && rowHasFeaturedProducts(row)) {
+            featuredSlotInserted = true;
+            return [
+              rowNode,
+              <Fragment key="after-featured-products">{insertAfterFeaturedProducts}</Fragment>,
+            ];
+          }
+
+          return [rowNode];
+        })}
+        {!featuredSlotInserted && insertAfterFeaturedProducts ? (
+          <Fragment key="after-featured-products-fallback">{insertAfterFeaturedProducts}</Fragment>
+        ) : null}
       </div>
     );
   }
 
-  return containers.map((container) => (
-    <DynamicHomepageSection
-      key={container.instanceId || container._id}
-      container={container}
-      bareContainers={bareContainers}
-      bareOuterLayout={bareOuterLayout}
-      bareCarouselShell={bareCarouselShell}
-      renderContext={renderContext}
-    />
-  ));
+  let featuredSlot = insertAfterFeaturedProducts;
+  const containerNodes = containers.reduce((nodes, container, index) => {
+    nodes.push(
+      <DynamicHomepageSection
+        key={container.instanceId || container._id}
+        container={container}
+        bareContainers={bareContainers}
+        bareOuterLayout={bareOuterLayout}
+        bareCarouselShell={bareCarouselShell}
+        renderContext={renderContext}
+      />
+    );
+
+    if (featuredSlot && container.containerType === "FEATURED_PRODUCTS") {
+      nodes.push(<Fragment key={`after-featured-${index}`}>{featuredSlot}</Fragment>);
+      featuredSlot = null;
+    }
+
+    return nodes;
+  }, []);
+
+  if (featuredSlot) {
+    containerNodes.push(<Fragment key="after-featured-products-fallback">{featuredSlot}</Fragment>);
+  }
+
+  return containerNodes;
 });
 
-const DynamicHomepageRow = memo(function DynamicHomepageRow({ row, bareContainers = false, bareOuterLayout = false, bareCarouselShell = false, renderContext }) {
+function rowHasFeaturedProducts(row = {}) {
+  return (row.columns || []).some((column) =>
+    (column.containers || []).some((container) => container.containerType === "FEATURED_PRODUCTS")
+  );
+}
+
+function rowHasBanner(row = {}) {
+  return (row.columns || []).some((column) =>
+    (column.containers || []).some((container) => container.containerType === "BANNER")
+  );
+}
+
+function flattenRowContainers(row = {}) {
+  return (row.columns || []).flatMap((column) => column.containers || []);
+}
+
+const DynamicHomepageRow = memo(function DynamicHomepageRow({
+  row,
+  bareContainers = false,
+  bareOuterLayout = false,
+  bareCarouselShell = false,
+  renderContext,
+  isHeroBannerRow = false,
+}) {
   const columnCount = DEVICE_COLUMNS[renderContext.device] || DEVICE_COLUMNS.desktop;
   const backdropUrl = resolveRowBackdropUrl(row);
+  const rowContainers = flattenRowContainers(row);
+  const bannerContainer = rowContainers.find((container) => container.containerType === "BANNER");
+  const companionContainers = rowContainers.filter((container) => container.containerType !== "BANNER");
+
+  if (isHeroBannerRow && bannerContainer) {
+    return (
+      <div className="relative overflow-hidden">
+        {backdropUrl ? (
+          <>
+            <img src={backdropUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-white/65 dark:bg-slate-950/55" />
+          </>
+        ) : null}
+        <div className="relative z-10">
+          <BannerContainer
+            container={bannerContainer}
+            heroBannerLayout
+            companionContainers={companionContainers}
+            renderContext={renderContext}
+            bareContainers={bareContainers}
+            bareOuterLayout={bareOuterLayout}
+            bareCarouselShell={bareCarouselShell}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative overflow-hidden">
@@ -523,7 +618,15 @@ function resolveContainerBackgroundMedia(layout) {
 function renderContainer(container, options = {}) {
   switch (container.containerType) {
     case "BANNER":
-      return <BannerContainer container={container} />;
+      return (
+        <BannerContainer
+          container={container}
+          renderContext={options.renderContext}
+          bareContainers={options.bareContainers}
+          bareOuterLayout={options.bareOuterLayout}
+          bareCarouselShell={options.bareCarouselShell}
+        />
+      );
     case "SLIDER":
       return <SliderContainer container={container} />;
     case "FEATURED_PRODUCTS":
@@ -637,7 +740,15 @@ function CarouselContainer({ container, bareContainers = false, bareOuterLayout 
 }
 
 
-function BannerContainer({ container }) {
+function BannerContainer({
+  container,
+  heroBannerLayout = false,
+  companionContainers = [],
+  renderContext = {},
+  bareContainers = false,
+  bareOuterLayout = false,
+  bareCarouselShell = false,
+}) {
   const config = container.config || {};
   const [branding, setBranding] = useState(null);
   const mediaItems = Array.isArray(config.bannerMedia) && config.bannerMedia.length
@@ -691,8 +802,38 @@ function BannerContainer({ container }) {
   const ctaLabel = activeItem.ctaLabel || config.ctaButton;
   const ctaUrl = activeItem.ctaUrl || config.ctaUrl;
 
+  const campaignFallback = (
+    <div className={`max-w-2xl transition duration-300 ${resolveTextAlign(config.textPosition)}`}>
+      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Marketplace campaign</p>
+      <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">{heading}</h2>
+      {subheading ? <p className="mt-4 text-sm leading-7 text-white/85 sm:text-base">{subheading}</p> : null}
+      {ctaLabel && ctaUrl ? (
+        <a
+          href={ctaUrl}
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
+        >
+          {ctaLabel}
+          <ArrowRight className="h-4 w-4" />
+        </a>
+      ) : null}
+    </div>
+  );
+
+  const companionContent = companionContainers.length
+    ? companionContainers.map((companion, index) => (
+        <div key={companion.instanceId || companion._id || `companion-${index}`} className="min-w-0">
+          {renderContainer(companion, {
+            renderContext,
+            bareContainers,
+            bareOuterLayout,
+            bareCarouselShell,
+          })}
+        </div>
+      ))
+    : null;
+
   return (
-    <div className="hero-banner group relative h-full w-full overflow-hidden">
+    <div className={`hero-banner group relative w-full overflow-hidden ${heroBannerLayout ? "flex min-h-[720px] flex-col sm:min-h-[780px]" : "h-full"}`}>
       {mediaUrl ? (
         isVideo ? (
           <video src={mediaUrl} autoPlay muted loop playsInline className="block h-full w-full object-cover" />
@@ -710,8 +851,8 @@ function BannerContainer({ container }) {
           style={{ background: `rgba(15, 23, 42, ${Number(config.overlayOpacity ?? 0.35)})` }}
         />
       ) : null}
-      <div className="absolute inset-0 z-10 flex flex-col items-start pt-10 p-6 sm:p-8 lg:p-10">
-        <div className="w-full flex justify-between items-center mb-8 sm:mb-12 gap-6">
+      <div className={`absolute inset-0 z-10 flex flex-col ${heroBannerLayout ? "justify-between" : "items-start pt-10"} p-6 sm:p-8 lg:p-10`}>
+        <div className="w-full flex justify-between items-center mb-4 sm:mb-6 gap-6">
           <div className="flex items-center flex-shrink-0">
             {branding?.logos?.primary && (
               <Link to="/" className="transition hover:opacity-80">
@@ -744,7 +885,7 @@ function BannerContainer({ container }) {
           </div>
         </div>
         
-        <nav className="w-full flex justify-center mb-8 sm:mb-12 -mt-10">
+        <nav className={`w-full flex justify-center ${heroBannerLayout ? "mb-2" : "mb-8 sm:mb-12 -mt-10"}`}>
           <div className="flex gap-3 sm:gap-4 lg:gap-6">
             <Link to="/" className="text-xs sm:text-sm font-semibold text-slate-900 hover:text-slate-700 transition">
               HOME
@@ -760,7 +901,10 @@ function BannerContainer({ container }) {
             </a>
           </div>
         </nav>
-        
+
+        {heroBannerLayout ? (
+          <CategoryHeroBannerInBanner rightContent={companionContent} fallback={campaignFallback} />
+        ) : (
         <div className={`max-w-2xl transition duration-300 ${resolveTextAlign(config.textPosition)} ${config.showCtaOnHover ? "opacity-0 translate-y-3 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto" : ""}`}>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Marketplace campaign</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">
@@ -777,6 +921,7 @@ function BannerContainer({ container }) {
             </a>
           ) : null}
         </div>
+        )}
       </div>
       {showArrows && mediaItems.length > 1 ? (
         <>

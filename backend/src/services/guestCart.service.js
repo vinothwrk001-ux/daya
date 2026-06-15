@@ -106,7 +106,8 @@ class GuestCartService {
 
     for (const item of items) {
       try {
-        const product = await productRepo.findById(item.productId);
+        const productId = item?.productId?._id || item?.productId;
+        const product = await productRepo.findById(productId);
         if (!product) {
           errors.push({ productId: item.productId, error: "Product not found" });
           continue;
@@ -147,6 +148,7 @@ class GuestCartService {
 
         validatedItems.push({
           ...item,
+          productId,
           name: product.name,
           price: currentPrice,
           stock: availableStock,

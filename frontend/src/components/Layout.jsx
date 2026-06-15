@@ -73,7 +73,7 @@ export function Layout() {
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Products", href: "/shop" },
-    { label: "Categories", href: "/shop" },
+    { label: "Categories", href: "/#categories" },
     { label: "Reels", href: "/reels" },
     { label: "Campaigns", href: "/collections/deals" },
     { label: "About Us", href: "/terms-and-conditions" },
@@ -191,14 +191,14 @@ export function Layout() {
                 </div>
 
                 <nav className="enterprise-nav-pill hidden items-center gap-1 rounded-full p-1 backdrop-blur lg:flex">
-                  {navItems.map((item, index) => {
+                  {navItems.map((item) => {
                     const isActive =
                       location.pathname === item.href ||
                       (item.href !== "/" && location.pathname.startsWith(item.href));
 
                     return (
                       <Link
-                        key={index}
+                        key={item.href}
                         to={item.href}
                         className={`group relative rounded-full px-4 py-2 text-sm font-medium transition ${
                           isActive
@@ -235,60 +235,24 @@ export function Layout() {
                     <>
                       {showShopActions ? (
                         <>
-                          <Link
-                            to="/wishlist"
-                            className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
-                            aria-label="Wishlist"
-                          >
+                          <HeaderIconLink to="/wishlist" label="Wishlist" badge={wishlistCount}>
                             <Heart className="h-4.5 w-4.5" />
-                            {wishlistCount > 0 ? (
-                              <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
-                                {wishlistCount}
-                              </span>
-                            ) : null}
-                          </Link>
-                          <Link
-                            to="/cart"
-                            className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
-                            aria-label="Cart"
-                          >
+                          </HeaderIconLink>
+                          <HeaderIconLink to="/cart" label="Cart" badge={cartCount}>
                             <ShoppingCart className="h-4.5 w-4.5" />
-                            {cartCount > 0 ? (
-                              <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
-                                {cartCount}
-                              </span>
-                            ) : null}
-                          </Link>
+                          </HeaderIconLink>
                         </>
                       ) : null}
                       <UserMenu />
                     </>
                   ) : (
                     <>
-                      <Link
-                        to="/wishlist"
-                        className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
-                        aria-label="Wishlist"
-                      >
+                      <HeaderIconLink to="/wishlist" label="Wishlist" badge={wishlistCount}>
                         <Heart className="h-4.5 w-4.5" />
-                        {wishlistCount > 0 ? (
-                          <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
-                            {wishlistCount}
-                          </span>
-                        ) : null}
-                      </Link>
-                      <Link
-                        to="/cart"
-                        className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
-                        aria-label="Cart"
-                      >
+                      </HeaderIconLink>
+                      <HeaderIconLink to="/cart" label="Cart" badge={cartCount}>
                         <ShoppingCart className="h-4.5 w-4.5" />
-                        {cartCount > 0 ? (
-                          <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
-                            {cartCount}
-                          </span>
-                        ) : null}
-                      </Link>
+                      </HeaderIconLink>
                       <Link
                         className="hidden rounded-full px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-brand-primary sm:inline-flex"
                         to="/login"
@@ -347,13 +311,13 @@ export function Layout() {
               </div>
 
               <nav className="enterprise-nav-pill flex gap-2 overflow-x-auto rounded-full p-1 backdrop-blur lg:hidden">
-                {navItems.map((item, index) => {
+                {navItems.map((item) => {
                   const isActive =
                     location.pathname === item.href ||
                     (item.href !== "/" && location.pathname.startsWith(item.href));
                   return (
                     <Link
-                      key={index}
+                      key={item.href}
                       to={item.href}
                       className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
                         isActive
@@ -410,5 +374,22 @@ export function Layout() {
       <CartDrawer />
     </div>
     </CartDrawerProvider>
+  );
+}
+
+function HeaderIconLink({ to, label, badge, children }) {
+  return (
+    <Link
+      to={to}
+      aria-label={label}
+      className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition hover:-translate-y-0.5 active:scale-95"
+    >
+      {children}
+      {badge ? (
+        <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
+          {badge}
+        </span>
+      ) : null}
+    </Link>
   );
 }

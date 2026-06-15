@@ -11,6 +11,7 @@ const refundRepo = require("../repositories/refund.repository");
 const webhookEventRepo = require("../repositories/webhook-event.repository");
 const { PaymentAttempt } = require("../models/PaymentAttempt");
 const checkoutService = require("./checkout.service");
+const checkoutSessionService = require("./checkoutSession.service");
 const { emitDomainEvent } = require("../modules/events/event-bus");
 const { logger } = require("../utils/logger");
 const productAnalyticsService = require("./product-analytics.service");
@@ -455,13 +456,20 @@ class PaymentService {
     }
   }
 
-  async createRazorpayOrder({ userId, cartId, shippingAddress }) {
+  async createRazorpayOrder({ userId, cartId, shippingAddress, checkoutSessionId = null, guestToken = null }) {
     try {
       const gatewayConfig = await this.assertGatewayEnabled();
-      const summary = await checkoutService.prepare(userId, {
-        shippingAddress,
-        paymentMethod: "ONLINE",
-      });
+      const summary = checkoutSessionId
+        ? await checkoutSessionService.prepare(checkoutSessionId, {
+            userId,
+            guestToken,
+            shippingAddress,
+            paymentMethod: "ONLINE",
+          })
+        : await checkoutService.prepare(userId, {
+            shippingAddress,
+            paymentMethod: "ONLINE",
+          });
 
       if (!summary?.total) {
         throw new AppError("Cart is empty", 400, "EMPTY_CART");
@@ -550,6 +558,8 @@ class PaymentService {
         metadata: {
           receipt,
           cartId: String(cartId || "current"),
+          checkoutSessionId: checkoutSessionId || summary.checkoutSessionId || "",
+          checkoutMode: summary.checkoutMode || "cart",
         },
       });
 

@@ -172,6 +172,31 @@ router.get(
   requireWorkspacePermission("products.read", { legacyPermission: "categories:read" }),
   categoryController.getAdminCategories
 );
+router.get(
+  "/categories/carousel-config",
+  requireWorkspacePermission("products.read", { legacyPermission: "categories:read" }),
+  categoryController.getCarouselConfig
+);
+router.put(
+  "/categories/carousel-config",
+  requireLegacyAdminPermission("categories:update"),
+  categoryController.updateCarouselConfig
+);
+router.get(
+  "/categories/hero-config",
+  requireWorkspacePermission("products.read", { legacyPermission: "categories:read" }),
+  categoryController.getHeroBannerConfig
+);
+router.put(
+  "/categories/hero-config",
+  requireLegacyAdminPermission("categories:update"),
+  categoryController.updateHeroBannerConfig
+);
+router.get(
+  "/categories/analytics/summary",
+  requireWorkspacePermission("analytics.read", { legacyPermission: "categories:read" }),
+  categoryController.getCategoryAnalytics
+);
 router.post("/categories", requireLegacyAdminPermission("categories:create"), validate(createCategorySchema), categoryController.createCategory);
 router.patch("/categories/:id", requireLegacyAdminPermission("categories:update"), validate(updateCategorySchema), categoryController.updateCategory);
 router.patch(
@@ -179,6 +204,16 @@ router.patch(
   requireLegacyAdminPermission("categories:update"),
   validate(toggleCategorySchema),
   categoryController.toggleCategory
+);
+router.post(
+  "/categories/:id/media",
+  requireLegacyAdminPermission("categories:update"),
+  upload.fields([
+    { name: "thumbnail", maxCount: 1 },
+    { name: "banner", maxCount: 1 },
+    { name: "icon", maxCount: 1 },
+  ]),
+  categoryController.uploadCategoryMedia
 );
 
 router.get("/subcategories", requireLegacyAdminPermission("categories:read"), subcategoryController.getAdminSubcategories);

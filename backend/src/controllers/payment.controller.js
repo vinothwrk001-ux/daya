@@ -4,11 +4,13 @@ const paymentService = require("../services/payment.service");
 const cancellationRefundService = require("../services/cancellation-refund.service");
 
 const createRazorpayOrder = asyncHandler(async (req, res) => {
-  const { cartId, shippingAddress } = req.body;
+  const { cartId, shippingAddress, checkoutSessionId, guestToken } = req.body;
   const result = await paymentService.createRazorpayOrder({
     userId: req.user.sub,
     cartId,
     shippingAddress,
+    checkoutSessionId,
+    guestToken,
   });
   return ok(res, result, "Razorpay order created");
 });

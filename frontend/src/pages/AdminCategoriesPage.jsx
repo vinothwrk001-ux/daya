@@ -4,6 +4,12 @@ import {
   listCategories,
   toggleCategory,
   updateCategory,
+  uploadCategoryMedia,
+  getCategoryCarouselConfig,
+  updateCategoryCarouselConfig,
+  getCategoryHeroBannerConfig,
+  updateCategoryHeroBannerConfig,
+  getCategoryAnalyticsSummary,
 } from "../services/adminApi";
 import * as categoryService from "../services/categoryService";
 
@@ -11,11 +17,20 @@ const initialForm = {
   name: "",
   code: "",
   slug: "",
+  description: "",
   icon: "",
   logo: "",
   color: "",
   order: 0,
+  status: "active",
+  visibility: "public",
+  showOnHomepage: true,
+  showInHeroBanner: false,
+  heroHeading: "",
+  heroSubheading: "",
   isActive: true,
+  seoTitle: "",
+  seoDescription: "",
 };
 
 function normalizeError(error) {
@@ -29,6 +44,28 @@ export function AdminCategoriesPage() {
   const [error, setError] = useState("");
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState("");
+  const [carouselConfig, setCarouselConfig] = useState({
+    enabled: true,
+    eyebrow: "CATEGORYS",
+    title: "Explore Categories",
+    subtitle: "Shop Products By Category",
+  });
+  const [heroConfig, setHeroConfig] = useState({
+    enabled: true,
+    eyebrow: "CATEGORIES",
+    panelDescription:
+      "Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear.",
+    ctaLabel: "Shop now",
+  });
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [bannerFile, setBannerFile] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+
+  useEffect(() => {
+    getCategoryCarouselConfig().then((res) => setCarouselConfig(res?.data ?? res)).catch(() => {});
+    getCategoryHeroBannerConfig().then(setHeroConfig).catch(() => {});
+    getCategoryAnalyticsSummary().then(setAnalytics).catch(() => {});
+  }, []);
 
   const sortedCategories = useMemo(
     () => [...categories].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name)),
@@ -61,18 +98,8 @@ export function AdminCategoriesPage() {
   function resetForm() {
     setEditingId("");
     setForm(initialForm);
-  }
-
-  function handleLogoUpload(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64String = e.target?.result;
-      setForm((current) => ({ ...current, logo: base64String }));
-    };
-    reader.readAsDataURL(file);
+    setThumbnailFile(null);
+    setBannerFile(null);
   }
 
   async function handleSubmit(event) {
@@ -80,13 +107,45 @@ export function AdminCategoriesPage() {
     setSaving(true);
     setError("");
     try {
+      let categoryId = editingId;
       if (editingId) {
         await updateCategory(editingId, form);
       } else {
-        await createAdminCategory(form);
+        const created = await createAdminCategory(form);
+        categoryId = created?.data?._id || created?.data?.id;
       }
+
+      if (categoryId && (thumbnailFile || bannerFile)) {
+        const media = new FormData();
+        if (thumbnailFile) media.append("thumbnail", thumbnailFile);
+        if (bannerFile) media.append("banner", bannerFile);
+        await uploadCategoryMedia(categoryId, media);
+      }
+
       resetForm();
       await refresh();
+    } catch (err) {
+      setError(normalizeError(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveCarouselConfig() {
+    setSaving(true);
+    try {
+      await updateCategoryCarouselConfig(carouselConfig);
+    } catch (err) {
+      setError(normalizeError(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveHeroConfig() {
+    setSaving(true);
+    try {
+      await updateCategoryHeroBannerConfig(heroConfig);
     } catch (err) {
       setError(normalizeError(err));
     } finally {
@@ -109,12 +168,23 @@ export function AdminCategoriesPage() {
       name: category.name || "",
       code: category.code || "",
       slug: category.slug || "",
+      description: category.description || "",
       icon: category.icon || "",
-      logo: category.logo || "",
+      logo: category.logo || category.thumbnailUrl || "",
       color: category.color || "",
       order: category.order || 0,
+      status: category.status || "active",
+      visibility: category.visibility || "public",
+      showOnHomepage: category.showOnHomepage !== false,
+      showInHeroBanner: category.showInHeroBanner === true,
+      heroHeading: category.heroHeading || "",
+      heroSubheading: category.heroSubheading || "",
       isActive: category.isActive !== false,
+      seoTitle: category.seoTitle || "",
+      seoDescription: category.seoDescription || "",
     });
+    setThumbnailFile(null);
+    setBannerFile(null);
   }
 
   return (
@@ -164,6 +234,11 @@ export function AdminCategoriesPage() {
                   <div className="text-sm text-slate-600 dark:text-slate-300">{category.color || "Auto palette"}</div>
                   <div className="text-sm text-slate-600 dark:text-slate-300">Order {category.order ?? 0}</div>
                   <div className="flex flex-wrap gap-2 lg:justify-end">
+                    {category.showInHeroBanner ? (
+                      <span className="rounded-full bg-red-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700 dark:bg-red-950 dark:text-red-300">
+                        Hero
+                      </span>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => startEditing(category)}
@@ -225,6 +300,44 @@ export function AdminCategoriesPage() {
             />
           </label>
 
+          <label className="grid gap-2">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Description</span>
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Status</span>
+              <select
+                value={form.status}
+                onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="draft">Draft</option>
+                <option value="archived">Archived</option>
+              </select>
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Visibility</span>
+              <select
+                value={form.visibility}
+                onChange={(event) => setForm((current) => ({ ...current, visibility: event.target.value }))}
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              >
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+                <option value="hidden">Hidden</option>
+              </select>
+            </label>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Icon override</span>
@@ -249,20 +362,23 @@ export function AdminCategoriesPage() {
           </div>
 
           <label className="grid gap-2">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Category Logo</span>
-            <div className="flex items-center gap-3">
-              {form.logo ? (
-                <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-950">
-                  <img src={form.logo} alt="Category logo preview" className="max-h-full max-w-full rounded" />
-                </div>
-              ) : null}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleLogoUpload}
-                className="flex-1 rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-              />
-            </div>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Thumbnail (Cloudinary)</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => setThumbnailFile(event.target.files?.[0] || null)}
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Banner (Optional)</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => setBannerFile(event.target.files?.[0] || null)}
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
           </label>
 
           <label className="grid gap-2">
@@ -274,6 +390,77 @@ export function AdminCategoriesPage() {
               placeholder="Optional, e.g. from-blue-500 to-cyan-500"
             />
           </label>
+
+          <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+            <input
+              type="checkbox"
+              checked={form.showOnHomepage}
+              onChange={(event) => setForm((current) => ({ ...current, showOnHomepage: event.target.checked }))}
+              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-300">Show on homepage carousel</span>
+          </label>
+
+          <label className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50/50 px-4 py-3 dark:border-red-900/40 dark:bg-red-950/20">
+            <input
+              type="checkbox"
+              checked={form.showInHeroBanner}
+              onChange={(event) => setForm((current) => ({ ...current, showInHeroBanner: event.target.checked }))}
+              className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-600"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-300">
+              Display in homepage hero banner (click to preview in banner)
+            </span>
+          </label>
+
+          {form.showInHeroBanner ? (
+            <div className="grid gap-4 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Hero banner copy (optional)</p>
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Hero heading</span>
+                <input
+                  value={form.heroHeading}
+                  onChange={(event) => setForm((current) => ({ ...current, heroHeading: event.target.value }))}
+                  className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  placeholder="e.g. STOP THINKING JUST BUY IT"
+                />
+              </label>
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Hero subheading</span>
+                <input
+                  value={form.heroSubheading}
+                  onChange={(event) => setForm((current) => ({ ...current, heroSubheading: event.target.value }))}
+                  className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  placeholder="e.g. BECAUSE YOU ARE AWESOME"
+                />
+              </label>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Hero image uses banner upload first, then thumbnail, then a featured product from this category.
+              </p>
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">SEO title</span>
+              <input
+                value={form.seoTitle}
+                onChange={(event) => setForm((current) => ({ ...current, seoTitle: event.target.value }))}
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                placeholder="Optional"
+              />
+            </label>
+            <label className="grid gap-2 sm:col-span-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">SEO description</span>
+              <textarea
+                rows={2}
+                value={form.seoDescription}
+                onChange={(event) => setForm((current) => ({ ...current, seoDescription: event.target.value }))}
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                placeholder="Optional"
+              />
+            </label>
+          </div>
 
           <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
             <input
@@ -304,6 +491,123 @@ export function AdminCategoriesPage() {
             ) : null}
           </div>
         </form>
+
+        <div className="mt-8 border-t border-slate-200 pt-6 dark:border-slate-800">
+          <h3 className="text-base font-semibold text-slate-950 dark:text-white">Homepage carousel copy</h3>
+          <div className="mt-4 grid gap-3">
+            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+              <input
+                type="checkbox"
+                checked={carouselConfig.enabled !== false}
+                onChange={(event) => setCarouselConfig((current) => ({ ...current, enabled: event.target.checked }))}
+                className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-600"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-300">Enable homepage category carousel</span>
+            </label>
+            <input
+              value={carouselConfig.eyebrow}
+              onChange={(event) => setCarouselConfig((current) => ({ ...current, eyebrow: event.target.value }))}
+              placeholder="Eyebrow label"
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+            <input
+              value={carouselConfig.title}
+              onChange={(event) => setCarouselConfig((current) => ({ ...current, title: event.target.value }))}
+              placeholder="Section title"
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+            <input
+              value={carouselConfig.subtitle}
+              onChange={(event) => setCarouselConfig((current) => ({ ...current, subtitle: event.target.value }))}
+              placeholder="Section subtitle"
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+            <button
+              type="button"
+              onClick={saveCarouselConfig}
+              disabled={saving}
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+            >
+              Save carousel settings
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-8 border-t border-slate-200 pt-6 dark:border-slate-800">
+          <h3 className="text-base font-semibold text-slate-950 dark:text-white">Homepage hero banner</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Categories with &quot;Display in hero banner&quot; appear on the right. Clicking them updates the left hero panel.
+          </p>
+          <div className="mt-4 grid gap-3">
+            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+              <input
+                type="checkbox"
+                checked={heroConfig.enabled !== false}
+                onChange={(event) => setHeroConfig((current) => ({ ...current, enabled: event.target.checked }))}
+                className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-600"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-300">Enable homepage hero banner</span>
+            </label>
+            <input
+              value={heroConfig.eyebrow || ""}
+              onChange={(event) => setHeroConfig((current) => ({ ...current, eyebrow: event.target.value }))}
+              placeholder="Eyebrow label"
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+            <textarea
+              rows={3}
+              value={heroConfig.panelDescription || ""}
+              onChange={(event) => setHeroConfig((current) => ({ ...current, panelDescription: event.target.value }))}
+              placeholder="Right panel description"
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+            <input
+              value={heroConfig.ctaLabel || ""}
+              onChange={(event) => setHeroConfig((current) => ({ ...current, ctaLabel: event.target.value }))}
+              placeholder="CTA button label"
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+            <button
+              type="button"
+              onClick={saveHeroConfig}
+              disabled={saving}
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+            >
+              Save hero banner settings
+            </button>
+          </div>
+        </div>
+
+        {analytics ? (
+          <div className="mt-8 border-t border-slate-200 pt-6 dark:border-slate-800">
+            <h3 className="text-base font-semibold text-slate-950 dark:text-white">Category analytics</h3>
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              {[
+                { title: "Most viewed", rows: analytics.topViewed || [], valueLabel: "views" },
+                { title: "Most clicked", rows: analytics.topClicked || [], valueLabel: "clicks" },
+                { title: "Highest revenue", rows: analytics.topRevenue || [], valueLabel: "revenue" },
+              ].map((section) => (
+                <div key={section.title} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{section.title}</p>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                    {section.rows.length ? (
+                      section.rows.map((row) => (
+                        <li key={row.category?._id || row.category?.slug} className="flex items-center justify-between gap-2">
+                          <span className="truncate">{row.category?.name || "Unknown"}</span>
+                          <span className="font-semibold text-red-600">
+                            {section.valueLabel === "revenue" ? `$${Number(row.value || 0).toFixed(2)}` : row.value}
+                          </span>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-slate-400">No data yet</li>
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

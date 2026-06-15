@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AddressModal } from "../components/AddressModal";
 import { BackButton } from "../components/BackButton";
 import { AddressCard } from "../components/commerce/AddressCard";
@@ -12,6 +12,7 @@ import { FbtBundleSection } from "../components/FbtBundleSection";
 import { useAuthStore } from "../context/authStore";
 import { useCart } from "../hooks/useCart";
 import * as checkoutService from "../services/checkoutService";
+import buyNowSessionService from "../services/buyNowSessionService";
 import * as paymentService from "../services/paymentService";
 import * as pricingService from "../services/pricingService";
 import { getCheckoutRecommendations, getFbtRecommendations } from "../services/recommendationService";
@@ -213,9 +214,17 @@ function persistCheckoutSuccessPayload(payload) {
 
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { branding } = useBranding();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const currentUser = useAuthStore((state) => state.user);
+  const buyNowSessionId = useMemo(() => {
+    const fromQuery = searchParams.get("session") || "";
+    if (fromQuery) return fromQuery;
+    return buyNowSessionService.getPersistedBuyNowSession()?.sessionId || "";
+  }, [searchParams]);
+  const isBuyNowCheckout = searchParams.get("mode") === "buy-now" && Boolean(buyNowSessionId);
+  const buyNowGuestToken = buyNowSessionService.getBuyNowGuestToken();
   const {
     cart,
     addItem,
@@ -247,6 +256,7 @@ export function CheckoutPage() {
   const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const didMountPaymentMethodRef = useRef(false);
   const restoredPendingCheckoutRef = useRef(false);
+  const quantityUpdateLockRef = useRef(false);
 
   const selectedAddress = useMemo(
     () => addresses.find((address) => String(address?._id) === String(selectedAddressId)) || null,
@@ -263,8 +273,16 @@ export function CheckoutPage() {
   const orderItems = useMemo(() => getSummaryItems(summary), [summary]);
   const totalAmount = useMemo(() => summary?.total || summary?.totalAmount || 0, [summary]);
   const checkoutProductIds = useMemo(
-    () => (Array.isArray(cart?.items) ? cart.items : []).map((item) => item?.productId?._id || item?.productId).filter(Boolean).map(String),
-    [cart?.items]
+    () => {
+      if (isBuyNowCheckout && Array.isArray(summary?.items)) {
+        return summary.items.map((item) => extractProductId(item?.productId || item)).filter(Boolean).map(String);
+      }
+      return (Array.isArray(cart?.items) ? cart.items : [])
+        .map((item) => item?.productId?._id || item?.productId)
+        .filter(Boolean)
+        .map(String);
+    },
+    [cart?.items, isBuyNowCheckout, summary?.items]
   );
   const getCheckoutItemKey = useCallback(
     (item) => `${extractProductId(item?.productId || item)}:${extractVariantId(item)}`,
@@ -446,6 +464,15 @@ export function CheckoutPage() {
         payload.shippingAddress = shippingAddress;
       }
 
+      if (isBuyNowCheckout && buyNowSessionId) {
+        const checkoutRes = await buyNowSessionService.prepareBuyNowCheckout(
+          buyNowSessionId,
+          payload,
+          buyNowGuestToken
+        );
+        return checkoutRes || null;
+      }
+
       if (isAuthenticated) {
         const checkoutRes = await checkoutService.prepareCheckout(payload);
         return checkoutRes?.data || null;
@@ -461,7 +488,7 @@ export function CheckoutPage() {
       });
       return guestCheckoutRes?.data || null;
     },
-    [cart?.items, isAuthenticated, paymentMethod]
+    [buyNowGuestToken, buyNowSessionId, cart?.items, isAuthenticated, isBuyNowCheckout, paymentMethod]
   );
 
   const refresh = useCallback(
@@ -477,6 +504,33 @@ export function CheckoutPage() {
         restorePendingCheckoutState();
         const pricingRes = await pricingService.getPricingConfig().catch(() => ({ data: null }));
         setPricingConfig(pricingRes?.data || null);
+
+        if (isBuyNowCheckout && buyNowSessionId) {
+          if (isAuthenticated) {
+            const addressRes = await userService.getUserAddresses();
+            const nextAddresses = Array.isArray(addressRes?.data) ? addressRes.data : [];
+            const defaultAddress = getDefaultAddress(nextAddresses);
+            setAddresses(nextAddresses);
+            if (defaultAddress) {
+              setSelectedAddressId(defaultAddress._id);
+              setAddressForm(getAddressFormFromSavedAddress(defaultAddress));
+            }
+            const effectiveAddress = defaultAddress
+              ? getShippingAddressFromSavedAddress(defaultAddress)
+              : getShippingAddressFromForm(selectedAddressForm);
+            const nextSummary = await loadPreparedCheckout(effectiveAddress, selectedPaymentMethod);
+            setSummary(nextSummary);
+            setCodAvailability(nextSummary?.codAvailability || null);
+          } else {
+            setAddresses([]);
+            setSelectedAddressId("");
+            const guestShippingAddress = getShippingAddressFromForm(selectedAddressForm);
+            const nextSummary = await loadPreparedCheckout(guestShippingAddress, selectedPaymentMethod);
+            setSummary(nextSummary);
+            setCodAvailability(nextSummary?.codAvailability || null);
+          }
+          return;
+        }
 
         if (isAuthenticated) {
           const [addressRes] = await Promise.all([userService.getUserAddresses(), refreshCart()]);
@@ -540,7 +594,9 @@ export function CheckoutPage() {
     },
     [
       addressForm,
+      buyNowSessionId,
       isAuthenticated,
+      isBuyNowCheckout,
       loadPreparedCheckout,
       paymentMethod,
       refreshCart,
@@ -608,11 +664,35 @@ export function CheckoutPage() {
   }, [amountPulse]);
 
   async function handleQuantityChange(productId, variantId, quantity) {
+    if (quantityUpdateLockRef.current) return;
+    quantityUpdateLockRef.current = true;
     setUpdatingItemId(`${String(productId)}:${variantId || ""}`);
     setError("");
     try {
-      const updatedCart = await updateItem(productId, quantity, variantId);
       let resolvedSummary = null;
+
+      if (isBuyNowCheckout && buyNowSessionId) {
+        const updateResult = await buyNowSessionService.updateBuyNowSessionQuantity(
+          buyNowSessionId,
+          quantity,
+          buyNowGuestToken
+        );
+        if (updateResult?.removed) {
+          buyNowSessionService.clearBuyNowSession();
+          setSummary(null);
+          setToast({ type: "success", message: "Buy now checkout cancelled." });
+          navigate("/products", { replace: true });
+          return;
+        }
+        resolvedSummary = await loadPreparedCheckout(activeShippingAddress, paymentMethod);
+        setSummary(resolvedSummary);
+        setCodAvailability(resolvedSummary?.codAvailability || codAvailability || null);
+        setAmountPulse(true);
+        setToast({ type: "success", message: "Order summary updated." });
+        return;
+      }
+
+      const updatedCart = await updateItem(productId, quantity, variantId);
 
       if (isAuthenticated) {
         resolvedSummary = reconcileSummaryWithCart(summary, updatedCart);
@@ -637,10 +717,16 @@ export function CheckoutPage() {
       setError(normalizeError(quantityError));
     } finally {
       setUpdatingItemId("");
+      quantityUpdateLockRef.current = false;
     }
   }
 
   async function handleRemoveItem(productId, variantId) {
+    if (isBuyNowCheckout && buyNowSessionId) {
+      await handleQuantityChange(productId, variantId, 0);
+      return;
+    }
+
     setUpdatingItemId(`${String(productId)}:${variantId || ""}`);
     setError("");
     try {
@@ -754,12 +840,20 @@ export function CheckoutPage() {
       }
 
       if (paymentMethod === "COD") {
-        const response = await checkoutService.createOrder({
-          shippingAddress,
-          paymentMethod: "COD",
-        });
+        const response = isBuyNowCheckout && buyNowSessionId
+          ? await buyNowSessionService.createBuyNowOrder(buyNowSessionId, {
+              shippingAddress,
+              paymentMethod: "COD",
+            })
+          : await checkoutService.createOrder({
+              shippingAddress,
+              paymentMethod: "COD",
+            });
         const orders = response?.data?.orders || [];
         const payment = response?.data?.payment || null;
+        if (isBuyNowCheckout) {
+          buyNowSessionService.clearBuyNowSession();
+        }
         persistCheckoutSuccessPayload({ orders, payment });
         pendingCheckoutManager.clear();
         navigate("/checkout/success", { replace: true, state: { orders, payment } });
@@ -768,7 +862,9 @@ export function CheckoutPage() {
 
       const [orderRes] = await Promise.all([
         paymentService.createRazorpayOrder({
-          cartId: "current",
+          cartId: isBuyNowCheckout ? null : "current",
+          checkoutSessionId: isBuyNowCheckout ? buyNowSessionId : undefined,
+          guestToken: isBuyNowCheckout ? buyNowGuestToken : undefined,
           shippingAddress,
         }),
         ensureRazorpay(),
@@ -878,6 +974,9 @@ export function CheckoutPage() {
             };
             persistCheckoutSuccessPayload(successPayload);
             pendingCheckoutManager.clear();
+            if (isBuyNowCheckout) {
+              buyNowSessionService.clearBuyNowSession();
+            }
             navigate("/checkout/success", {
               replace: true,
               state: successPayload,

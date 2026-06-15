@@ -103,11 +103,12 @@ export const pendingActionManager = {
    * Trigger "Buy Now" action for guest user
    * Saves pending action and returns flag to redirect to login
    */
-  initiateGuestBuyNow: (productId, quantity = 1, variantId = "") => {
+  initiateGuestBuyNow: (productId, quantity = 1, variantId = "", checkoutSessionId = "") => {
     pendingActionManager.setPendingAction("buy_now", {
       productId,
       quantity,
       variantId,
+      checkoutSessionId,
     });
     return true;
   },

@@ -3,6 +3,7 @@ import useGuestCartStore from "../context/guestCartStore";
 import useGuestWishlistStore from "../context/guestWishlistStore";
 import { consumeRedirectAfterLogin } from "./loginRedirect";
 import pendingActionManager from "./pendingActionManager";
+import buyNowSessionService from "../services/buyNowSessionService";
 import pendingCheckoutManager from "./pendingCheckoutManager";
 import useAuthCartStore from "../context/authCartStore";
 
@@ -101,6 +102,19 @@ export async function continueAfterPrimaryAuth({ result, attemptedFrom, nav }) {
   const checkoutRedirect = pendingCheckout?.redirectAfterAuth || pendingCheckout?.redirectAfterLogin;
   if (isShopperRole(role) && checkoutRedirect === "/checkout") {
     return nav("/checkout", { replace: true });
+  }
+
+  if (isShopperRole(role) && pendingAction?.type === "buy_now" && pendingAction?.data?.checkoutSessionId) {
+    try {
+      await buyNowSessionService.attachBuyNowSessionToUser(
+        pendingAction.data.checkoutSessionId,
+        buyNowSessionService.getBuyNowGuestToken()
+      );
+    } catch {
+      // Session attach failure should not block checkout redirect.
+    }
+    pendingActionManager.clearPendingAction();
+    return nav(`/checkout?mode=buy-now&session=${pendingAction.data.checkoutSessionId}`, { replace: true });
   }
 
   if (isShopperRole(role) && (pendingAction?.type === "buy_now" || pendingAction?.type === "checkout")) {

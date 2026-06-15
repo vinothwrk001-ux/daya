@@ -8,7 +8,11 @@ const guestCartService = require("./guestCart.service");
  */
 
 function getItemKey(productId, variantId = "") {
-  return `${String(productId)}::${String(variantId || "")}`;
+  const id =
+    productId && typeof productId === "object"
+      ? String(productId._id || productId.id || "")
+      : String(productId || "");
+  return `${id}::${String(variantId || "")}`;
 }
 
 function computeTotal(items = []) {

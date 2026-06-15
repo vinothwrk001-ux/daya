@@ -322,6 +322,38 @@ export async function toggleCategory(id, isActive) {
   return data;
 }
 
+export async function uploadCategoryMedia(id, formData) {
+  const { data } = await adminHttp.post(`/api/admin/categories/${id}/media`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function getCategoryCarouselConfig() {
+  const { data } = await adminHttp.get("/api/admin/categories/carousel-config");
+  return data;
+}
+
+export async function updateCategoryCarouselConfig(payload) {
+  const { data } = await adminHttp.put("/api/admin/categories/carousel-config", payload);
+  return data;
+}
+
+export async function getCategoryHeroBannerConfig() {
+  const { data } = await adminHttp.get("/api/admin/categories/hero-config");
+  return data.data ?? data;
+}
+
+export async function updateCategoryHeroBannerConfig(payload) {
+  const { data } = await adminHttp.put("/api/admin/categories/hero-config", payload);
+  return data.data ?? data;
+}
+
+export async function getCategoryAnalyticsSummary() {
+  const { data } = await adminHttp.get("/api/admin/categories/analytics/summary");
+  return data;
+}
+
 export async function listSubcategories() {
   const { data } = await adminHttp.get("/api/admin/subcategories");
   return data;

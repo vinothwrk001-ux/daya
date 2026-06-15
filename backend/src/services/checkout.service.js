@@ -16,6 +16,7 @@ const { Order } = require("../models/Order");
 const { Payment } = require("../models/Payment");
 const { emitDomainEvent } = require("../modules/events/event-bus");
 const productAnalyticsService = require("./product-analytics.service");
+const auditService = require("./audit.service");
 
 const PREPARED_CHECKOUT_CACHE_TTL_MS = 2 * 60 * 1000;
 const preparedCheckoutCache = new Map();
@@ -284,6 +285,104 @@ async function calculatePricing({ subtotal, itemsWithProducts, shippingAddress, 
   return await pricingService.calculateOrderTotal(subtotal, itemCount, paymentMethod);
 }
 
+async function assertVerifiedOnlinePayment(userId, paymentRecordId, expectedAmount = null) {
+  if (!paymentRecordId) {
+    throw new AppError(
+      "Online orders must be created only after payment verification. Use /api/payments/create-order and /api/payments/verify.",
+      400,
+      "ONLINE_CHECKOUT_REQUIRES_PAYMENT"
+    );
+  }
+
+  const payment = await paymentRepo.findById(paymentRecordId);
+  if (!payment) {
+    throw new AppError("Payment record not found", 404, "PAYMENT_NOT_FOUND");
+  }
+
+  const paymentUserId = String(payment.userId?._id || payment.userId || "");
+  if (paymentUserId !== String(userId)) {
+    throw new AppError("Payment ownership mismatch", 403, "FORBIDDEN");
+  }
+
+  const paymentStatus = String(payment.status || "").toUpperCase();
+  if (!["PAID", "AUTHORIZED"].includes(paymentStatus)) {
+    throw new AppError("Payment is not verified", 402, "PAYMENT_NOT_VERIFIED");
+  }
+
+  if (expectedAmount != null && Math.abs(roundMoney(payment.amount) - roundMoney(expectedAmount)) > 0.01) {
+    throw new AppError("Payment amount does not match checkout total", 409, "PAYMENT_AMOUNT_MISMATCH");
+  }
+
+  return payment;
+}
+
+async function findCodOrderByIdempotencyKey(userId, idempotencyKey) {
+  if (!idempotencyKey) return null;
+
+  const existing = await Payment.findOne({
+    userId,
+    idempotencyKey: String(idempotencyKey).trim(),
+    method: "COD",
+    fulfillmentStatus: "COMPLETED",
+  }).lean();
+
+  if (!existing?.orderIds?.length) return null;
+
+  const orders = await Order.find({ _id: { $in: existing.orderIds } }).lean();
+  if (!orders.length) return null;
+
+  return {
+    orders,
+    payment: existing,
+    orderGroupId: existing.orderGroupId,
+    duplicate: true,
+  };
+}
+
+async function revalidateSnapshotItems(checkoutSnapshot = {}) {
+  const items = Array.isArray(checkoutSnapshot.items) ? checkoutSnapshot.items : [];
+  if (!items.length) {
+    throw new AppError("Checkout snapshot is empty", 400, "INVALID_CHECKOUT_SNAPSHOT");
+  }
+
+  await Promise.all(
+    items.map(async (item) => {
+      const validated = await buildValidatedItem({
+        productId: item.productId,
+        quantity: item.quantity,
+        variantId: item.variantId || "",
+        variantSku: item.variantSku || "",
+        variantTitle: item.variantTitle || "",
+        variantAttributes: item.variantAttributes || {},
+        image: item.image,
+      });
+
+      const snapshotPrice = roundMoney(item.price);
+      const currentPrice = roundMoney(validated.price);
+      if (Math.abs(snapshotPrice - currentPrice) > 0.01) {
+        throw new AppError(`Price changed for ${item.name}`, 409, "PRICE_CHANGED", {
+          productId: String(item.productId),
+          snapshotPrice,
+          currentPrice,
+        });
+      }
+    })
+  );
+
+  return items.map((item) => ({
+    productId: item.productId,
+    name: item.name,
+    price: roundMoney(item.price),
+    quantity: Number(item.quantity || 0),
+    image: item.image,
+    variantId: item.variantId || "",
+    variantSku: item.variantSku || "",
+    variantTitle: item.variantTitle || "",
+    variantAttributes: item.variantAttributes || {},
+    weight: item.weight || undefined,
+  }));
+}
+
 class CheckoutService {
   invalidatePreparedCheckoutCacheForUser(userId) {
     invalidatePreparedCheckoutCache(userId);
@@ -346,6 +445,66 @@ class CheckoutService {
         paymentMethod: pricingBreakdown.paymentMethod || resolvedPaymentMethod,
       }),
       errors: validation.errors,
+      codAvailability: eligibility
+        ? {
+            codAvailable: eligibility.codAvailable,
+            reasons: eligibility.reasons,
+          }
+        : undefined,
+    };
+  }
+
+  async prepareFromItems(items = [], { userId = null, currency, shippingAddress, paymentMethod } = {}) {
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new AppError("Checkout items are required", 400, "EMPTY_CART");
+    }
+
+    const validatedItems = await Promise.all(items.map(buildValidatedItem));
+    const normalizedItems = validatedItems.map(({ product, ...itemData }) => itemData);
+    const subtotal = roundMoney(normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0));
+    const totalItemCount = normalizedItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    const resolvedPaymentMethod = normalizePaymentMethod(paymentMethod);
+    const pricingBreakdown = await calculatePricing({
+      subtotal,
+      itemsWithProducts: validatedItems,
+      shippingAddress,
+      itemCount: totalItemCount,
+      paymentMethod: resolvedPaymentMethod,
+    });
+
+    let eligibility = null;
+    if (resolvedPaymentMethod === "COD" && shippingAddress) {
+      try {
+        eligibility = await codService.evaluateEligibility({
+          userId,
+          address: shippingAddress,
+          cartItems: normalizedItems,
+          subtotal,
+        });
+      } catch (error) {
+        logger.warn("COD eligibility check failed during item-based checkout prepare", {
+          source: "checkout.service",
+          message: error.message,
+        });
+        eligibility = {
+          codAvailable: false,
+          reasons: ["COD_CHECK_FAILED"],
+        };
+      }
+    }
+
+    return {
+      ...buildSummaryShape({
+        currency: currency || "INR",
+        items: normalizedItems,
+        subtotal,
+        charges: pricingBreakdown.charges,
+        chargesTotal: pricingBreakdown.chargesTotal,
+        total: pricingBreakdown.total,
+        itemCount: totalItemCount,
+        shipping: pricingBreakdown.shipping || null,
+        paymentMethod: pricingBreakdown.paymentMethod || resolvedPaymentMethod,
+      }),
       codAvailability: eligibility
         ? {
             codAvailable: eligibility.codAvailable,
@@ -424,17 +583,58 @@ class CheckoutService {
     return summary;
   }
 
-  async createOrder(userId, { shippingAddress, paymentMethod = "ONLINE", paymentRecordId = null, paymentStatus = null, razorpayOrderId = null, razorpayPaymentId = null, fraudFlags = [], reelAttributionSessionId = null } = {}) {
-    const cart = await cartRepo.findByUserId(userId);
-    if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
+  async createOrder(
+    userId,
+    {
+      shippingAddress,
+      paymentMethod = "COD",
+      paymentRecordId = null,
+      paymentStatus = null,
+      razorpayOrderId = null,
+      razorpayPaymentId = null,
+      fraudFlags = [],
+      reelAttributionSessionId = null,
+      idempotencyKey = null,
+      auditMeta = null,
+      sourceItems = null,
+      skipCartClear = false,
+      checkoutSessionId = null,
+      currencyOverride = null,
+    } = {}
+  ) {
+    const resolvedPaymentMethod = normalizePaymentMethod(paymentMethod);
+
+    if (resolvedPaymentMethod === "ONLINE") {
+      if (paymentStatus !== "Paid") {
+        throw new AppError(
+          "Online orders must be created only after payment verification",
+          400,
+          "ONLINE_CHECKOUT_REQUIRES_PAYMENT"
+        );
+      }
+      await assertVerifiedOnlinePayment(userId, paymentRecordId);
+    }
+
+    if (resolvedPaymentMethod === "COD" && idempotencyKey) {
+      const duplicate = await findCodOrderByIdempotencyKey(userId, idempotencyKey);
+      if (duplicate) return duplicate;
+    }
+
+    const cart = skipCartClear || Array.isArray(sourceItems)
+      ? null
+      : await cartRepo.findByUserId(userId);
+    const checkoutItems = Array.isArray(sourceItems)
+      ? sourceItems
+      : cart?.items;
+
+    if (!Array.isArray(checkoutItems) || checkoutItems.length === 0) {
       throw new AppError("Cart is empty", 400, "EMPTY_CART");
     }
 
     const user = await userRepo.findById(userId);
-    const resolvedPaymentMethod = normalizePaymentMethod(paymentMethod);
     const resolvedGroupId = generateOrderGroupId();
     const resolvedPaymentStatus = paymentStatus || (resolvedPaymentMethod === "ONLINE" ? "Paid" : "Pending");
-    const validatedItems = await Promise.all(cart.items.map(buildValidatedItem));
+    const validatedItems = await Promise.all(checkoutItems.map(buildValidatedItem));
     const cleanedItems = validatedItems.map(({ product, maxAvailable, ...item }) => ({
       productId: item.productId,
       name: item.name,
@@ -515,7 +715,7 @@ class CheckoutService {
       }),
       chargesTotal: roundMoney(pricingBreakdown.chargesTotal || 0),
       totalAmount,
-      currency: cart.currency || "INR",
+      currency: currencyOverride || cart?.currency || "INR",
       status: "Placed",
       paymentStatus: resolvedPaymentStatus,
       paymentMethod: resolvedPaymentMethod,
@@ -624,12 +824,13 @@ class CheckoutService {
             orderIds: orders.map((order) => order._id),
             orderGroupId: resolvedGroupId,
             amount: totalAmount,
-            currency: cart.currency || "INR",
+            currency: currencyOverride || cart?.currency || "INR",
             method: "COD",
             status: "PENDING",
             fulfillmentStatus: "COMPLETED",
             fulfilledAt: new Date(),
             shippingAddress,
+            idempotencyKey: idempotencyKey ? String(idempotencyKey).trim() : undefined,
             amountBreakdown: {
               ...buildAmountBreakdownSnapshot({
                 subtotal,
@@ -676,10 +877,38 @@ class CheckoutService {
       });
 
       runDeferred(`checkout follow-up for group ${resolvedGroupId}`, async () => {
+        await runNonBlocking("audit order created", () =>
+          auditService.log({
+            actor: auditMeta?.actor || { sub: userId, role: "customer" },
+            action: resolvedPaymentMethod === "COD" ? "COD_ORDER_CREATED" : "ONLINE_ORDER_CREATED",
+            entityType: "Order",
+            entityId: orders[0]?._id,
+            metadata: {
+              orderGroupId: resolvedGroupId,
+              paymentRecordId: paymentRecordId || payment?._id || null,
+              paymentMethod: resolvedPaymentMethod,
+              orderCount: orders.length,
+              idempotencyKey: idempotencyKey || null,
+            },
+            ipAddress: auditMeta?.ipAddress,
+            userAgent: auditMeta?.userAgent,
+          })
+        );
         await runNonBlocking("refresh product analytics after checkout", () =>
           Promise.all(orders.map((order) => productAnalyticsService.refreshForOrder(order._id)))
         );
-        await runNonBlocking(`clear cart for user ${userId}`, () => cartRepo.clear(userId));
+        if (!skipCartClear) {
+          await runNonBlocking(`clear cart for user ${userId}`, () => cartRepo.clear(userId));
+        }
+        if (checkoutSessionId) {
+          await runNonBlocking(`complete checkout session ${checkoutSessionId}`, async () => {
+            const checkoutSessionService = require("./checkoutSession.service");
+            await checkoutSessionService.completeSession(checkoutSessionId, {
+              userId,
+              orderGroupId: resolvedGroupId,
+            });
+          });
+        }
 
         if (reelAttributionSessionId) {
           await runNonBlocking("process reel attribution", () => {
@@ -727,6 +956,287 @@ class CheckoutService {
           })
           .catch(() => {});
       } else if (orders.length === 0 && paymentRecordId) {
+        await paymentRepo
+          .updateById(paymentRecordId, {
+            $set: {
+              fulfillmentStatus: "FAILED",
+              fulfillmentError: error.message,
+            },
+          })
+          .catch(() => {});
+      }
+
+      for (const reservation of inventoryReservations.reverse()) {
+        await inventoryService
+          .unreserveStock(
+            reservation.productId,
+            reservation.variantId,
+            reservation.quantity,
+            reservation.orderId,
+            userId
+          )
+          .catch(() => {});
+      }
+
+      throw error;
+    }
+  }
+
+  async createOrderFromPreparedCheckout(
+    userId,
+    checkoutSnapshot,
+    {
+      shippingAddress,
+      paymentMethod = "ONLINE",
+      paymentRecordId = null,
+      orderGroupId = null,
+      paymentStatus = "Paid",
+      razorpayOrderId = null,
+      razorpayPaymentId = null,
+      fraudFlags = [],
+      reelAttributionSessionId = null,
+      auditMeta = null,
+    } = {}
+  ) {
+    if (normalizePaymentMethod(paymentMethod) !== "ONLINE") {
+      throw new AppError("Prepared checkout fulfillment supports online payments only", 400, "INVALID_CHECKOUT_FLOW");
+    }
+    if (paymentStatus !== "Paid") {
+      throw new AppError("Online orders require verified payment status", 400, "ONLINE_CHECKOUT_REQUIRES_PAYMENT");
+    }
+
+    const snapshotTotal = roundMoney(checkoutSnapshot?.total || checkoutSnapshot?.totalAmount || 0);
+    await assertVerifiedOnlinePayment(userId, paymentRecordId, snapshotTotal);
+
+    const cleanedItems = await revalidateSnapshotItems(checkoutSnapshot);
+    const user = await userRepo.findById(userId);
+    const resolvedGroupId = orderGroupId || generateOrderGroupId();
+    const subtotal = roundMoney(checkoutSnapshot.subtotal);
+    const chargesBreakdown = Array.isArray(checkoutSnapshot.charges) ? checkoutSnapshot.charges : [];
+    const shippingCharge = chargesBreakdown.find((charge) => charge.key === "shipping_cost");
+    const platformFeeCharge = chargesBreakdown.find((charge) => charge.key === "platform_fee");
+    const taxCharge = chargesBreakdown.find((charge) => charge.key === "tax");
+    const discountCharge = chargesBreakdown.find((charge) => charge.key === "discount");
+    const shippingFee = roundMoney(shippingCharge?.amount || checkoutSnapshot.shippingFee || 0);
+    const taxAmount = roundMoney(taxCharge?.amount || checkoutSnapshot.taxAmount || 0);
+    const discountAmount = roundMoney(discountCharge?.amount || 0);
+    const platformFee = roundMoney(platformFeeCharge?.amount || 0);
+    const totalAmount = snapshotTotal;
+    const orderNumber = generateOrderNumber();
+    const currency = checkoutSnapshot.currency || "INR";
+
+    const orderPayload = {
+      _id: new mongoose.Types.ObjectId(),
+      orderNumber,
+      invoiceNumber: generateInvoiceNumber({ orderNumber }),
+      userId: new mongoose.Types.ObjectId(userId),
+      items: cleanedItems,
+      subtotal,
+      shippingFee,
+      platformFee,
+      taxAmount,
+      discountAmount,
+      chargesBreakdown,
+      pricingSnapshot: {
+        subtotal,
+        charges: chargesBreakdown,
+        chargesTotal: roundMoney(checkoutSnapshot.chargesTotal || 0),
+        total: totalAmount,
+        paymentMethod: "ONLINE",
+        calculatedAt: new Date(),
+        source: "payment_session_snapshot",
+      },
+      priceBreakdown: codService.buildOrderPriceBreakdown({
+        pricingBreakdown: {
+          charges: chargesBreakdown,
+          chargesTotal: checkoutSnapshot.chargesTotal || 0,
+          total: totalAmount,
+          paymentMethod: "ONLINE",
+        },
+        subtotal,
+        shippingFee,
+        taxAmount,
+        discountAmount,
+        totalAmount,
+        paymentMethod: "ONLINE",
+      }),
+      chargesTotal: roundMoney(checkoutSnapshot.chargesTotal || 0),
+      totalAmount,
+      currency,
+      status: "Placed",
+      paymentStatus: "Paid",
+      paymentMethod: "ONLINE",
+      codAmount: 0,
+      shippingAddress,
+      billingAddress: shippingAddress,
+      paymentRecordId: paymentRecordId || undefined,
+      orderGroupId: resolvedGroupId,
+      razorpayOrderId: razorpayOrderId || undefined,
+      razorpayPaymentId: razorpayPaymentId || undefined,
+      paymentCapturedAt: new Date(),
+      fraudFlags,
+      shippingMode: "PLATFORM",
+      shippingStatus: "NOT_SHIPPED",
+      pickupStatus: "NOT_REQUESTED",
+      timeline: [{ status: "Placed", note: "Order placed after payment verification", timestamp: new Date() }],
+      inventoryReservedAt: new Date(),
+    };
+
+    orderPayload.orderSnapshot = buildOrderSnapshot(orderPayload, {
+      user,
+      paymentRecord: {
+        method: "ONLINE",
+        razorpayOrderId: razorpayOrderId || "",
+        razorpayPaymentId: razorpayPaymentId || "",
+        paidAt: new Date(),
+      },
+    });
+
+    const inventoryReservations = [];
+    let orders = [];
+    let payment = null;
+
+    try {
+      await executeWithOptionalTransaction(async (session) => {
+        for (const item of orderPayload.items || []) {
+          await inventoryService.reserveStock(
+            item.productId,
+            item.variantId || "",
+            item.quantity,
+            orderPayload._id,
+            userId,
+            { session }
+          );
+          inventoryReservations.push({
+            productId: item.productId,
+            variantId: item.variantId || "",
+            quantity: item.quantity,
+            orderId: orderPayload._id,
+          });
+        }
+
+        orders = session
+          ? await Order.insertMany([orderPayload], { ordered: true, session })
+          : await orderRepo.createMany([orderPayload]);
+
+        if (paymentRecordId) {
+          payment = session
+            ? await Payment.findByIdAndUpdate(
+                paymentRecordId,
+                {
+                  $set: {
+                    orderIds: orders.map((order) => order._id),
+                    orderGroupId: resolvedGroupId,
+                    shippingAddress,
+                    status: "PAID",
+                    fulfillmentStatus: "COMPLETED",
+                    fulfilledAt: new Date(),
+                    razorpayOrderId: razorpayOrderId || undefined,
+                    razorpayPaymentId: razorpayPaymentId || undefined,
+                    paidAt: new Date(),
+                  },
+                  $unset: {
+                    fulfillmentError: 1,
+                  },
+                },
+                { returnDocument: "after", session }
+              )
+            : await paymentRepo.updateById(paymentRecordId, {
+                $set: {
+                  orderIds: orders.map((order) => order._id),
+                  orderGroupId: resolvedGroupId,
+                  shippingAddress,
+                  status: "PAID",
+                  fulfillmentStatus: "COMPLETED",
+                  fulfilledAt: new Date(),
+                  razorpayOrderId: razorpayOrderId || undefined,
+                  razorpayPaymentId: razorpayPaymentId || undefined,
+                  paidAt: new Date(),
+                },
+                $unset: {
+                  fulfillmentError: 1,
+                },
+              });
+        }
+
+        for (const order of orders) {
+          const shipmentRecord = await codService.createShipmentRecord(order, { session });
+          if (session) {
+            await Order.updateOne(
+              { _id: order._id },
+              { $set: { shipmentRecordId: shipmentRecord._id } },
+              { session }
+            );
+          } else {
+            await orderRepo.updateById(order._id, { shipmentRecordId: shipmentRecord._id });
+          }
+        }
+      });
+
+      invalidatePreparedCheckoutCache(userId);
+
+      runDeferred(`prepared checkout follow-up for group ${resolvedGroupId}`, async () => {
+        await runNonBlocking("audit online order created", () =>
+          auditService.log({
+            actor: auditMeta?.actor || { sub: userId, role: "customer" },
+            action: "ONLINE_ORDER_CREATED",
+            entityType: "Order",
+            entityId: orders[0]?._id,
+            metadata: {
+              orderGroupId: resolvedGroupId,
+              paymentRecordId,
+              paymentMethod: "ONLINE",
+              razorpayOrderId: razorpayOrderId || null,
+              razorpayPaymentId: razorpayPaymentId || null,
+              snapshotTotal,
+            },
+            ipAddress: auditMeta?.ipAddress,
+            userAgent: auditMeta?.userAgent,
+          })
+        );
+        await runNonBlocking("refresh product analytics after prepared checkout", () =>
+          Promise.all(orders.map((order) => productAnalyticsService.refreshForOrder(order._id)))
+        );
+        const skipCartClear = checkoutSnapshot?.checkoutMode === "buy_now";
+        if (!skipCartClear) {
+          await runNonBlocking(`clear cart for user ${userId}`, () => cartRepo.clear(userId));
+        }
+        if (checkoutSnapshot?.checkoutSessionId) {
+          await runNonBlocking(`complete checkout session ${checkoutSnapshot.checkoutSessionId}`, async () => {
+            const checkoutSessionService = require("./checkoutSession.service");
+            await checkoutSessionService.completeSession(checkoutSnapshot.checkoutSessionId, {
+              userId,
+              orderGroupId: resolvedGroupId,
+            });
+          });
+        }
+
+        if (reelAttributionSessionId) {
+          await runNonBlocking("process reel attribution", () => {
+            const reelService = require("../modules/reels/service");
+            return reelService.processOrderAttribution(userId, orders, {
+              sessionId: reelAttributionSessionId,
+            });
+          });
+        }
+
+        await runNonBlocking("emit shipment events", () =>
+          Promise.all(
+            orders.map((order) =>
+              emitDomainEvent("SHIPMENT_CREATED", {
+                orderId: order._id,
+                orderGroupId: order.orderGroupId,
+                shipmentRecordId: order.shipmentRecordId || null,
+                paymentMethod: order.paymentMethod,
+              }).then(() => null)
+            )
+          )
+        );
+      });
+
+      return { orders, payment, orderGroupId: resolvedGroupId };
+    } catch (error) {
+      if (paymentRecordId) {
         await paymentRepo
           .updateById(paymentRecordId, {
             $set: {

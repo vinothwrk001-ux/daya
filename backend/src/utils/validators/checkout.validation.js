@@ -31,11 +31,13 @@ const checkoutPrepareSchema = Joi.object({
 
 const checkoutCreateSchema = Joi.object({
   shippingAddress: shippingAddressSchema.required(),
-  paymentMethod: Joi.string().valid("ONLINE", "COD").default("ONLINE"),
+  paymentMethod: Joi.string().valid("COD").default("COD"),
+  idempotencyKey: Joi.string().trim().max(128).optional(),
 });
 
 module.exports = {
   shippingAddressSchema,
+  shippingAddressSchemaOptional,
   checkoutPrepareSchema,
   checkoutCreateSchema,
 };
