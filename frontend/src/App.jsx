@@ -48,6 +48,7 @@ const AdminCategoriesPage = lazyNamed(() => import("./pages/AdminCategoriesPage"
 const AdminSubcategoriesPage = lazyNamed(() => import("./pages/AdminSubcategoriesPage"), "AdminSubcategoriesPage");
 const AdminAttributesPage = lazyNamed(() => import("./pages/AdminAttributesPage"), "AdminAttributesPage");
 const AdminProductModulesPage = lazyNamed(() => import("./pages/AdminProductModulesPage"), "AdminProductModulesPage");
+const AdminHomepageBannersPage = lazyNamed(() => import("./pages/AdminHomepageBannersPage"), "AdminHomepageBannersPage");
 const AdminHomepageContainersPage = lazyNamed(() => import("./pages/AdminHomepageContainersPage"), "AdminHomepageContainersPage");
 const AdminHomepageBuilderPage = lazyNamed(() => import("./pages/AdminHomepageBuilderPage"), "AdminHomepageBuilderPage");
 const AdminShippingConfigPage = lazyNamed(() => import("./pages/AdminShippingConfigPage"), "AdminShippingConfigPage");
@@ -70,6 +71,7 @@ const AdminCommerceIntelligencePage = lazyNamed(() => import("./pages/AdminComme
 const AdminProductAnalyticsDetailPage = lazyNamed(() => import("./pages/AdminProductAnalyticsDetailPage"), "AdminProductAnalyticsDetailPage");
 const AdminRevenuePage = lazyNamed(() => import("./pages/AdminRevenuePage"), "AdminRevenuePage");
 const AuditLogsPage = lazyNamed(() => import("./pages/AuditLogsPage"), "AuditLogsPage");
+const AdminWhatsAppLogsPage = lazyNamed(() => import("./pages/AdminWhatsAppLogsPage"), "AdminWhatsAppLogsPage");
 const AdminSettingsPage = lazyNamed(() => import("./pages/AdminSettingsPage"), "AdminSettingsPage");
 const AdminCompanyBrandingPage = lazyNamed(() => import("./pages/AdminCompanyBrandingPage"), "AdminCompanyBrandingPage");
 const AdminPricingPage = lazyNamed(() => import("./pages/AdminPricingPage"), "AdminPricingPage");
@@ -155,6 +157,7 @@ export default function App() {
               <Route path="subcategories" element={<AdminSubcategoriesPage />} />
               <Route path="attributes" element={<AdminAttributesPage />} />
               <Route path="product-modules" element={<AdminProductModulesPage />} />
+              <Route path="homepage-banners" element={<AdminHomepageBannersPage />} />
               <Route path="homepage-containers" element={<AdminHomepageContainersPage />} />
               <Route path="marketing/homepage-builder" element={<AdminHomepageBuilderPage />} />
               <Route path="shipping" element={<AdminShippingConfigPage />} />
@@ -186,6 +189,7 @@ export default function App() {
               <Route path="analytics/products/:productId" element={<AdminProductAnalyticsDetailPage />} />
               <Route path="revenue" element={<AdminRevenuePage />} />
               <Route path="audit-logs" element={<AuditLogsPage />} />
+              <Route path="communications/whatsapp-logs" element={<AdminWhatsAppLogsPage />} />
               <Route path="settings" element={<AdminSettingsPage />} />
               <Route path="settings/company-branding" element={<AdminCompanyBrandingPage />} />
               <Route path="pricing" element={<AdminPricingPage />} />

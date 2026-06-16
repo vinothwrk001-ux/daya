@@ -4,6 +4,16 @@ import { ArrowRight } from "lucide-react";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { getHeroBannerCategories, trackCategoryEvent } from "../../services/categoryService";
 
+const DEFAULT_HERO_CONFIG = {
+  enabled: true,
+  eyebrow: "CATEGORIES",
+  panelDescription:
+    "Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear.",
+  ctaLabel: "Shop now",
+  autoRotate: false,
+  rotationInterval: 5000,
+};
+
 function getSessionId() {
   if (typeof window === "undefined") return "";
   const key = "category_session_id";
@@ -18,6 +28,7 @@ function getSessionId() {
 function resolveHeroImage(category) {
   return resolveApiAssetUrl(
     category?.heroImage ||
+      category?.hero_image ||
       category?.banner_url ||
       category?.bannerUrl ||
       category?.featuredProduct?.image ||
@@ -42,9 +53,19 @@ function resolveHeroSubheading(category) {
   );
 }
 
+function resolveDefaultActiveIndex(categories = [], config = {}) {
+  if (!categories.length) return 0;
+  const defaultId = config?.defaultCategoryId;
+  if (defaultId) {
+    const matchedIndex = categories.findIndex((item) => String(item._id) === String(defaultId));
+    if (matchedIndex >= 0) return matchedIndex;
+  }
+  return 0;
+}
+
 export function useCategoryHeroBanner() {
   const [categories, setCategories] = useState([]);
-  const [config, setConfig] = useState(null);
+  const [config, setConfig] = useState(DEFAULT_HERO_CONFIG);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -56,10 +77,16 @@ export function useCategoryHeroBanner() {
       try {
         const data = await getHeroBannerCategories();
         if (cancelled) return;
-        setCategories(data.categories || []);
-        setConfig(data.config || null);
+        const nextCategories = data?.categories || [];
+        const nextConfig = { ...DEFAULT_HERO_CONFIG, ...(data?.config || {}) };
+        setCategories(nextCategories);
+        setConfig(nextConfig);
+        setActiveIndex(resolveDefaultActiveIndex(nextCategories, nextConfig));
       } catch {
-        if (!cancelled) setCategories([]);
+        if (!cancelled) {
+          setCategories([]);
+          setConfig(DEFAULT_HERO_CONFIG);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -72,14 +99,25 @@ export function useCategoryHeroBanner() {
   }, []);
 
   const activeCategory = categories[activeIndex] || categories[0] || null;
+  const isEnabled = config?.enabled !== false;
+  const isActive = !loading && isEnabled && categories.length > 0;
 
   useEffect(() => {
-    if (!config?.enabled || categories.length <= 1) return undefined;
+    if (!config?.autoRotate || !isEnabled || categories.length <= 1) return undefined;
+    const intervalMs = Math.max(2000, Number(config.rotationInterval || 5000));
     const timer = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % categories.length);
-    }, 6000);
+    }, intervalMs);
     return () => window.clearInterval(timer);
-  }, [categories.length, config?.enabled]);
+  }, [categories.length, config?.autoRotate, config?.rotationInterval, isEnabled]);
+
+  useEffect(() => {
+    if (!activeCategory?._id || loading) return;
+    trackCategoryEvent(activeCategory._id, {
+      eventType: "view",
+      sessionId: getSessionId(),
+    }).catch(() => {});
+  }, [activeCategory?._id, loading]);
 
   function handleSelect(category) {
     const index = categories.findIndex((item) => item._id === category._id);
@@ -90,8 +128,6 @@ export function useCategoryHeroBanner() {
     }).catch(() => {});
   }
 
-  const isActive = !loading && config?.enabled !== false && categories.length > 0;
-
   return {
     categories,
     config,
@@ -100,11 +136,23 @@ export function useCategoryHeroBanner() {
     setActiveIndex,
     activeCategory,
     handleSelect,
+    isEnabled,
     isActive,
     heroImage: resolveHeroImage(activeCategory),
     heroHeading: resolveHeroHeading(activeCategory),
     heroSubheading: resolveHeroSubheading(activeCategory),
   };
+}
+
+function HeroCategoryEmptyState({ message = "No Featured Categories Available" }) {
+  return (
+    <div className="flex min-h-[280px] flex-col items-center justify-center rounded-[1.5rem] border-2 border-dashed border-zinc-300 bg-white px-6 py-10 text-center shadow-xl sm:min-h-[320px] sm:rounded-[2rem]">
+      <p className="text-base font-semibold text-zinc-800">{message}</p>
+      <p className="mt-2 max-w-sm text-sm text-zinc-500">
+        Enable categories in admin with &quot;Display in hero banner&quot; to show them here.
+      </p>
+    </div>
+  );
 }
 
 function HeroCategoryCard({ category, active, onSelect, compact = false }) {
@@ -123,7 +171,7 @@ function HeroCategoryCard({ category, active, onSelect, compact = false }) {
       >
         <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-zinc-950">
           {image ? (
-            <img src={image} alt={category.name} className="h-full w-full object-contain p-1.5" loading="lazy" />
+            <img src={image} alt={category.name} className="h-full w-full object-cover" loading="lazy" />
           ) : (
             <span className="text-sm font-black text-red-400">{(category.name || "C").slice(0, 1)}</span>
           )}
@@ -137,33 +185,30 @@ function HeroCategoryCard({ category, active, onSelect, compact = false }) {
     <button
       type="button"
       onClick={() => onSelect(category)}
-      className={`group relative flex w-[120px] shrink-0 flex-col overflow-hidden rounded-2xl border transition duration-300 sm:w-[140px] md:w-[155px] ${
+      className={`group relative flex w-full flex-col overflow-hidden rounded-3xl border-2 border-black transition duration-300 ${
         active
-          ? "border-red-500 shadow-[0_0_0_2px_rgba(220,38,38,0.35)]"
-          : "border-zinc-800 hover:border-red-500/70 hover:shadow-[0_16px_32px_rgba(220,38,38,0.18)]"
+          ? "border-red-500 shadow-[0_0_0_3px_rgba(220,38,38,0.35)]"
+          : "border-black hover:border-red-500/70 hover:shadow-[0_16px_32px_rgba(220,38,38,0.18)]"
       }`}
     >
       <div
-        className="relative aspect-square bg-zinc-950"
+        className="category-card-image-container relative aspect-square overflow-hidden bg-zinc-950"
         style={{
           backgroundImage:
             "repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 10px)",
         }}
       >
-        <div className="absolute inset-0 flex items-center justify-center p-4 transition duration-300 group-hover:scale-105 sm:p-5">
-          {image ? (
-            <img src={image} alt={category.name} className="max-h-16 max-w-full object-contain drop-shadow-lg sm:max-h-20" loading="lazy" />
-          ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600/20 text-lg font-black text-red-400 sm:h-16 sm:w-16 sm:text-xl">
-              {(category.name || "C").slice(0, 1).toUpperCase()}
-            </div>
-          )}
-        </div>
+        {image ? (
+          <img src={image} alt={category.name || "Category"} className="category-card-image block h-full w-full object-cover" loading="lazy" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-red-600/20 text-lg font-black text-red-400 sm:text-xl">
+            {(category.name || "C").slice(0, 1).toUpperCase()}
+          </div>
+        )}
       </div>
-      <div className="bg-zinc-950 px-2 py-2 sm:px-3 sm:py-3">
-        <span className="inline-flex w-full items-center justify-center rounded-full bg-white px-2 py-1.5 text-[10px] font-bold text-zinc-950 sm:px-3 sm:py-2 sm:text-xs">
-          {category.name}
-        </span>
+      <div className="flex flex-col border-t border-white/10 bg-zinc-950 px-2 py-2 sm:px-3 sm:py-3">
+        <p className="line-clamp-1 text-center text-[10px] font-black uppercase tracking-wide text-white sm:text-xs">{category.name || "Category"}</p>
+        <p className="line-clamp-1 text-center text-[9px] font-semibold text-zinc-400 sm:text-[10px]">{typeof category.productCount === "number" ? category.productCount : 0} products</p>
       </div>
     </button>
   );
@@ -176,8 +221,7 @@ export function CategoryHeroLeftRail({ categories = [], config = {}, activeCateg
         {config.eyebrow || "CATEGORIES"}
       </span>
       <p className="mt-3 text-xs leading-6 text-zinc-600 dark:text-zinc-300">
-        {config.panelDescription ||
-          "Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear."}
+        {config.panelDescription || DEFAULT_HERO_CONFIG.panelDescription}
       </p>
       <div className="mt-4 flex flex-col gap-2.5 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {categories.map((category) => (
@@ -242,52 +286,6 @@ export function CategoryHeroPreviewCompact({
   );
 }
 
-export function CategoryHeroBannerInBanner({ rightContent = null, fallback = null }) {
-  const hero = useCategoryHeroBanner();
-
-  if (hero.loading) {
-    return (
-      <div className="mx-auto flex w-full max-w-[1440px] flex-1 animate-pulse gap-4 px-2 pb-6 lg:px-4">
-        <div className="hidden w-[240px] rounded-[2rem] bg-white/40 md:block" />
-        <div className="min-h-[280px] flex-1 rounded-[2rem] bg-white/40" />
-      </div>
-    );
-  }
-
-  if (!hero.isActive) {
-    return (
-      <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-4 px-2 pb-6 lg:px-4">
-        {fallback}
-        {rightContent}
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-4 px-2 pb-6 lg:flex-row lg:items-stretch lg:gap-5 lg:px-4">
-      <aside className="w-full shrink-0 lg:w-[240px] xl:w-[280px]">
-        <CategoryHeroLeftRail
-          categories={hero.categories}
-          config={hero.config}
-          activeCategory={hero.activeCategory}
-          onSelect={hero.handleSelect}
-        />
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <CategoryHeroPreviewCompact
-          activeCategory={hero.activeCategory}
-          config={hero.config}
-          heroImage={hero.heroImage}
-          heroHeading={hero.heroHeading}
-          heroSubheading={hero.heroSubheading}
-        />
-        <div className="min-w-0 flex-1">{rightContent}</div>
-      </div>
-    </div>
-  );
-}
-
 export function CategoryHeroBannerSplit({
   embedded = false,
   categories = [],
@@ -299,49 +297,52 @@ export function CategoryHeroBannerSplit({
   heroImage = "",
   heroHeading = "",
   heroSubheading = "",
-  categoriesOnLeft = true,
+  categoriesOnLeft = false,
 }) {
   const panelClass = embedded
-    ? "rounded-[1.5rem] bg-white/92 p-4 shadow-lg backdrop-blur-sm dark:bg-zinc-950/90 sm:rounded-[2rem] sm:p-6"
-    : "rounded-[2rem] bg-white/70 p-6 shadow-sm dark:bg-zinc-900/70 sm:p-8";
+    ? "rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-xl sm:rounded-[2rem] sm:p-6"
+    : "rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-lg sm:p-8";
 
   const categoriesPanel = (
-    <div className={`flex min-h-[240px] flex-col justify-center ${panelClass} sm:min-h-[280px]`}>
+    <div className={`flex min-h-[200px] max-h-[280px] flex-col justify-center overflow-hidden ${panelClass} sm:min-h-[220px] sm:max-h-[320px]`}>
       <div className="mb-4 sm:mb-6">
         <span className="inline-flex rounded-full border border-red-500 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-red-600 sm:px-4 sm:text-[11px] sm:tracking-[0.28em]">
           {config.eyebrow || "CATEGORIES"}
         </span>
-        <p className="mt-3 max-w-md text-xs leading-6 text-zinc-600 dark:text-zinc-300 sm:mt-4 sm:text-sm sm:leading-7">
-          {config.panelDescription ||
-            "Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear."}
+        <p className="mt-3 max-w-md text-xs leading-6 text-zinc-600 sm:mt-4 sm:text-sm sm:leading-7">
+          {config.panelDescription || DEFAULT_HERO_CONFIG.panelDescription}
         </p>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-4 sm:pb-2 [&::-webkit-scrollbar]:hidden">
-        {categories.map((category) => (
-          <HeroCategoryCard
-            key={category._id}
-            category={category}
-            active={category._id === activeCategory?._id}
-            onSelect={onSelect}
-          />
-        ))}
-      </div>
+      {categories.length ? (
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 md:grid-cols-5 lg:grid-cols-4">
+          {categories.map((category) => (
+            <HeroCategoryCard
+              key={category._id}
+              category={category}
+              active={category._id === activeCategory?._id}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      ) : (
+        <HeroCategoryEmptyState />
+      )}
     </div>
   );
 
   const heroPanel = (
-    <div className={`relative min-h-[280px] overflow-hidden ${panelClass} sm:min-h-[320px]`}>
+    <div className={`relative min-h-[200px] max-h-[280px] overflow-hidden ${panelClass} sm:min-h-[220px] sm:max-h-[320px]`}>
       <div className="relative z-10 flex h-full flex-col justify-between">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.35em] text-red-600 sm:text-xs">
             {activeCategory?.name || "Featured"}
           </p>
-          <h2 className="mt-3 max-w-xl text-2xl font-black uppercase leading-[0.95] tracking-tight text-zinc-950 transition duration-300 dark:text-white sm:mt-4 sm:text-4xl lg:text-5xl">
+          <h2 className="mt-3 max-w-xl text-2xl font-black uppercase leading-[0.95] tracking-tight text-zinc-950 transition duration-300 sm:mt-4 sm:text-4xl lg:text-5xl">
             {heroHeading}
           </h2>
           {heroSubheading ? (
-            <p className="mt-3 max-w-lg text-xs font-medium uppercase tracking-[0.16em] text-zinc-600 dark:text-zinc-300 sm:text-sm">
+            <p className="mt-3 max-w-lg text-xs font-medium uppercase tracking-[0.16em] text-zinc-600 sm:text-sm">
               {heroSubheading}
             </p>
           ) : null}
@@ -392,11 +393,7 @@ export function CategoryHeroBannerSplit({
   );
 
   return (
-    <div
-      className={`grid w-full gap-4 lg:grid-cols-2 lg:items-stretch lg:gap-6 ${
-        embedded ? "max-w-7xl" : ""
-      }`}
-    >
+    <div className={`grid w-full gap-4 lg:grid-cols-2 lg:items-stretch lg:gap-6 ${embedded ? "max-w-7xl" : ""}`}>
       {categoriesOnLeft ? (
         <>
           {categoriesPanel}
@@ -408,6 +405,52 @@ export function CategoryHeroBannerSplit({
           {categoriesPanel}
         </>
       )}
+    </div>
+  );
+}
+
+export function HeroBannerCategoryZone({ fallback = null }) {
+  const hero = useCategoryHeroBanner();
+
+  if (hero.loading) {
+    return (
+      <div className="grid w-full animate-pulse gap-4 lg:grid-cols-2 lg:gap-6">
+        <div className="min-h-[320px] rounded-[2rem] bg-white/80" />
+        <div className="min-h-[320px] rounded-[2rem] bg-white/80" />
+      </div>
+    );
+  }
+
+  if (!hero.isEnabled) {
+    return fallback;
+  }
+
+  if (!hero.categories.length) {
+    return <HeroCategoryEmptyState />;
+  }
+
+  return (
+    <CategoryHeroBannerSplit
+      embedded
+      categoriesOnLeft={false}
+      categories={hero.categories}
+      config={hero.config}
+      activeCategory={hero.activeCategory}
+      activeIndex={hero.activeIndex}
+      setActiveIndex={hero.setActiveIndex}
+      onSelect={hero.handleSelect}
+      heroImage={hero.heroImage}
+      heroHeading={hero.heroHeading}
+      heroSubheading={hero.heroSubheading}
+    />
+  );
+}
+
+export function CategoryHeroBannerInBanner({ rightContent = null, fallback = null }) {
+  return (
+    <div className="mx-auto w-full max-w-[1440px] flex-col gap-4">
+      <HeroBannerCategoryZone fallback={fallback} />
+      {rightContent ? <div className="mt-4 min-w-0">{rightContent}</div> : null}
     </div>
   );
 }
@@ -426,7 +469,10 @@ export function CategoryHeroBannerEmbedded({ fallback = null }) {
     );
   }
 
-  if (!hero.isActive) return fallback;
+  if (!hero.isActive) {
+    if (!hero.isEnabled) return fallback;
+    return <HeroCategoryEmptyState />;
+  }
 
   return (
     <div className="relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 pb-8 pt-2 sm:px-6 sm:pb-10 lg:px-8">
@@ -461,7 +507,16 @@ export function CategoryHeroBanner() {
     );
   }
 
-  if (!hero.isActive) return null;
+  if (!hero.isActive) {
+    if (!hero.isEnabled) return null;
+    return (
+      <section className="bg-[#f3f1ec] px-4 py-8 dark:bg-zinc-950 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <HeroCategoryEmptyState />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="relative overflow-hidden bg-[#f3f1ec] dark:bg-zinc-950">
@@ -474,6 +529,7 @@ export function CategoryHeroBanner() {
       />
       <div className="relative mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-10">
         <CategoryHeroBannerSplit
+          categoriesOnLeft={false}
           categories={hero.categories}
           config={hero.config}
           activeCategory={hero.activeCategory}
@@ -488,3 +544,5 @@ export function CategoryHeroBanner() {
     </section>
   );
 }
+
+export { HeroBannerCategoryZone as HomepageHeroCategoryCarousel };

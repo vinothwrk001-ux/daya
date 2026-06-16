@@ -18,6 +18,7 @@ import {
 import { useAuthStore } from "../context/authStore";
 import { formatCurrency } from "../utils/formatCurrency";
 import { getDefaultVariant, getVariantGroups } from "../utils/productVariants";
+import { resolveInitialSelectedAttributes } from "../utils/variantDisplay";
 import { saveRedirectAfterLogin } from "../utils/loginRedirect";
 import { getFormattedWeight } from "../utils/weight";
 import { useCart } from "../hooks/useCart";
@@ -141,6 +142,7 @@ export function ProductDetailsPage() {
   const { productId } = useParams();
   const [searchParams] = useSearchParams();
   const reelIdFromQuery = searchParams.get("reel");
+  const variantIdFromQuery = searchParams.get("variantId");
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { addItem: addCartItem } = useCart();
@@ -181,8 +183,7 @@ export function ProductDetailsPage() {
 
         if (!cancelled) {
           setProduct(nextProduct);
-          const defaultVariant = getDefaultVariant(nextProduct);
-          setSelectedAttributes(defaultVariant?.attributes || {});
+          setSelectedAttributes(resolveInitialSelectedAttributes(nextProduct, variantIdFromQuery));
         }
       } catch (err) {
         if (!cancelled) {
@@ -198,7 +199,7 @@ export function ProductDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [productId]);
+  }, [productId, variantIdFromQuery]);
 
   useEffect(() => {
     const attribution = getReelAttribution();

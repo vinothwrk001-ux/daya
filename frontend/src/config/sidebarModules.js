@@ -9,6 +9,7 @@ import {
   Target,
   Image,
   Lightbulb,
+  MessageSquare,
   LayoutDashboard,
   Package2,
   Percent,
@@ -61,6 +62,7 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Subcategories", path: "/admin/subcategories", permission: "categories.read", icon: Tags, legacyOnly: true },
       { name: "Attributes", path: "/admin/attributes", permission: "categories.read", icon: Tags, legacyOnly: true },
       { name: "Product Modules", path: "/admin/product-modules", permission: "categories.read", icon: Boxes, legacyOnly: true },
+      { name: "Banner Management", path: "/admin/homepage-banners", permission: "settings.read", icon: Image },
       { name: "Homepage Containers", path: "/admin/homepage-containers", permission: "settings.read", icon: Image },
       { name: "Homepage Builder", path: "/admin/marketing/homepage-builder", permission: "settings.read", icon: LayoutDashboard },
     ],
@@ -89,6 +91,13 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Refunds", path: "/admin/refunds", permission: "payments.read", icon: RotateCcw, notificationModule: "MANAGEMENT", notificationSubModule: "RETURNS" },
       { name: "Cancellation Policies", path: "/admin/finance/cancellation-policies", permission: "settings.read", icon: ShieldCheck, notificationModule: "FINANCE", notificationSubModule: "SETTINGS" },
       { name: "Invoices", path: "/admin/finance/invoices", permission: "orders.read", icon: FileSearch, notificationModule: "FINANCE", notificationSubModule: "PAYMENTS" },
+    ],
+  },
+  {
+    section: "Communications",
+    key: "communications",
+    items: [
+      { name: "WhatsApp Logs", path: "/admin/communications/whatsapp-logs", permission: "orders.read", icon: MessageSquare },
     ],
   },
   {

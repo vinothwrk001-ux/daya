@@ -103,6 +103,10 @@ const pageMeta = {
     title: "Audit Logs",
     subtitle: "Inspect admin actions, compliance events, and operational history.",
   },
+  "/admin/communications/whatsapp-logs": {
+    title: "WhatsApp Logs",
+    subtitle: "Review shipment notifications, delivery status, and retry history.",
+  },
   "/admin/settings": {
     title: "Settings",
     subtitle: "Admin workspace preferences and operational notes.",

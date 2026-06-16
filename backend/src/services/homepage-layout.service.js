@@ -1021,6 +1021,8 @@ function flattenRows(rows = []) {
 
 class HomepageLayoutService {
   async getContainerLibrary() {
+    const { ensureAllBannerBuilderContainers } = require("./homepage-banner-container.sync");
+    await ensureAllBannerBuilderContainers();
     return await homepageContainerService.listActiveContainersForBuilder();
   }
 

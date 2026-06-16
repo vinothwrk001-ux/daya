@@ -105,7 +105,7 @@ export function BannerCarousel({ banners = [] }) {
             <img
               src={banner.image}
               alt={banner.title}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
               loading={index === 0 ? "eager" : "lazy"}
             />
             <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-r from-black/70 via-black/30 to-transparent px-4 py-4 sm:justify-center sm:px-8">

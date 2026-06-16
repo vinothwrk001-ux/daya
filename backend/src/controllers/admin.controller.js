@@ -168,6 +168,14 @@ const updateOrder = asyncHandler(async (req, res) => {
   return ok(res, order, "Order updated");
 });
 
+const shipOrder = asyncHandler(async (req, res) => {
+  const order = await adminService.shipOrder(req.params.id, req.body, req.user, {
+    ipAddress: req.ip,
+    userAgent: req.get("user-agent"),
+  });
+  return ok(res, order, "Order shipped");
+});
+
 const getShippingModes = asyncHandler(async (req, res) => {
   const config = await adminService.getShippingModes(req.user);
   return ok(res, config, "Shipping modes loaded");
@@ -329,6 +337,7 @@ module.exports = {
   getOrderById,
   createOrder,
   updateOrder,
+  shipOrder,
   getShippingModes,
   saveShippingModes,
   deleteOrder,

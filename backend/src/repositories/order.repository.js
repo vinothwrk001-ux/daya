@@ -296,12 +296,45 @@ class OrderRepository {
       .exec();
   }
 
-  async markWhatsAppSent(id) {
-    return await Order.findByIdAndUpdate(
-      id,
-      { $set: { whatsappSent: true } },
-      { returnDocument: "after" }
-    )
+  async markWhatsAppSent(id, { twilioSid } = {}) {
+    const update = {
+      $set: {
+        whatsappSent: true,
+        whatsappSentAt: new Date(),
+      },
+      $push: {
+        timeline: {
+          status: "WhatsApp Sent",
+          note: twilioSid ? `Shipment notification sent via WhatsApp (${twilioSid})` : "Shipment notification sent via WhatsApp",
+          timestamp: new Date(),
+        },
+      },
+    };
+
+    return await Order.findByIdAndUpdate(id, update, { returnDocument: "after" })
+      .populate("userId", "name email phone")
+      .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
+      .populate("items.productId", "name slug")
+      .exec();
+  }
+
+  async shipOrderById(id, updateData = {}) {
+    const { status = "Shipped", timelineNote, ...rest } = updateData;
+    const update = {
+      $set: {
+        status,
+        ...rest,
+      },
+      $push: {
+        timeline: {
+          status,
+          note: timelineNote || "Order marked as shipped",
+          timestamp: new Date(),
+        },
+      },
+    };
+
+    return await Order.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true })
       .populate("userId", "name email phone")
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
       .populate("items.productId", "name slug")

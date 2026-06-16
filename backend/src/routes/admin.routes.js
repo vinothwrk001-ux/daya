@@ -17,7 +17,7 @@ const {
   updateProductSchema,
   rejectProductSchema,
 } = require("../utils/validators/product.validation");
-const { createAdminOrderSchema, updateAdminOrderSchema } = require("../utils/validators/order.validation");
+const { createAdminOrderSchema, updateAdminOrderSchema, shipOrderSchema } = require("../utils/validators/order.validation");
 const {
   createCategorySchema,
   updateCategorySchema,
@@ -44,6 +44,8 @@ const codController = require("../controllers/cod.controller");
 const homepageContainerController = require("../controllers/homepage-container.controller");
 const homepageLayoutController = require("../controllers/homepage-layout.controller");
 const shippingConfigRoutes = require("./shippingConfig.routes");
+const adminHomepageBannerRoutes = require("./admin-homepage-banner.routes");
+const whatsappLogController = require("../controllers/whatsapp-log.controller");
 const companyBrandingController = require("../controllers/company-branding.controller");
 const { validateBrandingFiles } = require("../utils/validators/company-branding.validation");
 
@@ -148,6 +150,9 @@ router.post("/homepage-builder/layouts/:id/rollback/:versionId", requireWorkspac
 router.post("/homepage-builder/preview", requireWorkspacePermission("settings.read"), express.json(), homepageLayoutController.previewAdminLayout);
 router.post("/orders", requireLegacyAdminPermission("orders:create"), validate(createAdminOrderSchema), adminController.createOrder);
 router.patch("/orders/:id", requireWorkspacePermission("orders.update"), validate(updateAdminOrderSchema), adminController.updateOrder);
+router.post("/orders/:id/ship", requireWorkspacePermission("orders.update"), validate(shipOrderSchema), adminController.shipOrder);
+router.get("/communications/whatsapp-logs", requireWorkspacePermission("orders.read"), whatsappLogController.listWhatsAppLogs);
+router.post("/communications/whatsapp-logs/:id/retry", requireWorkspacePermission("orders.update"), whatsappLogController.retryWhatsAppLog);
 router.delete("/orders/:id", requireLegacyAdminPermission("orders:delete"), adminController.deleteOrder);
 
 // Products routes - IMPORTANT: Specific routes must come before parameter routes
@@ -445,5 +450,6 @@ router.delete(
 
 // Shipping Configuration routes
 router.use("/shipping-config", shippingConfigRoutes);
+router.use("/homepage", adminHomepageBannerRoutes);
 
 module.exports = router;

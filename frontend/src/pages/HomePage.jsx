@@ -75,12 +75,7 @@ export function HomePage() {
       />
 
       {!loading ? (
-        <>
-          <ReelsSection title="Trending Reels" sort="trending" />
-          <ReelsSection title="Latest Reels" sort="latest" />
-          <ReelsSection title="Popular Reels" sort="popular" />
-          <ReelsSection title="Recommended Reels" sort="recommended" />
-        </>
+        <ReelsSection title="Trending Reels" sort="trending" />
       ) : null}
     </div>
   );

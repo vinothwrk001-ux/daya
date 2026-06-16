@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import {
+  AlertCircle,
   Bookmark,
   ChevronLeft,
   Heart,
@@ -18,6 +19,8 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
+import { useProductCardVariant } from "../../hooks/useProductCardVariant";
+import { resolveSwatchColor } from "../../utils/variantDisplay";
 import {
   getReelSessionId,
   setReelAttribution,
@@ -45,42 +48,83 @@ function StarRating({ rating = 0 }) {
 }
 
 function TikTokProductCard({ product, onShop }) {
+  const {
+    swatchOptions,
+    selectedSwatchValue,
+    imageUrl,
+    pricing,
+    inStock,
+    activeVariant,
+    selectSwatchValue,
+  } = useProductCardVariant(product);
+
   if (!product) return null;
-  const price = product.salePrice ?? product.price ?? 0;
-  const original = product.salePrice && product.price ? product.price : null;
-  const inStock = Number(product.stock ?? product.totalStock ?? 1) > 0;
 
   return (
-    <button
-      type="button"
-      onClick={() => onShop(product)}
-      className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-white/15 bg-black/55 p-3 text-left backdrop-blur-md transition hover:bg-black/70"
+    <div
+      className="flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-white/15 bg-black/55 p-3 text-left backdrop-blur-md"
+      onClick={(event) => event.stopPropagation()}
     >
-      <img
-        src={resolveApiAssetUrl(product.images?.[0] || product.image)}
-        alt={product.name}
-        className="h-14 w-14 rounded-xl object-cover ring-1 ring-white/20"
-        loading="lazy"
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-white">{product.name}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <span className="text-base font-black text-white">{formatCurrency(price)}</span>
-          {original ? <span className="text-xs text-zinc-400 line-through">{formatCurrency(original)}</span> : null}
-          {product.rating ? (
-            <span className="text-xs">
-              <StarRating rating={product.rating} />
+      <button
+        type="button"
+        onClick={() => onShop(product, activeVariant?.variantId)}
+        className="flex w-full items-center gap-3 text-left transition hover:opacity-95"
+      >
+        <img
+          src={imageUrl || resolveApiAssetUrl(product.images?.[0] || product.image)}
+          alt={product.name}
+          className="h-14 w-14 rounded-xl object-cover ring-1 ring-white/20"
+          loading="lazy"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-white">{product.name}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="text-base font-black text-white">
+              {formatCurrency(pricing.hasDiscount ? pricing.salePrice : pricing.price)}
             </span>
-          ) : null}
+            {pricing.hasDiscount ? (
+              <span className="text-xs text-zinc-400 line-through">{formatCurrency(pricing.price)}</span>
+            ) : null}
+            {product.rating ? (
+              <span className="text-xs">
+                <StarRating rating={product.rating} />
+              </span>
+            ) : null}
+          </div>
+          <p className={`mt-1 text-[11px] font-semibold ${inStock ? "text-emerald-400" : "text-red-400"}`}>
+            {inStock ? "In stock" : "Out of stock"}
+          </p>
         </div>
-        <p className={`mt-1 text-[11px] font-semibold ${inStock ? "text-emerald-400" : "text-red-400"}`}>
-          {inStock ? "In stock" : "Out of stock"}
-        </p>
-      </div>
-      <span className="shrink-0 rounded-full bg-red-600 px-3 py-2 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-red-900/40">
-        Shop Now
-      </span>
-    </button>
+        <span className="shrink-0 rounded-full bg-red-600 px-3 py-2 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-red-900/40">
+          Shop Now
+        </span>
+      </button>
+      {swatchOptions.length ? (
+        <div className="flex items-center gap-1.5 pl-[4.25rem]" aria-label="Available colors">
+          {swatchOptions.map((option) => {
+            const isSelected = selectedSwatchValue === option.value;
+            const swatchColor = resolveSwatchColor(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-label={option.value}
+                title={option.value}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  selectSwatchValue(option.value);
+                }}
+                className={`h-3.5 w-3.5 rounded-full border border-white/30 transition ${
+                  isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-black/40" : ""
+                }`}
+                style={{ backgroundColor: swatchColor || "#94a3b8" }}
+              />
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -94,6 +138,18 @@ function ReelSlide({
   onReelUpdate,
   preloadNextUrl,
 }) {
+  // Validate reel data
+  if (!reel || !reel._id || !reel.videoUrl) {
+    return (
+      <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center bg-black">
+        <div className="flex flex-col items-center gap-3">
+          <AlertCircle className="h-8 w-8 text-red-500" />
+          <p className="text-sm text-zinc-300">Reel data unavailable</p>
+        </div>
+      </section>
+    );
+  }
+
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const viewTrackedRef = useRef(false);
@@ -170,13 +226,15 @@ function ReelSlide({
     }
   }
 
-  async function handleShop(product) {
+  async function handleShop(product, variantId = "") {
     await trackReelProductClick(reel._id, {
       productId: product._id,
       sessionId,
     }).catch(() => {});
     setReelAttribution({ reelId: reel._id, productId: product._id, sessionId });
-    navigate(`/product/${product._id}?reel=${reel._id}`);
+    const params = new URLSearchParams({ reel: reel._id });
+    if (variantId) params.set("variantId", String(variantId));
+    navigate(`/product/${product._id}?${params.toString()}`);
   }
 
   function handleDoubleTap() {

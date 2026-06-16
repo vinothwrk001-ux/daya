@@ -1,49 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion as Motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { formatCurrency } from "../utils/formatCurrency";
-import { resolveApiAssetUrl } from "../utils/resolveUrl";
-
-const FALLBACK_SWATCHES = ["#7F1D1D", "#64748B"];
-
-function getProductImage(product) {
-  return resolveApiAssetUrl(product?.images?.[0]?.url || product?.image || "");
-}
-
-function getProductBrand(product) {
-  return product?.brand || product?.vendorName || product?.sellerName || product?.category || "@daya";
-}
-
-function getProductSwatches(product) {
-  const values = [
-    product?.colors,
-    product?.availableColors,
-    product?.colorOptions,
-    product?.variants?.map((variant) => variant.color || variant.colorName || variant.attributes?.color),
-  ]
-    .flat()
-    .filter(Boolean)
-    .map((value) => String(value).trim())
-    .filter(Boolean);
-
-  return [...new Set(values)].slice(0, 3).length ? [...new Set(values)].slice(0, 3) : FALLBACK_SWATCHES;
-}
-
-function resolveSwatchColor(value) {
-  const normalized = String(value).trim().toLowerCase();
-  const colors = {
-    black: "#111111",
-    red: "#E53935",
-    green: "#16A34A",
-    blue: "#2563EB",
-    gray: "#64748B",
-    grey: "#64748B",
-    white: "#FFFFFF",
-    maroon: "#7F1D1D",
-  };
-
-  return colors[normalized] || value || "#64748B";
-}
+import { ProductCard } from "./ProductCard";
 
 export function ProductCarousel({
   items = [],
@@ -250,7 +208,7 @@ export function ProductCarousel({
                   width: `${100 / itemsPerView}%`,
                 }}
               >
-                <TopPickProductCard product={product} {...getProductCardProps(product)} />
+                <ProductCard product={product} {...getProductCardProps(product)} />
               </div>
             ))}
           </Motion.div>
@@ -284,55 +242,6 @@ export function ProductCarousel({
         )}
       </div>
     </section>
-  );
-}
-
-function TopPickProductCard({ product }) {
-  const imageUrl = getProductImage(product);
-  const productId = product?._id || product?.id;
-  const salePrice = product?.discountPrice || product?.discountedPrice || product?.salePrice || null;
-  const price = salePrice || product?.price || 0;
-  const originalPrice = salePrice ? product?.price : product?.compareAtPrice || product?.mrp || null;
-  const discountPercent = originalPrice && price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-  const swatches = getProductSwatches(product);
-
-  return (
-    <a href={productId ? `/product/${productId}` : "#"} className="group block h-full">
-      <article className="mx-auto flex h-full max-w-[320px] flex-col overflow-hidden rounded-[18px] bg-white shadow-[0_24px_70px_-55px_rgba(15,23,42,0.65)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_80px_-52px_rgba(15,23,42,0.78)]">
-        <div className="relative aspect-[1.08/1] overflow-hidden rounded-t-[18px] bg-slate-100">
-          {imageUrl ? (
-            <img src={imageUrl} alt={product?.name || "Product"} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-105" loading="lazy" />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">Image coming soon</div>
-          )}
-          {discountPercent > 0 ? (
-            <span className="absolute left-5 top-5 rounded-full bg-red-500 px-4 py-1.5 text-xs font-bold text-white shadow-lg">
-              {discountPercent}% OFF
-            </span>
-          ) : null}
-        </div>
-        <div className="flex flex-1 flex-col items-center px-5 py-4 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">{getProductBrand(product)}</p>
-          <h3 className="mt-2 min-h-[42px] max-w-[220px] text-sm font-semibold leading-snug text-slate-950 line-clamp-2">
-            {product?.name || "Product"}
-          </h3>
-          <div className="mt-3 flex items-center justify-center gap-2 text-sm">
-            <span className="font-bold text-red-500">{formatCurrency(price)}</span>
-            {originalPrice ? <span className="text-slate-400 line-through">{formatCurrency(originalPrice)}</span> : null}
-          </div>
-          <div className="mt-4 flex items-center justify-center gap-3" aria-label="Available colors">
-            {swatches.map((swatch, index) => (
-              <span
-                key={`${swatch}-${index}`}
-                className="h-6 w-6 rounded-full border border-black/10 shadow-[inset_0_0_0_2px_rgba(255,255,255,0.85)] ring-1 ring-slate-200"
-                style={{ backgroundColor: resolveSwatchColor(swatch) }}
-                title={String(swatch)}
-              />
-            ))}
-          </div>
-        </div>
-      </article>
-    </a>
   );
 }
 

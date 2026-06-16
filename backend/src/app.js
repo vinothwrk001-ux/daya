@@ -34,6 +34,9 @@ const productModuleRoutes = require("./routes/product-module.routes");
 const exportRoutes = require("./routes/export.routes");
 const homepageContainerRoutes = require("./routes/homepage-container.routes");
 const homepageLayoutRoutes = require("./routes/homepage-layout.routes");
+const homepageRoutes = require("./routes/homepage.routes");
+const homepageBannerPublicRoutes = require("./routes/homepage-banner.routes");
+const adminHomepageBannerRoutes = require("./routes/admin-homepage-banner.routes");
 const pricingRoutes = require("./routes/pricing.routes");
 const staffRoutes = require("./modules/staff/routes");
 const notificationRoutes = require("./routes/notification.routes");
@@ -215,6 +218,8 @@ function createApp() {
   app.use("/api/export", exportRoutes);
   app.use("/api/homepage-containers", homepageContainerRoutes);
   app.use("/api/homepage-builder", homepageLayoutRoutes);
+  app.use("/api/homepage", homepageRoutes);
+  app.use("/api/homepage", homepageBannerPublicRoutes);
   app.use("/api/pricing", pricingRoutes);
   app.use("/api/inventory", inventoryRoutes);
   app.use("/api/staff", staffRoutes);

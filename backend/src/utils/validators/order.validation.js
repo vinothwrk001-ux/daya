@@ -74,8 +74,19 @@ const updateAdminOrderSchema = Joi.object({
   deliveryDetails: deliveryDetailsSchema,
 }).min(1);
 
+const shipOrderSchema = Joi.object({
+  courierName: Joi.string().trim().min(1).max(120).required(),
+  trackingNumber: Joi.string().trim().min(1).max(120).required(),
+  trackingId: Joi.string().trim().min(1).max(120),
+  trackingUrl: Joi.string().trim().uri({ scheme: ["http", "https"] }).max(500).required(),
+  shippingDate: Joi.date().iso().optional(),
+  expectedDeliveryDate: Joi.date().iso().optional(),
+  shippingNotes: Joi.string().trim().max(1000).allow("", null),
+}).required();
+
 module.exports = {
   createAdminOrderSchema,
   updateAdminOrderSchema,
+  shipOrderSchema,
 };
 

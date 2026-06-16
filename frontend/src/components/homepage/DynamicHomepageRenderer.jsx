@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, BadgePercent, Clock3, CreditCard, Eye, Flame, Gift, Heart, Megaphone, ShoppingCart, Star, Truck, User, Wallet, Zap } from "lucide-react";
+import { ArrowRight, BadgePercent, Clock3, CreditCard, Flame, Gift, Megaphone, Truck, User, Wallet, Zap } from "lucide-react";
+import { HeaderShopActions } from "../HeaderShopActions";
 import { ProductCard } from "../ProductCard";
 import { ProductCarousel } from "../ProductCarousel";
 import { SearchBar } from "../SearchBar";
@@ -8,10 +9,8 @@ import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { trackHomepageContainerEvent } from "../../services/homepageContainerService";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { getPublicBranding } from "../../services/companyBrandingService";
-import { useCartDrawer } from "../../hooks/useCartDrawer";
-import { useCompare } from "../../hooks/useCompare";
-import { useWishlist } from "../../hooks/useWishlist";
-import { CategoryHeroBannerInBanner } from "./CategoryHeroBanner";
+import { HeroBannerCategoryZone } from "./CategoryHeroBanner";
+import { HomepageBannerSlider, useHomepageBanners } from "./HomepageBannerSlider";
 
 const DEFAULT_CANVAS_WIDTH = {
   desktop: 1440,
@@ -26,7 +25,7 @@ const DEVICE_COLUMNS = {
 };
 
 const BANNER_HEIGHT_SCALE = 0.85;
-const DEFAULT_BANNER_HEIGHT = 685;
+const DEFAULT_BANNER_HEIGHT = 800;
 
 export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
   rows = [],
@@ -150,6 +149,46 @@ function rowHasBanner(row = {}) {
   );
 }
 
+function isManagedBannerContainer(container) {
+  const config = container?.config || {};
+  return Boolean(config.useManagedBanners || config.homepageBannerId);
+}
+
+function resolveManagedBannerHeight(container, renderContext = {}) {
+  const device = renderContext.device || "desktop";
+  const builderLayout = container?.builderLayout || {};
+  const deviceConfigKey =
+    device === "mobile" ? "mobileConfig" : device === "tablet" ? "tabletConfig" : "desktopConfig";
+  const deviceLayout =
+    builderLayout[device] ||
+    builderLayout[deviceConfigKey] ||
+    builderLayout.desktopConfig ||
+    builderLayout.desktop ||
+    {};
+  const presentationLayout = container?.presentation?.layout || {};
+  const configuredHeight = Number(
+    deviceLayout.height ||
+      deviceLayout.customHeight ||
+      presentationLayout.customHeight ||
+      presentationLayout.height ||
+      0
+  );
+
+  const minimumHeights = {
+    mobile: 760,
+    tablet: 900,
+    desktop: 1080,
+  };
+  const headerAllowance = 160;
+  const fallbackHeight = minimumHeights[device] || minimumHeights.desktop;
+
+  if (configuredHeight > 0) {
+    return Math.max(configuredHeight + headerAllowance, fallbackHeight);
+  }
+
+  return fallbackHeight;
+}
+
 function flattenRowContainers(row = {}) {
   return (row.columns || []).flatMap((column) => column.containers || []);
 }
@@ -169,9 +208,10 @@ const DynamicHomepageRow = memo(function DynamicHomepageRow({
   const companionContainers = rowContainers.filter((container) => container.containerType !== "BANNER");
 
   if (isHeroBannerRow && bannerContainer) {
+    const managedHero = isManagedBannerContainer(bannerContainer);
     return (
-      <div className="relative overflow-hidden">
-        {backdropUrl ? (
+      <div className={`relative w-full ${managedHero ? "overflow-hidden" : "overflow-hidden"}`}>
+        {backdropUrl && !managedHero ? (
           <>
             <img src={backdropUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-0 bg-white/65 dark:bg-slate-950/55" />
@@ -308,8 +348,13 @@ function resolveRowBackdropUrl(row) {
     .flatMap((column) => column?.containers || [])
     .filter(Boolean);
   const source =
-    containers.find((container) => ["BANNER", "SLIDER"].includes(container?.containerType)) ||
-    containers.find((container) => resolveContainerBackgroundMedia(resolveContainerLayout(container)));
+    containers.find(
+      (container) => ["BANNER", "SLIDER"].includes(container?.containerType) && !isManagedBannerContainer(container)
+    ) ||
+    containers.find(
+      (container) =>
+        !isManagedBannerContainer(container) && resolveContainerBackgroundMedia(resolveContainerLayout(container))
+    );
 
   if (!source) return "";
 
@@ -733,7 +778,8 @@ function CarouselContainer({ container, bareContainers = false, bareOuterLayout 
         swipeEnabled={config.swipeEnabled !== false}
         autoSlide={config.autoSlide === true}
         slideSpeed={Number(config.slideSpeed || 3500)}
-        desktopItemsPerView={Number(config.productsPerView || 5)}
+        desktopItemsPerView={Number(config.productsPerView || 4)}
+        getProductCardProps={() => ({ cardStyle: config.cardStyle || "DEFAULT" })}
       />
     </div>
   );
@@ -750,6 +796,18 @@ function BannerContainer({
   bareCarouselShell = false,
 }) {
   const config = container.config || {};
+  const useManagedBanners = isManagedBannerContainer(container);
+  const managedBannerHeight = resolveManagedBannerHeight(container, renderContext);
+  const managedBanners = useHomepageBanners();
+  const displayBanners = useMemo(() => {
+    if (!useManagedBanners || !Array.isArray(managedBanners.banners)) return [];
+    const bannerId = config.homepageBannerId;
+    const scope = config.managedBannerScope || "single";
+    if (scope === "single" && bannerId) {
+      return managedBanners.banners.filter((item) => String(item.id) === String(bannerId));
+    }
+    return managedBanners.banners;
+  }, [config.homepageBannerId, config.managedBannerScope, managedBanners.banners, useManagedBanners]);
   const [branding, setBranding] = useState(null);
   const mediaItems = Array.isArray(config.bannerMedia) && config.bannerMedia.length
     ? config.bannerMedia
@@ -803,14 +861,14 @@ function BannerContainer({
   const ctaUrl = activeItem.ctaUrl || config.ctaUrl;
 
   const campaignFallback = (
-    <div className={`max-w-2xl transition duration-300 ${resolveTextAlign(config.textPosition)}`}>
-      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Marketplace campaign</p>
-      <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">{heading}</h2>
-      {subheading ? <p className="mt-4 text-sm leading-7 text-white/85 sm:text-base">{subheading}</p> : null}
+    <div className={`max-w-2xl rounded-[1.5rem] border border-zinc-200 bg-white p-6 shadow-xl sm:rounded-[2rem] sm:p-8 ${resolveTextAlign(config.textPosition)}`}>
+      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-500">Marketplace campaign</p>
+      <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-4xl">{heading}</h2>
+      {subheading ? <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">{subheading}</p> : null}
       {ctaLabel && ctaUrl ? (
         <a
           href={ctaUrl}
-          className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
         >
           {ctaLabel}
           <ArrowRight className="h-4 w-4" />
@@ -832,95 +890,196 @@ function BannerContainer({
       ))
     : null;
 
-  return (
-    <div className={`hero-banner group relative w-full overflow-hidden ${heroBannerLayout ? "flex min-h-[720px] flex-col sm:min-h-[780px]" : "h-full"}`}>
-      {mediaUrl ? (
-        isVideo ? (
-          <video src={mediaUrl} autoPlay muted loop playsInline className="block h-full w-full object-cover" />
-        ) : (
-          <img
-            src={mediaUrl}
-            alt={heading}
-            className={`block h-full w-full object-center ${imageFit === "contain" ? "object-contain" : "object-cover"}`}
-          />
-        )
-      ) : null}
-      {mediaUrl ? (
-        <div
-          className="absolute inset-0 bg-slate-950/20"
-          style={{ background: `rgba(15, 23, 42, ${Number(config.overlayOpacity ?? 0.35)})` }}
-        />
-      ) : null}
-      <div className={`absolute inset-0 z-10 flex flex-col ${heroBannerLayout ? "justify-between" : "items-start pt-10"} p-6 sm:p-8 lg:p-10`}>
-        <div className="w-full flex justify-between items-center mb-4 sm:mb-6 gap-6">
-          <div className="flex items-center flex-shrink-0">
-            {branding?.logos?.primary && (
-              <Link to="/" className="transition hover:opacity-80">
-                <img 
-                  src={resolveApiAssetUrl(branding.logos.primary)} 
-                  alt="Logo" 
-                  className="h-12 sm:h-14 lg:h-16 w-auto"
-                />
-              </Link>
-            )}
-          </div>
-          <div className="flex-1 flex justify-center pl-20 sm:pl-24 lg:pl-32">
-            <div className="w-full max-w-sm">
-              <SearchBar />
-            </div>
-          </div>
-          <div className="flex items-center gap-4 sm:gap-6 flex-shrink-0 pr-8">
-            <Link to="/login" className="flex items-center gap-2 text-slate-900 hover:text-slate-700 transition">
-              <User className="h-5 w-5 sm:h-6 sm:w-6" />
-              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Login</span>
+  const heroChromeOverlay = (
+    <>
+      <div className="flex w-full items-center justify-between gap-4 sm:gap-6">
+        <div className="flex shrink-0 items-center">
+          {branding?.logos?.primary ? (
+            <Link to="/" className="transition hover:opacity-80">
+              <img
+                src={resolveApiAssetUrl(branding.logos.primary)}
+                alt="Logo"
+                className="h-10 w-auto brightness-0 invert sm:h-12 lg:h-14"
+              />
             </Link>
-            <Link to="/wishlist" className="flex items-center gap-2 text-slate-900 hover:text-red-500 transition">
-              <Heart className="h-5 w-5 sm:h-6 sm:w-6" />
-              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Wishlist</span>
-            </Link>
-            <Link to="/cart" className="flex items-center gap-2 text-slate-900 hover:text-slate-700 transition">
-              <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
-              <span className="text-xs sm:text-sm font-medium hidden sm:inline">Cart</span>
-            </Link>
-          </div>
-        </div>
-        
-        <nav className={`w-full flex justify-center ${heroBannerLayout ? "mb-2" : "mb-8 sm:mb-12 -mt-10"}`}>
-          <div className="flex gap-3 sm:gap-4 lg:gap-6">
-            <Link to="/" className="text-xs sm:text-sm font-semibold text-slate-900 hover:text-slate-700 transition">
-              HOME
-            </Link>
-            <a href="#" className="text-xs sm:text-sm font-semibold text-slate-900 hover:text-slate-700 transition">
-              SHOP
-            </a>
-            <a href="#" className="text-xs sm:text-sm font-semibold text-slate-900 hover:text-slate-700 transition">
-              SERVICES
-            </a>
-            <a href="#" className="text-xs sm:text-sm font-semibold text-slate-900 hover:text-slate-700 transition">
-              BLOGS
-            </a>
-          </div>
-        </nav>
-
-        {heroBannerLayout ? (
-          <CategoryHeroBannerInBanner rightContent={companionContent} fallback={campaignFallback} />
-        ) : (
-        <div className={`max-w-2xl transition duration-300 ${resolveTextAlign(config.textPosition)} ${config.showCtaOnHover ? "opacity-0 translate-y-3 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto" : ""}`}>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Marketplace campaign</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">
-            {heading}
-          </h2>
-          {subheading ? <p className="mt-4 text-sm leading-7 text-white/85 sm:text-base">{subheading}</p> : null}
-          {ctaLabel && ctaUrl ? (
-            <a
-              href={ctaUrl}
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
-            >
-              {ctaLabel}
-              <ArrowRight className="h-4 w-4" />
-            </a>
           ) : null}
         </div>
+        <div className="flex flex-1 justify-center px-2 sm:px-8 lg:px-16">
+          <div className="w-full max-w-md">
+            <SearchBar />
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <Link to="/login" className="flex items-center gap-2 text-white transition hover:text-white/80">
+            <User className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="hidden text-xs font-medium sm:inline sm:text-sm">Login</span>
+          </Link>
+          <HeaderShopActions variant="inline" className="[&_a]:text-white [&_a]:hover:text-white/80" />
+        </div>
+      </div>
+
+      <nav className="mt-3 flex w-full justify-center sm:mt-4">
+        <div className="flex gap-4 sm:gap-6">
+          <Link to="/" className="text-xs font-semibold text-white transition hover:text-white/80 sm:text-sm">
+            HOME
+          </Link>
+          <Link to="/shop" className="text-xs font-semibold text-white transition hover:text-white/80 sm:text-sm">
+            SHOP
+          </Link>
+          <a href="#" className="text-xs font-semibold text-white transition hover:text-white/80 sm:text-sm">
+            SERVICES
+          </a>
+          <a href="#" className="text-xs font-semibold text-white transition hover:text-white/80 sm:text-sm">
+            BLOGS
+          </a>
+        </div>
+      </nav>
+    </>
+  );
+
+  const heroChrome = (
+    <>
+      <div className="flex w-full items-center justify-between gap-4 sm:gap-6">
+        <div className="flex shrink-0 items-center">
+          {branding?.logos?.primary ? (
+            <Link to="/" className="transition hover:opacity-80">
+              <img
+                src={resolveApiAssetUrl(branding.logos.primary)}
+                alt="Logo"
+                className="h-10 w-auto sm:h-12 lg:h-14"
+              />
+            </Link>
+          ) : null}
+        </div>
+        <div className="flex flex-1 justify-center px-2 sm:px-8 lg:px-16">
+          <div className="w-full max-w-md">
+            <SearchBar />
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <Link
+            to="/login"
+            className={`flex items-center gap-2 transition hover:opacity-80 ${
+              useManagedBanners && heroBannerLayout ? "text-slate-900" : "text-slate-900"
+            }`}
+          >
+            <User className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="hidden text-xs font-medium sm:inline sm:text-sm">Login</span>
+          </Link>
+          <HeaderShopActions />
+        </div>
+      </div>
+
+      <nav className="mt-3 flex w-full justify-center sm:mt-4">
+        <div className="flex gap-4 sm:gap-6">
+          <Link to="/" className="text-xs font-semibold text-slate-900 transition hover:text-slate-700 sm:text-sm">
+            HOME
+          </Link>
+          <Link to="/shop" className="text-xs font-semibold text-slate-900 transition hover:text-slate-700 sm:text-sm">
+            SHOP
+          </Link>
+          <a href="#" className="text-xs font-semibold text-slate-900 transition hover:text-slate-700 sm:text-sm">
+            SERVICES
+          </a>
+          <a href="#" className="text-xs font-semibold text-slate-900 transition hover:text-slate-700 sm:text-sm">
+            BLOGS
+          </a>
+        </div>
+      </nav>
+    </>
+  );
+
+  if (useManagedBanners) {
+    return (
+      <div className="hero-banner relative w-full overflow-hidden">
+        <div
+          className="relative w-full overflow-hidden"
+          style={{ height: `${managedBannerHeight}px`, minHeight: `${managedBannerHeight}px` }}
+        >
+          {managedBanners.loading ? (
+            <div className="h-full w-full animate-pulse bg-slate-900" />
+          ) : displayBanners.length ? (
+            <HomepageBannerSlider
+              banners={displayBanners}
+              settings={managedBanners.settings}
+              embedded
+              headerSlot={heroChromeOverlay}
+              className="h-full w-full"
+            />
+          ) : (
+            <div className="relative flex h-full flex-col">
+              <div className="relative z-20 px-4 py-4 sm:px-6 lg:px-8">{heroChromeOverlay}</div>
+              <div className="flex flex-1 items-center justify-center px-6">{campaignFallback}</div>
+            </div>
+          )}
+        </div>
+
+        {companionContent ? <div className="relative z-10 bg-white px-4 py-6 sm:px-6 lg:px-8">{companionContent}</div> : null}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`hero-banner group relative w-full overflow-hidden ${
+        heroBannerLayout ? "min-h-[750px]" : "h-full min-h-[420px]"
+      }`}
+    >
+      <div className="absolute inset-0 z-0">
+        {mediaUrl ? (
+          isVideo ? (
+            <video src={mediaUrl} autoPlay muted loop playsInline className="h-full w-full object-cover" />
+          ) : (
+            <img
+              src={mediaUrl}
+              alt={heading}
+              className={`h-full w-full object-center ${imageFit === "contain" ? "object-contain" : "object-cover"}`}
+            />
+          )
+        ) : (
+          <div className="h-full w-full bg-gradient-to-br from-slate-100 via-white to-slate-200" />
+        )}
+        {mediaUrl ? (
+          <div
+            className="absolute inset-0"
+            style={{ background: `rgba(15, 23, 42, ${Number(config.overlayOpacity ?? 0.35)})` }}
+          />
+        ) : null}
+      </div>
+
+      <div
+        className={`relative z-10 flex w-full flex-col ${
+          heroBannerLayout ? "min-h-[600px]" : "min-h-[320px]"
+        } px-4 pb-4 pt-4 sm:px-6 sm:pb-6 lg:px-8 lg:pt-6`}
+      >
+        {heroChrome}
+
+        {heroBannerLayout ? (
+          <div className="mx-auto mt-2 w-full max-w-[1440px] flex flex-col items-center py-1 sm:mt-3 sm:py-2">
+            <HeroBannerCategoryZone fallback={campaignFallback} />
+            {companionContent ? <div className="mt-3 w-full sm:mt-4">{companionContent}</div> : null}
+          </div>
+        ) : (
+          <div
+            className={`mt-8 max-w-2xl transition duration-300 ${resolveTextAlign(config.textPosition)} ${
+              config.showCtaOnHover
+                ? "pointer-events-none translate-y-3 opacity-0 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100"
+                : ""
+            }`}
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Marketplace campaign</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">{heading}</h2>
+            {subheading ? <p className="mt-4 text-sm leading-7 text-white/85 sm:text-base">{subheading}</p> : null}
+            {ctaLabel && ctaUrl ? (
+              <a
+                href={ctaUrl}
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
+              >
+                {ctaLabel}
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            ) : null}
+          </div>
         )}
       </div>
       {showArrows && mediaItems.length > 1 ? (
@@ -987,14 +1146,14 @@ function FeaturedProductsContainer({ container, renderContext }) {
 
   const heroNode = heroProduct ? (
     <div key="hero" className={stacked ? "" : "min-w-0"}>
-      <FeaturedProductTile product={heroProduct} config={config} hero />
+      <TrackedProductCard containerId={container._id} product={heroProduct} cardStyle={config.cardStyle || "DEFAULT"} featured />
     </div>
   ) : null;
   const gridNode = (
     <div key="grid" className={carousel ? "flex gap-4 overflow-x-auto pb-2" : ""} style={carousel ? undefined : gridStyle}>
       {(secondary.length ? secondary : items).slice(0, gridLimit).map((product) => (
-        <div key={product._id} className={carousel ? "w-[230px] shrink-0" : ""}>
-          <FeaturedProductTile product={product} config={config} />
+        <div key={product._id} className={carousel ? "w-[min(100%,320px)] shrink-0 sm:w-[300px]" : ""}>
+          <TrackedProductCard containerId={container._id} product={product} cardStyle={config.cardStyle || "DEFAULT"} />
         </div>
       ))}
     </div>
@@ -1063,148 +1222,6 @@ function resolveFeaturedButtonStyles(config = {}) {
     return { ...base, backgroundColor: "#f1f5f9", borderColor: "#e2e8f0", color: config.buttonColor || "#0f172a" };
   }
   return base;
-}
-
-function FeaturedProductTile({ product, config = {}, hero = false }) {
-  const productId = String(product?._id || "");
-  const { showToast } = useCartDrawer();
-  const { addItem: addWishlistItem, removeItem: removeWishlistItem, isInWishlist } = useWishlist();
-  const { addItem: addCompareItem, removeItem: removeCompareItem, isInCompare, maxItems } = useCompare();
-  const [wishlistSaved, setWishlistSaved] = useState(false);
-  const [compareSaved, setCompareSaved] = useState(false);
-  const [actionPending, setActionPending] = useState("");
-  const imageUrl = resolveApiAssetUrl(product?.images?.[0]?.url || "");
-  const price = product.discountPrice || product.price || 0;
-  const discount = product.discountPrice && product.price ? Math.round(((product.price - product.discountPrice) / product.price) * 100) : 0;
-  const brand = product?.attributes?.brand || product?.brand || "";
-  const lowStock = Number(product.stock || 0) > 0 && Number(product.stock || 0) <= 10;
-  const cardStyle = {
-    borderRadius: `${Number(config.cardRadius ?? 18)}px`,
-    border: config.cardBorder === false ? "none" : "1px solid rgba(148, 163, 184, 0.35)",
-    boxShadow: config.cardShadow === false ? "none" : "0 24px 70px -48px rgba(15, 23, 42, 0.45)",
-  };
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadActionState() {
-      if (!productId) return;
-      const [savedToWishlist, savedToCompare] = await Promise.all([
-        isInWishlist(productId).catch(() => false),
-        isInCompare(productId).catch(() => false),
-      ]);
-      if (!active) return;
-      setWishlistSaved(Boolean(savedToWishlist));
-      setCompareSaved(Boolean(savedToCompare));
-    }
-
-    loadActionState();
-
-    return () => {
-      active = false;
-    };
-  }, [isInCompare, isInWishlist, productId]);
-
-  const handleWishlistToggle = async () => {
-    if (!productId || actionPending) return;
-    setActionPending("wishlist");
-    try {
-      if (wishlistSaved) {
-        await removeWishlistItem(productId);
-        setWishlistSaved(false);
-        showToast("Removed from wishlist.", "success");
-      } else {
-        await addWishlistItem(productId);
-        setWishlistSaved(true);
-        showToast("Added to wishlist.", "success");
-      }
-    } catch (err) {
-      showToast(err?.response?.data?.message || err?.message || "Unable to update wishlist.");
-    } finally {
-      setActionPending("");
-    }
-  };
-
-  const handleCompareToggle = async () => {
-    if (!productId || actionPending) return;
-    setActionPending("compare");
-    try {
-      if (compareSaved) {
-        await removeCompareItem(productId);
-        setCompareSaved(false);
-        showToast("Removed from compare.", "success");
-      } else {
-        await addCompareItem(product);
-        setCompareSaved(true);
-        showToast(`Added to compare. You can compare up to ${maxItems} products.`, "success");
-      }
-    } catch (err) {
-      showToast(err?.response?.data?.message || err?.message || `You can compare up to ${maxItems} products at a time.`);
-    } finally {
-      setActionPending("");
-    }
-  };
-
-  return (
-    <article className={`group relative flex h-full min-h-0 flex-col overflow-hidden bg-white transition ${config.cardHoverEffect === "LIFT" ? "hover:-translate-y-1" : ""}`} style={cardStyle}>
-      {config.showProductImage !== false ? (
-        <a href={`/product/${productId}`} className={hero ? "block aspect-[16/11] bg-slate-100" : "block aspect-[4/3] bg-slate-100"}>
-          {imageUrl ? <img src={imageUrl} alt={product.name} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center text-sm text-slate-400">Image coming soon</div>}
-        </a>
-      ) : null}
-      <div className={hero ? "flex flex-1 flex-col gap-3 p-5" : "flex flex-1 flex-col gap-2 p-4"}>
-        <div className="flex flex-wrap gap-2">
-          {config.showDiscountBadge !== false && discount > 0 ? <span className="rounded-full bg-orange-500 px-2.5 py-1 text-xs font-bold text-white">{discount}% OFF</span> : null}
-          {config.showPopularBadge ? <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">Popular Pick</span> : null}
-          {config.showNewArrivalBadge ? <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white">New</span> : null}
-          {config.showLimitedStockBadge !== false && lowStock ? <span className="rounded-full bg-rose-600 px-2.5 py-1 text-xs font-bold text-white">Limited</span> : null}
-          {config.showDeliveryBadge ? <span className="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-bold text-white">Fast Delivery</span> : null}
-        </div>
-        {config.showBrand !== false && brand ? <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{brand}</div> : null}
-        {config.showProductName !== false ? <a href={`/product/${productId}`} className={`${hero ? "text-xl" : "text-sm"} line-clamp-2 font-semibold text-slate-950 hover:text-blue-600`}>{product.name}</a> : null}
-        {config.showRating !== false && product?.ratings?.averageRating > 0 ? (
-          <div className="flex items-center gap-1 text-xs text-slate-600">
-            <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-            <span>{Number(product.ratings.averageRating).toFixed(1)}</span>
-            {config.showReviewCount !== false ? <span>({product.ratings.totalReviews || 0})</span> : null}
-          </div>
-        ) : null}
-        <div className="mt-auto flex flex-wrap items-center gap-2">
-          {config.showPrice !== false ? <span className="text-base font-bold text-slate-950">{formatCurrency(price)}</span> : null}
-          {config.showSalePrice !== false && product.discountPrice ? <span className="text-xs text-slate-400 line-through">{formatCurrency(product.price)}</span> : null}
-        </div>
-        {config.showStockStatus !== false ? <div className="text-xs font-medium text-emerald-600">{Number(product.stock || 0) > 0 ? "In stock" : "Out of stock"}</div> : null}
-        <div className="mt-2 flex flex-wrap gap-2">
-          {config.showAddToCart !== false ? <a href={`/product/${productId}`} className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white"><ShoppingCart className="h-3.5 w-3.5" /> Add</a> : null}
-          {config.showWishlist !== false ? (
-            <button
-              type="button"
-              onClick={handleWishlistToggle}
-              disabled={actionPending === "wishlist"}
-              className={`rounded-full border p-2 transition disabled:cursor-wait disabled:opacity-60 ${wishlistSaved ? "border-rose-200 bg-rose-50 text-rose-600" : "border-slate-200 text-slate-600 hover:border-rose-200 hover:text-rose-600"}`}
-              aria-label={wishlistSaved ? "Remove from wishlist" : "Add to wishlist"}
-              title={wishlistSaved ? "Remove from wishlist" : "Add to wishlist"}
-            >
-              <Heart className={`h-4 w-4 ${wishlistSaved ? "fill-current" : ""}`} />
-            </button>
-          ) : null}
-          {config.showQuickView ? <a href={`/product/${productId}`} className="rounded-full border border-slate-200 p-2 text-slate-600" aria-label="Quick view"><Eye className="h-4 w-4" /></a> : null}
-          {config.showCompare ? (
-            <button
-              type="button"
-              onClick={handleCompareToggle}
-              disabled={actionPending === "compare"}
-              className={`rounded-full border px-3 py-2 text-xs font-semibold transition disabled:cursor-wait disabled:opacity-60 ${compareSaved ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:border-blue-200 hover:text-blue-700"}`}
-              aria-label={compareSaved ? "Remove product from compare" : "Compare product"}
-              title={compareSaved ? "Remove from compare" : "Compare product"}
-            >
-              {compareSaved ? "Compared" : "Compare"}
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </article>
-  );
 }
 
 function SliderContainer({ container }) {
@@ -1907,9 +1924,9 @@ function TrackedProductCard({ containerId, product, cardStyle = "DEFAULT", compa
   return (
     <div
       onClickCapture={() => trackHomepageContainerEvent(containerId, { eventType: "product_click", productId: product._id }).catch(() => {})}
-      className={featured ? "h-full" : compact ? "max-w-none" : ""}
+      className={`h-full ${featured ? "" : compact ? "max-w-none" : ""}`}
     >
-      <ProductCard product={product} cardStyle={cardStyle} />
+      <ProductCard product={product} cardStyle={cardStyle || "DEFAULT"} />
     </div>
   );
 }

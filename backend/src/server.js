@@ -12,6 +12,10 @@ const {
   initializePaymentMaintenanceJobs,
   shutdownPaymentMaintenanceJobs,
 } = require("./jobs/payment-maintenance.job");
+const {
+  initializeWhatsAppRetryJobs,
+  shutdownWhatsAppRetryJobs,
+} = require("./jobs/whatsapp-retry.job");
 const { initializeRecommendationJobs } = require("./modules/recommendation/job");
 const paymentService = require("./services/payment.service");
 
@@ -45,6 +49,15 @@ async function start() {
     });
   }
 
+  try {
+    const whatsappJobs = await initializeWhatsAppRetryJobs();
+    logger.info("WhatsApp retry jobs initialized", whatsappJobs);
+  } catch (error) {
+    logger.error("Failed to initialize WhatsApp retry jobs", {
+      error: error?.message,
+    });
+  }
+
   const app = createApp();
   const server = http.createServer(app);
 
@@ -58,6 +71,7 @@ async function start() {
     logger.info("SIGTERM received, shutting down gracefully");
     server.close(async () => {
       await shutdownPaymentMaintenanceJobs();
+      await shutdownWhatsAppRetryJobs();
       await shutdownEventBus();
       process.exit(0);
     });
@@ -67,6 +81,7 @@ async function start() {
     logger.info("SIGINT received, shutting down gracefully");
     server.close(async () => {
       await shutdownPaymentMaintenanceJobs();
+      await shutdownWhatsAppRetryJobs();
       await shutdownEventBus();
       process.exit(0);
     });

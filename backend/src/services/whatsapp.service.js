@@ -9,12 +9,13 @@ function formatWhatsAppRecipient(phone) {
   const normalized = normalizePhone(phone);
   if (!normalized) return "";
 
-  // Default to India when only a local 10-digit mobile number is stored.
+  const countryCode = getDefaultCountryCode();
+
   if (normalized.length === 10) {
-    return `whatsapp:+91${normalized}`;
+    return `whatsapp:+${countryCode}${normalized}`;
   }
 
-  if (normalized.startsWith("91") && normalized.length === 12) {
+  if (normalized.startsWith(countryCode) && normalized.length === countryCode.length + 10) {
     return `whatsapp:+${normalized}`;
   }
 
@@ -32,20 +33,132 @@ function getTwilioClient() {
   return twilio(accountSid, authToken);
 }
 
+function getWhatsAppFromNumber() {
+  const raw = String(process.env.TWILIO_WHATSAPP_NUMBER || "").trim();
+  if (!raw) {
+    throw new Error("TWILIO_WHATSAPP_NUMBER is not configured");
+  }
+  if (raw.startsWith("whatsapp:")) {
+    return raw;
+  }
+  if (raw.startsWith("+")) {
+    return `whatsapp:${raw}`;
+  }
+  return `whatsapp:+${raw}`;
+}
+
+function getDefaultCountryCode() {
+  const raw = String(process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || "91").replace(/\D/g, "");
+  return raw || "91";
+}
+
+function shouldUsePlainWhatsAppBody() {
+  return (
+    process.env.TWILIO_WHATSAPP_SANDBOX === "true" ||
+    process.env.WHATSAPP_USE_PLAIN_BODY === "true"
+  );
+}
+
+function getStoreName() {
+  return String(process.env.WHATSAPP_STORE_NAME || process.env.APP_NAME || "our store").trim();
+}
+
+function formatDeliveryDate(value) {
+  if (!value) return "To be confirmed";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "To be confirmed";
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function buildShipmentMessageBody({
+  customerName,
+  orderNumber,
+  courierName,
+  trackingNumber,
+  trackingUrl,
+  expectedDeliveryDate,
+} = {}) {
+  const storeName = getStoreName();
+  return [
+    `Hello ${customerName || "Customer"}`,
+    "",
+    "Good news.",
+    "",
+    "Your order has been shipped.",
+    "",
+    "Order Number:",
+    orderNumber || "-",
+    "",
+    "Courier:",
+    courierName || "-",
+    "",
+    "Tracking Number:",
+    trackingNumber || "-",
+    "",
+    "Track Shipment:",
+    trackingUrl || "-",
+    "",
+    "Expected Delivery:",
+    formatDeliveryDate(expectedDeliveryDate),
+    "",
+    `Thank you for shopping with us.`,
+    storeName !== "our store" ? storeName : "",
+  ]
+    .filter((line, index, arr) => !(line === "" && arr[index + 1] === ""))
+    .join("\n")
+    .trim();
+}
+
+function buildDeliveredMessageBody({ customerName, orderNumber } = {}) {
+  const storeName = getStoreName();
+  return [
+    `Hello ${customerName || "Customer"}`,
+    "",
+    "Your order has been delivered.",
+    "",
+    "Order Number:",
+    orderNumber || "-",
+    "",
+    `Thank you for shopping with ${storeName}.`,
+  ].join("\n");
+}
+
+function buildOrderConfirmationMessageBody({ customerName, orderNumber, totalAmount, currency = "INR" } = {}) {
+  const storeName = getStoreName();
+  const amountLabel =
+    totalAmount != null ? `${currency} ${Number(totalAmount).toFixed(2)}` : "See order details";
+  return [
+    `Hello ${customerName || "Customer"}`,
+    "",
+    "Thank you for your order.",
+    "",
+    "Order Number:",
+    orderNumber || "-",
+    "",
+    "Order Total:",
+    amountLabel,
+    "",
+    `We will notify you when your order ships.`,
+    "",
+    `Thank you for shopping with ${storeName}.`,
+  ].join("\n");
+}
+
 async function sendWhatsAppMessage(phone, message) {
   if (!phone) return null;
 
-  const from = process.env.TWILIO_WHATSAPP_NUMBER;
-  if (!from) {
-    throw new Error("TWILIO_WHATSAPP_NUMBER is not configured");
-  }
-
+  const from = getWhatsAppFromNumber();
   const to = formatWhatsAppRecipient(phone);
   if (!to) {
     throw new Error("Recipient phone number is invalid");
   }
 
   const client = getTwilioClient();
+  logger.info("Sending WhatsApp message", { from, to });
   return await client.messages.create({
     from,
     to,
@@ -56,11 +169,7 @@ async function sendWhatsAppMessage(phone, message) {
 async function sendWhatsAppTemplateMessage(phone, { contentSid, contentVariables = {} } = {}) {
   if (!phone) return null;
 
-  const from = process.env.TWILIO_WHATSAPP_NUMBER;
-  if (!from) {
-    throw new Error("TWILIO_WHATSAPP_NUMBER is not configured");
-  }
-
+  const from = getWhatsAppFromNumber();
   if (!contentSid) {
     throw new Error("Twilio contentSid is required for template WhatsApp messages");
   }
@@ -79,54 +188,142 @@ async function sendWhatsAppTemplateMessage(phone, { contentSid, contentVariables
   });
 }
 
-async function sendShipmentNotification(phone, payload) {
-  if (payload && typeof payload === "object" && payload.contentSid) {
+async function sendWithTemplateFallback(phone, { contentSid, contentVariables, fallbackBody }) {
+  const effectiveContentSid = shouldUsePlainWhatsAppBody() ? "" : contentSid;
+
+  if (effectiveContentSid) {
     try {
-      return await sendWhatsAppTemplateMessage(phone, payload);
+      return await sendWhatsAppTemplateMessage(phone, { contentSid: effectiveContentSid, contentVariables });
     } catch (error) {
-      if (payload.fallbackBody) {
+      if (fallbackBody) {
         logger.warn("Twilio template send failed, falling back to plain WhatsApp body", {
           error: error.message,
-          contentSid: payload.contentSid,
+          code: error.code,
+          contentSid: effectiveContentSid,
+          to: formatWhatsAppRecipient(phone),
         });
-        return await sendWhatsAppMessage(phone, payload.fallbackBody);
+        return await sendWhatsAppMessage(phone, fallbackBody);
       }
       throw error;
     }
   }
 
-  return await sendWhatsAppMessage(phone, payload);
+  return await sendWhatsAppMessage(phone, fallbackBody);
 }
 
-function queueWhatsAppMessage(phone, payload, context = {}, hooks = {}) {
-  setImmediate(async () => {
-    try {
-      const result = await sendShipmentNotification(phone, payload);
-      logger.info("WhatsApp shipment notification sent", {
-        ...context,
-        sid: result?.sid,
-      });
+async function sendShipmentNotification(phone, payload = {}) {
+  const fallbackBody =
+    payload.fallbackBody ||
+    buildShipmentMessageBody({
+      customerName: payload.customerName,
+      orderNumber: payload.orderNumber,
+      courierName: payload.courierName,
+      trackingNumber: payload.trackingNumber,
+      trackingUrl: payload.trackingUrl,
+      expectedDeliveryDate: payload.expectedDeliveryDate,
+    });
 
-      if (typeof hooks.onSuccess === "function") {
-        await hooks.onSuccess(result);
-      }
-    } catch (error) {
-      logger.error("WhatsApp shipment notification failed", {
-        ...context,
-        error: error.message,
-      });
+  const contentSid = payload.contentSid || process.env.TWILIO_ORDER_SHIPPED_CONTENT_SID;
+  const contentVariables =
+    payload.contentVariables ||
+    (contentSid
+      ? {
+          1: payload.orderNumber || "",
+          2: payload.trackingNumber || "",
+          3: payload.trackingUrl || "",
+          4: payload.courierName || "",
+          5: formatDeliveryDate(payload.expectedDeliveryDate),
+        }
+      : {});
 
-      if (typeof hooks.onError === "function") {
-        await hooks.onError(error);
-      }
-    }
+  return await sendWithTemplateFallback(phone, {
+    contentSid,
+    contentVariables,
+    fallbackBody,
   });
+}
+
+async function sendDeliveredNotification(phone, payload = {}) {
+  const fallbackBody =
+    payload.fallbackBody ||
+    buildDeliveredMessageBody({
+      customerName: payload.customerName,
+      orderNumber: payload.orderNumber,
+    });
+
+  const contentSid = payload.contentSid || process.env.TWILIO_ORDER_DELIVERED_CONTENT_SID;
+  const contentVariables =
+    payload.contentVariables ||
+    (contentSid
+      ? {
+          1: payload.orderNumber || "",
+        }
+      : {});
+
+  return await sendWithTemplateFallback(phone, {
+    contentSid,
+    contentVariables,
+    fallbackBody,
+  });
+}
+
+async function sendOrderConfirmation(phone, payload = {}) {
+  const fallbackBody =
+    payload.fallbackBody ||
+    buildOrderConfirmationMessageBody({
+      customerName: payload.customerName,
+      orderNumber: payload.orderNumber,
+      totalAmount: payload.totalAmount,
+      currency: payload.currency,
+    });
+
+  const contentSid = payload.contentSid || process.env.TWILIO_ORDER_CONFIRMATION_CONTENT_SID;
+  const contentVariables =
+    payload.contentVariables ||
+    (contentSid
+      ? {
+          1: payload.orderNumber || "",
+          2: payload.totalAmount != null ? String(payload.totalAmount) : "",
+        }
+      : {});
+
+  return await sendWithTemplateFallback(phone, {
+    contentSid,
+    contentVariables,
+    fallbackBody,
+  });
+}
+
+function verifyTwilioWebhookSignature(req) {
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    throw new Error("TWILIO_AUTH_TOKEN is not configured");
+  }
+
+  const signature = req.get("X-Twilio-Signature");
+  if (!signature) {
+    return false;
+  }
+
+  const protocol = req.get("X-Forwarded-Proto") || req.protocol || "https";
+  const host = req.get("X-Forwarded-Host") || req.get("host");
+  const url = `${protocol}://${host}${req.originalUrl}`;
+
+  return twilio.validateRequest(authToken, signature, url, req.body || {});
 }
 
 module.exports = {
   sendWhatsAppMessage,
   sendWhatsAppTemplateMessage,
   sendShipmentNotification,
-  queueWhatsAppMessage,
+  sendDeliveredNotification,
+  sendOrderConfirmation,
+  buildShipmentMessageBody,
+  buildDeliveredMessageBody,
+  buildOrderConfirmationMessageBody,
   formatWhatsAppRecipient,
+  verifyTwilioWebhookSignature,
+  getStoreName,
+  getWhatsAppFromNumber,
+  shouldUsePlainWhatsAppBody,
 };

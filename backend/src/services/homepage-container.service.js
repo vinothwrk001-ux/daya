@@ -214,7 +214,7 @@ function normalizeLayout(input = {}, legacyPresentation = {}, payload = {}) {
 
 function getDefaultConfig(type, input = {}) {
   const schema = getContainerTypeSchema(type);
-  return (schema.typeFields || []).reduce((acc, field) => {
+  const defaults = (schema.typeFields || []).reduce((acc, field) => {
     if (input[field.name] !== undefined) {
       acc[field.name] =
         field.type === "number"
@@ -228,6 +228,8 @@ function getDefaultConfig(type, input = {}) {
     }
     return acc;
   }, {});
+
+  return { ...defaults, ...input };
 }
 
 function normalizePayload(payload = {}, actorId = null, { partial = false } = {}) {
@@ -479,7 +481,13 @@ function validateTypeSpecificRules(payload = {}) {
   }
 
   const bannerMedia = Array.isArray(config.bannerMedia) ? config.bannerMedia : [];
-  if (containerType === "BANNER" && !bannerMedia.length && !String(config.bannerImage || "").trim() && !String(config.bannerVideo || "").trim()) {
+  if (
+    containerType === "BANNER" &&
+    !config.useManagedBanners &&
+    !bannerMedia.length &&
+    !String(config.bannerImage || "").trim() &&
+    !String(config.bannerVideo || "").trim()
+  ) {
     throw new AppError("Banner image or banner video is required", 400, "BANNER_MEDIA_REQUIRED");
   }
 

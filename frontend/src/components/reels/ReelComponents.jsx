@@ -8,6 +8,7 @@ import {
   ShoppingBag,
   Volume2,
   VolumeX,
+  Eye,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
@@ -175,7 +176,7 @@ export function ReelCard({
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 shadow-lg dark:border-slate-800">
+    <div className="group relative overflow-hidden rounded-2xl bg-black shadow-md transition duration-300 hover:shadow-xl">
       <Link to={`/reels?reel=${reel._id}`} className="block">
         <div className="relative aspect-[9/16] bg-black">
           <video
@@ -193,35 +194,61 @@ export function ReelCard({
               event.currentTarget.currentTime = 0;
             }}
           />
-          <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/70 to-transparent p-3">
-            <p className="line-clamp-2 text-sm font-bold text-white">{reel.title}</p>
-            <p className="text-xs text-white/70">{reel.createdBy?.name || "Creator"}</p>
+          
+          {/* Title - Always visible */}
+          <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2 sm:p-3">
+            <p className="line-clamp-2 text-xs font-bold text-white sm:text-sm">{reel.title}</p>
           </div>
-          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent p-3 text-xs text-white">
-            <span>{formatCount(reel.viewsCount)} views</span>
-            <span>{formatCount(reel.likesCount)} likes</span>
+
+          {/* Hover Overlay - Stats */}
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/70 p-4 opacity-0 transition duration-300 group-hover:opacity-100 sm:gap-4">
+            <div className="flex flex-wrap gap-4 justify-center sm:gap-6">
+              <div className="flex flex-col items-center gap-1">
+                <Eye className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+                <span className="text-xs font-semibold text-white sm:text-sm">{formatCount(reel.viewsCount)}</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <Heart className="h-5 w-5 text-red-400 sm:h-6 sm:w-6" />
+                <span className="text-xs font-semibold text-white sm:text-sm">{formatCount(reel.likesCount)}</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <MessageCircle className="h-5 w-5 text-blue-400 sm:h-6 sm:w-6" />
+                <span className="text-xs font-semibold text-white sm:text-sm">{formatCount(reel.commentsCount)}</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <Share2 className="h-5 w-5 text-green-400 sm:h-6 sm:w-6" />
+                <span className="text-xs font-semibold text-white sm:text-sm">{formatCount(reel.sharesCount)}</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <Bookmark className="h-5 w-5 text-amber-400 sm:h-6 sm:w-6" />
+                <span className="text-xs font-semibold text-white sm:text-sm">{formatCount(reel.savesCount)}</span>
+              </div>
+            </div>
           </div>
         </div>
       </Link>
 
+      {/* Product Card - Floating at bottom */}
       {primaryProduct ? (
-        <div className="border-t border-white/10 bg-slate-900 p-3">
+        <div className="border-t border-white/10 bg-black/95 p-2 sm:p-3 backdrop-blur-sm">
           <button
             type="button"
             onClick={() => handleProductClick(primaryProduct)}
-            className="flex w-full items-center gap-3 text-left"
+            className="flex w-full items-center gap-2 text-left transition hover:opacity-80 sm:gap-3"
           >
             <img
               src={resolveApiAssetUrl(primaryProduct.images?.[0])}
               alt={primaryProduct.name}
-              className="h-10 w-10 rounded-lg object-cover"
+              className="h-9 w-9 rounded-lg object-cover sm:h-10 sm:w-10"
+              loading="lazy"
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-white">{primaryProduct.name}</p>
-              <p className="text-xs text-emerald-300">
+              <p className="line-clamp-1 text-xs font-semibold text-white sm:text-sm">{primaryProduct.name}</p>
+              <p className="text-[10px] text-emerald-300 sm:text-xs">
                 {formatCurrency(primaryProduct.salePrice ?? primaryProduct.price ?? 0)}
               </p>
             </div>
+            <ShoppingBag className="h-4 w-4 shrink-0 text-white sm:h-5 sm:w-5" />
           </button>
         </div>
       ) : null}
@@ -257,9 +284,9 @@ export function ReelsSection({ title, sort, limit = 8 }) {
     return (
       <section className="px-4 py-8 lg:px-8">
         <h2 className="mb-4 text-xl font-bold text-slate-900 dark:text-white">{title}</h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="aspect-[9/16] animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="aspect-[9/16] animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
           ))}
         </div>
       </section>
@@ -277,23 +304,24 @@ export function ReelsSection({ title, sort, limit = 8 }) {
         </Link>
       </div>
 
-      <div className="hidden xl:grid xl:grid-cols-4 xl:gap-4">
+      {/* Desktop: 5-6 columns */}
+      <div className="hidden lg:grid lg:grid-cols-6 lg:gap-3">
         {reels.map((reel) => (
           <ReelCard key={reel._id} reel={reel} layout="card" />
         ))}
       </div>
 
-      <div className="hidden md:grid md:grid-cols-2 md:gap-4 xl:hidden">
+      {/* Tablet: 4 columns (medium) / 3 columns (small tablet) */}
+      <div className="hidden md:grid md:grid-cols-4 md:gap-3 lg:hidden">
+        {reels.slice(0, 8).map((reel) => (
+          <ReelCard key={reel._id} reel={reel} layout="card" />
+        ))}
+      </div>
+
+      {/* Mobile: 2 columns */}
+      <div className="grid grid-cols-2 gap-3 md:hidden">
         {reels.slice(0, 6).map((reel) => (
           <ReelCard key={reel._id} reel={reel} layout="card" />
-        ))}
-      </div>
-
-      <div className="flex gap-4 overflow-x-auto pb-2 md:hidden">
-        {reels.map((reel) => (
-          <div key={reel._id} className="min-w-[220px] max-w-[220px] shrink-0">
-            <ReelCard reel={reel} layout="card" />
-          </div>
         ))}
       </div>
     </section>

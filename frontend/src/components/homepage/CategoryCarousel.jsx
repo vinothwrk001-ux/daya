@@ -16,13 +16,17 @@ function getSessionId() {
 }
 
 function CategoryCard({ category, onClick }) {
+  if (!category) return null;
+
   const image = resolveApiAssetUrl(category.thumbnail_url || category.thumbnailUrl || category.logo || category.icon);
+  const categoryName = category.name || "Category";
+  const productCount = typeof category.productCount === "number" ? category.productCount : 0;
 
   return (
     <Link
       to={`/category/${category.slug}`}
       onClick={() => onClick?.(category)}
-      className="group relative flex aspect-[4/5] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-lg transition duration-300 hover:-translate-y-1 hover:border-red-500/70 hover:shadow-[0_20px_40px_rgba(220,38,38,0.18)]"
+      className="group relative flex aspect-[4/5] flex-col overflow-hidden rounded-3xl border-2 border-black bg-zinc-950 shadow-lg transition duration-300 hover:-translate-y-1 hover:border-red-500 hover:shadow-[0_20px_40px_rgba(220,38,38,0.25)]"
     >
       <div
         className="absolute inset-0 opacity-30"
@@ -31,25 +35,23 @@ function CategoryCard({ category, onClick }) {
             "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08) 0, transparent 35%), radial-gradient(circle at 80% 0%, rgba(220,38,38,0.15) 0, transparent 40%)",
         }}
       />
-      <div className="relative flex flex-1 items-center justify-center p-6 transition duration-300 group-hover:scale-105">
+      <div className="category-card-image-container relative flex flex-1 overflow-hidden">
         {image ? (
           <img
             src={image}
-            alt={category.name}
+            alt={categoryName}
             loading="lazy"
-            className="max-h-28 max-w-full object-contain drop-shadow-2xl"
+            className="category-card-image block h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-red-600/20 text-2xl font-black text-red-400">
-            {(category.name || "C").slice(0, 1).toUpperCase()}
+          <div className="flex h-full w-full items-center justify-center bg-red-600/20 text-2xl font-black text-red-400">
+            {categoryName.slice(0, 1).toUpperCase()}
           </div>
         )}
       </div>
-      <div className="relative border-t border-white/10 bg-black/80 px-4 py-4 text-center">
-        <p className="text-sm font-black uppercase tracking-wide text-white">{category.name}</p>
-        {typeof category.productCount === "number" ? (
-          <p className="mt-1 text-[11px] font-semibold text-zinc-400">{category.productCount} products</p>
-        ) : null}
+      <div className="relative flex flex-col border-t border-white/10 bg-black/80 px-4 py-3 text-center">
+        <p className="line-clamp-2 text-sm font-black uppercase tracking-wide text-white">{categoryName}</p>
+        <p className="mt-1 text-[11px] font-semibold text-zinc-400">{productCount} products</p>
       </div>
     </Link>
   );

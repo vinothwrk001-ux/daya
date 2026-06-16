@@ -3,18 +3,40 @@ const redis = require("redis");
 const memoryCache = new Map();
 let redisClientPromise = null;
 
+function getConnectTimeoutMs() {
+  return Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 2000);
+}
+
 async function getClient() {
   if (process.env.REDIS_DISABLED === "true") return null;
   if (!redisClientPromise) {
+    const connectTimeoutMs = getConnectTimeoutMs();
     const client = redis.createClient({
       socket: {
         host: process.env.REDIS_HOST || "127.0.0.1",
         port: Number(process.env.REDIS_PORT || 6379),
+        connectTimeout: connectTimeoutMs,
+        reconnectStrategy: false,
       },
       password: process.env.REDIS_PASSWORD || undefined,
     });
     client.on("error", () => {});
-    redisClientPromise = client.connect().then(() => client).catch(() => null);
+
+    const connectPromise = client
+      .connect()
+      .then(() => client)
+      .catch(() => null);
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(() => resolve(null), connectTimeoutMs);
+    });
+
+    redisClientPromise = Promise.race([connectPromise, timeoutPromise]).then((result) => {
+      if (!result) {
+        client.quit?.().catch(() => {});
+        return null;
+      }
+      return result;
+    });
   }
   return redisClientPromise;
 }

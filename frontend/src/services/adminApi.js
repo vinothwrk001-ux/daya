@@ -247,6 +247,21 @@ export async function updateOrder(id, patch) {
   return data;
 }
 
+export async function shipOrder(id, payload) {
+  const { data } = await adminHttp.post(`/api/admin/orders/${id}/ship`, payload);
+  return data;
+}
+
+export async function getWhatsAppLogs(params = {}) {
+  const { data } = await adminHttp.get("/api/admin/communications/whatsapp-logs", { params });
+  return data;
+}
+
+export async function retryWhatsAppLog(id) {
+  const { data } = await adminHttp.post(`/api/admin/communications/whatsapp-logs/${id}/retry`);
+  return data;
+}
+
 export async function deleteOrder(id) {
   const { data } = await adminHttp.delete(`/api/admin/orders/${id}`);
   return data;

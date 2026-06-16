@@ -4,7 +4,6 @@ import {
   Heart,
   MapPin,
   MoonStar,
-  ShoppingCart,
   SunMedium,
   UserRound,
 } from "lucide-react";
@@ -20,26 +19,17 @@ import { CartDrawerOverlay } from "./CartDrawerOverlay";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useCategories } from "../hooks/useCategories";
 import { usePresentedCategories } from "../utils/categoryPresentation";
-import * as cartService from "../services/cartService";
-import * as wishlistService from "../services/wishlistService";
-import useGuestCartStore from "../context/guestCartStore";
-import useGuestWishlistStore from "../context/guestWishlistStore";
-import { normalizeCartPayload } from "../utils/cartState";
 import { useBranding } from "../context/BrandingContext";
 import { BrandLogo } from "./BrandLogo";
+import { HeaderShopActions } from "./HeaderShopActions";
 
 export function Layout() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const guestCartCount = useGuestCartStore((s) => s.getTotalQuantity());
-  const guestWishlistCount = useGuestWishlistStore((s) => s.getItemCount());
   const [isDarkMode, setIsDarkMode] = useDarkMode();
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
-  const [cartCount, setCartCount] = useState(0);
-  const [wishlistCount, setWishlistCount] = useState(0);
   const { categories } = useCategories();
   const presentedCategories = usePresentedCategories(categories);
   const { branding } = useBranding();
@@ -80,88 +70,6 @@ export function Layout() {
     { label: "Compare", href: "/compare" },
     { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },
   ];
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadCartCount() {
-      if (!showShopActions) {
-        setCartCount(0);
-        return;
-      }
-
-      if (!isAuthenticated) {
-        setCartCount(guestCartCount);
-        return;
-      }
-
-      try {
-        const response = await cartService.getCart();
-        const normalized = normalizeCartPayload(response);
-        const nextCount = normalized.totalQuantity;
-        if (!cancelled) {
-          setCartCount(nextCount);
-        }
-      } catch {
-        if (!cancelled) {
-          setCartCount(0);
-        }
-      }
-    }
-
-    loadCartCount();
-
-    function handleCartChanged(event) {
-      setCartCount(normalizeCartPayload(event?.detail).totalQuantity);
-    }
-
-    window.addEventListener("cart:changed", handleCartChanged);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("cart:changed", handleCartChanged);
-    };
-  }, [guestCartCount, isAuthenticated, showShopActions]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWishlistCount() {
-      if (!showShopActions) {
-        setWishlistCount(0);
-        return;
-      }
-
-      if (!isAuthenticated) {
-        setWishlistCount(guestWishlistCount);
-        return;
-      }
-
-      try {
-        const response = await wishlistService.getWishlist();
-        const items = Array.isArray(response?.data) ? response.data : [];
-        if (!cancelled) {
-          setWishlistCount(items.length);
-        }
-      } catch {
-        if (!cancelled) {
-          setWishlistCount(0);
-        }
-      }
-    }
-
-    loadWishlistCount();
-
-    function handleWishlistChanged(event) {
-      const items = Array.isArray(event?.detail?.items) ? event.detail.items : [];
-      setWishlistCount(items.length);
-    }
-
-    window.addEventListener("wishlist:changed", handleWishlistChanged);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("wishlist:changed", handleWishlistChanged);
-    };
-  }, [guestWishlistCount, isAuthenticated, showShopActions]);
 
   return (
     <CartDrawerProvider>
@@ -233,26 +141,12 @@ export function Layout() {
 
                   {user ? (
                     <>
-                      {showShopActions ? (
-                        <>
-                          <HeaderIconLink to="/wishlist" label="Wishlist" badge={wishlistCount}>
-                            <Heart className="h-4.5 w-4.5" />
-                          </HeaderIconLink>
-                          <HeaderIconLink to="/cart" label="Cart" badge={cartCount}>
-                            <ShoppingCart className="h-4.5 w-4.5" />
-                          </HeaderIconLink>
-                        </>
-                      ) : null}
+                      <HeaderShopActions />
                       <UserMenu />
                     </>
                   ) : (
                     <>
-                      <HeaderIconLink to="/wishlist" label="Wishlist" badge={wishlistCount}>
-                        <Heart className="h-4.5 w-4.5" />
-                      </HeaderIconLink>
-                      <HeaderIconLink to="/cart" label="Cart" badge={cartCount}>
-                        <ShoppingCart className="h-4.5 w-4.5" />
-                      </HeaderIconLink>
+                      <HeaderShopActions />
                       <Link
                         className="hidden rounded-full px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-brand-primary sm:inline-flex"
                         to="/login"
@@ -285,20 +179,7 @@ export function Layout() {
                   </Link>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Link
-                      to="/wishlist"
-                      className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
-                      aria-label="Wishlist"
-                    >
-                      <Heart className="h-4.5 w-4.5" />
-                    </Link>
-                    <Link
-                      to="/cart"
-                      className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
-                      aria-label="Cart"
-                    >
-                      <ShoppingCart className="h-4.5 w-4.5" />
-                    </Link>
+                    <HeaderShopActions />
                     <Link
                       to="/login"
                       className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
@@ -374,22 +255,5 @@ export function Layout() {
       <CartDrawer />
     </div>
     </CartDrawerProvider>
-  );
-}
-
-function HeaderIconLink({ to, label, badge, children }) {
-  return (
-    <Link
-      to={to}
-      aria-label={label}
-      className="enterprise-icon-button relative inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition hover:-translate-y-0.5 active:scale-95"
-    >
-      {children}
-      {badge ? (
-        <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
-          {badge}
-        </span>
-      ) : null}
-    </Link>
   );
 }

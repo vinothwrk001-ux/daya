@@ -56,6 +56,9 @@ export function AdminCategoriesPage() {
     panelDescription:
       "Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear.",
     ctaLabel: "Shop now",
+    autoRotate: false,
+    rotationInterval: 5000,
+    defaultCategoryId: "",
   });
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [bannerFile, setBannerFile] = useState(null);
@@ -567,6 +570,40 @@ export function AdminCategoriesPage() {
               placeholder="CTA button label"
               className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
+            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+              <input
+                type="checkbox"
+                checked={heroConfig.autoRotate === true}
+                onChange={(event) => setHeroConfig((current) => ({ ...current, autoRotate: event.target.checked }))}
+                className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-600"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-300">Auto-rotate hero categories</span>
+            </label>
+            <input
+              type="number"
+              min={2}
+              step={1}
+              value={heroConfig.rotationInterval || 5000}
+              onChange={(event) =>
+                setHeroConfig((current) => ({ ...current, rotationInterval: Number(event.target.value) || 5000 }))
+              }
+              placeholder="Rotation interval (ms)"
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+            <select
+              value={heroConfig.defaultCategoryId || ""}
+              onChange={(event) => setHeroConfig((current) => ({ ...current, defaultCategoryId: event.target.value }))}
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            >
+              <option value="">Default category (first available)</option>
+              {sortedCategories
+                .filter((category) => category.showInHeroBanner)
+                .map((category) => (
+                  <option key={category._id} value={category._id}>
+                    {category.name}
+                  </option>
+                ))}
+            </select>
             <button
               type="button"
               onClick={saveHeroConfig}

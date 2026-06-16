@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { confirmAction } from "../services/notificationService";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { deleteOrder, getOrderById, updateOrder } from "../services/adminApi";
+import { deleteOrder, getOrderById, shipOrder, updateOrder } from "../services/adminApi";
 import { StatusBadge } from "../components/StatusBadge";
+import { ShipOrderModal } from "../components/admin/ShipOrderModal";
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatWeight, getWeightUnit, getWeightValue } from "../utils/weight";
 import { useAdminSession } from "../hooks/useAdminSession";
@@ -15,6 +16,50 @@ function resolvePickupAddress(order) {
   return order?.pickupAddressSnapshot || null;
 }
 
+function formatTimelineDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString();
+}
+
+function buildOrderTimeline(order) {
+  if (!order) return [];
+
+  const events = [];
+  const pushEvent = (key, title, timestamp, note = "") => {
+    if (!timestamp) return;
+    events.push({ key, title, timestamp: new Date(timestamp), note });
+  };
+
+  pushEvent("created", "Order Created", order.createdAt);
+  if (order.paymentStatus === "Paid" || order.paymentCapturedAt) {
+    pushEvent("payment", "Payment Confirmed", order.paymentCapturedAt || order.updatedAt, order.paymentStatus);
+  }
+  if (order.status === "Packed" || order.timeline?.some((item) => item.status === "Packed")) {
+    const packedEvent = order.timeline?.find((item) => item.status === "Packed");
+    pushEvent("packed", "Packed", packedEvent?.timestamp, packedEvent?.note);
+  }
+  if (order.trackingAssignedAt || order.status === "Shipped") {
+    pushEvent("shipped", "Shipped", order.trackingAssignedAt || order.shippingDate, order.courierName ? `Courier: ${order.courierName}` : "");
+  }
+  if (order.whatsappSent || order.whatsappSentAt) {
+    pushEvent("whatsapp", "WhatsApp Sent", order.whatsappSentAt, "Shipment notification queued or delivered");
+  }
+  if (order.deliveredAt || order.status === "Delivered") {
+    pushEvent("delivered", "Delivered", order.deliveredAt, order.status === "Delivered" ? "Order delivered" : "");
+  }
+
+  (order.timeline || []).forEach((item, index) => {
+    if (["WhatsApp Sent", "Shipped", "Packed", "Delivered", "Placed"].includes(item.status)) return;
+    pushEvent(`timeline-${index}`, item.status, item.timestamp, item.note);
+  });
+
+  return events
+    .filter((event) => event.timestamp && !Number.isNaN(event.timestamp.getTime()))
+    .sort((a, b) => a.timestamp - b.timestamp);
+}
+
 const STATUS_OPTIONS = ["Placed", "Packed", "Shipped", "Out for Delivery", "Delivered", "Cancelled", "Returned"];
 
 export function AdminOrderDetailsPage() {
@@ -23,7 +68,9 @@ export function AdminOrderDetailsPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [shipping, setShipping] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [shipModalOpen, setShipModalOpen] = useState(false);
   const [order, setOrder] = useState(null);
   const [error, setError] = useState("");
 
@@ -67,6 +114,7 @@ export function AdminOrderDetailsPage() {
   const user = order?.userId;
   const address = order?.shippingAddress;
   const pickupAddress = resolvePickupAddress(order);
+  const timeline = useMemo(() => buildOrderTimeline(order), [order]);
   const paymentSummary = {
     subtotal: Number(order?.subtotal || 0),
     shippingFee: Number(order?.shippingFee || 0),
@@ -76,7 +124,11 @@ export function AdminOrderDetailsPage() {
     total: Number(order?.totalAmount || 0),
   };
 
-  const canSave = useMemo(() => !!order && !saving && !loading, [order, saving, loading]);
+  const canSave = useMemo(() => !!order && !saving && !loading && !shipping, [order, saving, loading, shipping]);
+  const canShip = useMemo(
+    () => !!order && order.status !== "Shipped" && order.status !== "Cancelled" && !shipping && !loading,
+    [order, shipping, loading]
+  );
   const hasTrackingFields = Boolean(trackingId.trim() && trackingUrl.trim());
 
   function validateTrackingFields() {
@@ -98,6 +150,17 @@ export function AdminOrderDetailsPage() {
     return "";
   }
 
+  async function refreshOrder(updated) {
+    const o = updated?.data ?? updated;
+    setOrder(o);
+    setStatus(o?.status || "Placed");
+    setShippingMode(o?.shippingMode || "SELF");
+    setTrackingId(o?.trackingId || "");
+    setPartner(o?.deliveryPartner || "");
+    setCourierName(o?.courierName || "");
+    setTrackingUrl(o?.trackingUrl || "");
+  }
+
   async function onSave(statusOverride) {
     const nextFieldError = validateTrackingFields();
     setFieldError(nextFieldError);
@@ -112,14 +175,7 @@ export function AdminOrderDetailsPage() {
         shippingMode,
         deliveryDetails: { trackingId, partner, courierName, trackingUrl },
       });
-      const updated = res?.data ?? res;
-      setOrder(updated);
-      setStatus(updated?.status || "Placed");
-      setShippingMode(updated?.shippingMode || "SELF");
-      setTrackingId(updated?.trackingId || "");
-      setPartner(updated?.deliveryPartner || "");
-      setCourierName(updated?.courierName || "");
-      setTrackingUrl(updated?.trackingUrl || "");
+      await refreshOrder(res);
     } catch (err) {
       setError(normalizeError(err));
     } finally {
@@ -127,8 +183,18 @@ export function AdminOrderDetailsPage() {
     }
   }
 
-  async function onMarkAsShipped() {
-    await onSave("Shipped");
+  async function onConfirmShipment(payload) {
+    setShipping(true);
+    setError("");
+    try {
+      const res = await shipOrder(id, payload);
+      await refreshOrder(res);
+      setShipModalOpen(false);
+    } catch (err) {
+      setError(normalizeError(err));
+    } finally {
+      setShipping(false);
+    }
   }
 
   async function onDelete() {
@@ -147,6 +213,23 @@ export function AdminOrderDetailsPage() {
 
   return (
     <div className="grid gap-4">
+      <ShipOrderModal
+        open={shipModalOpen}
+        onClose={() => setShipModalOpen(false)}
+        onConfirm={onConfirmShipment}
+        loading={shipping}
+        initialValues={{
+          courierName,
+          trackingNumber: trackingId,
+          trackingUrl,
+          shippingDate: order?.shippingDate ? new Date(order.shippingDate).toISOString().slice(0, 10) : "",
+          expectedDeliveryDate: order?.expectedDeliveryDate
+            ? new Date(order.expectedDeliveryDate).toISOString().slice(0, 10)
+            : "",
+          shippingNotes: order?.shippingNotes || "",
+        }}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Order</div>
@@ -171,8 +254,8 @@ export function AdminOrderDetailsPage() {
           </button>
           <button
             type="button"
-            disabled={!canSave || !hasTrackingFields}
-            onClick={onMarkAsShipped}
+            disabled={!canShip}
+            onClick={() => setShipModalOpen(true)}
             className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             Mark as Shipped
@@ -281,6 +364,31 @@ export function AdminOrderDetailsPage() {
         </section>
 
         <section className="grid gap-4">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="text-sm font-semibold text-slate-950 dark:text-white">Order timeline</div>
+            <div className="mt-4 grid gap-3">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} className="h-12 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                ))
+              ) : timeline.length ? (
+                timeline.map((event) => (
+                  <div key={event.key} className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-medium text-slate-950 dark:text-white">{event.title}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{formatTimelineDate(event.timestamp)}</div>
+                    </div>
+                    {event.note ? <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{event.note}</div> : null}
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  No timeline events yet.
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="text-sm font-semibold text-slate-950 dark:text-white">Customer</div>
             <div className="mt-3 grid gap-1 text-sm text-slate-600 dark:text-slate-300">
@@ -395,10 +503,25 @@ export function AdminOrderDetailsPage() {
               </label>
 
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:bg-slate-950 dark:text-slate-300">
-                Shipment WhatsApp is triggered only once, after tracking ID and tracking URL are assigned for the first time.
+                WhatsApp shipment notifications are sent only when you confirm shipment and the order status becomes Shipped.
                 {order?.trackingAssignedAt ? ` Tracking assigned: ${new Date(order.trackingAssignedAt).toLocaleString()}.` : ""}
-                {order?.whatsappSent ? " WhatsApp already sent." : ""}
+                {order?.whatsappSent ? ` WhatsApp sent: ${order?.whatsappSentAt ? new Date(order.whatsappSentAt).toLocaleString() : "yes"}.` : " WhatsApp not sent yet."}
               </div>
+
+              {Array.isArray(order?.whatsappLogs) && order.whatsappLogs.length ? (
+                <div className="rounded-2xl border border-slate-200 px-4 py-3 text-xs dark:border-slate-800">
+                  <div className="font-semibold text-slate-950 dark:text-white">Recent WhatsApp logs</div>
+                  <div className="mt-2 grid gap-2">
+                    {order.whatsappLogs.slice(0, 3).map((log) => (
+                      <div key={log._id} className="flex items-center justify-between gap-3 text-slate-600 dark:text-slate-300">
+                        <span className="capitalize">{log.messageType}</span>
+                        <StatusBadge value={log.status} />
+                        <span>{log.sentAt ? new Date(log.sentAt).toLocaleString() : "-"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -406,4 +529,3 @@ export function AdminOrderDetailsPage() {
     </div>
   );
 }
-

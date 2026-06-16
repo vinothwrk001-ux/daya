@@ -13,6 +13,15 @@ export async function getHomepageCategories() {
 
 export async function getHeroBannerCategories() {
   const { data } = await api.get("/api/categories/hero-banner");
+  const payload = data?.data ?? data ?? {};
+  return {
+    categories: Array.isArray(payload.categories) ? payload.categories : [],
+    config: payload.config ?? {},
+  };
+}
+
+export async function getHomepageHeroBanner() {
+  const { data } = await api.get("/api/homepage/hero-banner");
   return data.data;
 }
 

@@ -291,9 +291,9 @@ function createLayoutSlot(type = "Hero Banner", desktopSpan = 12, index = 0) {
       name,
       slug: slugify(name),
       type,
-      desktop: { colSpan: desktopSpan, rowSpan: 1, height: type === "Hero Banner" ? 600 : 360, visible: true },
-      tablet: { colSpan: Math.min(6, Math.max(1, Math.ceil(desktopSpan / 2))), rowSpan: 1, height: type === "Hero Banner" ? 450 : 320, visible: true },
-      mobile: { colSpan: 1, rowSpan: 1, height: type === "Hero Banner" ? 320 : 280, visible: true },
+      desktop: { colSpan: desktopSpan, rowSpan: 1, height: type === "Hero Banner" ? 1080 : 360, visible: true },
+      tablet: { colSpan: Math.min(6, Math.max(1, Math.ceil(desktopSpan / 2))), rowSpan: 1, height: type === "Hero Banner" ? 720 : 320, visible: true },
+      mobile: { colSpan: 1, rowSpan: 1, height: type === "Hero Banner" ? 640 : 280, visible: true },
       sortOrder: index,
     },
     index
@@ -323,6 +323,7 @@ function getContainerLabel(container) {
 }
 
 function getContainerTypeLabel(container) {
+  if (container?.config?.useManagedBanners) return "MANAGED BANNER";
   return String(container?.containerType || container?.type || "CUSTOM").replace(/_/g, " ");
 }
 

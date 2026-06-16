@@ -23,6 +23,9 @@ const DEFAULT_HERO_BANNER_CONFIG = {
   panelDescription:
     "Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear.",
   ctaLabel: "Shop now",
+  autoRotate: false,
+  rotationInterval: 5000,
+  defaultCategoryId: "",
 };
 
 function resolveThumbnail(category = {}) {
@@ -89,6 +92,7 @@ function serializeCategory(category = {}) {
     banner_url: category.bannerUrl || "",
     hero_heading: category.heroHeading || "",
     hero_subheading: category.heroSubheading || "",
+    display_in_hero_banner: category.showInHeroBanner === true,
   };
 }
 

@@ -9,12 +9,11 @@ const { Product } = require("../models/Product");
 const auditService = require("./audit.service");
 const productService = require("./product.service");
 const inventoryService = require("./inventory.service");
-const { queueWhatsAppMessage } = require("./whatsapp.service");
-const { logger } = require("../utils/logger");
-const { getShippingModesConfig, updateShippingModesConfig } = require("./shipping-config.service");
 const { normalizeShippingMode } = require("./shipping.service");
 const productAnalyticsService = require("./product-analytics.service");
 const cancellationRefundService = require("./cancellation-refund.service");
+const whatsappNotificationService = require("./whatsapp-notification.service");
+const { getShippingModesConfig, updateShippingModesConfig } = require("./shipping-config.service");
 
 function resolveGlobalShippingModes(configValue = {}) {
   const modes = [];
@@ -371,7 +370,9 @@ function assertValidOrderFlow(currentStatus, nextStatus) {
 async function getOrderById(orderId) {
   const order = await orderRepo.findById(orderId);
   if (!order) throw new AppError("Order not found", 404, "NOT_FOUND");
-  return order;
+  const whatsappLogs = await whatsappNotificationService.getWhatsAppLogsForOrder(orderId);
+  const orderObject = typeof order.toObject === "function" ? order.toObject() : order;
+  return { ...orderObject, whatsappLogs };
 }
 
 async function createOrder(payload, actor, meta) {
@@ -513,64 +514,6 @@ async function updateOrder(orderId, patch, actor, meta) {
   const updated = await orderRepo.updateById(orderId, updateData);
   await productAnalyticsService.refreshForOrder(orderId);
 
-  const shouldSendWhatsApp = Boolean(
-    isFirstTrackingAssignment &&
-      updated?.trackingId &&
-      updated?.trackingUrl &&
-      !updated?.whatsappSent
-  );
-
-  if (shouldSendWhatsApp) {
-    const recipientPhone = resolveShipmentPhone(updated);
-    if (recipientPhone) {
-      const fallbackBody = [
-        "Your order has been shipped!",
-        "",
-        `Order ID: ${updated.orderNumber || updated._id}`,
-        `Tracking ID: ${updated.trackingId}`,
-        `Track here: ${updated.trackingUrl}`,
-        "",
-        "Thank you for shopping with us.",
-      ].join("\n");
-
-      const message = process.env.TWILIO_ORDER_SHIPPED_CONTENT_SID
-        ? {
-            contentSid: process.env.TWILIO_ORDER_SHIPPED_CONTENT_SID,
-            contentVariables: {
-              1: updated.orderNumber || String(updated._id),
-              2: updated.trackingId,
-              3: updated.trackingUrl,
-            },
-            fallbackBody,
-          }
-        : fallbackBody;
-
-      queueWhatsAppMessage(
-        recipientPhone,
-        message,
-        {
-          orderId: String(updated._id),
-          orderNumber: updated.orderNumber,
-          userId: String(updated.userId?._id || ""),
-          recipientPhone,
-        },
-        {
-          onSuccess: async () => {
-            await orderRepo.markWhatsAppSent(orderId);
-          },
-          onError: async (error) => {
-            logger.error("Failed to send shipment WhatsApp notification", {
-              orderId,
-              orderNumber: updated.orderNumber,
-              recipientPhone,
-              error: error.message,
-            });
-          },
-        }
-      );
-    }
-  }
-
   await auditService.log({
     actor,
     action: "admin.order.updated",
@@ -580,12 +523,11 @@ async function updateOrder(orderId, patch, actor, meta) {
       ...(nextStatus ? { status: nextStatus } : {}),
       ...(nextShippingMode ? { shippingMode: nextShippingMode } : {}),
       ...(deliveryDetails ? { deliveryDetails } : {}),
-      ...(shouldSendWhatsApp ? { whatsappTriggered: true } : {}),
     },
     ipAddress: meta?.ipAddress,
     userAgent: meta?.userAgent,
   });
-  return shouldSendWhatsApp ? { ...updated.toObject(), whatsappSent: true } : updated;
+  return updated;
 }
 
 async function getShippingModes(actor) {
@@ -608,6 +550,84 @@ async function saveShippingModes(payload, actor, meta) {
     userAgent: meta?.userAgent,
   });
   return config;
+}
+
+async function shipOrder(orderId, payload = {}, actor, meta) {
+  const oldOrder = await orderRepo.findById(orderId);
+  if (!oldOrder) throw new AppError("Order not found", 404, "NOT_FOUND");
+  if (oldOrder.status === "Cancelled") {
+    throw new AppError("Cannot ship a cancelled order", 400, "VALIDATION_ERROR");
+  }
+  if (oldOrder.status === "Shipped") {
+    throw new AppError("Order is already shipped", 400, "VALIDATION_ERROR");
+  }
+
+  const courierName = String(payload.courierName || "").trim();
+  const trackingNumber = String(payload.trackingNumber || payload.trackingId || "").trim();
+  const trackingUrl = String(payload.trackingUrl || "").trim();
+  const shippingNotes = String(payload.shippingNotes || "").trim();
+  const shippingDate = payload.shippingDate ? new Date(payload.shippingDate) : new Date();
+  const expectedDeliveryDate = payload.expectedDeliveryDate ? new Date(payload.expectedDeliveryDate) : undefined;
+
+  if (!courierName) throw new AppError("Courier name is required", 400, "VALIDATION_ERROR");
+  if (!trackingNumber) throw new AppError("Tracking number is required", 400, "VALIDATION_ERROR");
+  if (!trackingUrl) throw new AppError("Tracking URL is required", 400, "VALIDATION_ERROR");
+
+  try {
+    const parsed = new URL(trackingUrl);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("invalid protocol");
+    }
+  } catch {
+    throw new AppError("Tracking URL must be a valid http or https URL", 400, "VALIDATION_ERROR");
+  }
+
+  assertValidOrderFlow(oldOrder.status === "Pending" ? "Placed" : oldOrder.status, "Shipped");
+
+  const shippingMode = oldOrder.shippingMode || "SELF";
+  const updated = await orderRepo.shipOrderById(orderId, {
+    trackingId: trackingNumber,
+    trackingUrl,
+    courierName,
+    deliveryPartner: courierName,
+    shippingNotes: shippingNotes || undefined,
+    shippingDate,
+    expectedDeliveryDate,
+    trackingAssignedAt: oldOrder.trackingAssignedAt || new Date(),
+    shippingStatus: shippingMode === "PLATFORM" ? "IN_TRANSIT" : "SHIPPED",
+    timelineNote: shippingNotes
+      ? `Order shipped via ${courierName}. ${shippingNotes}`
+      : `Order shipped via ${courierName}.`,
+  });
+
+  await productAnalyticsService.refreshForOrder(orderId);
+
+  whatsappNotificationService.queueShipmentNotification(updated, {
+    actor,
+    ipAddress: meta?.ipAddress,
+    userAgent: meta?.userAgent,
+  });
+
+  await auditService.log({
+    actor,
+    action: "admin.order.shipped",
+    entityType: "Order",
+    entityId: updated._id,
+    metadata: {
+      oldStatus: oldOrder.status,
+      newStatus: "Shipped",
+      courierName,
+      trackingNumber,
+      trackingUrl,
+      shippingDate,
+      expectedDeliveryDate,
+      whatsappTriggered: !oldOrder.whatsappSent,
+    },
+    ipAddress: meta?.ipAddress,
+    userAgent: meta?.userAgent,
+  });
+
+  return updated;
 }
 
 function resolveShipmentPhone(order) {
@@ -747,6 +767,7 @@ module.exports = {
   getOrderById,
   createOrder,
   updateOrder,
+  shipOrder,
   getShippingModes,
   saveShippingModes,
   softDeleteOrder,
