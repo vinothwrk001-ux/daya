@@ -20,8 +20,10 @@ async function findByPhone(phone, { includePassword = false } = {}) {
   return await q.exec();
 }
 
-async function findById(id) {
-  return await User.findById(id).exec();
+async function findById(id, { includePassword = false } = {}) {
+  const q = User.findById(id);
+  if (includePassword) q.select("+password");
+  return await q.exec();
 }
 
 async function updateById(id, update) {

@@ -5,7 +5,7 @@ import { useAuthStore } from "../context/authStore";
 import { Portal } from "./Portal";
 import * as authService from "../services/authService";
 
-export function UserMenu() {
+export function UserMenu({ variant = "default" }) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -102,9 +102,9 @@ export function UserMenu() {
 
   const menuItemsByRole = {
     user: [
-      { label: "Dashboard", path: "/dashboard/user", icon: "D" },
-      { label: "Orders", path: "/orders", icon: "O" },
-      { label: "Profile", path: "/profile", icon: "P" },
+      { label: "My Profile", path: "/profile", icon: "P" },
+      { label: "My Orders", path: "/orders", icon: "O" },
+      { label: "Wishlist", path: "/wishlist", icon: "W" },
     ],
     admin: [{ label: "Dashboard", path: "/dashboard/admin", icon: "D" }],
     super_admin: [{ label: "Dashboard", path: "/dashboard/admin", icon: "D" }],
@@ -112,17 +112,31 @@ export function UserMenu() {
     finance_admin: [{ label: "Dashboard", path: "/dashboard/admin", icon: "D" }],
   };
 
-  let menuItems = menuItemsByRole[user.role] || [{ label: "Dashboard", path: "/dashboard", icon: "D" }];
+  let menuItems = menuItemsByRole[user.role] || [
+    { label: "My Profile", path: "/profile", icon: "P" },
+    { label: "My Orders", path: "/orders", icon: "O" },
+  ];
+
+  const isHero = variant === "hero";
+  const triggerClass = isHero
+    ? `flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-all sm:px-3 ${
+        isOpen
+          ? "border-white/40 bg-white/15 text-white shadow-md"
+          : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+      }`
+    : `flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-all sm:px-3 ${
+        isOpen
+          ? "border-blue-300 bg-blue-50 shadow-md"
+          : "border-slate-200 bg-white hover:bg-slate-50"
+      }`;
+  const nameClass = isHero ? "hidden max-w-[8rem] truncate text-sm font-medium text-white sm:inline" : "hidden max-w-[8rem] truncate text-sm font-medium text-slate-700 sm:inline";
+  const chevronClass = isHero ? `h-4 w-4 text-white/80 transition-transform ${isOpen ? "rotate-180" : ""}` : `h-4 w-4 text-slate-500 transition-transform ${isOpen ? "rotate-180" : ""}`;
   return (
     <div className="relative">
       <button
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-all sm:px-3 ${
-          isOpen
-            ? "border-blue-300 bg-blue-50 shadow-md"
-            : "border-slate-200 bg-white hover:bg-slate-50"
-        }`}
+        className={triggerClass}
         aria-label="Open user menu"
         aria-expanded={isOpen}
       >
@@ -133,14 +147,12 @@ export function UserMenu() {
           {initials}
         </div>
 
-        <span className="hidden max-w-[8rem] truncate text-sm font-medium text-slate-700 sm:inline">
+        <span className={nameClass}>
           {user.name}
         </span>
 
         <svg
-          className={`h-4 w-4 text-slate-500 transition-transform ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={chevronClass}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

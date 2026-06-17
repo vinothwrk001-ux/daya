@@ -2,7 +2,15 @@ const express = require("express");
 const { validate } = require("../middleware/validate");
 const { authRequired, authOptional } = require("../middleware/auth");
 const authController = require("../controllers/auth.controller");
-const { registerSchema, loginSchema } = require("../utils/validators/auth.validation");
+const passwordResetController = require("../controllers/passwordReset.controller");
+const {
+  registerSchema,
+  loginSchema,
+  forgotPasswordRequestSchema,
+  verifyOTPSchema,
+  resendOTPSchema,
+  resetPasswordSchema,
+} = require("../utils/validators/auth.validation");
 const { AppError } = require("../utils/AppError");
 
 const router = express.Router();
@@ -27,6 +35,17 @@ router.post("/logout", authOptional, authController.logout);
 router.post("/logout-all", authRequired, authController.logoutAll);
 router.get("/me", authRequired, authController.me);
 router.patch("/preferences/theme", authRequired, authController.updateThemePreference);
+
+/**
+ * PASSWORD RESET FLOW
+ * Step 1: Request OTP via email or phone
+ * Step 2: Verify OTP
+ * Step 3: Reset password
+ */
+router.post("/forgot-password/request", validate(forgotPasswordRequestSchema), passwordResetController.requestPasswordReset);
+router.post("/forgot-password/verify-otp", validate(verifyOTPSchema), passwordResetController.verifyOTP);
+router.post("/forgot-password/resend-otp", validate(resendOTPSchema), passwordResetController.resendOTP);
+router.post("/forgot-password/reset", validate(resetPasswordSchema), passwordResetController.resetPassword);
 
 /**
  * POST-LOGIN MERGE

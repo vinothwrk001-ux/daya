@@ -1,14 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, BadgePercent, Clock3, CreditCard, Flame, Gift, Megaphone, Truck, User, Wallet, Zap } from "lucide-react";
-import { HeaderShopActions } from "../HeaderShopActions";
+import { ArrowRight, BadgePercent, Clock3, CreditCard, Flame, Gift, Megaphone, Truck, Wallet, Zap } from "lucide-react";
+import { HeroHeader } from "../HeroHeader";
 import { ProductCard } from "../ProductCard";
 import { ProductCarousel } from "../ProductCarousel";
-import { SearchBar } from "../SearchBar";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { trackHomepageContainerEvent } from "../../services/homepageContainerService";
 import { formatCurrency } from "../../utils/formatCurrency";
-import { getPublicBranding } from "../../services/companyBrandingService";
 import { HeroBannerCategoryZone } from "./CategoryHeroBanner";
 import { HomepageBannerSlider, useHomepageBanners } from "./HomepageBannerSlider";
 
@@ -151,42 +149,11 @@ function rowHasBanner(row = {}) {
 
 function isManagedBannerContainer(container) {
   const config = container?.config || {};
-  return Boolean(config.useManagedBanners || config.homepageBannerId);
+  return Boolean(config.useManagedBanners || config.homepageBannerId || config.homepageBannerContainerId);
 }
 
-function resolveManagedBannerHeight(container, renderContext = {}) {
-  const device = renderContext.device || "desktop";
-  const builderLayout = container?.builderLayout || {};
-  const deviceConfigKey =
-    device === "mobile" ? "mobileConfig" : device === "tablet" ? "tabletConfig" : "desktopConfig";
-  const deviceLayout =
-    builderLayout[device] ||
-    builderLayout[deviceConfigKey] ||
-    builderLayout.desktopConfig ||
-    builderLayout.desktop ||
-    {};
-  const presentationLayout = container?.presentation?.layout || {};
-  const configuredHeight = Number(
-    deviceLayout.height ||
-      deviceLayout.customHeight ||
-      presentationLayout.customHeight ||
-      presentationLayout.height ||
-      0
-  );
-
-  const minimumHeights = {
-    mobile: 760,
-    tablet: 900,
-    desktop: 1080,
-  };
-  const headerAllowance = 160;
-  const fallbackHeight = minimumHeights[device] || minimumHeights.desktop;
-
-  if (configuredHeight > 0) {
-    return Math.max(configuredHeight + headerAllowance, fallbackHeight);
-  }
-
-  return fallbackHeight;
+function getHeroBannerShellClass() {
+  return "hero-banner-shell";
 }
 
 function flattenRowContainers(row = {}) {
@@ -210,7 +177,7 @@ const DynamicHomepageRow = memo(function DynamicHomepageRow({
   if (isHeroBannerRow && bannerContainer) {
     const managedHero = isManagedBannerContainer(bannerContainer);
     return (
-      <div className={`relative w-full ${managedHero ? "overflow-hidden" : "overflow-hidden"}`}>
+      <div className={`relative w-full ${managedHero ? "" : "overflow-hidden"}`}>
         {backdropUrl && !managedHero ? (
           <>
             <img src={backdropUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
@@ -289,10 +256,27 @@ const DynamicHomepageSection = memo(function DynamicHomepageSection({ container,
   const layout = resolveContainerLayout(container);
   const themeStyles = resolveContainerThemeStyles(layout.theme || container?.presentation?.containerTheme);
   const contentSized = isContentSizedContainer(container);
+  const fullscreenHero = isManagedBannerContainer(container);
+
+  if (fullscreenHero) {
+    return (
+      <div className={visibilityClasses}>
+        {renderContainer(container, {
+          bareContainers: true,
+          bareOuterLayout: true,
+          bareCarouselShell,
+          renderContext,
+          heroBannerLayout: true,
+        })}
+      </div>
+    );
+  }
+
   const widthStyles = resolveContainerDimensionStyle(layout, renderContext, {
     inline,
     contentSized,
     containerType: container?.containerType,
+    isManagedBanner: fullscreenHero,
   });
   const previewBare = container?.previewBare === true || bareContainers;
   const stripOuterLayout = bareOuterLayout && !previewBare;
@@ -418,7 +402,10 @@ function resolveContainerThemeStyles(themeValue) {
 
 function resolveContainerDimensionStyle(layout, renderContext, options = {}) {
   const width = resolveConfiguredWidth(layout, renderContext.canvasWidth);
-  const height = resolveConfiguredHeight(layout, options);
+  const height = resolveConfiguredHeight(layout, {
+    ...options,
+    useViewportHeroHeight: options.containerType === "BANNER" && options.heroBannerLayout,
+  });
   const exactSize = resolveResponsiveSize(width, height, renderContext);
   const styles = {};
   const applyHeight = (value) => {
@@ -546,6 +533,11 @@ function resolveConfiguredWidth(layout, canvasWidth) {
 
 function resolveConfiguredHeight(layout, options = {}) {
   const isBanner = options.containerType === "BANNER";
+
+  if (options.isManagedBanner || options.useViewportHeroHeight) {
+    return null;
+  }
+
   const scale = isBanner ? BANNER_HEIGHT_SCALE : 1;
   const scaleHeight = (value) => (value ? Math.round(value * scale) : value);
 
@@ -666,6 +658,7 @@ function renderContainer(container, options = {}) {
       return (
         <BannerContainer
           container={container}
+          heroBannerLayout={Boolean(options.heroBannerLayout || isManagedBannerContainer(container))}
           renderContext={options.renderContext}
           bareContainers={options.bareContainers}
           bareOuterLayout={options.bareOuterLayout}
@@ -779,6 +772,8 @@ function CarouselContainer({ container, bareContainers = false, bareOuterLayout 
         autoSlide={config.autoSlide === true}
         slideSpeed={Number(config.slideSpeed || 3500)}
         desktopItemsPerView={Number(config.productsPerView || 4)}
+        tabletItemsPerView={Number(config.tabletProductsPerView || 2)}
+        mobileItemsPerView={Number(config.mobileProductsPerView || 2)}
         getProductCardProps={() => ({ cardStyle: config.cardStyle || "DEFAULT" })}
       />
     </div>
@@ -797,18 +792,34 @@ function BannerContainer({
 }) {
   const config = container.config || {};
   const useManagedBanners = isManagedBannerContainer(container);
-  const managedBannerHeight = resolveManagedBannerHeight(container, renderContext);
+  const heroShellClass = getHeroBannerShellClass();
   const managedBanners = useHomepageBanners();
   const displayBanners = useMemo(() => {
     if (!useManagedBanners || !Array.isArray(managedBanners.banners)) return [];
     const bannerId = config.homepageBannerId;
     const scope = config.managedBannerScope || "single";
+    const containerId = config.homepageBannerContainerId;
+
+    if (scope === "container" && containerId) {
+      return managedBanners.banners.filter((item) => String(item.containerId) === String(containerId));
+    }
     if (scope === "single" && bannerId) {
       return managedBanners.banners.filter((item) => String(item.id) === String(bannerId));
     }
+    if (managedBanners.container?.id) {
+      return managedBanners.banners.filter(
+        (item) => !item.containerId || String(item.containerId) === String(managedBanners.container.id)
+      );
+    }
     return managedBanners.banners;
-  }, [config.homepageBannerId, config.managedBannerScope, managedBanners.banners, useManagedBanners]);
-  const [branding, setBranding] = useState(null);
+  }, [
+    config.homepageBannerContainerId,
+    config.homepageBannerId,
+    config.managedBannerScope,
+    managedBanners.banners,
+    managedBanners.container,
+    useManagedBanners,
+  ]);
   const mediaItems = Array.isArray(config.bannerMedia) && config.bannerMedia.length
     ? config.bannerMedia
     : [
@@ -824,18 +835,6 @@ function BannerContainer({
   const autoSlide = config.autoSlide !== false;
   const showArrows = config.showArrows !== false;
   const showDots = config.showDots !== false;
-
-  useEffect(() => {
-    const fetchBranding = async () => {
-      try {
-        const brandingData = await getPublicBranding();
-        setBranding(brandingData);
-      } catch (error) {
-        console.error("Failed to fetch branding:", error);
-      }
-    };
-    fetchBranding();
-  }, []);
 
   useEffect(() => {
     if (!autoSlide || mediaItems.length <= 1) return undefined;
@@ -890,139 +889,44 @@ function BannerContainer({
       ))
     : null;
 
-  const heroChromeOverlay = (
-    <>
-      <div className="flex w-full items-center justify-between gap-4 sm:gap-6">
-        <div className="flex shrink-0 items-center">
-          {branding?.logos?.primary ? (
-            <Link to="/" className="transition hover:opacity-80">
-              <img
-                src={resolveApiAssetUrl(branding.logos.primary)}
-                alt="Logo"
-                className="h-10 w-auto brightness-0 invert sm:h-12 lg:h-14"
-              />
-            </Link>
-          ) : null}
-        </div>
-        <div className="flex flex-1 justify-center px-2 sm:px-8 lg:px-16">
-          <div className="w-full max-w-md">
-            <SearchBar />
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <Link to="/login" className="flex items-center gap-2 text-white transition hover:text-white/80">
-            <User className="h-5 w-5 sm:h-6 sm:w-6" />
-            <span className="hidden text-xs font-medium sm:inline sm:text-sm">Login</span>
-          </Link>
-          <HeaderShopActions variant="inline" className="[&_a]:text-white [&_a]:hover:text-white/80" />
-        </div>
-      </div>
-
-      <nav className="mt-3 flex w-full justify-center sm:mt-4">
-        <div className="flex gap-4 sm:gap-6">
-          <Link to="/" className="text-xs font-semibold text-white transition hover:text-white/80 sm:text-sm">
-            HOME
-          </Link>
-          <Link to="/shop" className="text-xs font-semibold text-white transition hover:text-white/80 sm:text-sm">
-            SHOP
-          </Link>
-          <a href="#" className="text-xs font-semibold text-white transition hover:text-white/80 sm:text-sm">
-            SERVICES
-          </a>
-          <a href="#" className="text-xs font-semibold text-white transition hover:text-white/80 sm:text-sm">
-            BLOGS
-          </a>
-        </div>
-      </nav>
-    </>
-  );
-
-  const heroChrome = (
-    <>
-      <div className="flex w-full items-center justify-between gap-4 sm:gap-6">
-        <div className="flex shrink-0 items-center">
-          {branding?.logos?.primary ? (
-            <Link to="/" className="transition hover:opacity-80">
-              <img
-                src={resolveApiAssetUrl(branding.logos.primary)}
-                alt="Logo"
-                className="h-10 w-auto sm:h-12 lg:h-14"
-              />
-            </Link>
-          ) : null}
-        </div>
-        <div className="flex flex-1 justify-center px-2 sm:px-8 lg:px-16">
-          <div className="w-full max-w-md">
-            <SearchBar />
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <Link
-            to="/login"
-            className={`flex items-center gap-2 transition hover:opacity-80 ${
-              useManagedBanners && heroBannerLayout ? "text-slate-900" : "text-slate-900"
-            }`}
-          >
-            <User className="h-5 w-5 sm:h-6 sm:w-6" />
-            <span className="hidden text-xs font-medium sm:inline sm:text-sm">Login</span>
-          </Link>
-          <HeaderShopActions />
-        </div>
-      </div>
-
-      <nav className="mt-3 flex w-full justify-center sm:mt-4">
-        <div className="flex gap-4 sm:gap-6">
-          <Link to="/" className="text-xs font-semibold text-slate-900 transition hover:text-slate-700 sm:text-sm">
-            HOME
-          </Link>
-          <Link to="/shop" className="text-xs font-semibold text-slate-900 transition hover:text-slate-700 sm:text-sm">
-            SHOP
-          </Link>
-          <a href="#" className="text-xs font-semibold text-slate-900 transition hover:text-slate-700 sm:text-sm">
-            SERVICES
-          </a>
-          <a href="#" className="text-xs font-semibold text-slate-900 transition hover:text-slate-700 sm:text-sm">
-            BLOGS
-          </a>
-        </div>
-      </nav>
-    </>
-  );
+  const heroHeaderOverlay = <HeroHeader variant="overlay" />;
+  const heroHeaderDefault = <HeroHeader variant="default" />;
 
   if (useManagedBanners) {
     return (
-      <div className="hero-banner relative w-full overflow-hidden">
-        <div
-          className="relative w-full overflow-hidden"
-          style={{ height: `${managedBannerHeight}px`, minHeight: `${managedBannerHeight}px` }}
-        >
-          {managedBanners.loading ? (
-            <div className="h-full w-full animate-pulse bg-slate-900" />
-          ) : displayBanners.length ? (
-            <HomepageBannerSlider
-              banners={displayBanners}
-              settings={managedBanners.settings}
-              embedded
-              headerSlot={heroChromeOverlay}
-              className="h-full w-full"
-            />
-          ) : (
-            <div className="relative flex h-full flex-col">
-              <div className="relative z-20 px-4 py-4 sm:px-6 lg:px-8">{heroChromeOverlay}</div>
-              <div className="flex flex-1 items-center justify-center px-6">{campaignFallback}</div>
+      <section className={heroShellClass}>
+        {managedBanners.loading ? (
+          <div className="h-full w-full animate-pulse bg-slate-900" />
+        ) : displayBanners.length ? (
+          <HomepageBannerSlider
+            banners={displayBanners}
+            settings={managedBanners.settings}
+            embedded
+            headerSlot={heroHeaderOverlay}
+            className="h-full"
+          />
+        ) : (
+          <div className="hero-banner h-full">
+            <div className="hero-banner-stack h-full">
+              <header className="hero-banner-header px-4 pt-3 sm:px-6 lg:px-8">{heroHeaderOverlay}</header>
+              <div className="hero-banner-foreground h-full">
+                <div className="hero-banner-body">
+                  <div className="hero-banner-content flex flex-1 px-4 sm:px-6 lg:px-8">{campaignFallback}</div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {companionContent ? <div className="relative z-10 bg-white px-4 py-6 sm:px-6 lg:px-8">{companionContent}</div> : null}
-      </div>
+      </section>
     );
   }
 
   return (
     <div
-      className={`hero-banner group relative w-full overflow-hidden ${
-        heroBannerLayout ? "min-h-[750px]" : "h-full min-h-[420px]"
+      className={`hero-banner group relative w-full ${
+        heroBannerLayout ? heroShellClass : "min-h-[20rem]"
       }`}
     >
       <div className="absolute inset-0 z-0">
@@ -1047,15 +951,11 @@ function BannerContainer({
         ) : null}
       </div>
 
-      <div
-        className={`relative z-10 flex w-full flex-col ${
-          heroBannerLayout ? "min-h-[600px]" : "min-h-[320px]"
-        } px-4 pb-4 pt-4 sm:px-6 sm:pb-6 lg:px-8 lg:pt-6`}
-      >
-        {heroChrome}
+      <div className="relative z-10 flex w-full flex-col px-4 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8 lg:pt-6">
+        {heroHeaderDefault}
 
         {heroBannerLayout ? (
-          <div className="mx-auto mt-2 w-full max-w-[1440px] flex flex-col items-center py-1 sm:mt-3 sm:py-2">
+          <div className="mx-auto mt-4 w-full max-w-[1440px] flex flex-col items-center py-2 sm:mt-6">
             <HeroBannerCategoryZone fallback={campaignFallback} />
             {companionContent ? <div className="mt-3 w-full sm:mt-4">{companionContent}</div> : null}
           </div>

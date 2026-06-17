@@ -6,14 +6,21 @@ const {
   createBannerSchema,
   updateBannerSchema,
   assignCategoriesSchema,
+  reorderBannersSchema,
+  bannerSettingsSchema,
 } = require("../utils/validators/homepage-banner.validation");
+const {
+  createBannerContainerSchema,
+  updateBannerContainerSchema,
+  reorderBannerContainersSchema,
+} = require("../utils/validators/homepage-banner-container.validation");
 const {
   adminWorkspaceAuthRequired,
   requireWorkspacePermission,
 } = require("../middleware/adminAccess");
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 router.use(adminWorkspaceAuthRequired);
 
@@ -35,8 +42,55 @@ router.get(
 router.put(
   "/banners/settings",
   requireWorkspacePermission("settings.update", { legacyPermission: "settings:update" }),
+  validate(bannerSettingsSchema),
   homepageBannerController.updateSettings
 );
+router.put(
+  "/banners/reorder",
+  requireWorkspacePermission("settings.update", { legacyPermission: "settings:update" }),
+  validate(reorderBannersSchema),
+  homepageBannerController.reorderBanners
+);
+
+router.get(
+  "/banner-containers",
+  requireWorkspacePermission("settings.read", { legacyPermission: "settings:read" }),
+  homepageBannerController.listBannerContainers
+);
+router.post(
+  "/banner-containers",
+  requireWorkspacePermission("settings.update", { legacyPermission: "settings:update" }),
+  validate(createBannerContainerSchema),
+  homepageBannerController.createBannerContainer
+);
+router.put(
+  "/banner-containers/reorder",
+  requireWorkspacePermission("settings.update", { legacyPermission: "settings:update" }),
+  validate(reorderBannerContainersSchema),
+  homepageBannerController.reorderBannerContainers
+);
+router.get(
+  "/banner-containers/:id",
+  requireWorkspacePermission("settings.read", { legacyPermission: "settings:read" }),
+  homepageBannerController.getBannerContainer
+);
+router.put(
+  "/banner-containers/:id",
+  requireWorkspacePermission("settings.update", { legacyPermission: "settings:update" }),
+  validate(updateBannerContainerSchema),
+  homepageBannerController.updateBannerContainer
+);
+router.delete(
+  "/banner-containers/:id",
+  requireWorkspacePermission("settings.delete", { legacyPermission: "settings:update" }),
+  homepageBannerController.deleteBannerContainer
+);
+router.post(
+  "/banner-containers/:id/publish",
+  requireWorkspacePermission("settings.update", { legacyPermission: "settings:update" }),
+  homepageBannerController.publishBannerContainer
+);
+
 router.get(
   "/banners/:id",
   requireWorkspacePermission("settings.read", { legacyPermission: "settings:read" }),
@@ -76,6 +130,8 @@ router.post(
   upload.fields([
     { name: "desktop", maxCount: 1 },
     { name: "mobile", maxCount: 1 },
+    { name: "desktopPoster", maxCount: 1 },
+    { name: "mobilePoster", maxCount: 1 },
   ]),
   homepageBannerController.uploadBannerImages
 );

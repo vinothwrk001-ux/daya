@@ -1,6 +1,7 @@
 const { ok, fail } = require("../utils/apiResponse");
 const { asyncHandler } = require("../utils/asyncHandler");
 const productService = require("../services/product.service");
+const activeViewersService = require("../services/activeViewers.service");
 
 function pickDynamicQueryFilters(query = {}) {
   const reserved = new Set([
@@ -222,6 +223,72 @@ const uploadProductImages = asyncHandler(async (req, res) => {
   return ok(res, images, "Product images uploaded");
 });
 
+/**
+ * Track active viewer for a product
+ * POST /products/:id/viewers
+ * Body: { sessionId: string (optional) }
+ * Returns: { count: number, sessionId: string }
+ */
+const trackActiveViewer = asyncHandler(async (req, res) => {
+  const { id: productId } = req.params;
+  const { sessionId } = req.body || {};
+
+  if (!productId) {
+    return fail(res, "Product ID is required", 400);
+  }
+
+  const result = activeViewersService.recordActiveViewer(productId, sessionId);
+  return ok(res, result, "Active viewer tracked");
+});
+
+/**
+ * Get active viewer count for a product
+ * GET /products/:id/viewers/count
+ * Returns: { count: number }
+ */
+const getActiveViewerCount = asyncHandler(async (req, res) => {
+  const { id: productId } = req.params;
+
+  if (!productId) {
+    return fail(res, "Product ID is required", 400);
+  }
+
+  const count = activeViewersService.getActiveViewerCount(productId);
+  return ok(res, { count }, "Active viewer count retrieved");
+});
+
+/**
+ * Keep viewer session alive
+ * PATCH /products/:id/viewers/:sessionId
+ * Returns: { count: number }
+ */
+const keepViewerAlive = asyncHandler(async (req, res) => {
+  const { id: productId, sessionId } = req.params;
+
+  if (!productId || !sessionId) {
+    return fail(res, "Product ID and session ID are required", 400);
+  }
+
+  const result = activeViewersService.keepViewerAlive(productId, sessionId);
+  return ok(res, result, "Viewer session kept alive");
+});
+
+/**
+ * Remove viewer session
+ * DELETE /products/:id/viewers/:sessionId
+ * Returns: { count: number }
+ */
+const removeViewerSession = asyncHandler(async (req, res) => {
+  const { id: productId, sessionId } = req.params;
+
+  if (!productId || !sessionId) {
+    return fail(res, "Product ID and session ID are required", 400);
+  }
+
+  const result = activeViewersService.removeViewer(productId, sessionId);
+  return ok(res, result, "Viewer session removed");
+});
+
 module.exports = {
   createProduct,
   getProducts,
@@ -236,4 +303,8 @@ module.exports = {
   getProductStats,
   generateProductNumber,
   uploadProductImages,
+  trackActiveViewer,
+  getActiveViewerCount,
+  keepViewerAlive,
+  removeViewerSession,
 };

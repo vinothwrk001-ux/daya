@@ -19,6 +19,38 @@ export async function login({ identifier, password }) {
   return data;
 }
 
+export async function forgotPasswordRequest({ identifier, otpType }) {
+  const { data } = await api.post("/api/auth/forgot-password/request", {
+    identifier,
+    otpType,
+  });
+  return data;
+}
+
+export async function forgotPasswordVerifyOtp({ resetOtpId, otp }) {
+  const { data } = await api.post("/api/auth/forgot-password/verify-otp", {
+    resetOtpId,
+    otp,
+  });
+  return data;
+}
+
+export async function forgotPasswordResendOtp({ resetOtpId }) {
+  const { data } = await api.post("/api/auth/forgot-password/resend-otp", {
+    resetOtpId,
+  });
+  return data;
+}
+
+export async function forgotPasswordReset({ resetOtpId, newPassword, confirmPassword }) {
+  const { data } = await api.post("/api/auth/forgot-password/reset", {
+    resetOtpId,
+    newPassword,
+    confirmPassword,
+  });
+  return data;
+}
+
 export async function getMe() {
   const { data } = await api.get("/api/auth/me");
   return data;

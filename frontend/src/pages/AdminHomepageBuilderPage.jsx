@@ -323,7 +323,12 @@ function getContainerLabel(container) {
 }
 
 function getContainerTypeLabel(container) {
-  if (container?.config?.useManagedBanners) return "MANAGED BANNER";
+  const config = container?.config || {};
+  if (config.useManagedBanners && config.managedBannerScope === "container") {
+    const slideCount = Number(config.managedBannerSlideCount || 0);
+    return slideCount > 0 ? `BANNER CONTAINER • ${slideCount} slides` : "BANNER CONTAINER";
+  }
+  if (config.useManagedBanners) return "MANAGED BANNER";
   return String(container?.containerType || container?.type || "CUSTOM").replace(/_/g, " ");
 }
 
@@ -410,6 +415,8 @@ export function AdminHomepageBuilderPage() {
     const search = librarySearch.trim().toLowerCase();
     return containerLibrary
       .filter((container) => {
+        const config = container.config || {};
+        if (config.useManagedBanners && config.managedBannerScope !== "container") return false;
         if (libraryFilter !== "ALL" && container.containerType !== libraryFilter) return false;
         if (!search) return true;
         return [container.title, container.name, container.description, container.containerType, container.slug]

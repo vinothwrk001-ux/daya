@@ -47,6 +47,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+  const passwordResetSuccess = location.state?.passwordReset === true;
 
   async function navigateAfterPrimaryLogin(result, attemptedFrom) {
     return continueAfterPrimaryAuth({ result, attemptedFrom, nav });
@@ -116,6 +117,12 @@ export function LoginPage() {
         {branding?.tagline || "Users can login with phone; admin and staff can use email."}
       </p>
 
+      {passwordResetSuccess ? (
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          Password reset successful. Please log in with your new password.
+        </div>
+      ) : null}
+
       <form
         onSubmit={onSubmit}
         className="mt-6 rounded-2xl border bg-white p-6 shadow-sm"
@@ -151,6 +158,12 @@ export function LoginPage() {
           />
           {fieldErrors.password ? <div className="mt-1 text-xs text-rose-600">{fieldErrors.password}</div> : null}
         </label>
+
+        <div className="mt-2 text-right">
+          <Link className="text-sm text-indigo-600 hover:underline" to="/forgot-password">
+            Forgot Password?
+          </Link>
+        </div>
 
         {error ? (
           <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">

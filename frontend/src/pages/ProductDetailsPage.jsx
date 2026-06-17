@@ -4,6 +4,7 @@ import { BackButton } from "../components/BackButton";
 import { ProductImageGallery } from "../components/ProductImageGallery";
 import { ProductReviewsSection } from "../components/ProductReviewsSection";
 import { RecommendationSection } from "../components/RecommendationSection";
+import { ActiveViewersDisplay } from "../components/ActiveViewersDisplay";
 import * as productService from "../services/productService";
 import { getAttributes } from "../services/attributeService";
 import { getProductModules } from "../services/productModuleService";
@@ -641,6 +642,8 @@ export function ProductDetailsPage() {
                   </div>
                 ) : null}
               </div>
+
+              <ActiveViewersDisplay productId={product?._id} className="mt-4" />
             </div>
 
             <div className="space-y-5 p-6">

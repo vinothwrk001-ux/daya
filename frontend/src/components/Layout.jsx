@@ -26,6 +26,7 @@ import { HeaderShopActions } from "./HeaderShopActions";
 export function Layout() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const authReady = useAuthStore((s) => s.authReady);
   const [isDarkMode, setIsDarkMode] = useDarkMode();
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -81,14 +82,14 @@ export function Layout() {
               <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
                 <Link
                   to="/"
-                  className={`enterprise-nav-pill inline-flex min-w-fit items-center gap-2 rounded-lg px-3 py-2 font-semibold tracking-normal backdrop-blur transition hover:shadow-lg ${
-                    isScrolled ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
+                  className={`inline-flex min-w-fit shrink-0 items-center transition hover:opacity-90 ${
+                    isScrolled ? "pointer-events-none w-0 opacity-0" : "opacity-100"
                   }`}
                 >
                   <BrandLogo
                     showName={false}
                     className="text-slate-950"
-                    imgClassName="h-8 w-auto max-w-[140px] object-contain"
+                    imgClassName="branding-logo-image max-w-[140px]"
                   />
                 </Link>
 
@@ -139,12 +140,12 @@ export function Layout() {
                     </div>
                   </div>
 
-                  {user ? (
+                  {authReady && user ? (
                     <>
                       <HeaderShopActions />
                       <UserMenu />
                     </>
-                  ) : (
+                  ) : authReady ? (
                     <>
                       <HeaderShopActions />
                       <Link
@@ -161,6 +162,8 @@ export function Layout() {
                         Start
                       </Link>
                     </>
+                  ) : (
+                    <span className="inline-block h-10 w-24 animate-pulse rounded-full bg-slate-200" aria-hidden="true" />
                   )}
                 </div>
               </div>

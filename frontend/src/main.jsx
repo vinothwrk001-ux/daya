@@ -5,6 +5,7 @@ import "./index.css";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import App from "./App.jsx";
+import { AuthBootstrap } from "./components/AuthBootstrap.jsx";
 import { BrandingProvider } from "./context/BrandingContext.jsx";
 import { NotificationProvider } from "./context/NotificationContext.jsx";
 
@@ -13,7 +14,9 @@ createRoot(document.getElementById("root")).render(
     <BrandingProvider>
       <NotificationProvider>
         <BrowserRouter>
-          <App />
+          <AuthBootstrap>
+            <App />
+          </AuthBootstrap>
         </BrowserRouter>
       </NotificationProvider>
     </BrandingProvider>

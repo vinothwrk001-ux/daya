@@ -187,6 +187,14 @@ function createApp() {
 
   app.get("/health", (req, res) => res.json({ ok: true }));
 
+  const forgotPasswordLimiter = createLimiter({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    limit: Number(process.env.FORGOT_PASSWORD_RATE_LIMIT_MAX || (isDevelopment ? 50 : 5)),
+    message: "Too many password reset requests. Please try again later.",
+  });
+
+  app.use("/api/auth/forgot-password/request", forgotPasswordLimiter);
+  app.use("/api/auth/forgot-password/resend-otp", forgotPasswordLimiter);
   app.use("/api/auth/login", authLimiter);
   app.use("/api/auth/register", authLimiter);
   app.use("/api/auth/refresh", authLimiter);

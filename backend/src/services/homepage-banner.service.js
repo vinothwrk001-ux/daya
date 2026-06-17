@@ -10,9 +10,9 @@ const auditService = require("./audit.service");
 const redisCache = require("../modules/recommendation/cache");
 const { uploadMany } = require("../utils/upload");
 const {
-  syncBannerToBuilderContainer,
-  deactivateBannerBuilderContainer,
+  syncBannerContainerToBuilder,
 } = require("./homepage-banner-container.sync");
+const bannerContainerService = require("./homepage-banner-container.service");
 
 const CACHE_KEY = "homepage:banners:public";
 const CACHE_TTL = Number(process.env.HOMEPAGE_BANNER_CACHE_TTL || 300);
@@ -22,7 +22,72 @@ const DEFAULT_SETTINGS = {
   maxCategoryCards: 6,
   autoplay: true,
   autoplayIntervalMs: 5000,
+  transitionEffect: "fade",
+  pauseOnHover: true,
+  enableLoop: true,
+  showArrows: true,
+  showDots: true,
 };
+
+function resolveBannerMedia(banner, device = "desktop") {
+  const isMobile = device === "mobile";
+  const mediaType = banner.mediaType || "image";
+  const url = isMobile
+    ? banner.mobileMedia || banner.mobileImage || banner.desktopMedia || banner.desktopImage
+    : banner.desktopMedia || banner.desktopImage;
+  const poster = isMobile
+    ? banner.mobilePoster || banner.desktopPoster || banner.mobileImage || banner.desktopImage
+    : banner.desktopPoster || banner.desktopImage;
+  return { mediaType, url: url || "", poster: poster || "" };
+}
+
+function applyBannerMediaFields(target, payload = {}) {
+  const fields = [
+    "featuredCollectionText",
+    "mediaType",
+    "desktopMedia",
+    "mobileMedia",
+    "desktopPoster",
+    "mobilePoster",
+    "showOverlay",
+    "overlayOpacity",
+    "hoverModeEnabled",
+    "categoryHeading",
+    "categoryDescription",
+  ];
+
+  fields.forEach((field) => {
+    if (payload[field] === undefined) return;
+    if (field === "overlayOpacity") {
+      target[field] = Math.min(1, Math.max(0, Number(payload[field] || 0)));
+      return;
+    }
+    if (field === "showOverlay" || field === "hoverModeEnabled") {
+      target[field] = Boolean(payload[field]);
+      return;
+    }
+    target[field] = String(payload[field] ?? "").trim();
+  });
+
+  if (payload.desktopImage !== undefined) {
+    target.desktopImage = String(payload.desktopImage || "").trim();
+    if ((target.mediaType || "image") === "image" && !target.desktopMedia) {
+      target.desktopMedia = target.desktopImage;
+    }
+  }
+  if (payload.mobileImage !== undefined) {
+    target.mobileImage = String(payload.mobileImage || "").trim();
+    if ((target.mediaType || "image") === "image" && !target.mobileMedia) {
+      target.mobileMedia = target.mobileImage;
+    }
+  }
+  if (payload.desktopMedia !== undefined && (target.mediaType || "image") === "image") {
+    target.desktopImage = String(payload.desktopMedia || "").trim();
+  }
+  if (payload.mobileMedia !== undefined && (target.mediaType || "image") === "image") {
+    target.mobileImage = String(payload.mobileMedia || "").trim();
+  }
+}
 
 async function getSettings() {
   const doc = await PlatformConfig.findOne({ key: SETTINGS_KEY }).lean();
@@ -117,6 +182,8 @@ async function loadBannerCategories(bannerId, { activeOnly = false } = {}) {
 
 async function serializePublicBanner(banner) {
   const categories = await loadBannerCategories(banner._id, { activeOnly: true });
+  const desktop = resolveBannerMedia(banner, "desktop");
+  const mobile = resolveBannerMedia(banner, "mobile");
   return {
     id: banner._id,
     name: banner.name,
@@ -124,21 +191,39 @@ async function serializePublicBanner(banner) {
     title: banner.title,
     subtitle: banner.subtitle,
     description: banner.description,
+    featuredCollectionText: banner.featuredCollectionText || "",
     ctaText: banner.ctaText,
     ctaUrl: banner.ctaUrl,
-    desktopImage: banner.desktopImage,
-    mobileImage: banner.mobileImage || banner.desktopImage,
+    mediaType: banner.mediaType || "image",
+    desktopMedia: desktop.url,
+    mobileMedia: mobile.url,
+    desktopPoster: banner.desktopPoster || banner.desktopImage || "",
+    mobilePoster: banner.mobilePoster || banner.mobileImage || banner.desktopPoster || "",
+    desktopImage: desktop.url,
+    mobileImage: mobile.url,
+    showOverlay: Boolean(banner.showOverlay),
+    overlayOpacity: Number(banner.overlayOpacity || 0),
+    hoverModeEnabled: Boolean(banner.hoverModeEnabled),
+    categoryHeading: banner.categoryHeading || "",
+    categoryDescription: banner.categoryDescription || "",
+    containerId: banner.containerId,
     displayOrder: banner.displayOrder,
     categories,
   };
 }
 
-async function listPublicBanners() {
+async function listPublicBanners(query = {}) {
   const cached = await redisCache.getJson(CACHE_KEY);
-  if (cached) return cached;
+  if (cached && !query.containerId && !query.containerSlug) return cached;
+
+  const container = await bannerContainerService.resolvePublicContainer(query.containerId);
+  if (!container) {
+    return { container: null, settings: await getSettings(), banners: [] };
+  }
 
   const now = new Date();
   const banners = await HomepageBanner.find({
+    containerId: container._id,
     showOnHomepage: true,
     status: "active",
   })
@@ -146,17 +231,22 @@ async function listPublicBanners() {
     .lean();
 
   const activeBanners = banners.filter((b) => isBannerScheduleActive(b, now));
+  const containerSettings = { ...DEFAULT_SETTINGS, ...(container.settings || {}) };
   const payload = {
-    settings: await getSettings(),
+    container: bannerContainerService.serializeContainer(container, activeBanners.length),
+    settings: containerSettings,
     banners: await Promise.all(activeBanners.map(serializePublicBanner)),
   };
 
-  await redisCache.setJson(CACHE_KEY, payload, CACHE_TTL);
+  if (!query.containerId && !query.containerSlug) {
+    await redisCache.setJson(CACHE_KEY, payload, CACHE_TTL);
+  }
   return payload;
 }
 
-async function listAdminBanners() {
-  const banners = await HomepageBanner.find({}).sort({ displayOrder: 1, createdAt: -1 }).lean();
+async function listAdminBanners(containerId) {
+  const query = containerId ? { containerId } : {};
+  const banners = await HomepageBanner.find(query).sort({ displayOrder: 1, createdAt: -1 }).lean();
   const cards = await HomepageBannerCategory.find({ bannerId: { $in: banners.map((b) => b._id) } })
     .sort({ displayOrder: 1 })
     .lean();
@@ -207,9 +297,22 @@ async function syncBannerCategories(bannerId, categories = [], meta = {}) {
   return HomepageBannerCategory.insertMany(rows);
 }
 
+async function syncContainerForBanner(banner, meta = {}) {
+  if (!banner?.containerId) return null;
+  const container = await bannerContainerService.getAdminContainerById(banner.containerId).catch(() => null);
+  if (!container) return null;
+  return syncBannerContainerToBuilder(container, meta);
+}
+
 async function createBanner(payload, meta = {}) {
   const slug = generateSlug(payload.slug || payload.name);
   await ensureUniqueSlug(slug);
+
+  let containerId = payload.containerId || null;
+  if (!containerId) {
+    const defaultContainer = await bannerContainerService.ensureDefaultContainer(meta);
+    containerId = defaultContainer._id;
+  }
 
   const banner = await HomepageBanner.create({
     name: String(payload.name).trim(),
@@ -217,15 +320,27 @@ async function createBanner(payload, meta = {}) {
     title: String(payload.title || "").trim(),
     subtitle: String(payload.subtitle || "").trim(),
     description: String(payload.description || "").trim(),
+    featuredCollectionText: String(payload.featuredCollectionText || "").trim(),
     ctaText: String(payload.ctaText || "Shop now").trim(),
     ctaUrl: String(payload.ctaUrl || "").trim(),
-    desktopImage: String(payload.desktopImage || "").trim(),
-    mobileImage: String(payload.mobileImage || "").trim(),
+    mediaType: payload.mediaType === "video" ? "video" : "image",
+    desktopMedia: String(payload.desktopMedia || payload.desktopImage || "").trim(),
+    mobileMedia: String(payload.mobileMedia || payload.mobileImage || "").trim(),
+    desktopPoster: String(payload.desktopPoster || "").trim(),
+    mobilePoster: String(payload.mobilePoster || "").trim(),
+    desktopImage: String(payload.desktopImage || payload.desktopMedia || "").trim(),
+    mobileImage: String(payload.mobileImage || payload.mobileMedia || "").trim(),
+    showOverlay: Boolean(payload.showOverlay),
+    overlayOpacity: Math.min(1, Math.max(0, Number(payload.overlayOpacity || 0))),
+    hoverModeEnabled: Boolean(payload.hoverModeEnabled),
+    categoryHeading: String(payload.categoryHeading || "").trim(),
+    categoryDescription: String(payload.categoryDescription || "").trim(),
     status: payload.status || "active",
     displayOrder: Number(payload.displayOrder || 0),
     startDate: payload.startDate || null,
     endDate: payload.endDate || null,
     showOnHomepage: payload.showOnHomepage !== false,
+    containerId,
     createdBy: meta.actor?.sub || meta.actor?._id || null,
     updatedBy: meta.actor?.sub || meta.actor?._id || null,
   });
@@ -235,7 +350,7 @@ async function createBanner(payload, meta = {}) {
   }
 
   await invalidateCache();
-  await syncBannerToBuilderContainer(banner, meta);
+  await syncContainerForBanner(banner, meta);
   await auditService.log({
     actor: meta.actor,
     action: "HOMEPAGE_BANNER_CREATED",
@@ -263,15 +378,16 @@ async function updateBanner(bannerId, payload, meta = {}) {
   if (payload.title !== undefined) banner.title = String(payload.title || "").trim();
   if (payload.subtitle !== undefined) banner.subtitle = String(payload.subtitle || "").trim();
   if (payload.description !== undefined) banner.description = String(payload.description || "").trim();
+  if (payload.featuredCollectionText !== undefined) banner.featuredCollectionText = String(payload.featuredCollectionText || "").trim();
   if (payload.ctaText !== undefined) banner.ctaText = String(payload.ctaText || "").trim();
   if (payload.ctaUrl !== undefined) banner.ctaUrl = String(payload.ctaUrl || "").trim();
-  if (payload.desktopImage !== undefined) banner.desktopImage = String(payload.desktopImage || "").trim();
-  if (payload.mobileImage !== undefined) banner.mobileImage = String(payload.mobileImage || "").trim();
+  applyBannerMediaFields(banner, payload);
   if (payload.status !== undefined) banner.status = payload.status;
   if (payload.displayOrder !== undefined) banner.displayOrder = Number(payload.displayOrder || 0);
   if (payload.startDate !== undefined) banner.startDate = payload.startDate || null;
   if (payload.endDate !== undefined) banner.endDate = payload.endDate || null;
   if (payload.showOnHomepage !== undefined) banner.showOnHomepage = Boolean(payload.showOnHomepage);
+  if (payload.containerId !== undefined) banner.containerId = payload.containerId || null;
   banner.updatedBy = meta.actor?.sub || meta.actor?._id || null;
 
   await banner.save();
@@ -281,7 +397,7 @@ async function updateBanner(bannerId, payload, meta = {}) {
   }
 
   await invalidateCache();
-  await syncBannerToBuilderContainer(banner, meta);
+  await syncContainerForBanner(banner, meta);
   await auditService.log({
     actor: meta.actor,
     action: "HOMEPAGE_BANNER_UPDATED",
@@ -299,10 +415,14 @@ async function deleteBanner(bannerId, meta = {}) {
   const banner = await HomepageBanner.findById(bannerId);
   if (!banner) throw new AppError("Banner not found", 404, "NOT_FOUND");
 
+  const containerId = banner.containerId;
   await HomepageBannerCategory.deleteMany({ bannerId });
-  await deactivateBannerBuilderContainer(bannerId, meta);
   await banner.deleteOne();
   await invalidateCache();
+  if (containerId) {
+    const container = await bannerContainerService.getAdminContainerById(containerId).catch(() => null);
+    if (container) await syncBannerContainerToBuilder(container, meta);
+  }
 
   await auditService.log({
     actor: meta.actor,
@@ -356,28 +476,56 @@ async function uploadBannerImages(bannerId, files = {}, meta = {}) {
   const banner = await HomepageBanner.findById(bannerId);
   if (!banner) throw new AppError("Banner not found", 404, "NOT_FOUND");
 
-  if (!files.desktop?.[0] && !files.mobile?.[0]) {
-    throw new AppError("No image files provided", 400, "VALIDATION_ERROR");
+  if (!files.desktop?.[0] && !files.mobile?.[0] && !files.desktopPoster?.[0] && !files.mobilePoster?.[0]) {
+    throw new AppError("No media files provided", 400, "VALIDATION_ERROR");
   }
 
+  const isVideoMime = (file) => /^video\//i.test(file?.mimetype || "");
+
   if (files.desktop?.[0]) {
-    const [desktop] = await uploadMany([files.desktop[0]], { folder: "homepage/banners/desktop" });
+    const file = files.desktop[0];
+    const [desktop] = await uploadMany([file], {
+      folder: isVideoMime(file) ? "homepage/banners/desktop/video" : "homepage/banners/desktop",
+    });
     if (desktop) {
-      banner.desktopImage = desktop.url;
-      banner.desktopImagePublicId = desktop.public_id || desktop.publicId || "";
+      if (isVideoMime(file)) {
+        banner.mediaType = "video";
+        banner.desktopMedia = desktop.url;
+      } else {
+        banner.desktopMedia = desktop.url;
+        banner.desktopImage = desktop.url;
+        banner.desktopImagePublicId = desktop.public_id || desktop.publicId || "";
+      }
     }
   }
   if (files.mobile?.[0]) {
-    const [mobile] = await uploadMany([files.mobile[0]], { folder: "homepage/banners/mobile" });
+    const file = files.mobile[0];
+    const [mobile] = await uploadMany([file], {
+      folder: isVideoMime(file) ? "homepage/banners/mobile/video" : "homepage/banners/mobile",
+    });
     if (mobile) {
-      banner.mobileImage = mobile.url;
-      banner.mobileImagePublicId = mobile.public_id || mobile.publicId || "";
+      if (isVideoMime(file)) {
+        banner.mediaType = "video";
+        banner.mobileMedia = mobile.url;
+      } else {
+        banner.mobileMedia = mobile.url;
+        banner.mobileImage = mobile.url;
+        banner.mobileImagePublicId = mobile.public_id || mobile.publicId || "";
+      }
     }
+  }
+  if (files.desktopPoster?.[0]) {
+    const [poster] = await uploadMany([files.desktopPoster[0]], { folder: "homepage/banners/desktop/poster" });
+    if (poster) banner.desktopPoster = poster.url;
+  }
+  if (files.mobilePoster?.[0]) {
+    const [poster] = await uploadMany([files.mobilePoster[0]], { folder: "homepage/banners/mobile/poster" });
+    if (poster) banner.mobilePoster = poster.url;
   }
   banner.updatedBy = meta.actor?.sub || meta.actor?._id || null;
   await banner.save();
   await invalidateCache();
-  await syncBannerToBuilderContainer(banner, meta);
+  await syncContainerForBanner(banner, meta);
 
   await auditService.log({
     actor: meta.actor,
@@ -451,6 +599,32 @@ async function getAnalyticsSummary() {
   };
 }
 
+async function reorderBanners(items = [], meta = {}) {
+  const updates = items.map((item) =>
+    HomepageBanner.updateOne(
+      { _id: item.id },
+      { $set: { displayOrder: Number(item.displayOrder || 0), updatedBy: meta.actor?.sub || meta.actor?._id || null } }
+    )
+  );
+  await Promise.all(updates);
+  await invalidateCache();
+  const firstBanner = items[0]?.id ? await HomepageBanner.findById(items[0].id).select("containerId").lean() : null;
+  if (firstBanner?.containerId) {
+    const container = await bannerContainerService.getAdminContainerById(firstBanner.containerId).catch(() => null);
+    if (container) await syncBannerContainerToBuilder(container, meta);
+  }
+  await auditService.log({
+    actor: meta.actor,
+    action: "HOMEPAGE_BANNERS_REORDERED",
+    entityType: "HomepageBanner",
+    entityId: null,
+    metadata: { count: items.length },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+  return listAdminBanners();
+}
+
 async function updateSettings(value, meta = {}) {
   await PlatformConfig.findOneAndUpdate(
     { key: SETTINGS_KEY },
@@ -484,5 +658,6 @@ module.exports = {
   getAnalyticsSummary,
   getSettings,
   updateSettings,
+  reorderBanners,
   invalidateCache,
 };

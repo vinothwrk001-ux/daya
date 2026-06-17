@@ -18,25 +18,31 @@ clearLegacyAuthStorage();
 export const useAuthStore = create((set, get) => ({
   user: null,
   isAuthenticated: false,
-  
+  authReady: false,
+
   setAuth: ({ user }) => {
     const nextState = {
       user: user || null,
       isAuthenticated: Boolean(user),
+      authReady: true,
     };
     set(nextState);
     clearLegacyAuthStorage();
   },
+
+  setAuthReady: (ready = true) => {
+    set({ authReady: ready });
+  },
   
   logout: () => {
-    set({ user: null, isAuthenticated: false });
+    set({ user: null, isAuthenticated: false, authReady: true });
     useAuthCartStore.getState().clearCart();
     clearLegacyAuthStorage();
     resetDarkModePreference();
   },
 
   setUser: (user) => {
-    const nextState = { ...get(), user: user || null, isAuthenticated: Boolean(user) };
+    const nextState = { ...get(), user: user || null, isAuthenticated: Boolean(user), authReady: true };
     set(nextState);
     clearLegacyAuthStorage();
   },

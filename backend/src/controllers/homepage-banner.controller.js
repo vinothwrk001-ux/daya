@@ -1,6 +1,7 @@
 const { ok } = require("../utils/apiResponse");
 const { asyncHandler } = require("../utils/asyncHandler");
 const homepageBannerService = require("../services/homepage-banner.service");
+const bannerContainerService = require("../services/homepage-banner-container.service");
 
 function getMeta(req) {
   return {
@@ -11,7 +12,10 @@ function getMeta(req) {
 }
 
 const listPublicBanners = asyncHandler(async (req, res) => {
-  const data = await homepageBannerService.listPublicBanners();
+  const data = await homepageBannerService.listPublicBanners({
+    containerId: req.query.containerId,
+    containerSlug: req.query.containerSlug,
+  });
   return ok(res, data, "Homepage banners loaded");
 });
 
@@ -24,7 +28,7 @@ const trackBannerEvent = asyncHandler(async (req, res) => {
 });
 
 const listAdminBanners = asyncHandler(async (req, res) => {
-  const banners = await homepageBannerService.listAdminBanners();
+  const banners = await homepageBannerService.listAdminBanners(req.query.containerId);
   return ok(res, banners, "Banners loaded");
 });
 
@@ -68,7 +72,7 @@ const removeCategory = asyncHandler(async (req, res) => {
 
 const uploadBannerImages = asyncHandler(async (req, res) => {
   const banner = await homepageBannerService.uploadBannerImages(req.params.id, req.files || {}, getMeta(req));
-  return ok(res, banner, "Banner images uploaded");
+  return ok(res, banner, "Banner media uploaded");
 });
 
 const getAnalyticsSummary = asyncHandler(async (req, res) => {
@@ -86,6 +90,46 @@ const updateSettings = asyncHandler(async (req, res) => {
   return ok(res, settings, "Banner settings updated");
 });
 
+const reorderBanners = asyncHandler(async (req, res) => {
+  const banners = await homepageBannerService.reorderBanners(req.body.items, getMeta(req));
+  return ok(res, banners, "Banners reordered");
+});
+
+const listBannerContainers = asyncHandler(async (req, res) => {
+  const containers = await bannerContainerService.listAdminContainers();
+  return ok(res, containers, "Banner containers loaded");
+});
+
+const getBannerContainer = asyncHandler(async (req, res) => {
+  const container = await bannerContainerService.getAdminContainerById(req.params.id);
+  return ok(res, container, "Banner container loaded");
+});
+
+const createBannerContainer = asyncHandler(async (req, res) => {
+  const container = await bannerContainerService.createContainer(req.body, getMeta(req));
+  return ok(res, container, "Banner container created", 201);
+});
+
+const updateBannerContainer = asyncHandler(async (req, res) => {
+  const container = await bannerContainerService.updateContainer(req.params.id, req.body, getMeta(req));
+  return ok(res, container, "Banner container updated");
+});
+
+const deleteBannerContainer = asyncHandler(async (req, res) => {
+  const result = await bannerContainerService.deleteContainer(req.params.id, getMeta(req));
+  return ok(res, result, "Banner container deleted");
+});
+
+const reorderBannerContainers = asyncHandler(async (req, res) => {
+  const containers = await bannerContainerService.reorderContainers(req.body.items, getMeta(req));
+  return ok(res, containers, "Banner containers reordered");
+});
+
+const publishBannerContainer = asyncHandler(async (req, res) => {
+  const container = await bannerContainerService.publishContainer(req.params.id, getMeta(req));
+  return ok(res, container, "Banner container published to homepage builder");
+});
+
 module.exports = {
   listPublicBanners,
   trackBannerEvent,
@@ -100,4 +144,12 @@ module.exports = {
   getAnalyticsSummary,
   getSettings,
   updateSettings,
+  reorderBanners,
+  listBannerContainers,
+  getBannerContainer,
+  createBannerContainer,
+  updateBannerContainer,
+  deleteBannerContainer,
+  reorderBannerContainers,
+  publishBannerContainer,
 };

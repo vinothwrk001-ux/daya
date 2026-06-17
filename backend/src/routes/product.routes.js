@@ -43,6 +43,38 @@ router.post(
 );
 
 /**
+ * ==========================================
+ * ACTIVE VIEWERS TRACKING ROUTES
+ * (Must be BEFORE /:id route to match properly)
+ * ==========================================
+ */
+
+/**
+ * GET /products/:id/viewers/count
+ * Get active viewer count for a product (PUBLIC)
+ */
+router.get("/:id/viewers/count", productController.getActiveViewerCount);
+
+/**
+ * POST /products/:id/viewers
+ * Track an active viewer for a product (PUBLIC)
+ * Body: { sessionId: string (optional) }
+ */
+router.post("/:id/viewers", productController.trackActiveViewer);
+
+/**
+ * PATCH /products/:id/viewers/:sessionId
+ * Keep viewer session alive (PUBLIC)
+ */
+router.patch("/:id/viewers/:sessionId", productController.keepViewerAlive);
+
+/**
+ * DELETE /products/:id/viewers/:sessionId
+ * Remove viewer session (PUBLIC)
+ */
+router.delete("/:id/viewers/:sessionId", productController.removeViewerSession);
+
+/**
  * GET /products/:id
  * Get single product by ID
  * (Anyone can view approved products)

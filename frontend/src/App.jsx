@@ -15,6 +15,7 @@ const HomePage = lazyNamed(() => import("./pages/HomePage"), "HomePage");
 const RoleSelectionPage = lazyNamed(() => import("./pages/RoleSelectionPage"), "RoleSelectionPage");
 const LoginPage = lazyNamed(() => import("./pages/LoginPage"), "LoginPage");
 const RegisterPage = lazyNamed(() => import("./pages/RegisterPage"), "RegisterPage");
+const ForgotPasswordPage = lazyNamed(() => import("./pages/ForgotPasswordPage"), "ForgotPasswordPage");
 const DashboardRedirect = lazyNamed(() => import("./pages/DashboardRedirect"), "DashboardRedirect");
 const UserDashboardPage = lazyNamed(() => import("./pages/UserDashboardPage"), "UserDashboardPage");
 const ProductsPage = lazyNamed(() => import("./pages/ProductsPage"), "ProductsPage");
@@ -109,6 +110,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/staff/login" element={<Navigate to="/login" replace />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/shop" element={<ProductsPage />} />
         <Route path="/category/:slug" element={<CategoryPage />} />
         <Route path="/reels" element={<ReelsPage />} />

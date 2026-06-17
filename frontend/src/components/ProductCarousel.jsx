@@ -19,7 +19,7 @@ export function ProductCarousel({
   slideSpeed = 3500,
   desktopItemsPerView = 4,
   tabletItemsPerView = 2,
-  mobileItemsPerView = 1.1,
+  mobileItemsPerView = 2,
   getProductCardProps = () => ({}),
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -151,7 +151,7 @@ export function ProductCarousel({
   }
 
   return (
-    <section className={shellClassName}>
+    <section className={`homepage-product-carousel ${shellClassName}`}>
       <div className="mx-auto max-w-3xl text-center">
         <p className="mx-auto inline-flex rounded-full border border-red-200 px-9 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-red-400">{eyebrowText}</p>
         <h2 className="mt-6 text-3xl font-bold leading-tight text-slate-950 lg:text-4xl">
@@ -203,7 +203,7 @@ export function ProductCarousel({
             {items.map((product) => (
               <div
                 key={product._id}
-                className={`flex-shrink-0 px-2 transition-all duration-300`}
+                className="product-carousel-slide flex-shrink-0 px-1.5 transition-all duration-300 sm:px-2"
                 style={{
                   width: `${100 / itemsPerView}%`,
                 }}
@@ -257,11 +257,11 @@ function CarouselArrow({ direction, onClick, disabled, show }) {
       onClick={onClick}
       disabled={disabled}
       aria-label={isLeft ? "Previous products" : "Next products"}
-      className={`absolute top-[42%] z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-slate-100 bg-white text-slate-700 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40 ${
-        isLeft ? "left-0 -translate-x-2 md:-translate-x-6" : "right-0 translate-x-2 md:translate-x-6"
+      className={`absolute top-[42%] z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-100 bg-white text-slate-700 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 ${
+        isLeft ? "left-0 -translate-x-1 md:-translate-x-6" : "right-0 translate-x-1 md:translate-x-6"
       }`}
     >
-      <Icon className="h-5 w-5" />
+      <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
     </button>
   );
 }

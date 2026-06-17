@@ -1023,7 +1023,12 @@ class HomepageLayoutService {
   async getContainerLibrary() {
     const { ensureAllBannerBuilderContainers } = require("./homepage-banner-container.sync");
     await ensureAllBannerBuilderContainers();
-    return await homepageContainerService.listActiveContainersForBuilder();
+    const containers = await homepageContainerService.listActiveContainersForBuilder();
+    return containers.filter((container) => {
+      const config = container.config || {};
+      if (!config.useManagedBanners) return true;
+      return config.managedBannerScope === "container" && Boolean(config.homepageBannerContainerId);
+    });
   }
 
   async listLayouts() {
