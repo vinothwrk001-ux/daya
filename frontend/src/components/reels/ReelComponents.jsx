@@ -18,6 +18,7 @@ import {
   trackReelProductClick,
   trackReelView,
 } from "../../services/reelService";
+import { navigateToProduct } from "../../utils/scrollPageToTop";
 
 function formatCount(value = 0) {
   const num = Number(value || 0);
@@ -113,7 +114,7 @@ export function ReelCard({
       sessionId,
     }).catch(() => {});
     setReelAttribution({ reelId: reel._id, productId: product._id, sessionId });
-    navigate(`/product/${product._id}?reel=${reel._id}`);
+    navigateToProduct(navigate, `/product/${product._id}?reel=${reel._id}`);
   }
 
   const stats = [

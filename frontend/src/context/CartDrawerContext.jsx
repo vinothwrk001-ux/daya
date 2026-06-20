@@ -71,8 +71,12 @@ export function CartDrawerProvider({ children }) {
       setIsRendered(false);
       setToast(null);
       const previousActiveElement = previousActiveElementRef.current;
-      if (previousActiveElement && typeof previousActiveElement.focus === "function") {
-        previousActiveElement.focus();
+      if (
+        previousActiveElement &&
+        typeof previousActiveElement.focus === "function" &&
+        document.contains(previousActiveElement)
+      ) {
+        previousActiveElement.focus({ preventScroll: true });
       }
     }, DRAWER_ANIMATION_MS);
   }, [clearCloseTimer]);

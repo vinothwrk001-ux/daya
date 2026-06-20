@@ -1,6 +1,5 @@
 const { AppError } = require("../utils/AppError");
 const { hasPermission, normalizeRole } = require("../utils/adminPermissions");
-const { hasStaffPermission } = require("../modules/staff/permissions");
 
 const ADMIN_ROLES = new Set(["admin", "super_admin"]);
 const FINANCE_ROLES = new Set(["finance_admin"]);
@@ -29,10 +28,6 @@ function hasAnyRole(currentActor, roles) {
 
 function owns(currentActor, value) {
   return Boolean(currentActor.id && id(value) === currentActor.id);
-}
-
-function canStaff(currentActor, permission) {
-  return currentActor.authType === "staff" && hasStaffPermission(currentActor.permissions, permission);
 }
 
 function canAdmin(currentActor, permission) {
@@ -66,10 +61,6 @@ const policies = {
     return false;
   },
 
-  rbac(currentActor, action) {
-    if (currentActor.authType === "staff") return canStaff(currentActor, `roles.${action}`);
-    return hasAnyRole(currentActor, ["super_admin", "admin"]) && hasPermission(currentActor.role, `roles:${action}`);
-  },
 };
 
 function can(inputActor, resourceType, action, resource) {

@@ -5,6 +5,7 @@ import { ProductCard } from "./ProductCard";
 import { formatCurrency } from "../utils/formatCurrency";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { trackRecommendationEvent } from "../services/recommendationService";
+import { navigateToProduct } from "../utils/scrollPageToTop";
 
 const MAX_CONTAINER_ITEMS = 20;
 
@@ -165,7 +166,7 @@ export function RecommendationSection({
     function openHeroProduct() {
       if (!heroProduct?._id) return;
       trackClick(heroProduct);
-      navigate(`/product/${heroProduct._id}`);
+      navigateToProduct(navigate, `/product/${heroProduct._id}`);
     }
 
     return (

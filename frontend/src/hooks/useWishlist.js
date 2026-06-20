@@ -1,8 +1,11 @@
 import { logger } from "../services/logger/logger.js";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthStore } from "../context/authStore";
+import useAuthWishlistStore from "../context/authWishlistStore";
 import useGuestWishlistStore from "../context/guestWishlistStore";
 import { wishlistService } from "../services/wishlistService";
+
+let authWishlistBootstrapStarted = false;
 
 /**
  * Unified Wishlist Hook
@@ -13,14 +16,21 @@ import { wishlistService } from "../services/wishlistService";
  */
 export const useWishlist = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const guestWishlist = useGuestWishlistStore();
-  const [authWishlist, setAuthWishlist] = useState(null);
+  const guestWishlistItems = useGuestWishlistStore((state) => state.items);
+  const guestIsInWishlist = useGuestWishlistStore((state) => state.isInWishlist);
+  const guestAddItem = useGuestWishlistStore((state) => state.addItem);
+  const guestRemoveItem = useGuestWishlistStore((state) => state.removeItem);
+  const guestClearWishlist = useGuestWishlistStore((state) => state.clearWishlist);
+  const guestWishlistIsEmpty = useGuestWishlistStore((state) => state.isEmpty);
+  const authWishlistItems = useAuthWishlistStore((state) => state.items);
+  const setAuthWishlistItems = useAuthWishlistStore((state) => state.setItems);
+  const clearAuthWishlist = useAuthWishlistStore((state) => state.clear);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const normalizeAuthWishlist = useCallback((response) => {
     const items = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
-    return { items, itemCount: items.length };
+    return items;
   }, []);
 
   /**
@@ -34,13 +44,16 @@ export const useWishlist = () => {
   const getCurrentWishlist = useCallback(() => {
     if (isGuest) {
       return {
-        items: guestWishlist.items,
-        itemCount: guestWishlist.getItemCount(),
+        items: guestWishlistItems,
+        itemCount: guestWishlistItems.length,
       };
-    } else {
-      return authWishlist || { items: [], itemCount: 0 };
     }
-  }, [isGuest, guestWishlist, authWishlist]);
+
+    return {
+      items: authWishlistItems,
+      itemCount: authWishlistItems.length,
+    };
+  }, [authWishlistItems, guestWishlistItems, isGuest]);
 
   /**
    * Fetch authenticated user's wishlist
@@ -52,23 +65,28 @@ export const useWishlist = () => {
     setError(null);
     try {
       const wishlist = await wishlistService.getWishlist();
-      setAuthWishlist(normalizeAuthWishlist(wishlist));
+      const items = normalizeAuthWishlist(wishlist);
+      setAuthWishlistItems(items);
+      return items;
     } catch (err) {
       setError(err.message);
       logger.error("Failed to fetch wishlist:", { error: err });
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, normalizeAuthWishlist]);
+  }, [isAuthenticated, normalizeAuthWishlist, setAuthWishlistItems]);
 
-  /**
-   * Initialize wishlist on mount (fetch if authenticated)
-   */
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchAuthWishlist();
+    if (!isAuthenticated) {
+      authWishlistBootstrapStarted = false;
+      clearAuthWishlist();
+      return;
     }
-  }, [isAuthenticated, fetchAuthWishlist]);
+
+    if (authWishlistBootstrapStarted) return;
+    authWishlistBootstrapStarted = true;
+    fetchAuthWishlist();
+  }, [clearAuthWishlist, isAuthenticated, fetchAuthWishlist]);
 
   /**
    * Check if product is in wishlist
@@ -76,18 +94,14 @@ export const useWishlist = () => {
   const isInWishlist = useCallback(
     async (productId) => {
       if (isGuest) {
-        return guestWishlist.isInWishlist(productId);
-      } else {
-        try {
-          const status = await wishlistService.checkWishlistStatus(productId);
-          return Boolean(status?.saved ?? status?.inWishlist);
-        } catch (err) {
-          logger.error("Failed to check wishlist status:", { error: err });
-          return false;
-        }
+        return guestIsInWishlist(productId);
       }
+
+      return authWishlistItems.some(
+        (item) => String(item?.productId || item?._id || item?.product?._id) === String(productId)
+      );
     },
-    [isGuest, guestWishlist]
+    [authWishlistItems, guestIsInWishlist, isGuest]
   );
 
   /**
@@ -101,7 +115,7 @@ export const useWishlist = () => {
         // For guest: validate product first, then add
         try {
           const validatedProduct = await wishlistService.validateProduct(productId, variantId);
-          guestWishlist.addItem({
+          guestAddItem({
             ...validatedProduct,
             selectedAttributes,
           });
@@ -127,7 +141,7 @@ export const useWishlist = () => {
         }
       }
     },
-    [isGuest, guestWishlist, fetchAuthWishlist]
+    [guestAddItem, fetchAuthWishlist, isGuest]
   );
 
   /**
@@ -139,7 +153,7 @@ export const useWishlist = () => {
 
       if (isGuest) {
         // For guest: remove locally
-        guestWishlist.removeItem(productId);
+        guestRemoveItem(productId);
         return { success: true };
       } else {
         // For auth: use backend API
@@ -158,7 +172,7 @@ export const useWishlist = () => {
         }
       }
     },
-    [isGuest, guestWishlist, fetchAuthWishlist]
+    [guestRemoveItem, fetchAuthWishlist, isGuest]
   );
 
   /**
@@ -166,12 +180,12 @@ export const useWishlist = () => {
    */
   const clearWishlist = useCallback(() => {
     if (isGuest) {
-      guestWishlist.clearWishlist();
+      guestClearWishlist();
       return { items: [] };
     }
-    // For auth users, we'd need a backend endpoint
-    // For now, just clear local state
-  }, [isGuest, guestWishlist]);
+    clearAuthWishlist();
+    return { items: [] };
+  }, [clearAuthWishlist, guestClearWishlist, isGuest]);
 
   /**
    * Validate wishlist items (check if still available)
@@ -191,7 +205,7 @@ export const useWishlist = () => {
       if (isGuest) {
         if (validation.removedItems?.length > 0) {
           validation.removedItems.forEach((item) => {
-            guestWishlist.removeItem(item.productId);
+            guestRemoveItem(item.productId);
           });
         }
       }
@@ -203,28 +217,23 @@ export const useWishlist = () => {
     } finally {
       setLoading(false);
     }
-  }, [isGuest, getCurrentWishlist, guestWishlist]);
+  }, [getCurrentWishlist, guestRemoveItem, isGuest]);
 
   /**
    * Merge guest wishlist on login (called after authentication)
    */
   const mergeOnLogin = useCallback(async () => {
-    if (isGuest || guestWishlist.isEmpty()) {
+    if (isGuest || guestWishlistIsEmpty()) {
       return { merged: 0 };
     }
 
     try {
       setLoading(true);
-      const guestItems = guestWishlist.items;
+      const guestItems = guestWishlistItems;
 
-      // Call merge endpoint on backend
       const mergeResult = await wishlistService.mergeGuestWishlist(guestItems);
-
-      // Update auth wishlist with merged result
-      setAuthWishlist(normalizeAuthWishlist(mergeResult.userWishlist));
-
-      // Clear guest wishlist
-      guestWishlist.clearWishlist();
+      setAuthWishlistItems(normalizeAuthWishlist(mergeResult.userWishlist));
+      guestClearWishlist();
 
       return mergeResult;
     } catch (err) {
@@ -234,7 +243,7 @@ export const useWishlist = () => {
     } finally {
       setLoading(false);
     }
-  }, [isGuest, guestWishlist, normalizeAuthWishlist]);
+  }, [guestClearWishlist, guestWishlistIsEmpty, guestWishlistItems, isGuest, normalizeAuthWishlist, setAuthWishlistItems]);
 
   return {
     // State

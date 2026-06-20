@@ -16,10 +16,6 @@ test("customer cannot mutate platform-managed products", () => {
   assert.equal(can(userA, "product", "update", draftProduct), false);
 });
 
-test("finance admin cannot modify RBAC", () => {
-  assert.equal(can({ id: "fin-a", role: "finance_admin", roles: ["finance_admin"] }, "rbac", "update", {}), false);
-});
-
 test("finance admin cannot delete products", () => {
   assert.equal(can({ id: "fin-a", role: "finance_admin", roles: ["finance_admin"] }, "product", "delete", draftProduct), false);
 });

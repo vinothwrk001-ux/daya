@@ -172,16 +172,6 @@ export async function updateShippingModes(payload) {
   return data;
 }
 
-export async function listPickupBatches(params = {}) {
-  const { data } = await adminHttp.get("/api/admin/pickups", { params });
-  return data;
-}
-
-export async function scheduleAdminPickup(payload) {
-  const { data } = await adminHttp.post("/api/admin/pickups/schedule", payload);
-  return data;
-}
-
 export async function listReviews(params = {}) {
   const { data } = await adminHttp.get("/api/admin/reviews", { params });
   return data;
@@ -391,56 +381,6 @@ export async function deleteSubcategory(id) {
 
 export async function toggleSubcategoryStatus(id, status) {
   const { data } = await adminHttp.patch(`/api/admin/subcategories/${id}/status`, { status });
-  return data;
-}
-
-export async function getStaffPermissionCatalog() {
-  const { data } = await adminHttp.get("/api/admin/permissions/catalog");
-  return data;
-}
-
-export async function listStaffRoles() {
-  const { data } = await adminHttp.get("/api/admin/roles");
-  return data;
-}
-
-export async function createStaffRole(payload) {
-  const { data } = await adminHttp.post("/api/admin/roles", payload);
-  return data;
-}
-
-export async function updateStaffRole(id, payload) {
-  const { data } = await adminHttp.patch(`/api/admin/roles/${id}`, payload);
-  return data;
-}
-
-export async function deleteStaffRole(id) {
-  const { data } = await adminHttp.delete(`/api/admin/roles/${id}`);
-  return data;
-}
-
-export async function listStaffAccounts() {
-  const { data } = await adminHttp.get("/api/staff/admin/accounts");
-  return data;
-}
-
-export async function createStaffAccount(payload) {
-  const { data } = await adminHttp.post("/api/staff/admin/accounts", payload);
-  return data;
-}
-
-export async function updateStaffAccount(id, payload) {
-  const { data } = await adminHttp.patch(`/api/staff/admin/accounts/${id}`, payload);
-  return data;
-}
-
-export async function deleteStaffAccount(id) {
-  const { data } = await adminHttp.delete(`/api/staff/admin/accounts/${id}`);
-  return data;
-}
-
-export async function forceLogoutStaffAccount(id) {
-  const { data } = await adminHttp.post(`/api/staff/admin/accounts/${id}/force-logout`);
   return data;
 }
 

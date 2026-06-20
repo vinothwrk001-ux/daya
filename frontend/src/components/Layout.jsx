@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Heart,
   MapPin,
@@ -22,6 +22,7 @@ import { usePresentedCategories } from "../utils/categoryPresentation";
 import { useBranding } from "../context/BrandingContext";
 import { BrandLogo } from "./BrandLogo";
 import { HeaderShopActions } from "./HeaderShopActions";
+import { RouteScrollManager } from "./RouteScrollManager";
 
 export function Layout() {
   const navigate = useNavigate();
@@ -248,7 +249,7 @@ export function Layout() {
               : "w-full flex-1 px-3 py-5 sm:px-4 sm:py-7 lg:px-8 lg:py-10"
         }
       >
-        <Outlet />
+        <RouteScrollManager />
       </main>
 
       {!hideShopChrome ? <Footer /> : null}

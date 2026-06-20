@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { dedupePromise } from "../utils/dedupePromise";
 
 function extractWishlistPayload(data) {
   return data?.data || data;
@@ -12,13 +13,17 @@ function notifyWishlistChanged(items) {
 // ===== AUTHENTICATED USER ENDPOINTS =====
 
 export async function getWishlist() {
-  const { data } = await api.get("/api/wishlist");
-  return data;
+  return dedupePromise("wishlist:get", async () => {
+    const { data } = await api.get("/api/wishlist");
+    return data;
+  });
 }
 
 export async function checkWishlistStatus(productId) {
-  const { data } = await api.get(`/api/wishlist/${productId}/status`);
-  return extractWishlistPayload(data);
+  return dedupePromise(`wishlist:status:${productId}`, async () => {
+    const { data } = await api.get(`/api/wishlist/${productId}/status`);
+    return extractWishlistPayload(data);
+  });
 }
 
 // Legacy name for backward compatibility

@@ -101,45 +101,6 @@ class LogisticsService {
       },
     };
   }
-
-  async schedulePickup({ shipmentIds = [], idempotencyKey = "" } = {}) {
-    if (this.providerName !== "SHIPROCKET") {
-      throw new AppError("Unsupported logistics provider", 503, "LOGISTICS_PROVIDER_UNSUPPORTED");
-    }
-
-    const normalizedShipmentIds = [...new Set((Array.isArray(shipmentIds) ? shipmentIds : []).map((id) => String(id).trim()).filter(Boolean))];
-    if (!normalizedShipmentIds.length) {
-      throw new AppError("At least one shipment is required to schedule pickup", 400, "SHIPMENT_IDS_REQUIRED");
-    }
-
-    const token = await this.getShiprocketToken();
-    const headers = { Authorization: `Bearer ${token}` };
-    if (idempotencyKey) {
-      headers["X-Idempotency-Key"] = idempotencyKey;
-    }
-
-    try {
-      const pickupResponse = await axios.post(
-        "https://apiv2.shiprocket.in/v1/external/courier/generate/pickup",
-        { shipment_id: normalizedShipmentIds },
-        { headers }
-      );
-      const pickupResponseData = pickupResponse?.data || {};
-      return {
-        provider: "SHIPROCKET",
-        pickupStatus: pickupResponseData?.pickup_status || "SCHEDULED",
-        courierName: pickupResponseData?.courier_name || pickupResponseData?.data?.courier_name || "",
-        pickupDate: pickupResponseData?.pickup_scheduled_date || pickupResponseData?.pickup_date || pickupResponseData?.data?.pickup_date || null,
-        raw: pickupResponseData,
-      };
-    } catch (error) {
-      throw new AppError(
-        error?.response?.data?.message || "Pickup scheduling failed with logistics provider",
-        502,
-        "PICKUP_REQUEST_FAILED"
-      );
-    }
-  }
 }
 
 module.exports = new LogisticsService();

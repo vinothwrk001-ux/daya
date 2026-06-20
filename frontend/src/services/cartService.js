@@ -1,12 +1,15 @@
 import { api } from "./api";
 import { emitCartChanged, normalizeCartPayload } from "../utils/cartState";
 import { getReelAttribution } from "./reelService";
+import { dedupePromise } from "../utils/dedupePromise";
 
 // ===== AUTHENTICATED USER ENDPOINTS =====
 
 export async function getCart() {
-  const { data } = await api.get("/api/cart");
-  return normalizeCartPayload(data);
+  return dedupePromise("cart:get", async () => {
+    const { data } = await api.get("/api/cart");
+    return normalizeCartPayload(data);
+  });
 }
 
 export async function addToCart(productId, quantity = 1, variantId = "") {

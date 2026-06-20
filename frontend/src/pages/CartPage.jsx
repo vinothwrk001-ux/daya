@@ -7,6 +7,7 @@ import { getCartRecommendations, getFbtRecommendations } from "../services/recom
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatWeight, getFormattedWeight, getWeightUnit, getWeightValue } from "../utils/weight";
 import { useCart } from "../hooks/useCart";
+import { navigateToProduct } from "../utils/scrollPageToTop";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -171,7 +172,7 @@ export function CartPage() {
                           src={img}
                           alt={name}
                           className="h-full w-full object-cover cursor-pointer transition hover:opacity-80"
-                          onClick={() => navigate(`/product/${id}`)}
+                          onClick={() => navigateToProduct(navigate, `/product/${id}`)}
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center text-xs text-slate-400">No image</div>
@@ -185,7 +186,7 @@ export function CartPage() {
                         <div>
                           <h3
                             className="text-base font-semibold text-slate-950 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2"
-                            onClick={() => navigate(`/product/${id}`)}
+                            onClick={() => navigateToProduct(navigate, `/product/${id}`)}
                           >
                             {name}
                           </h3>

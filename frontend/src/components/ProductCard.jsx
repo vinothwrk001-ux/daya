@@ -10,6 +10,7 @@ import { useWishlist } from "../hooks/useWishlist";
 import { useProductCardVariant } from "../hooks/useProductCardVariant";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { resolveSwatchColor } from "../utils/variantDisplay";
+import { navigateToProduct } from "../utils/scrollPageToTop";
 
 function reportProductCardError(message, details = {}) {
   const payload = {
@@ -236,10 +237,10 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
   const displayPrice = pricing.hasDiscount ? pricing.salePrice : pricing.price;
   const imageKey = `${activeVariant?.variantId || "default"}-${imageUrl}`;
 
-  const navigateToProduct = () => {
+  const goToProduct = () => {
     if (!productId) return;
     onProductClick?.(product);
-    navigate(detailUrl);
+    navigateToProduct(navigate, detailUrl);
   };
 
   return (
@@ -248,11 +249,11 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
       transition={{ type: "spring", stiffness: 280, damping: 24 }}
       onMouseEnter={() => setIsCardHovered(true)}
       onMouseLeave={() => setIsCardHovered(false)}
-      onClick={navigateToProduct}
+      onClick={goToProduct}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          navigateToProduct();
+          goToProduct();
         }
       }}
       role="link"
@@ -322,7 +323,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
           onViewProduct={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            navigateToProduct();
+            goToProduct();
           }}
         />
       </div>

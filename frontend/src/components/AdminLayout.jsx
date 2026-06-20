@@ -123,14 +123,6 @@ const pageMeta = {
     title: "Pricing Categories",
     subtitle: "Create and manage pricing categories to organize your fees and charges.",
   },
-  "/admin/roles": {
-    title: "Staff Roles",
-    subtitle: "Create reusable role templates and manage RBAC permissions.",
-  },
-  "/admin/staff": {
-    title: "Staff Accounts",
-    subtitle: "Provision staff access, assign roles, and control account status.",
-  },
   "/staff/dashboard": {
     title: "Staff Dashboard",
     subtitle: "Your assigned workspace modules and operational overview.",

@@ -14,6 +14,7 @@ import {
   getCartItemKey,
   normalizeCartPayload,
 } from "../utils/cartState";
+import { navigateToProduct } from "../utils/scrollPageToTop";
 
 export function CartDrawer() {
   const navigate = useNavigate();
@@ -339,7 +340,7 @@ export function CartDrawer() {
                       <button
                         key={rec._id}
                         onClick={() => {
-                          navigate(`/product/${rec._id}`);
+                          navigateToProduct(navigate, `/product/${rec._id}`);
                           closeDrawer();
                         }}
                         className="group overflow-hidden rounded-lg border border-slate-200 text-left transition hover:border-blue-300 dark:border-slate-700 dark:hover:border-blue-600"

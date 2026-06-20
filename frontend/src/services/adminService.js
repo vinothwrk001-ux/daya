@@ -22,9 +22,4 @@ export {
   listOrders,
   updateOrderStatus,
   getAuditLogs,
-  getStaffPermissionCatalog,
-  listStaffRoles,
-  createStaffRole,
-  updateStaffRole,
-  deleteStaffRole,
 } from "./adminApi";

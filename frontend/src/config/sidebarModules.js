@@ -21,7 +21,6 @@ import {
   Truck,
   Users,
   Wallet,
-  UserCog,
 } from "lucide-react";
 
 export const ADMIN_PRIMARY_ITEM = {
@@ -51,7 +50,6 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Orders", path: "/admin/orders", permission: "orders.read", icon: ShoppingCart, notificationModule: "MANAGEMENT", notificationSubModule: "ORDERS" },
       { name: "Reels & Shorts", path: "/admin/reels", permission: "products.read", icon: Film, notificationModule: "MANAGEMENT", notificationSubModule: "REELS" },
       { name: "Reels Attribution", path: "/admin/reels/attribution", permission: "analytics.read", icon: Target, notificationModule: "MANAGEMENT", notificationSubModule: "REELS" },
-      { name: "Pickups", path: "/admin/pickups", permission: "orders.read", icon: Truck, notificationModule: "MANAGEMENT", notificationSubModule: "DELIVERY" },
     ],
   },
   {
@@ -110,8 +108,6 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Shipping", path: "/admin/shipping", permission: "settings.update", icon: Truck },
       { name: "Pricing", path: "/admin/pricing", permission: "settings.update", icon: Percent },
       { name: "Pricing Categories", path: "/admin/pricing-categories", permission: "settings.update", icon: Tags },
-      { name: "Staff Roles", path: "/admin/roles", permission: "roles.read", icon: ShieldCheck, legacyOnly: true },
-      { name: "Staff Accounts", path: "/admin/staff", permission: "staff.read", icon: UserCog, legacyOnly: true },
     ],
   },
 ];

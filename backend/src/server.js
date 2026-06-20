@@ -5,7 +5,7 @@ const { createApp } = require("./app");
 const { connectDb } = require("./config/db");
 const { logger } = require("./utils/logger");
 const { ensurePaymentIndexes } = require("./models/Payment");
-const { ensurePredefinedStaffRoles } = require("./modules/staff/services/role.service");
+const { ensurePredefinedStaffRoles } = require("./modules/staff/services/staff-role-bootstrap.service");
 const { ensureDefaultPricingCategories } = require("./services/pricing-category.service");
 const { initializeEventBus, shutdownEventBus } = require("./modules/events/event-bus");
 const {

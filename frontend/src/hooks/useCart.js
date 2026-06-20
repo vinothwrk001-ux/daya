@@ -7,6 +7,7 @@ import { cartService } from "../services/cartService";
 import { normalizeCartPayload, getCartItemKey } from "../utils/cartState";
 
 const pendingAddItemRequests = new Map();
+let authCartBootstrapStarted = false;
 
 /**
  * Unified Cart Hook
@@ -61,7 +62,7 @@ export const useCart = () => {
     } catch (err) {
       setError(err.message);
       logger.error("Failed to fetch cart:", { error: err });
-      throw err;
+      return null;
     } finally {
       setLoading(false);
     }
@@ -71,11 +72,15 @@ export const useCart = () => {
    * Initialize cart on mount (fetch if authenticated)
    */
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchAuthCart();
-    } else {
+    if (!isAuthenticated) {
+      authCartBootstrapStarted = false;
       clearAuthCart();
+      return;
     }
+
+    if (authCartBootstrapStarted) return;
+    authCartBootstrapStarted = true;
+    fetchAuthCart().catch(() => {});
   }, [clearAuthCart, isAuthenticated, fetchAuthCart]);
 
   /**

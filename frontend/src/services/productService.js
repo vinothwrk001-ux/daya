@@ -1,5 +1,6 @@
 import { api } from "./api";
 import { uploadMarketplaceProductImages } from "./productMediaService";
+import { dedupePromise } from "../utils/dedupePromise";
 
 /**
  * Get all public products (for storefront)
@@ -18,8 +19,10 @@ export async function getPublicProductFilters(params = {}) {
  * Get single product by ID
  */
 export async function getProductById(id) {
-  const response = await api.get(`/api/products/${id}`);
-  return response.data;
+  return dedupePromise(`product:${id}`, async () => {
+    const response = await api.get(`/api/products/${id}`);
+    return response.data;
+  });
 }
 
 export async function getRelatedProducts(productId, limit = 4, categoryId = "") {

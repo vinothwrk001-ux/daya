@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Heart, ShoppingCart } from "lucide-react";
 import { useAuthStore } from "../context/authStore";
-import * as cartService from "../services/cartService";
-import * as wishlistService from "../services/wishlistService";
+import useAuthCartStore from "../context/authCartStore";
+import useAuthWishlistStore from "../context/authWishlistStore";
 import useGuestCartStore from "../context/guestCartStore";
 import useGuestWishlistStore from "../context/guestWishlistStore";
-import { normalizeCartPayload } from "../utils/cartState";
 
 export function HeaderIconLink({ to, label, badge, children, className = "", variant = "icon" }) {
   if (variant === "inline") {
@@ -50,90 +48,12 @@ export function HeaderShopActions({ className = "", variant = "icon" }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const guestCartCount = useGuestCartStore((state) => state.getTotalQuantity());
   const guestWishlistCount = useGuestWishlistStore((state) => state.getItemCount());
-  const [cartCount, setCartCount] = useState(0);
-  const [wishlistCount, setWishlistCount] = useState(0);
+  const authCartCount = useAuthCartStore((state) => state.cart.totalQuantity || 0);
+  const authWishlistCount = useAuthWishlistStore((state) => state.items.length);
   const showShopActions = !user || user?.role === "user";
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadCartCount() {
-      if (!showShopActions) {
-        setCartCount(0);
-        return;
-      }
-
-      if (!isAuthenticated) {
-        setCartCount(guestCartCount);
-        return;
-      }
-
-      try {
-        const response = await cartService.getCart();
-        const normalized = normalizeCartPayload(response);
-        if (!cancelled) {
-          setCartCount(normalized.totalQuantity);
-        }
-      } catch {
-        if (!cancelled) {
-          setCartCount(0);
-        }
-      }
-    }
-
-    loadCartCount();
-
-    function handleCartChanged(event) {
-      setCartCount(normalizeCartPayload(event?.detail).totalQuantity);
-    }
-
-    window.addEventListener("cart:changed", handleCartChanged);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("cart:changed", handleCartChanged);
-    };
-  }, [guestCartCount, isAuthenticated, showShopActions]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWishlistCount() {
-      if (!showShopActions) {
-        setWishlistCount(0);
-        return;
-      }
-
-      if (!isAuthenticated) {
-        setWishlistCount(guestWishlistCount);
-        return;
-      }
-
-      try {
-        const response = await wishlistService.getWishlist();
-        const items = Array.isArray(response?.data) ? response.data : [];
-        if (!cancelled) {
-          setWishlistCount(items.length);
-        }
-      } catch {
-        if (!cancelled) {
-          setWishlistCount(0);
-        }
-      }
-    }
-
-    loadWishlistCount();
-
-    function handleWishlistChanged(event) {
-      const items = Array.isArray(event?.detail?.items) ? event.detail.items : [];
-      setWishlistCount(items.length);
-    }
-
-    window.addEventListener("wishlist:changed", handleWishlistChanged);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("wishlist:changed", handleWishlistChanged);
-    };
-  }, [guestWishlistCount, isAuthenticated, showShopActions]);
+  const cartCount = isAuthenticated ? authCartCount : guestCartCount;
+  const wishlistCount = isAuthenticated ? authWishlistCount : guestWishlistCount;
 
   if (!showShopActions) {
     return null;

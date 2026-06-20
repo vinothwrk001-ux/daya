@@ -37,8 +37,6 @@ const {
   createProductModuleSchema,
   updateProductModuleSchema,
 } = require("../utils/validators/product-module.validation");
-const roleController = require("../modules/staff/controllers/role.controller");
-const { roleSchema } = require("../modules/staff/validators");
 const pricingController = require("../controllers/pricing.controller");
 const codController = require("../controllers/cod.controller");
 const homepageContainerController = require("../controllers/homepage-container.controller");
@@ -275,14 +273,6 @@ router.delete(
   requireLegacyAdminPermission("categories:update"),
   productModuleController.deleteProductModule
 );
-
-// Role management routes
-router.get("/permissions/catalog", requireWorkspacePermission("roles.read"), roleController.getPermissionCatalog);
-router.get("/roles", requireWorkspacePermission("roles.read"), roleController.listRoles);
-router.get("/roles/:id", requireWorkspacePermission("roles.read"), roleController.getRoleById);
-router.post("/roles", requireWorkspacePermission("roles.create"), validate(roleSchema), roleController.createRole);
-router.patch("/roles/:id", requireWorkspacePermission("roles.update"), validate(roleSchema), roleController.updateRole);
-router.delete("/roles/:id", requireWorkspacePermission("roles.delete"), roleController.deleteRole);
 
 // Pricing configuration routes
 router.get(

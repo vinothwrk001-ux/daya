@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { ProductDetailsPage } from "./pages/ProductDetailsPage";
 import { AdminLayout } from "./components/AdminLayout";
 import { UserAccountLayout } from "./components/UserAccountLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -20,7 +21,6 @@ const DashboardRedirect = lazyNamed(() => import("./pages/DashboardRedirect"), "
 const UserDashboardPage = lazyNamed(() => import("./pages/UserDashboardPage"), "UserDashboardPage");
 const ProductsPage = lazyNamed(() => import("./pages/ProductsPage"), "ProductsPage");
 const HomepageContainerProductsPage = lazyNamed(() => import("./pages/HomepageContainerProductsPage"), "HomepageContainerProductsPage");
-const ProductDetailsPage = lazyNamed(() => import("./pages/ProductDetailsPage"), "ProductDetailsPage");
 const CartPage = lazyNamed(() => import("./pages/CartPage"), "CartPage");
 const WishlistPage = lazyNamed(() => import("./pages/WishlistPage"), "WishlistPage");
 const ComparePage = lazyNamed(() => import("./pages/ComparePage"), "ComparePage");
@@ -56,7 +56,6 @@ const AdminShippingConfigPage = lazyNamed(() => import("./pages/AdminShippingCon
 const AdminProductCreate = lazyNamed(() => import("./pages/AdminProductCreate"), "AdminProductCreate");
 const AdminProductEdit = lazyNamed(() => import("./pages/AdminProductEdit"), "AdminProductEdit");
 const AdminOrdersPage = lazyNamed(() => import("./pages/AdminOrdersPage"), "AdminOrdersPage");
-const AdminPickupsPage = lazyNamed(() => import("./pages/AdminPickupsPage"), "AdminPickupsPage");
 const AdminPaymentsPage = lazyNamed(() => import("./pages/AdminPaymentsPage"), "AdminPaymentsPage");
 const AdminRefundsPage = lazyNamed(() => import("./pages/AdminRefundsPage"), "AdminRefundsPage");
 const AdminRefundDetailsPage = lazyNamed(() => import("./pages/AdminRefundDetailsPage"), "AdminRefundDetailsPage");
@@ -77,8 +76,6 @@ const AdminSettingsPage = lazyNamed(() => import("./pages/AdminSettingsPage"), "
 const AdminCompanyBrandingPage = lazyNamed(() => import("./pages/AdminCompanyBrandingPage"), "AdminCompanyBrandingPage");
 const AdminPricingPage = lazyNamed(() => import("./pages/AdminPricingPage"), "AdminPricingPage");
 const AdminPricingCategoriesPage = lazyNamed(() => import("./pages/AdminPricingCategoriesPage"), "AdminPricingCategoriesPage");
-const AdminRolesPage = lazyNamed(() => import("./pages/AdminRolesPage"), "AdminRolesPage");
-const AdminStaffPage = lazyNamed(() => import("./pages/AdminStaffPage"), "AdminStaffPage");
 const CategoryPage = lazyNamed(() => import("./pages/CategoryPage"), "CategoryPage");
 const ReelsPage = lazyNamed(() => import("./pages/ReelsPage"), "ReelsPage");
 const SavedReelsPage = lazyNamed(() => import("./pages/SavedReelsPage"), "SavedReelsPage");
@@ -97,8 +94,11 @@ const StaffReviewsPage = lazyNamed(() => import("./pages/StaffReviewsPage"), "St
 const StaffPaymentsPage = lazyNamed(() => import("./pages/StaffPaymentsPage"), "StaffPaymentsPage");
 const StaffAnalyticsPage = lazyNamed(() => import("./pages/StaffAnalyticsPage"), "StaffAnalyticsPage");
 const StaffSettingsPage = lazyNamed(() => import("./pages/StaffSettingsPage"), "StaffSettingsPage");
-const StaffRolesPage = lazyNamed(() => import("./pages/StaffRolesPage"), "StaffRolesPage");
-const StaffStaffPage = lazyNamed(() => import("./pages/StaffStaffPage"), "StaffStaffPage");
+
+function ProductDetailsRoute() {
+  const { productId } = useParams();
+  return <ProductDetailsPage key={productId} />;
+}
 
 export default function App() {
   return (
@@ -115,7 +115,7 @@ export default function App() {
         <Route path="/category/:slug" element={<CategoryPage />} />
         <Route path="/reels" element={<ReelsPage />} />
         <Route path="/collections/:slug" element={<HomepageContainerProductsPage />} />
-        <Route path="/product/:productId" element={<ProductDetailsPage />} />
+        <Route path="/product/:productId" element={<ProductDetailsRoute />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/compare" element={<ComparePage />} />
@@ -167,7 +167,6 @@ export default function App() {
               <Route path="products/create" element={<AdminProductCreate />} />
               <Route path="products/:id/edit" element={<AdminProductEdit />} />
               <Route path="orders" element={<AdminOrdersPage />} />
-              <Route path="pickups" element={<AdminPickupsPage />} />
               <Route path="payments" element={<AdminPaymentsPage />} />
               <Route path="refunds" element={<AdminRefundsPage />} />
               <Route path="refunds/:id" element={<AdminRefundDetailsPage />} />
@@ -196,8 +195,6 @@ export default function App() {
               <Route path="settings/company-branding" element={<AdminCompanyBrandingPage />} />
               <Route path="pricing" element={<AdminPricingPage />} />
               <Route path="pricing-categories" element={<AdminPricingCategoriesPage />} />
-              <Route path="roles" element={<AdminRolesPage />} />
-              <Route path="staff" element={<AdminStaffPage />} />
               <Route path="reels" element={<AdminReelsPage />} />
               <Route path="reels/create" element={<AdminReelFormPage />} />
               <Route path="reels/:reelId/edit" element={<AdminReelFormPage />} />
@@ -239,12 +236,6 @@ export default function App() {
             </Route>
             <Route element={<StaffPermissionRoute permission="settings.update" />}>
               <Route path="settings" element={<StaffSettingsPage />} />
-            </Route>
-            <Route element={<StaffPermissionRoute permission="roles.read" />}>
-              <Route path="roles" element={<StaffRolesPage />} />
-            </Route>
-            <Route element={<StaffPermissionRoute permission="staff.read" />}>
-              <Route path="staff" element={<StaffStaffPage />} />
             </Route>
           </Route>
         </Route>

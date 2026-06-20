@@ -22,7 +22,6 @@ const checkoutRoutes = require("./routes/checkout.routes");
 const paymentRoutes = require("./routes/payment.routes");
 const deliveryRoutes = require("./routes/delivery.routes");
 const shippingRoutes = require("./routes/shipping.routes");
-const pickupRoutes = require("./routes/pickup.routes");
 const webhookRoutes = require("./routes/webhook.routes");
 const wishlistRoutes = require("./routes/wishlist.routes");
 const compareRoutes = require("./routes/compare.routes");
@@ -214,7 +213,6 @@ function createApp() {
   app.use("/api/payment", paymentRoutes);
   app.use("/api/delivery", deliveryRoutes);
   app.use("/api/shipping", shippingRoutes);
-  app.use("/api", pickupRoutes);
   app.use("/api/webhooks", webhookRoutes);
   app.use("/api/wishlist", wishlistRoutes);
   app.use("/api/compare", compareRoutes);

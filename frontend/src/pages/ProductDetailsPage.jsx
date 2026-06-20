@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { ProductImageGallery } from "../components/ProductImageGallery";
@@ -29,6 +29,8 @@ import pendingActionManager from "../utils/pendingActionManager";
 import buyNowSessionService from "../services/buyNowSessionService";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { getReelAttribution, getReelSessionId, trackReelProductView } from "../services/reelService";
+import { scrollPageToTop } from "../utils/scrollPageToTop";
+import { ProductDetailsSkeleton } from "../components/ProductDetailsSkeleton";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -151,7 +153,7 @@ export function ProductDetailsPage() {
   const {
     addItem: addWishlistItem,
     removeItem: removeWishlistItem,
-    isInWishlist,
+    wishlist,
   } = useWishlist();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -168,6 +170,14 @@ export function ProductDetailsPage() {
   const [recommendations, setRecommendations] = useState(null);
   const [fbtBundle, setFbtBundle] = useState(null);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [paintReady, setPaintReady] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  useLayoutEffect(() => {
+    scrollPageToTop();
+    setPaintReady(true);
+  }, [productId]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -189,7 +199,14 @@ export function ProductDetailsPage() {
       } catch (err) {
         if (!cancelled) {
           setProduct(null);
-          setError(err?.message === "NOT_PUBLIC" ? "Product not available" : "Failed to load product");
+          const status = err?.response?.status;
+          if (status === 429) {
+            setError("Too many requests. Please wait a moment and try again.");
+          } else if (err?.message === "NOT_PUBLIC") {
+            setError("Product not available");
+          } else {
+            setError("Failed to load product");
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -200,7 +217,20 @@ export function ProductDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [productId, variantIdFromQuery]);
+  }, [productId, variantIdFromQuery, reloadToken]);
+
+  useEffect(() => {
+    if (!productId) {
+      setWishlistSaved(false);
+      return;
+    }
+
+    setWishlistSaved(
+      wishlist.items.some(
+        (item) => String(item?.productId || item?._id || item?.product?._id) === String(productId)
+      )
+    );
+  }, [productId, wishlist.items]);
 
   useEffect(() => {
     const attribution = getReelAttribution();
@@ -212,26 +242,6 @@ export function ProductDetailsPage() {
       sessionId: attribution?.sessionId || getReelSessionId(),
     }).catch(() => {});
   }, [productId, reelIdFromQuery]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadWishlistStatus() {
-      if (!productId) {
-        setWishlistSaved(false);
-        return;
-      }
-      try {
-        const saved = await isInWishlist(productId);
-        if (!cancelled) setWishlistSaved(Boolean(saved));
-      } catch {
-        if (!cancelled) setWishlistSaved(false);
-      }
-    }
-    loadWishlistStatus();
-    return () => {
-      cancelled = true;
-    };
-  }, [productId, isInWishlist]);
 
   useEffect(() => {
     let cancelled = false;
@@ -271,7 +281,7 @@ export function ProductDetailsPage() {
   useEffect(() => {
     let cancelled = false;
     async function loadRecommendations() {
-      if (!productId) {
+      if (!product?._id) {
         setRecommendations(null);
         setFbtBundle(null);
         setRecommendationsLoading(false);
@@ -319,7 +329,7 @@ export function ProductDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [product?.categoryId, productId]);
+  }, [product?._id, product?.categoryId, productId]);
 
   useEffect(() => {
     if (!product?._id) return;
@@ -526,19 +536,30 @@ export function ProductDetailsPage() {
     }
   }
 
-  if (loading) {
-    return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900">Loading product...</div>;
+  if (!paintReady || loading) {
+    return <ProductDetailsSkeleton />;
   }
 
   if (error && !product) {
     return (
-      <div className="space-y-4">
+      <div className="min-h-[calc(100dvh-10rem)] space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Product</h1>
           <BackButton fallbackTo="/shop" />
         </div>
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>
-        <Link to="/shop" className="inline-flex rounded-lg bg-[color:var(--commerce-accent)] px-4 py-2 text-sm font-semibold text-white">Browse products</Link>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => setReloadToken((value) => value + 1)}
+            className="inline-flex rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+          >
+            Try again
+          </button>
+          <Link to="/shop" className="inline-flex rounded-lg bg-[color:var(--commerce-accent)] px-4 py-2 text-sm font-semibold text-white">
+            Browse products
+          </Link>
+        </div>
       </div>
     );
   }

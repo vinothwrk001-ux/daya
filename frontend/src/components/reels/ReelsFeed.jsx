@@ -27,6 +27,7 @@ import {
   trackReelProductClick,
   trackReelView,
 } from "../../services/reelService";
+import { navigateToProduct } from "../../utils/scrollPageToTop";
 import { ReelCommentDrawer } from "./ReelCommentDrawer";
 import { ReelShareSheet } from "./ReelShareSheet";
 
@@ -234,7 +235,7 @@ function ReelSlide({
     setReelAttribution({ reelId: reel._id, productId: product._id, sessionId });
     const params = new URLSearchParams({ reel: reel._id });
     if (variantId) params.set("variantId", String(variantId));
-    navigate(`/product/${product._id}?${params.toString()}`);
+    navigateToProduct(navigate, `/product/${product._id}?${params.toString()}`);
   }
 
   function handleDoubleTap() {

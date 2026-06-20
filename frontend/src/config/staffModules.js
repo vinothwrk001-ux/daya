@@ -91,26 +91,6 @@ export const STAFF_MODULES = [
     notificationModule: "WORKSPACE",
     notificationSubModule: "SETTINGS",
   },
-  {
-    key: "roles",
-    name: "Roles",
-    description: "Create and manage staff roles with permissions",
-    icon: "Lock",
-    route: "/staff/roles",
-    permission: "roles.read",
-    section: "admin",
-    order: 8,
-  },
-  {
-    key: "staff",
-    name: "Staff",
-    description: "Manage staff members and their access levels",
-    icon: "UserCheck",
-    route: "/staff/staff",
-    permission: "staff.read",
-    section: "admin",
-    order: 9,
-  },
 ];
 
 export const SIDEBAR_SECTIONS = {
