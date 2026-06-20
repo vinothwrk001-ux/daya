@@ -1,9 +1,11 @@
 const { AuditLog } = require("../models/AuditLog");
 const { normalizeDateRange, applyDateRange } = require("../utils/dateRange");
+const { normalizeAuditActor } = require("../utils/auditActor");
 
 class AuditService {
   async log({
     actor,
+    guestSessionId = null,
     action,
     entityType,
     entityId,
@@ -12,9 +14,13 @@ class AuditService {
     ipAddress,
     userAgent,
   }) {
+    const normalizedActor = normalizeAuditActor(actor, { guestSessionId });
+
     return await AuditLog.create({
-      actorId: actor?.sub || actor?._id,
-      actorRole: actor?.role,
+      actorType: normalizedActor.actorType,
+      actorId: normalizedActor.actorId,
+      actorRole: normalizedActor.actorRole,
+      guestSessionId: normalizedActor.guestSessionId,
       action,
       entityType,
       entityId,

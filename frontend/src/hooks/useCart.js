@@ -4,17 +4,22 @@ import { useAuthStore } from "../context/authStore";
 import useAuthCartStore from "../context/authCartStore";
 import useGuestCartStore from "../context/guestCartStore";
 import { cartService } from "../services/cartService";
-import { normalizeCartPayload, getCartItemKey } from "../utils/cartState";
+import {
+  normalizeAddToCartResponse,
+  normalizeCartPayload,
+  getCartItemKey,
+} from "../utils/cartState";
+import {
+  bumpCartStateVersion,
+  isCurrentCartStateVersion,
+  resetCartStateVersion,
+} from "../utils/cartStateVersion";
 
 const pendingAddItemRequests = new Map();
-let authCartBootstrapStarted = false;
 
 /**
  * Unified Cart Hook
  * Works seamlessly for both authenticated and guest users
- *
- * For guests: uses localStorage cart via Zustand
- * For authenticated: uses backend cart API
  */
 export const useCart = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -25,14 +30,8 @@ export const useCart = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  /**
-   * Determine which cart to use
-   */
   const isGuest = !isAuthenticated;
 
-  /**
-   * Get current cart (either guest or auth)
-   */
   const getCurrentCart = useCallback(() => {
     if (isGuest) {
       return {
@@ -41,24 +40,32 @@ export const useCart = () => {
         itemCount: guestCart.getItemCount(),
         totalQuantity: guestCart.getTotalQuantity(),
       };
-    } else {
-      return normalizeCartPayload(authCart);
     }
+    return normalizeCartPayload(authCart);
   }, [authCart, guestCart, isGuest]);
 
-  /**
-   * Fetch authenticated user's cart
-   */
-  const fetchAuthCart = useCallback(async () => {
-    if (!isAuthenticated) return;
-
-    setLoading(true);
-    setError(null);
-    try {
-      const cart = await cartService.getCart();
-      const normalized = normalizeCartPayload(cart);
+  const applyAuthCart = useCallback(
+    (cartLike) => {
+      const normalized = normalizeCartPayload(cartLike);
       setAuthCart(normalized);
       return normalized;
+    },
+    [setAuthCart]
+  );
+
+  const fetchAuthCart = useCallback(async () => {
+    if (!isAuthenticated) return null;
+
+    const fetchVersion = bumpCartStateVersion();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const cart = await cartService.getCart();
+      if (!isCurrentCartStateVersion(fetchVersion)) {
+        return null;
+      }
+      return applyAuthCart(cart);
     } catch (err) {
       setError(err.message);
       logger.error("Failed to fetch cart:", { error: err });
@@ -66,26 +73,18 @@ export const useCart = () => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, setAuthCart]);
+  }, [applyAuthCart, isAuthenticated]);
 
-  /**
-   * Initialize cart on mount (fetch if authenticated)
-   */
   useEffect(() => {
     if (!isAuthenticated) {
-      authCartBootstrapStarted = false;
+      resetCartStateVersion();
       clearAuthCart();
       return;
     }
 
-    if (authCartBootstrapStarted) return;
-    authCartBootstrapStarted = true;
     fetchAuthCart().catch(() => {});
-  }, [clearAuthCart, isAuthenticated, fetchAuthCart]);
+  }, [clearAuthCart, fetchAuthCart, isAuthenticated]);
 
-  /**
-   * Add item to cart
-   */
   const addItem = useCallback(
     async (productId, quantity = 1, variantId = "") => {
       setError(null);
@@ -109,6 +108,8 @@ export const useCart = () => {
             guestCart.addItem({
               ...enrichedItem,
               quantity: addQuantity,
+              maxQuantity: enrichedItem.maxQuantity ?? enrichedItem.stock,
+              availableStock: enrichedItem.availableStock,
             });
             return {
               ...enrichedItem,
@@ -127,9 +128,8 @@ export const useCart = () => {
         try {
           setLoading(true);
           const result = await cartService.addToCart(productId, quantity, variantId);
-          const normalized = normalizeCartPayload(result?.cart || result);
-          setAuthCart(normalized);
-          const addedItem = result?.addedItem || normalized;
+          const normalized = applyAuthCart(normalizeAddToCartResponse(result));
+          const addedItem = result?.addedItem || normalized.items?.[0] || normalized;
           return {
             ...addedItem,
             variant: addedItem?.variant || {
@@ -154,12 +154,9 @@ export const useCart = () => {
         pendingAddItemRequests.delete(requestKey);
       }
     },
-    [guestCart, isGuest, setAuthCart]
+    [applyAuthCart, guestCart, isGuest]
   );
 
-  /**
-   * Update item quantity
-   */
   const updateItem = useCallback(
     async (productId, quantity, variantId = "") => {
       setError(null);
@@ -173,119 +170,100 @@ export const useCart = () => {
           setError(err.message);
           throw err;
         }
-      } else {
-        // For auth: use backend API
-        try {
-          setLoading(true);
-          const updatedCart = await cartService.updateCartItem(productId, quantity, variantId);
-          const normalized = normalizeCartPayload(updatedCart);
-          setAuthCart(normalized);
-          return normalized;
-        } catch (err) {
-          setError(err.message);
-          throw err;
-        } finally {
-          setLoading(false);
-        }
       }
-    },
-    [guestCart, isGuest, setAuthCart]
-  );
 
-  /**
-   * Remove item from cart
-   */
-  const removeItem = useCallback(
-    async (productId, variantId = "") => {
-      setError(null);
-
-      if (isGuest) {
-        // For guest: remove locally
-        guestCart.removeItem(productId, variantId);
-        return guestCart.getCart();
-      } else {
-        // For auth: use backend API
-        try {
-          setLoading(true);
-          const updatedCart = await cartService.removeCartItem(productId, variantId);
-          const normalized = normalizeCartPayload(updatedCart);
-          setAuthCart(normalized);
-          return normalized;
-        } catch (err) {
-          setError(err.message);
-          throw err;
-        } finally {
-          setLoading(false);
-        }
-      }
-    },
-    [guestCart, isGuest, setAuthCart]
-  );
-
-  /**
-   * Clear cart
-   */
-  const clearCart = useCallback(async () => {
-    setError(null);
-
-    if (isGuest) {
-      guestCart.clearCart();
-      return { items: [], totalAmount: 0 };
-    } else {
       try {
         setLoading(true);
-        const result = await cartService.clearCart();
-        const normalized = normalizeCartPayload(result);
-        setAuthCart(normalized);
-        return normalized;
+        const updatedCart = await cartService.updateCartItem(productId, quantity, variantId);
+        return applyAuthCart(updatedCart);
       } catch (err) {
         setError(err.message);
         throw err;
       } finally {
         setLoading(false);
       }
-    }
-  }, [guestCart, isGuest, setAuthCart]);
+    },
+    [applyAuthCart, guestCart, isGuest]
+  );
 
-  /**
-   * Validate cart (recheck inventory, pricing)
-   */
-  const validateCart = useCallback(async (itemsOverride = null) => {
-    const currentCart = Array.isArray(itemsOverride)
-      ? {
-          items: itemsOverride,
-          totalAmount: itemsOverride.reduce(
-            (sum, item) => sum + Number(item?.price || 0) * Number(item?.quantity || 0),
-            0
-          ),
-        }
-      : getCurrentCart();
+  const removeItem = useCallback(
+    async (productId, variantId = "") => {
+      setError(null);
 
-    if (currentCart.items.length === 0) {
-      return { validatedItems: [], errors: [] };
+      if (isGuest) {
+        guestCart.removeItem(productId, variantId);
+        return guestCart.getCart();
+      }
+
+      try {
+        setLoading(true);
+        const updatedCart = await cartService.removeCartItem(productId, variantId);
+        return applyAuthCart(updatedCart);
+      } catch (err) {
+        setError(err.message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [applyAuthCart, guestCart, isGuest]
+  );
+
+  const clearCart = useCallback(async () => {
+    setError(null);
+
+    if (isGuest) {
+      guestCart.clearCart();
+      return { items: [], totalAmount: 0, totalQuantity: 0 };
     }
 
     try {
       setLoading(true);
-      const validation = await cartService.validateCart(currentCart.items);
-
-      // If guest, update with validated items
-      if (isGuest) {
-        guestCart.setValidatedItems(validation.validatedItems);
-      }
-
-      return validation;
+      const result = await cartService.clearCart();
+      return applyAuthCart(result);
     } catch (err) {
       setError(err.message);
       throw err;
     } finally {
       setLoading(false);
     }
-  }, [isGuest, getCurrentCart, guestCart]);
+  }, [applyAuthCart, guestCart, isGuest]);
 
-  /**
-   * Merge guest cart on login (called after authentication)
-   */
+  const validateCart = useCallback(
+    async (itemsOverride = null) => {
+      const currentCart = Array.isArray(itemsOverride)
+        ? {
+            items: itemsOverride,
+            totalAmount: itemsOverride.reduce(
+              (sum, item) => sum + Number(item?.price || 0) * Number(item?.quantity || 0),
+              0
+            ),
+          }
+        : getCurrentCart();
+
+      if (currentCart.items.length === 0) {
+        return { validatedItems: [], errors: [] };
+      }
+
+      try {
+        setLoading(true);
+        const validation = await cartService.validateCart(currentCart.items);
+
+        if (isGuest) {
+          guestCart.setValidatedItems(validation.validatedItems);
+        }
+
+        return validation;
+      } catch (err) {
+        setError(err.message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [getCurrentCart, guestCart, isGuest]
+  );
+
   const mergeOnLogin = useCallback(async () => {
     if (isGuest || guestCart.isEmpty()) {
       return { merged: 0 };
@@ -294,16 +272,9 @@ export const useCart = () => {
     try {
       setLoading(true);
       const guestItems = guestCart.items;
-
-      // Call merge endpoint on backend
       const mergeResult = await cartService.mergeGuestCart(guestItems);
-
-      // Update auth cart with merged result
-      setAuthCart(normalizeCartPayload(mergeResult.userCart));
-
-      // Clear guest cart
+      applyAuthCart(mergeResult.userCart);
       guestCart.clearCart();
-
       return mergeResult;
     } catch (err) {
       setError(err.message);
@@ -312,16 +283,13 @@ export const useCart = () => {
     } finally {
       setLoading(false);
     }
-  }, [guestCart, isGuest, setAuthCart]);
+  }, [applyAuthCart, guestCart, isGuest]);
 
   return {
-    // State
     cart: getCurrentCart(),
     isGuest,
     loading,
     error,
-
-    // Methods
     addItem,
     updateItem,
     removeItem,

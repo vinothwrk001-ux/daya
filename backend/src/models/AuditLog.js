@@ -2,9 +2,22 @@ const mongoose = require("mongoose");
 
 const auditLogSchema = new mongoose.Schema(
   {
+    actorType: {
+      type: String,
+      enum: ["customer", "guest", "staff", "system"],
+      default: "customer",
+      index: true,
+    },
     actorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      default: null,
+      index: true,
+    },
+    guestSessionId: {
+      type: String,
+      trim: true,
+      default: null,
       index: true,
     },
     actorRole: {

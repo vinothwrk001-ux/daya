@@ -9,12 +9,14 @@ import { AuthBootstrap } from "./components/AuthBootstrap.jsx";
 import { BrandingProvider } from "./context/BrandingContext.jsx";
 import { NotificationProvider } from "./context/NotificationContext.jsx";
 import { installEarlyScrollHandlers } from "./utils/scrollPageToTop.js";
+import { initializeCartSync } from "./utils/cartSync.js";
 
 if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
   window.history.scrollRestoration = "manual";
 }
 
 installEarlyScrollHandlers();
+initializeCartSync();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

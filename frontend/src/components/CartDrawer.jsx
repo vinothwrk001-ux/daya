@@ -14,6 +14,7 @@ import {
   getCartItemKey,
   normalizeCartPayload,
 } from "../utils/cartState";
+import { getCartErrorMessage } from "../utils/cartErrors";
 import { navigateToProduct } from "../utils/scrollPageToTop";
 
 export function CartDrawer() {
@@ -33,11 +34,12 @@ export function CartDrawer() {
     clearToast,
     clearLastAddedItem,
   } = useCartDrawer();
-  const { cart, removeItem } = useCart();
+  const { cart, removeItem, updateItem } = useCart();
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [deletingItems, setDeletingItems] = useState(new Set());
+  const [updatingItems, setUpdatingItems] = useState(new Set());
 
   useEffect(() => {
     if (!isRendered || !lastAddedProduct?._id) return undefined;
@@ -147,6 +149,24 @@ export function CartDrawer() {
     [normalizedCart, fallbackCartItem]
   );
 
+  const handleChangeQty = async (productId, variantId, nextQty, maxQuantity) => {
+    const itemKey = getCartItemKey(productId, variantId);
+    if (updatingItems.has(itemKey)) return;
+
+    setUpdatingItems((prev) => new Set(prev).add(itemKey));
+    try {
+      await updateItem(productId, nextQty, variantId);
+    } catch (error) {
+      showToast(getCartErrorMessage(error, "Unable to update cart quantity."));
+    } finally {
+      setUpdatingItems((prev) => {
+        const next = new Set(prev);
+        next.delete(itemKey);
+        return next;
+      });
+    }
+  };
+
   const handleDeleteItem = async (productId, variantId) => {
     if (!productId) {
       showToast("Unable to remove this item right now.");
@@ -237,6 +257,10 @@ export function CartDrawer() {
                     const variantId = extractVariantId(item);
                     const itemKey = getCartItemKey(productId, variantId);
                     const isDeleting = deletingItems.has(itemKey);
+                    const isUpdating = updatingItems.has(itemKey);
+                    const itemQty = Number(item.quantity || 0);
+                    const maxQuantity = Number(item.maxQuantity ?? item.stock ?? 0);
+                    const atMaxQuantity = maxQuantity > 0 && itemQty >= maxQuantity;
                     const itemName = product?.name || item?.name || "Product";
                     const rawImage =
                       (typeof item?.image === "string" ? item.image : item?.image?.url) ||
@@ -257,7 +281,7 @@ export function CartDrawer() {
                       <div
                         key={itemKey}
                         className={`flex items-start gap-3 border-b border-slate-100 pb-3 transition last:border-b-0 last:pb-0 dark:border-slate-800 ${
-                          isDeleting ? "pointer-events-none opacity-50" : ""
+                          isDeleting || isUpdating ? "pointer-events-none opacity-50" : ""
                         }`}
                       >
                         <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
@@ -282,10 +306,38 @@ export function CartDrawer() {
                             </p>
                           ) : null}
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex flex-col">
-                              <p className="text-xs text-slate-500 dark:text-slate-400">Qty: {item.quantity}</p>
+                            <div className="flex flex-col gap-2">
+                              <div className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700">
+                                <button
+                                  type="button"
+                                  disabled={isUpdating || itemQty <= 1}
+                                  onClick={() => handleChangeQty(productId, variantId, itemQty - 1, maxQuantity)}
+                                  className="inline-flex h-8 w-8 items-center justify-center text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800"
+                                  aria-label="Decrease quantity"
+                                >
+                                  −
+                                </button>
+                                <span className="min-w-8 px-2 text-center text-xs font-semibold text-slate-900 dark:text-white">
+                                  {itemQty}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={isUpdating || atMaxQuantity}
+                                  title={atMaxQuantity ? "Maximum available quantity reached" : "Increase quantity"}
+                                  onClick={() => handleChangeQty(productId, variantId, itemQty + 1, maxQuantity)}
+                                  className="inline-flex h-8 w-8 items-center justify-center text-slate-600 transition hover:bg-slate-100 disabled:opacity-40 dark:text-slate-300 dark:hover:bg-slate-800"
+                                  aria-label="Increase quantity"
+                                >
+                                  +
+                                </button>
+                              </div>
+                              {atMaxQuantity ? (
+                                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                                  Maximum available quantity reached
+                                </p>
+                              ) : null}
                               <p className="text-xs font-semibold text-slate-900 dark:text-white sm:text-sm">
-                                {formatCurrency(itemPrice * Number(item.quantity || 0))}
+                                {formatCurrency(itemPrice * itemQty)}
                               </p>
                             </div>
                             <button

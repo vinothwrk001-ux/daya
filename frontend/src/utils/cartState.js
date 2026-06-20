@@ -32,6 +32,22 @@ export function getCartTotalQuantity(items = []) {
   return items.reduce((sum, item) => sum + Number(item?.quantity || 0), 0);
 }
 
+function buildCartItemFromAddedItem(addedItem = {}) {
+  if (!addedItem?.productId) return null;
+  return {
+    productId: addedItem.productId,
+    quantity: Number(addedItem.quantity || 1),
+    price: Number(addedItem.price || 0),
+    image: addedItem.image || "",
+    variantId: addedItem.variantId || "",
+    variantSku: addedItem.variantSku || "",
+    variantTitle: addedItem.variantTitle || "",
+    variantAttributes: addedItem.variantAttributes || {},
+    maxQuantity: addedItem.maxQuantity,
+    availableStock: addedItem.availableStock,
+  };
+}
+
 export function normalizeCartPayload(payload) {
   const candidate =
     payload?.data && Array.isArray(payload.data.items)
@@ -40,10 +56,18 @@ export function normalizeCartPayload(payload) {
         ? payload.userCart
         : payload;
 
-  const items = Array.isArray(candidate?.items) ? candidate.items : [];
+  let items = Array.isArray(candidate?.items) ? candidate.items : [];
+
+  if (!items.length && candidate?.addedItem) {
+    const fallbackItem = buildCartItemFromAddedItem(candidate.addedItem);
+    if (fallbackItem) {
+      items = [fallbackItem];
+    }
+  }
+
   const totalAmount = Number(candidate?.totalAmount ?? getCartSubtotal(items));
-  const totalQuantity = Number(candidate?.totalQuantity ?? getCartTotalQuantity(items));
-  const itemCount = Number(candidate?.itemCount ?? items.length);
+  const totalQuantity = getCartTotalQuantity(items);
+  const itemCount = items.length;
 
   return {
     ...(candidate && typeof candidate === "object" ? candidate : {}),
@@ -52,6 +76,11 @@ export function normalizeCartPayload(payload) {
     totalQuantity,
     itemCount,
   };
+}
+
+export function normalizeAddToCartResponse(result = {}) {
+  const payload = result?.cart ? { ...result.cart, addedItem: result.addedItem } : result;
+  return normalizeCartPayload(payload);
 }
 
 function parseSortOrder(value) {
@@ -131,8 +160,11 @@ export function getAvailableProductVariant(product, cartItems = []) {
   };
 }
 
-export function emitCartChanged(cartLike) {
+export function emitCartChanged(cartLike, { cartStateVersion = null } = {}) {
   if (typeof window === "undefined") return;
-  const detail = normalizeCartPayload(cartLike);
+  const detail = {
+    ...normalizeCartPayload(cartLike),
+    ...(cartStateVersion != null ? { cartStateVersion } : {}),
+  };
   window.dispatchEvent(new CustomEvent("cart:changed", { detail }));
 }

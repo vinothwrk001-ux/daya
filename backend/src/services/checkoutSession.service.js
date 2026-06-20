@@ -89,7 +89,12 @@ class CheckoutSessionService {
     });
 
     await auditService.log({
-      actor: auditMeta?.actor || (userId ? { sub: userId, role: "customer" } : { sub: "guest", role: "guest" }),
+      actor:
+        auditMeta?.actor ||
+        (userId
+          ? { sub: userId, role: "customer" }
+          : { actorType: "guest", role: "guest", guestSessionId: resolvedGuestToken }),
+      guestSessionId: auditMeta?.guestSessionId || resolvedGuestToken,
       action: "BUY_NOW_SESSION_CREATED",
       entityType: "CheckoutSession",
       entityId: session._id,
@@ -153,7 +158,12 @@ class CheckoutSessionService {
     await session.save();
 
     await auditService.log({
-      actor: auditMeta?.actor || (userId ? { sub: userId, role: "customer" } : { sub: "guest", role: "guest" }),
+      actor:
+        auditMeta?.actor ||
+        (userId
+          ? { sub: userId, role: "customer" }
+          : { actorType: "guest", role: "guest", guestSessionId: guestToken || session.guestToken }),
+      guestSessionId: auditMeta?.guestSessionId || guestToken || session.guestToken || null,
       action: "BUY_NOW_SESSION_QUANTITY_UPDATED",
       entityType: "CheckoutSession",
       entityId: session._id,

@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 const { AppError } = require("../utils/AppError");
 const productRepo = require("../repositories/product.repository");
 const { resolveBestVariant } = require("./variantResolver.service");
+const {
+  getSellableStock,
+  getVariantAvailability,
+  assertCanSetQuantity,
+  formatVariantLabel,
+} = require("../utils/cartStock");
 
 /**
  * Guest Cart Service
@@ -27,27 +33,10 @@ function getVariantForProduct(product, variantId) {
   return variants.find((item) => item.variantId === variantId && item.isActive) || null;
 }
 
-function getVariantAvailableQuantity(product, variant, quantityInCart = 0) {
-  if (!variant) return 0;
-  const stock = Number(variant.stock || 0);
-  const reservedStock = Number(variant.reservedStock || 0);
-  return Math.max(0, stock - reservedStock - Number(quantityInCart || 0));
-}
-
-function getAvailableLegacyQuantity(product, quantityInCart = 0) {
-  const stock = Number(product.stock || 0);
-  const reservedStock = Number(product.reservedStock || 0);
-  return Math.max(0, stock - reservedStock - Number(quantityInCart || 0));
-}
-
-function getItemKey(productId, variantId = "") {
-  return `${String(productId)}::${String(variantId || "")}`;
-}
-
 class GuestCartService {
   /**
-   * Validate and enrich an item being added to guest cart
-   * Returns product details needed for cart (without modifying actual cart)
+   * Validate and enrich an item being added to guest cart.
+   * `quantity` is the desired total quantity for this cart line after the add.
    */
   async validateAndEnrichItem(productId, quantity = 1, variantId = "") {
     asObjectId(productId, "productId");
@@ -61,19 +50,24 @@ class GuestCartService {
     }
 
     const variant = getVariantForProduct(product, variantId);
-    const availableStock = variant
-      ? getVariantAvailableQuantity(product, variant, 0)
-      : getAvailableLegacyQuantity(product, 0);
+    const availability = getVariantAvailability({
+      productId,
+      variant,
+      product,
+      cartItems: [],
+      quantityInCart: 0,
+    });
 
     if (!variant && Array.isArray(product?.variants) && product.variants.length && variantId) {
       throw new AppError("Selected variant is not available", 400, "NOT_AVAILABLE");
     }
-    if (availableStock === 0) {
-      throw new AppError("Product is out of stock", 400, "OUT_OF_STOCK");
-    }
-    if (availableStock < qty) {
-      throw new AppError(`Only ${availableStock} item${availableStock === 1 ? "" : "s"} available`, 400, "INSUFFICIENT_STOCK");
-    }
+
+    assertCanSetQuantity({
+      qty,
+      availability,
+      variant,
+      currentQty: 0,
+    });
 
     const unitPrice = Number(variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0);
 
@@ -88,10 +82,12 @@ class GuestCartService {
         product.images?.find((image) => image.isPrimary)?.url ||
         product.images?.[0]?.url ||
         "",
-      stock: availableStock,
+      stock: availability.sellable,
+      maxQuantity: availability.sellable,
+      availableStock: Math.max(0, availability.sellable - qty),
       variantId: variant?.variantId || "",
       variantSku: variant?.sku || "",
-      variantTitle: variant?.title || "",
+      variantTitle: variant?.title || formatVariantLabel(variant),
       variantAttributes: variant?.attributes || {},
     };
   }
@@ -118,30 +114,39 @@ class GuestCartService {
         }
 
         const variant = getVariantForProduct(product, item.variantId);
-        const availableStock = variant
-          ? getVariantAvailableQuantity(product, variant, 0)
-          : getAvailableLegacyQuantity(product, 0);
+        const availability = getVariantAvailability({
+          productId,
+          variant,
+          product,
+          cartItems: [],
+          quantityInCart: 0,
+        });
 
-        if (availableStock === 0) {
+        if (availability.sellable === 0) {
           errors.push({
             productId: item.productId,
-            error: "Out of stock",
+            variantId: item.variantId || "",
+            error: `${formatVariantLabel(variant)} variant is out of stock`,
             code: "OUT_OF_STOCK",
-            availableStock,
-          });
-          continue;
-        }
-        if (availableStock < item.quantity) {
-          errors.push({
-            productId: item.productId,
-            error: `Only ${availableStock} item${availableStock === 1 ? "" : "s"} available`,
-            code: "INSUFFICIENT_STOCK",
-            availableStock,
+            availableStock: 0,
           });
           continue;
         }
 
-        // Refresh price from DB
+        if (item.quantity > availability.sellable) {
+          errors.push({
+            productId: item.productId,
+            variantId: item.variantId || "",
+            error:
+              availability.sellable === 1
+                ? `Only 1 left for ${formatVariantLabel(variant)}`
+                : `Only ${availability.sellable} left for ${formatVariantLabel(variant)}`,
+            code: "INSUFFICIENT_STOCK",
+            availableStock: availability.sellable,
+          });
+          continue;
+        }
+
         const currentPrice = Number(
           variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0
         );
@@ -151,7 +156,10 @@ class GuestCartService {
           productId,
           name: product.name,
           price: currentPrice,
-          stock: availableStock,
+          stock: availability.sellable,
+          maxQuantity: availability.sellable,
+          availableStock: Math.max(0, availability.sellable - Number(item.quantity || 0)),
+          variantTitle: variant?.title || item.variantTitle || formatVariantLabel(variant),
           image:
             variant?.images?.find((image) => image.isPrimary)?.url ||
             variant?.images?.[0]?.url ||
@@ -160,7 +168,7 @@ class GuestCartService {
             item.image || "",
         });
       } catch (e) {
-        errors.push({ productId: item.productId, error: e.message });
+        errors.push({ productId: item.productId, error: e.message, code: e.code || "VALIDATION_ERROR" });
       }
     }
 

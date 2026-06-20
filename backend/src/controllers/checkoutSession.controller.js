@@ -3,9 +3,18 @@ const { asyncHandler } = require("../utils/asyncHandler");
 const { AppError } = require("../utils/AppError");
 const checkoutSessionService = require("../services/checkoutSession.service");
 
-function getAuditMeta(req) {
+function getAuditMeta(req, { guestToken = null } = {}) {
+  if (req.user?.sub) {
+    return {
+      actor: { sub: req.user.sub, role: req.user.role || "customer" },
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    };
+  }
+
   return {
-    actor: req.user || { sub: "guest", role: "guest" },
+    actor: { actorType: "guest", role: "guest", guestSessionId: guestToken || null },
+    guestSessionId: guestToken || null,
     ipAddress: req.ip,
     userAgent: req.headers["user-agent"],
   };
@@ -19,7 +28,7 @@ const createBuyNowSession = asyncHandler(async (req, res) => {
     productId,
     quantity,
     variantId,
-    auditMeta: getAuditMeta(req),
+    auditMeta: getAuditMeta(req, { guestToken: guestToken || null }),
   });
 
   return ok(
@@ -70,7 +79,7 @@ const updateBuyNowSession = asyncHandler(async (req, res) => {
   const result = await checkoutSessionService.updateQuantity(req.params.sessionId, quantity, {
     userId: req.user?.sub || null,
     guestToken,
-    auditMeta: getAuditMeta(req),
+    auditMeta: getAuditMeta(req, { guestToken: guestToken || null }),
   });
 
   if (result.removed) {

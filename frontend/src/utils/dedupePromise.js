@@ -17,3 +17,7 @@ export function dedupePromise(key, factory) {
   inflight.set(key, promise);
   return promise;
 }
+
+export function invalidateDedupePromise(key) {
+  inflight.delete(key);
+}

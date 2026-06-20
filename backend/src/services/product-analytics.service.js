@@ -743,6 +743,46 @@ function buildLifecycleSummaryFromOrders(product, orders = [], refundsByOrderId 
   return total;
 }
 
+function omitKeys(source = {}, keys = []) {
+  const next = { ...source };
+  for (const key of keys) {
+    delete next[key];
+  }
+  return next;
+}
+
+function buildProductMetadataSync(product = {}) {
+  const inventory = deriveInventorySnapshot(product);
+  return {
+    productDeleted: false,
+    productIsActive: product.isActive !== false,
+    productStatus: product.status || "",
+    categoryName: product.category || "",
+    subCategoryName: product.subCategory || "",
+    productName: product.name || "",
+    productSlug: product.slug || "",
+    productNumber: product.productNumber || "",
+    sku: derivePrimarySku(product),
+    categoryId: product.categoryId || null,
+    subCategoryId: product.subCategoryId || null,
+    currentStock: inventory.currentStock,
+    reservedStock: inventory.reservedStock,
+    availableStock: inventory.availableStock,
+    lowStockThreshold: inventory.lowStockThreshold,
+    lastComputedAt: new Date(),
+  };
+}
+
+function buildAnalyticsSeedUpsertPayload(insertDoc = {}, metadataSync = {}) {
+  const syncKeys = Object.keys(metadataSync);
+  const setOnInsert = omitKeys(insertDoc, syncKeys);
+  const overlap = syncKeys.filter((key) => Object.prototype.hasOwnProperty.call(setOnInsert, key));
+  if (overlap.length) {
+    throw new Error(`Analytics seed upsert has overlapping paths: ${overlap.join(", ")}`);
+  }
+  return { $setOnInsert: setOnInsert, $set: metadataSync };
+}
+
 class ProductAnalyticsService {
   async ensureProductAnalyticsSeed(product) {
     if (!product?._id) return null;
@@ -779,10 +819,11 @@ class ProductAnalyticsService {
       monthlyStats: [],
       lastSoldAt: null,
     });
+    const metadataSync = buildProductMetadataSync(product);
 
     await ProductAnalytics.updateOne(
       { productId: product._id },
-      { $setOnInsert: empty, $set: { productDeleted: false, productIsActive: product.isActive !== false, productStatus: product.status || "", categoryName: product.category || "", productName: product.name || "" } },
+      buildAnalyticsSeedUpsertPayload(empty, metadataSync),
       { upsert: true }
     );
     return await ProductAnalytics.findOne({ productId: product._id }).lean();
@@ -1004,4 +1045,6 @@ module.exports.__private__ = {
   buildOverview,
   buildLifecycleSummaryFromOrders,
   getTrendSeries,
+  buildProductMetadataSync,
+  buildAnalyticsSeedUpsertPayload,
 };

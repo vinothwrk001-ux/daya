@@ -20,12 +20,10 @@ import { useAuthStore } from "../context/authStore";
 import { formatCurrency } from "../utils/formatCurrency";
 import { getDefaultVariant, getVariantGroups } from "../utils/productVariants";
 import { resolveInitialSelectedAttributes } from "../utils/variantDisplay";
-import { saveRedirectAfterLogin } from "../utils/loginRedirect";
 import { getFormattedWeight } from "../utils/weight";
 import { useCart } from "../hooks/useCart";
 import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
-import pendingActionManager from "../utils/pendingActionManager";
 import buyNowSessionService from "../services/buyNowSessionService";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { getReelAttribution, getReelSessionId, trackReelProductView } from "../services/reelService";
@@ -471,18 +469,7 @@ export function ProductDetailsPage() {
         const session = await buyNowSessionService.createBuyNowSession(product._id, quantity, variantId, {
           guestToken,
         });
-        pendingActionManager.initiateGuestBuyNow(product._id, quantity, variantId, session.sessionId);
-        saveRedirectAfterLogin(
-          `${window.location.origin}/checkout?mode=buy-now&session=${encodeURIComponent(session.sessionId)}`
-        );
-        navigate("/login", {
-          state: {
-            from: {
-              pathname: "/checkout",
-              search: `?mode=buy-now&session=${encodeURIComponent(session.sessionId)}`,
-            },
-          },
-        });
+        navigate(`/checkout?mode=buy-now&session=${encodeURIComponent(session.sessionId)}`);
         return;
       }
 

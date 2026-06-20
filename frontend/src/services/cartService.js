@@ -1,14 +1,29 @@
 import { api } from "./api";
-import { emitCartChanged, normalizeCartPayload } from "../utils/cartState";
+import { emitCartChanged, normalizeAddToCartResponse, normalizeCartPayload } from "../utils/cartState";
+import { bumpCartStateVersion } from "../utils/cartStateVersion";
 import { getReelAttribution } from "./reelService";
-import { dedupePromise } from "../utils/dedupePromise";
+import { dedupePromise, invalidateDedupePromise } from "../utils/dedupePromise";
+
+const CART_GET_KEY = "cart:get";
+
+function unwrapApiData(responseData) {
+  return responseData?.data ?? responseData;
+}
+
+function publishCartMutation(cart) {
+  const cartStateVersion = bumpCartStateVersion();
+  invalidateDedupePromise(CART_GET_KEY);
+  const normalized = normalizeCartPayload(cart);
+  emitCartChanged(normalized, { cartStateVersion });
+  return normalized;
+}
 
 // ===== AUTHENTICATED USER ENDPOINTS =====
 
 export async function getCart() {
-  return dedupePromise("cart:get", async () => {
+  return dedupePromise(CART_GET_KEY, async () => {
     const { data } = await api.get("/api/cart");
-    return normalizeCartPayload(data);
+    return normalizeCartPayload(unwrapApiData(data));
   });
 }
 
@@ -28,94 +43,62 @@ export async function addToCart(productId, quantity = 1, variantId = "") {
       : {}),
   };
   const { data } = await api.post("/api/cart/add", requestBody);
-  const payload = data?.data || data;
-  const cart = normalizeCartPayload(payload);
-  emitCartChanged(cart);
+  const payload = unwrapApiData(data);
+  const cart = publishCartMutation(payload);
   return { cart, addedItem: payload?.addedItem || null };
 }
 
 export async function updateCartItem(productId, quantity, variantId = "") {
   const { data } = await api.patch("/api/cart/update", { productId, quantity, variantId });
-  const cart = normalizeCartPayload(data);
-  emitCartChanged(cart);
+  const cart = publishCartMutation(unwrapApiData(data));
   return cart;
 }
 
 export async function removeCartItem(productId, variantId = "") {
   const { data } = await api.delete("/api/cart/remove", { data: { productId, variantId } });
-  const cart = normalizeCartPayload(data);
-  emitCartChanged(cart);
+  const cart = publishCartMutation(unwrapApiData(data));
   return cart;
 }
 
 export async function clearCart() {
   const { data } = await api.delete("/api/cart/clear");
-  const cart = normalizeCartPayload(data);
-  emitCartChanged(cart);
+  const cart = publishCartMutation(unwrapApiData(data));
   return cart;
 }
 
 // ===== GUEST CART VALIDATION ENDPOINTS =====
 
-/**
- * Validate a single item before adding to guest cart
- * @param {string} productId
- * @param {number} quantity
- * @param {string} variantId
- * @returns {Promise<Object>} Enriched item with price, image, and product info
- */
 export async function validateItem(productId, quantity = 1, variantId = "") {
   const { data } = await api.post("/api/cart/validate-item", {
     productId,
     quantity,
     variantId,
   });
-  return data?.data || data;
+  return unwrapApiData(data);
 }
 
-/**
- * Validate multiple items in guest cart
- * @param {Array} items - Array of cart items
- * @returns {Promise<Object>} {validatedItems, errors, totalAmount}
- */
 export async function validateCart(items = []) {
   const { data } = await api.post("/api/cart/validate", { items });
-  return data?.data || data;
+  return unwrapApiData(data);
 }
 
-/**
- * Get cart summary for guest (item count, total, validation)
- * @param {Array} items - Array of cart items
- * @returns {Promise<Object>} Cart summary
- */
 export async function getCartSummary(items = []) {
   const { data } = await api.post("/api/cart/summary", { items });
-  return data?.data || data;
+  return unwrapApiData(data);
 }
 
 // ===== CART MERGE ENDPOINTS (Called after login) =====
 
-/**
- * Merge guest cart into authenticated user's cart
- * @param {Array} guestCartItems - Items from guest localStorage
- * @returns {Promise<Object>} Merge result with userCart
- */
 export async function mergeGuestCart(guestCartItems = []) {
   const { data } = await api.post("/api/cart/merge", { guestCartItems });
-  const payload = data?.data || data;
-  const userCart = normalizeCartPayload(payload?.userCart);
-  emitCartChanged(userCart);
-  return payload;
+  const payload = unwrapApiData(data);
+  const userCart = publishCartMutation(payload?.userCart || payload);
+  return { ...payload, userCart };
 }
 
-/**
- * Get merge summary before actually merging
- * @param {Array} guestCartItems - Items from guest localStorage
- * @returns {Promise<Object>} Merge summary
- */
 export async function getMergeSummary(guestCartItems = []) {
   const { data } = await api.post("/api/cart/merge-summary", { guestCartItems });
-  return data?.data || data;
+  return unwrapApiData(data);
 }
 
 export const cartService = {
@@ -130,5 +113,3 @@ export const cartService = {
   mergeGuestCart,
   getMergeSummary,
 };
-
-

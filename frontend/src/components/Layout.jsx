@@ -65,11 +65,11 @@ export function Layout() {
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Products", href: "/shop" },
-    { label: "Categories", href: "/#categories" },
+    // { label: "Categories", href: "/#categories" },
     { label: "Reels", href: "/reels" },
-    { label: "Campaigns", href: "/collections/deals" },
+    // { label: "Campaigns", href: "/collections/deals" },
     { label: "About Us", href: "/terms-and-conditions" },
-    { label: "Compare", href: "/compare" },
+    // { label: "Compare", href: "/compare" },
     { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },
   ];
 

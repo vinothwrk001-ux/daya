@@ -19,6 +19,8 @@ const cartItemSchema = new mongoose.Schema(
       of: String,
       default: {},
     },
+    maxQuantity: { type: Number, min: 0, default: 0 },
+    availableStock: { type: Number, min: 0, default: 0 },
   },
   { _id: false }
 );

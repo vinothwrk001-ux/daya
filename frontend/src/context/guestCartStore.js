@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { emitCartChanged } from "../utils/cartState";
+import { emitCartChanged, getCartItemKey } from "../utils/cartState";
 
 /**
  * Guest Cart Store
@@ -28,6 +28,7 @@ const useGuestCartStore = create(
     (set, get) => ({
       items: [],
       totalAmount: 0,
+      totalQuantity: 0,
 
       /**
        * Add item to guest cart
@@ -35,8 +36,12 @@ const useGuestCartStore = create(
        */
       addItem: (item) => {
         set((state) => {
+          const normalizedProductId = String(item.productId || "");
+          const normalizedVariantId = String(item.variantId || "");
           const existingIdx = state.items.findIndex(
-            (x) => x.productId === item.productId && x.variantId === (item.variantId || "")
+            (x) =>
+              String(x.productId) === normalizedProductId &&
+              String(x.variantId || "") === normalizedVariantId
           );
 
           let newItems;
@@ -46,8 +51,13 @@ const useGuestCartStore = create(
             newItems[existingIdx] = {
               ...newItems[existingIdx],
               quantity: (newItems[existingIdx].quantity || 0) + (item.quantity || 1),
-              price: item.price, // Update to latest price
+              price: item.price,
               image: item.image || newItems[existingIdx].image,
+              maxQuantity: item.maxQuantity ?? newItems[existingIdx].maxQuantity,
+              availableStock: item.availableStock ?? newItems[existingIdx].availableStock,
+              variantTitle: item.variantTitle || newItems[existingIdx].variantTitle,
+              variantSku: item.variantSku || newItems[existingIdx].variantSku,
+              variantAttributes: item.variantAttributes || newItems[existingIdx].variantAttributes,
             };
           } else {
             // New item
@@ -55,8 +65,9 @@ const useGuestCartStore = create(
               ...state.items,
               {
                 ...item,
+                productId: normalizedProductId,
                 quantity: item.quantity || 1,
-                variantId: item.variantId || "",
+                variantId: normalizedVariantId,
                 addedAt: Date.now(),
               },
             ];
@@ -67,9 +78,10 @@ const useGuestCartStore = create(
             (sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0),
             0
           );
+          const totalQuantity = newItems.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
 
-          emitCartChanged({ items: newItems, totalAmount });
-          return { items: newItems, totalAmount };
+          emitCartChanged({ items: newItems, totalAmount, totalQuantity });
+          return { items: newItems, totalAmount, totalQuantity };
         });
       },
 
@@ -78,8 +90,12 @@ const useGuestCartStore = create(
        */
       updateItem: (productId, variantId, quantity) => {
         set((state) => {
+          const normalizedProductId = String(productId || "");
+          const normalizedVariantId = String(variantId || "");
           const idx = state.items.findIndex(
-            (x) => x.productId === productId && x.variantId === (variantId || "")
+            (x) =>
+              String(x.productId) === normalizedProductId &&
+              String(x.variantId || "") === normalizedVariantId
           );
 
           if (idx < 0) return state;
@@ -95,9 +111,10 @@ const useGuestCartStore = create(
             (sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0),
             0
           );
+          const totalQuantity = newItems.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
 
-          emitCartChanged({ items: newItems, totalAmount });
-          return { items: newItems, totalAmount };
+          emitCartChanged({ items: newItems, totalAmount, totalQuantity });
+          return { items: newItems, totalAmount, totalQuantity };
         });
       },
 
@@ -106,17 +123,24 @@ const useGuestCartStore = create(
        */
       removeItem: (productId, variantId) => {
         set((state) => {
+          const normalizedProductId = String(productId || "");
+          const normalizedVariantId = String(variantId || "");
           const newItems = state.items.filter(
-            (x) => !(x.productId === productId && x.variantId === (variantId || ""))
+            (x) =>
+              !(
+                String(x.productId) === normalizedProductId &&
+                String(x.variantId || "") === normalizedVariantId
+              )
           );
 
           const totalAmount = newItems.reduce(
             (sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0),
             0
           );
+          const totalQuantity = newItems.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
 
-          emitCartChanged({ items: newItems, totalAmount });
-          return { items: newItems, totalAmount };
+          emitCartChanged({ items: newItems, totalAmount, totalQuantity });
+          return { items: newItems, totalAmount, totalQuantity };
         });
       },
 
@@ -124,8 +148,8 @@ const useGuestCartStore = create(
        * Clear entire cart
        */
       clearCart: () => {
-        emitCartChanged({ items: [], totalAmount: 0 });
-        set({ items: [], totalAmount: 0 });
+        emitCartChanged({ items: [], totalAmount: 0, totalQuantity: 0 });
+        set({ items: [], totalAmount: 0, totalQuantity: 0 });
       },
 
       /**
@@ -158,8 +182,9 @@ const useGuestCartStore = create(
           (sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0),
           0
         );
-        emitCartChanged({ items, totalAmount });
-        set({ items, totalAmount });
+        const totalQuantity = items.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
+        emitCartChanged({ items, totalAmount, totalQuantity });
+        set({ items, totalAmount, totalQuantity });
       },
 
       /**
@@ -172,9 +197,13 @@ const useGuestCartStore = create(
             (sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0),
             0
           );
+          const totalQuantity = validatedItems.reduce(
+            (sum, it) => sum + Number(it.quantity || 0),
+            0
+          );
 
-          emitCartChanged({ items: validatedItems, totalAmount });
-          return { items: validatedItems, totalAmount };
+          emitCartChanged({ items: validatedItems, totalAmount, totalQuantity });
+          return { items: validatedItems, totalAmount, totalQuantity };
         });
       },
     }),

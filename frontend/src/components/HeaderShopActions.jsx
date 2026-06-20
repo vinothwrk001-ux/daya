@@ -5,6 +5,7 @@ import useAuthCartStore from "../context/authCartStore";
 import useAuthWishlistStore from "../context/authWishlistStore";
 import useGuestCartStore from "../context/guestCartStore";
 import useGuestWishlistStore from "../context/guestWishlistStore";
+import { getCartTotalQuantity } from "../utils/cartState";
 
 export function HeaderIconLink({ to, label, badge, children, className = "", variant = "icon" }) {
   if (variant === "inline") {
@@ -46,13 +47,23 @@ export function HeaderIconLink({ to, label, badge, children, className = "", var
 export function HeaderShopActions({ className = "", variant = "icon" }) {
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const guestCartCount = useGuestCartStore((state) => state.getTotalQuantity());
-  const guestWishlistCount = useGuestWishlistStore((state) => state.getItemCount());
-  const authCartCount = useAuthCartStore((state) => state.cart.totalQuantity || 0);
+  const guestCartItems = useGuestCartStore((state) => state.items);
+  const guestCartTotalQuantity = useGuestCartStore((state) => state.totalQuantity);
+  const authCartItems = useAuthCartStore((state) => state.cart.items);
+  const authCartTotalQuantity = useAuthCartStore((state) => state.cart.totalQuantity);
+  const guestWishlistCount = useGuestWishlistStore((state) => state.items.length);
+  const guestCartCount = Math.max(
+    Number(guestCartTotalQuantity || 0),
+    getCartTotalQuantity(guestCartItems)
+  );
+  const authCartCount = Math.max(
+    Number(authCartTotalQuantity || 0),
+    getCartTotalQuantity(authCartItems)
+  );
   const authWishlistCount = useAuthWishlistStore((state) => state.items.length);
   const showShopActions = !user || user?.role === "user";
 
-  const cartCount = isAuthenticated ? authCartCount : guestCartCount;
+  const cartCount = isAuthenticated || user?.role === "user" ? authCartCount : guestCartCount;
   const wishlistCount = isAuthenticated ? authWishlistCount : guestWishlistCount;
 
   if (!showShopActions) {

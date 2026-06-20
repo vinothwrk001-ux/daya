@@ -1,5 +1,8 @@
 const cartRepo = require("../repositories/cart.repository");
 const guestCartService = require("./guestCart.service");
+const productRepo = require("../repositories/product.repository");
+const { getItemKey, getSellableStock, formatVariantLabel } = require("../utils/cartStock");
+const { resolveBestVariant } = require("./variantResolver.service");
 
 /**
  * Cart Merge Service
@@ -7,16 +10,24 @@ const guestCartService = require("./guestCart.service");
  * Prevents duplicates, updates quantities intelligently, validates inventory
  */
 
-function getItemKey(productId, variantId = "") {
-  const id =
-    productId && typeof productId === "object"
-      ? String(productId._id || productId.id || "")
-      : String(productId || "");
-  return `${id}::${String(variantId || "")}`;
-}
-
 function computeTotal(items = []) {
   return items.reduce((sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0), 0);
+}
+
+function getVariantForProduct(product, variantId) {
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+  if (!variants.length) return null;
+  if (!variantId) {
+    return resolveBestVariant(product);
+  }
+  return variants.find((item) => item.variantId === variantId && item.isActive) || null;
+}
+
+async function resolveSellableQuantity(productId, variantId = "") {
+  const product = await productRepo.findById(productId);
+  if (!product) return 0;
+  const variant = getVariantForProduct(product, variantId);
+  return variant ? getSellableStock(variant) : getSellableStock(product);
 }
 
 class CartMergeService {
@@ -25,8 +36,8 @@ class CartMergeService {
    *
    * Strategy:
    * 1. Validate guest items against current DB state (inventory, pricing, availability)
-   * 2. For existing items in user cart: ADD quantities together
-   * 3. For new items: add to user cart
+   * 2. For existing items in user cart: ADD quantities together, capped to sellable stock
+   * 3. For new items: add to user cart, capped to sellable stock
    * 4. Remove invalid items from merge
    * 5. Return merge result with conflicts/errors
    */
@@ -37,16 +48,12 @@ class CartMergeService {
         merged: 0,
         conflicts: [],
         errors: [],
+        adjusted: false,
         userCart: await cartRepo.findByUserId(userId),
       };
     }
 
-    // Validate all guest items
     const validation = await guestCartService.validateCartItems(guestCartItems);
-    if (validation.errors.length > 0) {
-      // Continue with valid items, report errors
-    }
-
     const validItems = validation.validatedItems;
     const userCart = await cartRepo.upsertEmpty(userId);
 
@@ -55,55 +62,92 @@ class CartMergeService {
       merged: 0,
       conflicts: [],
       errors: validation.errors,
+      adjusted: false,
     };
 
-    // Merge each valid guest item
     for (const guestItem of validItems) {
       try {
         const itemKey = getItemKey(guestItem.productId, guestItem.variantId);
         const existingIdx = userCart.items.findIndex((x) => getItemKey(x.productId, x.variantId) === itemKey);
+        const sellable = await resolveSellableQuantity(guestItem.productId, guestItem.variantId);
+        const variantLabel = guestItem.variantTitle || formatVariantLabel({ variantId: guestItem.variantId });
 
         if (existingIdx >= 0) {
-          // Item already in user cart - merge quantities
           const currentQty = Number(userCart.items[existingIdx].quantity || 0);
-          const newQty = currentQty + Number(guestItem.quantity || 0);
+          const requestedQty = currentQty + Number(guestItem.quantity || 0);
+          const mergedQty = Math.min(requestedQty, sellable);
 
-          // Validate merged quantity doesn't exceed stock
-          // Re-validate to get latest stock from DB
-          try {
-            const enriched = await guestCartService.validateAndEnrichItem(
-              guestItem.productId,
-              newQty,
-              guestItem.variantId
-            );
-
-            userCart.items[existingIdx].quantity = newQty;
-            userCart.items[existingIdx].price = enriched.price;
-            userCart.items[existingIdx].image = enriched.image;
-            userCart.items[existingIdx].variantSku = enriched.variantSku;
-            userCart.items[existingIdx].variantTitle = enriched.variantTitle;
-            userCart.items[existingIdx].variantAttributes = enriched.variantAttributes;
-            mergeResult.merged++;
-          } catch (validationError) {
-            // Quantity too high, keep user's current quantity but report conflict
+          if (mergedQty < requestedQty) {
+            mergeResult.adjusted = true;
             mergeResult.conflicts.push({
               productId: guestItem.productId,
-              reason: `Merged quantity (${newQty}) exceeds available stock. Kept existing quantity (${currentQty})`,
-              guestQuantity: guestItem.quantity,
-              cartQuantity: currentQty,
+              variantId: guestItem.variantId || "",
+              reason: "Some quantities were adjusted due to stock availability",
+              variantTitle: variantLabel,
+              requestedQuantity: requestedQty,
+              mergedQuantity: mergedQty,
+              availableStock: sellable,
             });
           }
+
+          if (mergedQty <= 0) {
+            userCart.items.splice(existingIdx, 1);
+            continue;
+          }
+
+          const enriched = await guestCartService.validateAndEnrichItem(
+            guestItem.productId,
+            mergedQty,
+            guestItem.variantId
+          );
+
+          userCart.items[existingIdx].quantity = mergedQty;
+          userCart.items[existingIdx].price = enriched.price;
+          userCart.items[existingIdx].image = enriched.image;
+          userCart.items[existingIdx].variantSku = enriched.variantSku;
+          userCart.items[existingIdx].variantTitle = enriched.variantTitle;
+          userCart.items[existingIdx].variantAttributes = enriched.variantAttributes;
+          userCart.items[existingIdx].maxQuantity = sellable;
+          userCart.items[existingIdx].availableStock = Math.max(0, sellable - mergedQty);
+          mergeResult.merged++;
         } else {
-          // New item - add to user cart
+          const requestedQty = Number(guestItem.quantity || 0);
+          const mergedQty = Math.min(requestedQty, sellable);
+
+          if (mergedQty < requestedQty) {
+            mergeResult.adjusted = true;
+            mergeResult.conflicts.push({
+              productId: guestItem.productId,
+              variantId: guestItem.variantId || "",
+              reason: "Some quantities were adjusted due to stock availability",
+              variantTitle: variantLabel,
+              requestedQuantity: requestedQty,
+              mergedQuantity: mergedQty,
+              availableStock: sellable,
+            });
+          }
+
+          if (mergedQty <= 0) {
+            continue;
+          }
+
+          const enriched = await guestCartService.validateAndEnrichItem(
+            guestItem.productId,
+            mergedQty,
+            guestItem.variantId
+          );
+
           userCart.items.push({
             productId: guestItem.productId,
-            quantity: guestItem.quantity,
-            price: guestItem.price,
-            image: guestItem.image,
-            variantId: guestItem.variantId,
-            variantSku: guestItem.variantSku,
-            variantTitle: guestItem.variantTitle,
-            variantAttributes: guestItem.variantAttributes,
+            quantity: mergedQty,
+            price: enriched.price,
+            image: enriched.image,
+            variantId: enriched.variantId,
+            variantSku: enriched.variantSku,
+            variantTitle: enriched.variantTitle,
+            variantAttributes: enriched.variantAttributes,
+            maxQuantity: sellable,
+            availableStock: Math.max(0, sellable - mergedQty),
           });
           mergeResult.merged++;
         }
@@ -111,11 +155,11 @@ class CartMergeService {
         mergeResult.errors.push({
           productId: guestItem.productId,
           error: e.message,
+          code: e.code || "VALIDATION_ERROR",
         });
       }
     }
 
-    // Save merged cart
     userCart.totalAmount = computeTotal(userCart.items);
     await cartRepo.save(userCart);
 
@@ -125,17 +169,10 @@ class CartMergeService {
     };
   }
 
-  /**
-   * Check if merge is needed (guest cart has items)
-   */
   hasGuestCartItems(guestCartItems = []) {
     return Array.isArray(guestCartItems) && guestCartItems.length > 0;
   }
 
-  /**
-   * Get merge summary without actually merging
-   * Useful for showing user what will happen
-   */
   async getMergeSummary(userId, guestCartItems = []) {
     const validation = await guestCartService.validateCartItems(guestCartItems);
     const userCart = await cartRepo.findByUserId(userId);
@@ -148,23 +185,36 @@ class CartMergeService {
       duplicateItems: 0,
       newItems: 0,
       conflicts: [],
+      adjusted: false,
     };
 
-    // Count duplicates and new items
     for (const guestItem of validation.validatedItems) {
       const itemKey = getItemKey(guestItem.productId, guestItem.variantId);
       const existingIdx = userCart.items.findIndex((x) => getItemKey(x.productId, x.variantId) === itemKey);
+      const sellable = await resolveSellableQuantity(guestItem.productId, guestItem.variantId);
 
       if (existingIdx >= 0) {
         summary.duplicateItems++;
+        const mergedQuantity = Math.min(
+          Number(userCart.items[existingIdx].quantity) + Number(guestItem.quantity),
+          sellable
+        );
+        if (mergedQuantity < Number(userCart.items[existingIdx].quantity) + Number(guestItem.quantity)) {
+          summary.adjusted = true;
+        }
         summary.conflicts.push({
           productId: guestItem.productId,
           guestQuantity: guestItem.quantity,
           cartQuantity: userCart.items[existingIdx].quantity,
-          mergedQuantity: Number(userCart.items[existingIdx].quantity) + Number(guestItem.quantity),
+          mergedQuantity,
+          availableStock: sellable,
         });
       } else {
         summary.newItems++;
+        const mergedQuantity = Math.min(Number(guestItem.quantity || 0), sellable);
+        if (mergedQuantity < Number(guestItem.quantity || 0)) {
+          summary.adjusted = true;
+        }
       }
     }
 

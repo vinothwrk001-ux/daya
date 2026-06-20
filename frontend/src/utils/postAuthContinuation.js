@@ -6,6 +6,8 @@ import pendingActionManager from "./pendingActionManager";
 import buyNowSessionService from "../services/buyNowSessionService";
 import pendingCheckoutManager from "./pendingCheckoutManager";
 import useAuthCartStore from "../context/authCartStore";
+import { normalizeCartPayload } from "./cartState";
+import { bumpCartStateVersion } from "./cartStateVersion";
 
 function getPathnameFromTarget(target) {
   const value = typeof target === "string" ? target : target?.pathname || "";
@@ -70,7 +72,10 @@ export async function continueAfterPrimaryAuth({ result, attemptedFrom, nav }) {
       const mergeResult = await mergeGuestData(guestCartItems, guestWishlistItems);
 
       if (mergeResult?.cartMerge?.success) {
-        useAuthCartStore.getState().setCart(mergeResult.cartMerge.userCart || { items: [] });
+        bumpCartStateVersion();
+        useAuthCartStore
+          .getState()
+          .setCart(normalizeCartPayload(mergeResult.cartMerge.userCart || { items: [] }));
         useGuestCartStore.getState().clearCart();
         window.dispatchEvent(
           new CustomEvent("cart:changed", {
