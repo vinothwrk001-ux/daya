@@ -76,6 +76,7 @@ function sanitizeCategoryPayload(payload = {}, existing = {}) {
     visibility,
     showOnHomepage: payload.showOnHomepage ?? existing.showOnHomepage ?? true,
     showInHeroBanner: payload.showInHeroBanner ?? existing.showInHeroBanner ?? false,
+    redirectToServices: payload.redirectToServices ?? existing.redirectToServices ?? false,
     heroHeading: String(payload.heroHeading ?? existing.heroHeading ?? "").trim(),
     heroSubheading: String(payload.heroSubheading ?? existing.heroSubheading ?? "").trim(),
     isActive: syncActiveFromStatus(status, payload.isActive ?? existing.isActive),
@@ -93,6 +94,7 @@ function serializeCategory(category = {}) {
     hero_heading: category.heroHeading || "",
     hero_subheading: category.heroSubheading || "",
     display_in_hero_banner: category.showInHeroBanner === true,
+    redirect_to_services: category.redirectToServices === true,
   };
 }
 

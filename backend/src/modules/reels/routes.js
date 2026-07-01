@@ -30,6 +30,41 @@ router.get(
 );
 
 router.get(
+  "/admin/analytics/performance",
+  adminWorkspaceAuthRequired,
+  requireWorkspacePermission("analytics.read"),
+  controller.reelPerformance
+);
+
+router.get(
+  "/admin/:reelId/products",
+  adminWorkspaceAuthRequired,
+  requireWorkspacePermission("products.read"),
+  controller.getAdminReelProducts
+);
+
+router.put(
+  "/admin/:reelId/products",
+  adminWorkspaceAuthRequired,
+  requireWorkspacePermission("products.update"),
+  controller.setReelProducts
+);
+
+router.post(
+  "/admin/:reelId/products",
+  adminWorkspaceAuthRequired,
+  requireWorkspacePermission("products.update"),
+  controller.addReelProducts
+);
+
+router.delete(
+  "/admin/:reelId/products/:productId",
+  adminWorkspaceAuthRequired,
+  requireWorkspacePermission("products.update"),
+  controller.removeReelProduct
+);
+
+router.get(
   "/admin/:reelId",
   adminWorkspaceAuthRequired,
   requireWorkspacePermission("products.read"),
@@ -93,6 +128,19 @@ router.post(
     })
   ),
   controller.trackAddToCart
+);
+
+router.get("/:reelId/products", authOptional, controller.getReelProducts);
+
+router.post(
+  "/:reelId/product-widget-open",
+  authOptional,
+  validate(
+    Joi.object({
+      sessionId: Joi.string().required(),
+    })
+  ),
+  controller.trackProductWidgetOpen
 );
 
 router.get("/:reelId", authOptional, controller.getPublic);

@@ -3,7 +3,7 @@ import { useBranding } from "../context/BrandingContext";
 
 export function LegalPageLayout({ title, description, sections = [] }) {
   const { branding } = useBranding();
-  const companyName = branding?.companyName || "UChooseMe";
+  const companyName = branding?.companyName || "DayaCreatives";
 
   useEffect(() => {
     if (title) {

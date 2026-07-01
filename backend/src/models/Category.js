@@ -93,6 +93,11 @@ const categorySchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    redirectToServices: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     heroHeading: {
       type: String,
       trim: true,

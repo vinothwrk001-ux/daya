@@ -2,7 +2,10 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+
+const MotionDiv = motion.div;
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
+import { getCategoryHref } from "../../utils/categoryLinks";
 import { getHomepageBanners, trackHomepageBannerEvent } from "../../services/homepageBannerService";
 
 const DEFAULT_SETTINGS = {
@@ -100,7 +103,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-[10px] font-black text-red-400 sm:text-sm">
+          <div className="flex h-full items-center justify-center text-[10px] font-black text-brand-primary sm:text-sm">
             {(card.title || "C").slice(0, 1)}
           </div>
         )}
@@ -115,7 +118,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
             {card.productCount} Products
           </p>
         ) : null}
-        <span className="inline-flex items-center gap-0.5 text-[6px] font-bold uppercase tracking-wide text-red-400 sm:gap-1 sm:text-[10px] lg:text-[11px]">
+        <span className="inline-flex items-center gap-0.5 text-[6px] font-bold uppercase tracking-wide text-brand-primary sm:gap-1 sm:text-[10px] lg:text-[11px]">
           <span className="sm:hidden">Go</span>
           <span className="hidden sm:inline">Explore</span>
           <ArrowRight className="h-2 w-2 sm:h-3 sm:w-3" />
@@ -130,9 +133,9 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
 
   return (
     <Link
-      to={card.ctaUrl || `/category/${card.slug}`}
+      to={card.ctaUrl || getCategoryHref(card)}
       onClick={() => onSelect?.(card)}
-      className="banner-category-card group flex w-full min-w-0 flex-col overflow-hidden rounded-md border border-zinc-700 bg-zinc-950 shadow-md transition hover:-translate-y-0.5 hover:border-red-500 hover:shadow-lg sm:rounded-xl lg:min-w-0"
+      className="banner-category-card group flex w-full min-w-0 flex-col overflow-hidden rounded-md border border-zinc-700 bg-zinc-950 shadow-md transition hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-lg sm:rounded-xl lg:min-w-0"
     >
       {inner}
     </Link>
@@ -142,7 +145,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
 function BannerMedia({ banner, isMobile, isActive, previewMode }) {
   const { mediaType, url, poster } = resolveBannerAsset(banner, isMobile);
   if (!url) {
-    return <div className="h-full w-full bg-gradient-to-br from-zinc-100 via-white to-red-50" />;
+    return <div className="h-full w-full bg-gradient-to-br from-brand-surfaceSecondary via-brand-surface to-brand-surfaceSecondary" />;
   }
   if (mediaType === "video" && !/\.(jpe?g|png|webp|gif)(\?|$)/i.test(url)) {
     return (
@@ -329,7 +332,7 @@ export function HomepageBannerSlider({
 
   const textBlock = (
     <>
-      <p className="text-[9px] font-black uppercase tracking-[0.28em] text-red-400 sm:text-xs">{featuredText}</p>
+      <p className="text-[9px] font-black uppercase tracking-[0.28em] text-brand-primary sm:text-xs">{featuredText}</p>
       <h2 className="mt-1.5 text-base font-black uppercase leading-tight tracking-tight text-white sm:mt-3 sm:text-3xl lg:text-4xl">
         {activeBanner.title || activeBanner.name}
       </h2>
@@ -342,7 +345,7 @@ export function HomepageBannerSlider({
         <p className="mt-2 hidden text-sm leading-6 text-white/80 sm:block">{activeBanner.description}</p>
       ) : null}
       {renderBannerCta(
-        "mt-4 hidden w-fit items-center gap-2 rounded-full bg-red-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-red-700 sm:mt-5 sm:px-5 sm:py-3 sm:text-sm md:inline-flex"
+        "mt-4 hidden w-fit items-center gap-2 rounded-full bg-brand-primary px-4 py-2.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover sm:mt-5 sm:px-5 sm:py-3 sm:text-sm md:inline-flex"
       )}
     </>
   );
@@ -364,7 +367,7 @@ export function HomepageBannerSlider({
       >
         <div className="hero-banner-overlay bg-zinc-900">
           <AnimatePresence mode="wait">
-            <motion.div
+            <MotionDiv
               key={activeBanner.id || index}
               className="absolute inset-0"
               initial={slideVariants.initial}
@@ -373,7 +376,7 @@ export function HomepageBannerSlider({
               transition={{ duration: 0.35, ease: "easeOut" }}
             >
               <BannerMedia banner={activeBanner} isMobile={isMobile} isActive={inView} previewMode={previewMode} />
-            </motion.div>
+            </MotionDiv>
           </AnimatePresence>
           {showOverlay ? (
             <div className="absolute inset-0 bg-black" style={{ opacity: overlayOpacity }} aria-hidden="true" />
@@ -390,7 +393,7 @@ export function HomepageBannerSlider({
               <div className="hero-banner-text-col h-full text-white lg:max-w-[42%]">
                 <AnimatePresence mode="wait">
                   {revealContent ? (
-                    <motion.div
+                    <MotionDiv
                       key={`text-${activeBanner.id || index}`}
                       initial={{ opacity: 0, y: hoverReveal ? 12 : 0 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -398,9 +401,9 @@ export function HomepageBannerSlider({
                       transition={{ duration: hoverReveal ? 0.3 : 0.35 }}
                     >
                       {textBlock}
-                    </motion.div>
+                    </MotionDiv>
                   ) : (
-                    <motion.div
+                    <MotionDiv
                       key="text-hidden"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 0 }}
@@ -413,7 +416,7 @@ export function HomepageBannerSlider({
 
               <div className="hero-banner-category-col hidden h-full md:flex lg:ml-auto lg:max-w-none lg:flex-1">
                 <AnimatePresence mode="wait">
-                  <motion.div
+                  <MotionDiv
                     key={`cats-${activeBanner.id || index}`}
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -424,7 +427,7 @@ export function HomepageBannerSlider({
                     {activeBanner.categoryHeading || activeBanner.categoryDescription ? (
                       <div className="mb-2 hidden w-full max-w-[42rem] text-right sm:mb-3 sm:block lg:text-left">
                         {activeBanner.categoryHeading ? (
-                          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-red-400 sm:text-xs">
+                          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-brand-primary sm:text-xs">
                             {activeBanner.categoryHeading}
                           </p>
                         ) : null}
@@ -436,7 +439,7 @@ export function HomepageBannerSlider({
                     {categories.length ? (
                       <div className="hero-banner-category-cards grid w-full grid-cols-4 gap-1.5 sm:ml-auto sm:max-w-[42rem] sm:grid-cols-2 sm:gap-3.5 sm:justify-items-end lg:grid-cols-3 xl:grid-cols-4">
                         {categories.map((card, cardIndex) => (
-                          <motion.div
+                          <MotionDiv
                             key={card.id || card.categoryId}
                             initial={{ opacity: 0, y: 12 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -448,7 +451,7 @@ export function HomepageBannerSlider({
                               onSelect={handleCategoryClick}
                               previewMode={previewMode}
                             />
-                          </motion.div>
+                          </MotionDiv>
                         ))}
                       </div>
                     ) : (
@@ -456,14 +459,14 @@ export function HomepageBannerSlider({
                         No categories assigned to this banner yet.
                       </p>
                     )}
-                  </motion.div>
+                  </MotionDiv>
                 </AnimatePresence>
               </div>
             </div>
           </div>
 
           {renderBannerCta(
-            "hero-banner-mobile-cta inline-flex w-auto items-center justify-center gap-1.5 rounded-full bg-red-600 font-bold text-white transition hover:bg-red-700 md:hidden"
+            "hero-banner-mobile-cta inline-flex w-auto items-center justify-center gap-1.5 rounded-full bg-brand-primary font-bold text-white transition hover:bg-brand-primaryHover md:hidden"
           )}
         </div>
 
@@ -503,7 +506,7 @@ export function HomepageBannerSlider({
                 aria-selected={bannerIndex === index}
                 onClick={() => goTo(bannerIndex)}
                 className={`h-2 rounded-full transition-all ${
-                  bannerIndex === index ? "w-7 bg-red-600" : "w-2 bg-white/70 hover:bg-white"
+                  bannerIndex === index ? "w-7 bg-brand-primary" : "w-2 bg-white/70 hover:bg-white"
                 }`}
               />
             ))}

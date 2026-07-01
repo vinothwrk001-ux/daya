@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { ThemeRouteSync } from "./components/ThemeRouteSync";
 import { Layout } from "./components/Layout";
 import { ProductDetailsPage } from "./pages/ProductDetailsPage";
 import { AdminLayout } from "./components/AdminLayout";
@@ -74,10 +75,12 @@ const AuditLogsPage = lazyNamed(() => import("./pages/AuditLogsPage"), "AuditLog
 const AdminWhatsAppLogsPage = lazyNamed(() => import("./pages/AdminWhatsAppLogsPage"), "AdminWhatsAppLogsPage");
 const AdminSettingsPage = lazyNamed(() => import("./pages/AdminSettingsPage"), "AdminSettingsPage");
 const AdminCompanyBrandingPage = lazyNamed(() => import("./pages/AdminCompanyBrandingPage"), "AdminCompanyBrandingPage");
+const AdminThemeEnginePage = lazyNamed(() => import("./pages/AdminThemeEnginePage"), "AdminThemeEnginePage");
 const AdminPricingPage = lazyNamed(() => import("./pages/AdminPricingPage"), "AdminPricingPage");
 const AdminPricingCategoriesPage = lazyNamed(() => import("./pages/AdminPricingCategoriesPage"), "AdminPricingCategoriesPage");
 const CategoryPage = lazyNamed(() => import("./pages/CategoryPage"), "CategoryPage");
 const ReelsPage = lazyNamed(() => import("./pages/ReelsPage"), "ReelsPage");
+const ServicesPage = lazyNamed(() => import("./pages/ServicesPage"), "ServicesPage");
 const SavedReelsPage = lazyNamed(() => import("./pages/SavedReelsPage"), "SavedReelsPage");
 const AdminReelsPage = lazyNamed(() => import("./pages/AdminReelsPage"), "AdminReelsPage");
 const AdminReelFormPage = lazyNamed(() => import("./pages/AdminReelFormPage"), "AdminReelFormPage");
@@ -103,6 +106,7 @@ function ProductDetailsRoute() {
 export default function App() {
   return (
     <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm font-bold text-slate-500">Loading...</div>}>
+    <ThemeRouteSync />
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
@@ -114,6 +118,7 @@ export default function App() {
         <Route path="/shop" element={<ProductsPage />} />
         <Route path="/category/:slug" element={<CategoryPage />} />
         <Route path="/reels" element={<ReelsPage />} />
+        <Route path="/services" element={<ServicesPage />} />
         <Route path="/collections/:slug" element={<HomepageContainerProductsPage />} />
         <Route path="/product/:productId" element={<ProductDetailsRoute />} />
         <Route path="/cart" element={<CartPage />} />
@@ -193,6 +198,7 @@ export default function App() {
               <Route path="communications/whatsapp-logs" element={<AdminWhatsAppLogsPage />} />
               <Route path="settings" element={<AdminSettingsPage />} />
               <Route path="settings/company-branding" element={<AdminCompanyBrandingPage />} />
+              <Route path="theme-engine" element={<AdminThemeEnginePage />} />
               <Route path="pricing" element={<AdminPricingPage />} />
               <Route path="pricing-categories" element={<AdminPricingCategoriesPage />} />
               <Route path="reels" element={<AdminReelsPage />} />

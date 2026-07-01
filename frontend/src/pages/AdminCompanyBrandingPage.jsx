@@ -48,7 +48,7 @@ const EMPTY_FORM = {
         description: "Premium marketplace experiences for modern shoppers.",
         links: [
           { label: "Our story", href: "/our-story" },
-          { label: "Why UChooseMe", href: "/why-us" },
+          { label: "Why DayaCreatives", href: "/why-us" },
         ],
       },
       {
@@ -76,7 +76,7 @@ const EMPTY_FORM = {
       { label: "Privacy policy", href: "/privacy-policy" },
       { label: "Terms & conditions", href: "/terms-and-conditions" },
     ],
-    copyrightText: "© 2026 UChooseMe. All rights reserved.",
+    copyrightText: "© 2026 DayaCreatives. All rights reserved.",
   },
 };
 
@@ -153,7 +153,7 @@ export function AdminCompanyBrandingPage() {
 
   const previewBrand = useMemo(
     () => ({
-      companyName: form.companyName || branding?.companyName || "UChooseMe",
+      companyName: form.companyName || branding?.companyName || "DayaCreatives",
       tagline: form.tagline || branding?.tagline || "",
       supportEmail: form.supportEmail || branding?.supportEmail || "",
       supportPhone: form.supportPhone || branding?.supportPhone || "",

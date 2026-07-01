@@ -913,7 +913,7 @@ export function CheckoutPage() {
         amount: checkoutAmount,
         currency: checkoutCurrency,
         order_id: razorpayOrderId,
-        name: branding?.companyName || "UChooseMe",
+        name: branding?.companyName || "DayaCreatives",
         description: "Secure checkout",
         prefill: {
           name: shippingAddress.fullName,

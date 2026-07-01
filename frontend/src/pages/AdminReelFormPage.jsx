@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AsyncMultiSelect } from "../components/AsyncMultiSelect";
+import { LinkedProductsEditor } from "../components/admin/LinkedProductsEditor";
 import { showError, showSuccess } from "../services/notificationService";
-import { listProducts } from "../services/adminApi";
 import { createAdminReel, getAdminReel, updateAdminReel } from "../services/reelService";
 
 const defaultForm = {
@@ -16,7 +15,7 @@ const defaultForm = {
   visibility: "public",
   attributionWindowDays: 30,
   publishDate: "",
-  associatedProducts: [],
+  linkedProducts: [],
 };
 
 export function AdminReelFormPage() {
@@ -46,10 +45,17 @@ export function AdminReelFormPage() {
           visibility: reel.visibility || "public",
           attributionWindowDays: reel.attributionWindowDays || 30,
           publishDate: reel.publishDate ? reel.publishDate.slice(0, 16) : "",
-          associatedProducts: (reel.associatedProducts || []).map((product) => ({
-            value: product._id,
-            label: `${product.name} (${product.sku || "SKU"})`,
-          })),
+          linkedProducts: (reel.linkedProducts || reel.associatedProducts || []).map((entry, index) => {
+            const product = entry.product || entry;
+            const productId = entry.productId || product._id;
+            return {
+              productId,
+              sortOrder: entry.sortOrder ?? index,
+              featured: Boolean(entry.featured),
+              active: entry.active !== false,
+              product,
+            };
+          }),
         });
       } catch (error) {
         showError(error?.response?.data?.message || "Failed to load reel");
@@ -81,8 +87,19 @@ export function AdminReelFormPage() {
       payload.append("attributionWindowDays", String(form.attributionWindowDays));
       if (form.publishDate) payload.append("publishDate", new Date(form.publishDate).toISOString());
       payload.append(
+        "linkedProducts",
+        JSON.stringify(
+          form.linkedProducts.map((item, index) => ({
+            productId: item.productId,
+            sortOrder: index,
+            featured: Boolean(item.featured),
+            active: item.active !== false,
+          }))
+        )
+      );
+      payload.append(
         "associatedProducts",
-        JSON.stringify(form.associatedProducts.map((item) => item.value))
+        JSON.stringify(form.linkedProducts.map((item) => item.productId))
       );
       if (videoFile) payload.append("video", videoFile);
       if (thumbnailFile) payload.append("thumbnail", thumbnailFile);
@@ -243,22 +260,10 @@ export function AdminReelFormPage() {
         />
       </label>
 
-      <div className="space-y-2 text-sm">
-        <span className="font-semibold">Associated Products</span>
-        <AsyncMultiSelect
-          value={form.associatedProducts}
-          onChange={(associatedProducts) => setForm((current) => ({ ...current, associatedProducts }))}
-          loadOptions={async (query) => {
-            const response = await listProducts({ search: query, limit: 20 });
-            const products = response?.data?.products || response?.products || [];
-            return products.map((product) => ({
-              value: product._id,
-              label: `${product.name} · ${product.sku || "SKU"} · ₹${product.salePrice ?? product.price ?? 0}`,
-            }));
-          }}
-          placeholder="Search products by name or SKU"
-        />
-      </div>
+      <LinkedProductsEditor
+        value={form.linkedProducts}
+        onChange={(linkedProducts) => setForm((current) => ({ ...current, linkedProducts }))}
+      />
 
       <div className="flex gap-3">
         <button

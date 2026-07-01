@@ -225,13 +225,13 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
   const cardStyleClass =
     {
       DEFAULT:
-        "border border-[#eeeeee] bg-white shadow-brandSm hover:shadow-brandMd hover:border-brand-primary",
-      ELEVATED: "border border-[#eeeeee] bg-white shadow-brandLg hover:shadow-brandMd",
-      MINIMAL: "border border-[#eeeeee] bg-white shadow-none hover:shadow-brandSm",
+        "border border-brand-border bg-brand-surface shadow-brandSm hover:shadow-brandMd hover:border-brand-primary",
+      ELEVATED: "border border-brand-border bg-brand-surface shadow-brandLg hover:shadow-brandMd",
+      MINIMAL: "border border-brand-border bg-brand-surface shadow-none hover:shadow-brandSm",
       EDITORIAL:
         "border border-brand-secondary bg-brand-secondary text-white shadow-brandLg ring-1 ring-black/10",
     }[styleKey] ||
-    "border border-[#eeeeee] bg-white shadow-brandSm hover:shadow-brandMd transition-all duration-300 hover:border-brand-primary";
+    "border border-brand-border bg-brand-surface shadow-brandSm hover:shadow-brandMd transition-all duration-300 hover:border-brand-primary";
 
   const brandName = getProductBrand(product);
   const displayPrice = pricing.hasDiscount ? pricing.salePrice : pricing.price;
@@ -343,7 +343,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
           className={
             isEditorial
               ? "line-clamp-2 text-base font-semibold leading-snug text-white transition group-hover:text-slate-100"
-              : "line-clamp-2 text-base font-semibold leading-snug text-[#111111] transition group-hover:text-brand-primary"
+              : "line-clamp-2 text-base font-semibold leading-snug text-brand-textPrimary transition group-hover:text-brand-primary"
           }
         >
           {product.name}

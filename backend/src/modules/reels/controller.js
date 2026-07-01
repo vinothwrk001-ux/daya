@@ -142,6 +142,13 @@ const create = asyncHandler(async (req, res) => {
       body.associatedProducts = body.associatedProducts.split(",").map((item) => item.trim()).filter(Boolean);
     }
   }
+  if (typeof body.linkedProducts === "string") {
+    try {
+      body.linkedProducts = JSON.parse(body.linkedProducts);
+    } catch {
+      body.linkedProducts = [];
+    }
+  }
   if (typeof body.tags === "string" && body.tags.includes(",")) {
     body.tags = body.tags.split(",").map((item) => item.trim()).filter(Boolean);
   }
@@ -156,6 +163,13 @@ const update = asyncHandler(async (req, res) => {
       body.associatedProducts = JSON.parse(body.associatedProducts);
     } catch {
       body.associatedProducts = body.associatedProducts.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  if (typeof body.linkedProducts === "string") {
+    try {
+      body.linkedProducts = JSON.parse(body.linkedProducts);
+    } catch {
+      body.linkedProducts = [];
     }
   }
   if (typeof body.tags === "string" && body.tags.includes(",")) {
@@ -193,6 +207,52 @@ const attribution = asyncHandler(async (req, res) => {
   return ok(res, data, "Reels attribution retrieved");
 });
 
+const getReelProducts = asyncHandler(async (req, res) => {
+  const data = await reelService.getReelProducts(req.params.reelId);
+  return ok(res, data, "Reel products retrieved");
+});
+
+const getAdminReelProducts = asyncHandler(async (req, res) => {
+  const data = await reelService.getReelProducts(req.params.reelId, { admin: true });
+  return ok(res, data, "Reel products retrieved");
+});
+
+const setReelProducts = asyncHandler(async (req, res) => {
+  const data = await reelService.setReelProducts(req.user, req.params.reelId, req.body || {}, getMeta(req));
+  return ok(res, data, "Reel products updated");
+});
+
+const addReelProducts = asyncHandler(async (req, res) => {
+  const data = await reelService.addReelProducts(req.user, req.params.reelId, req.body || {}, getMeta(req));
+  return ok(res, data, "Reel products added", 201);
+});
+
+const removeReelProduct = asyncHandler(async (req, res) => {
+  const data = await reelService.removeReelProduct(
+    req.user,
+    req.params.reelId,
+    req.params.productId,
+    getMeta(req)
+  );
+  return ok(res, data, "Reel product removed");
+});
+
+const trackProductWidgetOpen = asyncHandler(async (req, res) => {
+  const data = await reelService.trackProductWidgetOpen(req.params.reelId, {
+    userId: req.user?.sub,
+    sessionId: req.body.sessionId,
+  });
+  return ok(res, data, "Product widget open tracked");
+});
+
+const reelPerformance = asyncHandler(async (req, res) => {
+  const data = await reelService.getReelPerformanceDashboard({
+    page: Number(req.query.page || 1),
+    limit: Number(req.query.limit || 20),
+  });
+  return ok(res, data, "Reel performance retrieved");
+});
+
 module.exports = {
   listPublic,
   getPublic,
@@ -218,4 +278,11 @@ module.exports = {
   deleteComment,
   analytics,
   attribution,
+  reelPerformance,
+  getReelProducts,
+  getAdminReelProducts,
+  setReelProducts,
+  addReelProducts,
+  removeReelProduct,
+  trackProductWidgetOpen,
 };

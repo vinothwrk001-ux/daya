@@ -43,6 +43,7 @@ const homepageContainerController = require("../controllers/homepage-container.c
 const homepageLayoutController = require("../controllers/homepage-layout.controller");
 const shippingConfigRoutes = require("./shippingConfig.routes");
 const adminHomepageBannerRoutes = require("./admin-homepage-banner.routes");
+const themeEngineRoutes = require("../modules/theme-engine/routes");
 const whatsappLogController = require("../controllers/whatsapp-log.controller");
 const companyBrandingController = require("../controllers/company-branding.controller");
 const { validateBrandingFiles } = require("../utils/validators/company-branding.validation");
@@ -441,5 +442,6 @@ router.delete(
 // Shipping Configuration routes
 router.use("/shipping-config", shippingConfigRoutes);
 router.use("/homepage", adminHomepageBannerRoutes);
+router.use("/theme-engine", themeEngineRoutes);
 
 module.exports = router;

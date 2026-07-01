@@ -12,7 +12,7 @@ import { hasDedicatedHeroLogo, pickBrandingLogo } from "../utils/brandingLogo";
 const NAV_LINKS = [
   { label: "HOME", to: "/" },
   { label: "SHOP", to: "/shop" },
-  { label: "SERVICES", to: "#" },
+  { label: "SERVICES", to: "/services" },
   { label: "BLOGS", to: "#" },
 ];
 

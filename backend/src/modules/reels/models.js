@@ -1,5 +1,15 @@
 const mongoose = require("mongoose");
 
+const linkedProductSchema = new mongoose.Schema(
+  {
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    sortOrder: { type: Number, default: 0, min: 0 },
+    featured: { type: Boolean, default: false },
+    active: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
+
 const reelSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true, maxlength: 200 },
@@ -25,6 +35,7 @@ const reelSchema = new mongoose.Schema(
     attributionWindowDays: { type: Number, default: 30, min: 1, max: 365 },
     publishDate: { type: Date },
     associatedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
+    linkedProducts: { type: [linkedProductSchema], default: [] },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     viewsCount: { type: Number, default: 0, min: 0 },
     uniqueViewsCount: { type: Number, default: 0, min: 0 },
@@ -34,6 +45,7 @@ const reelSchema = new mongoose.Schema(
     savesCount: { type: Number, default: 0, min: 0 },
     productClicksCount: { type: Number, default: 0, min: 0 },
     productViewsCount: { type: Number, default: 0, min: 0 },
+    productWidgetOpensCount: { type: Number, default: 0, min: 0 },
     addToCartCount: { type: Number, default: 0, min: 0 },
     ordersCount: { type: Number, default: 0, min: 0 },
     revenueTotal: { type: Number, default: 0, min: 0 },
@@ -145,6 +157,17 @@ const reelProductViewSchema = new mongoose.Schema(
 );
 reelProductViewSchema.index({ reelId: 1, productId: 1, sessionId: 1 }, { unique: true });
 
+const reelProductWidgetOpenSchema = new mongoose.Schema(
+  {
+    reelId: { type: mongoose.Schema.Types.ObjectId, ref: "Reel", required: true, index: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    sessionId: { type: String, required: true, index: true },
+    openedAt: { type: Date, default: Date.now },
+  },
+  { collection: "reel_product_widget_opens" }
+);
+reelProductWidgetOpenSchema.index({ reelId: 1, sessionId: 1, openedAt: -1 });
+
 const reelAttributionSchema = new mongoose.Schema(
   {
     reelId: { type: mongoose.Schema.Types.ObjectId, ref: "Reel", required: true, index: true },
@@ -186,6 +209,7 @@ module.exports = {
   ReelView: mongoose.model("ReelView", reelViewSchema),
   ReelProductClick: mongoose.model("ReelProductClick", reelProductClickSchema),
   ReelProductView: mongoose.model("ReelProductView", reelProductViewSchema),
+  ReelProductWidgetOpen: mongoose.model("ReelProductWidgetOpen", reelProductWidgetOpenSchema),
   ReelAttribution: mongoose.model("ReelAttribution", reelAttributionSchema),
   ReelPurchaseConversion: mongoose.model("ReelPurchaseConversion", reelPurchaseConversionSchema),
 };

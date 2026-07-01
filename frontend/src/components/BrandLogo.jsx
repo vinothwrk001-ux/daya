@@ -7,7 +7,7 @@ export function BrandLogo({ variant = "primary", className = "", imgClassName = 
   const logoUrl = dark
     ? pickBrandingLogo(branding, { context: "dark-header" })
     : pickBrandingLogo(branding, { context: "default" });
-  const name = branding?.companyName || "UChooseMe";
+  const name = branding?.companyName || "DayaCreatives";
 
   if (logoUrl) {
     return (

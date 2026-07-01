@@ -112,7 +112,7 @@ const getProductById = asyncHandler(async (req, res) => {
 
   // Record view for public products
   if (product.isActive && product.status === "APPROVED") {
-    await productService.recordView(req.params.id);
+    await productService.recordView(product._id);
   }
 
   return ok(res, product, "Product retrieved");

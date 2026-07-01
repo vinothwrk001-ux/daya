@@ -28,8 +28,11 @@ import {
   trackReelView,
 } from "../../services/reelService";
 import { navigateToProduct } from "../../utils/scrollPageToTop";
+import { getReelLinkedProducts, getReelProductCount } from "../../utils/reelProducts";
 import { ReelCommentDrawer } from "./ReelCommentDrawer";
 import { ReelShareSheet } from "./ReelShareSheet";
+import { ReelProductShopDrawer } from "./ReelProductShopDrawer";
+import { ReelShoppingBadge } from "./ReelShoppingBadge";
 
 function formatCount(value = 0) {
   const num = Number(value || 0);
@@ -160,8 +163,10 @@ function ReelSlide({
   const [likeBurst, setLikeBurst] = useState(false);
   const [productIndex, setProductIndex] = useState(0);
   const sessionId = getReelSessionId();
-  const products = reel.products?.length ? reel.products : [];
+  const products = getReelLinkedProducts(reel);
+  const productCount = getReelProductCount(reel);
   const activeProduct = products[productIndex] || products[0];
+  const [shopDrawerOpen, setShopDrawerOpen] = useState(false);
   const lastTapRef = useRef(0);
 
   useEffect(() => {
@@ -228,14 +233,26 @@ function ReelSlide({
   }
 
   async function handleShop(product, variantId = "") {
+    const productId = product.productId || product._id;
     await trackReelProductClick(reel._id, {
-      productId: product._id,
+      productId,
       sessionId,
     }).catch(() => {});
-    setReelAttribution({ reelId: reel._id, productId: product._id, sessionId });
+    setReelAttribution({ reelId: reel._id, productId, sessionId });
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(
+        "reel_return_context",
+        JSON.stringify({ reelId: reel._id, returnUrl: `/reels?reel=${reel._id}` })
+      );
+    }
     const params = new URLSearchParams({ reel: reel._id });
     if (variantId) params.set("variantId", String(variantId));
-    navigateToProduct(navigate, `/product/${product._id}?${params.toString()}`);
+    navigateToProduct(navigate, `/product/${product.slug || productId}?${params.toString()}`);
+  }
+
+  function openShopDrawer() {
+    if (!productCount) return;
+    setShopDrawerOpen(true);
   }
 
   function handleDoubleTap() {
@@ -301,6 +318,10 @@ function ReelSlide({
 
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
 
+        <div className="absolute left-3 top-14 z-30 md:top-16">
+          <ReelShoppingBadge count={productCount} onClick={openShopDrawer} />
+        </div>
+
         <div className="absolute left-3 top-3 z-30 md:hidden">
           <Link
             to="/"
@@ -359,7 +380,7 @@ function ReelSlide({
                 <div className="mb-2 flex gap-2 overflow-x-auto">
                   {products.map((product, index) => (
                     <button
-                      key={product._id}
+                      key={product.productId || product._id}
                       type="button"
                       onClick={() => setProductIndex(index)}
                       className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${
@@ -371,7 +392,14 @@ function ReelSlide({
                   ))}
                 </div>
               ) : null}
-              <TikTokProductCard product={activeProduct} onShop={handleShop} />
+              <TikTokProductCard
+                product={{
+                  ...activeProduct,
+                  _id: activeProduct.productId || activeProduct._id,
+                  images: activeProduct.images || (activeProduct.image ? [activeProduct.image] : []),
+                }}
+                onShop={handleShop}
+              />
             </div>
           ) : null}
         </div>
@@ -409,8 +437,8 @@ function ReelSlide({
             {
               key: "product",
               icon: ShoppingBag,
-              count: products.length,
-              onClick: () => activeProduct && handleShop(activeProduct),
+              count: productCount,
+              onClick: openShopDrawer,
             },
             {
               key: "more",
@@ -434,6 +462,8 @@ function ReelSlide({
           ))}
         </div>
       </div>
+
+      <ReelProductShopDrawer reel={reel} open={shopDrawerOpen} onClose={() => setShopDrawerOpen(false)} />
     </section>
   );
 }

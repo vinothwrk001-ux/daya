@@ -29,12 +29,12 @@ const COLOR_DEFAULTS = Object.freeze({
 });
 
 const DEFAULTS = Object.freeze({
-  companyName: "UChooseMe",
+  companyName: "DayaCreatives",
   legalCompanyName: "GRM Commerce",
   tagline: "Premium marketplace experiences at enterprise scale.",
-  supportEmail: "support@uchooseme.com",
+  supportEmail: "support@dayacreatives.com",
   supportPhone: "+91 00000 00000",
-  websiteUrl: "https://www.uchooseme.com",
+  websiteUrl: "https://www.dayacreatives.com",
 });
 
 function cacheKey(tenantType, tenantKey) {

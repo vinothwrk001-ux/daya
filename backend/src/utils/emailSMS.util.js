@@ -221,7 +221,7 @@ function buildPasswordResetEmailHTML(data = {}) {
     
     <div class="footer">
       <p>Questions? Contact us at <a href="mailto:${supportEmail}">${supportEmail}</a></p>
-      <p>© 2026 UChooseMe. All rights reserved.</p>
+      <p>© 2026 DayaCreatives. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -252,7 +252,7 @@ Do not share this OTP with anyone. Our team will never ask you for your password
 
 Questions? Contact us at ${supportEmail}
 
-© 2026 UChooseMe. All rights reserved.
+© 2026 DayaCreatives. All rights reserved.
   `.trim();
 }
 

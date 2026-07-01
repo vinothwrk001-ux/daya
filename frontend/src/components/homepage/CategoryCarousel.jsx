@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
+import { getCategoryHref } from "../../utils/categoryLinks";
 import { getHomepageCategories, trackCategoryEvent } from "../../services/categoryService";
 
 function getSessionId() {
@@ -24,9 +25,9 @@ function CategoryCard({ category, onClick }) {
 
   return (
     <Link
-      to={`/category/${category.slug}`}
+      to={getCategoryHref(category)}
       onClick={() => onClick?.(category)}
-      className="group relative flex aspect-[4/5] flex-col overflow-hidden rounded-3xl border-2 border-black bg-zinc-950 shadow-lg transition duration-300 hover:-translate-y-1 hover:border-red-500 hover:shadow-[0_20px_40px_rgba(220,38,38,0.25)]"
+      className="group relative flex aspect-[4/5] flex-col overflow-hidden rounded-3xl border-2 border-black bg-zinc-950 shadow-lg transition duration-300 hover:-translate-y-1 hover:border-brand-primary hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
     >
       <div
         className="absolute inset-0 opacity-30"
@@ -44,7 +45,7 @@ function CategoryCard({ category, onClick }) {
             className="category-card-image block h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-red-600/20 text-2xl font-black text-red-400">
+          <div className="flex h-full w-full items-center justify-center bg-brand-primary/20 text-2xl font-black text-brand-primary">
             {categoryName.slice(0, 1).toUpperCase()}
           </div>
         )}
@@ -122,7 +123,7 @@ export function CategoryCarousel() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.35em] text-red-600">{config.eyebrow}</p>
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-brand-primary">{config.eyebrow}</p>
             <h2 className="mt-2 text-2xl font-black text-zinc-950 dark:text-white md:text-3xl">{config.title}</h2>
             {config.subtitle ? (
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{config.subtitle}</p>
@@ -132,14 +133,14 @@ export function CategoryCarousel() {
             <button
               type="button"
               onClick={() => scrollBy(-1)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-700 transition hover:border-red-500 hover:text-red-600 dark:border-zinc-700 dark:text-zinc-200"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-700 transition hover:border-brand-primary hover:text-brand-primary dark:border-zinc-700 dark:text-zinc-200"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               type="button"
               onClick={() => scrollBy(1)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-700 transition hover:border-red-500 hover:text-red-600 dark:border-zinc-700 dark:text-zinc-200"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-700 transition hover:border-brand-primary hover:text-brand-primary dark:border-zinc-700 dark:text-zinc-200"
             >
               <ChevronRight className="h-5 w-5" />
             </button>

@@ -19,6 +19,7 @@ import {
   trackReelView,
 } from "../../services/reelService";
 import { navigateToProduct } from "../../utils/scrollPageToTop";
+import { getReelLinkedProducts } from "../../utils/reelProducts";
 
 function formatCount(value = 0) {
   const num = Number(value || 0);
@@ -80,7 +81,7 @@ export function ReelCard({
   const [muted, setMuted] = useState(true);
   const [playing, setPlaying] = useState(false);
   const sessionId = getReelSessionId();
-  const primaryProduct = reel.products?.[0];
+  const primaryProduct = getReelLinkedProducts(reel)[0];
 
   useEffect(() => {
     if (!reel?._id) return;
@@ -109,12 +110,19 @@ export function ReelCard({
   }, [layout, reel?.videoUrl]);
 
   async function handleProductClick(product) {
+    const productId = product.productId || product._id;
     await trackReelProductClick(reel._id, {
-      productId: product._id,
+      productId,
       sessionId,
     }).catch(() => {});
-    setReelAttribution({ reelId: reel._id, productId: product._id, sessionId });
-    navigateToProduct(navigate, `/product/${product._id}?reel=${reel._id}`);
+    setReelAttribution({ reelId: reel._id, productId, sessionId });
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(
+        "reel_return_context",
+        JSON.stringify({ reelId: reel._id, returnUrl: `/reels?reel=${reel._id}` })
+      );
+    }
+    navigateToProduct(navigate, `/product/${product.slug || productId}?reel=${reel._id}`);
   }
 
   const stats = [

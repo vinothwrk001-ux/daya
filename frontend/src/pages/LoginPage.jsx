@@ -125,7 +125,7 @@ export function LoginPage() {
 
       <form
         onSubmit={onSubmit}
-        className="mt-6 rounded-2xl border bg-white p-6 shadow-sm"
+        className="mt-6 rounded-2xl border bg-white p-6 text-slate-900 shadow-sm"
       >
         <label className="block text-sm font-medium">
           Email or phone

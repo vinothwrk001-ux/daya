@@ -18,8 +18,8 @@ import { CartDrawer } from "./CartDrawer";
 import { CartDrawerOverlay } from "./CartDrawerOverlay";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useCategories } from "../hooks/useCategories";
+import { categoryRedirectsToServices } from "../utils/categoryLinks";
 import { usePresentedCategories } from "../utils/categoryPresentation";
-import { useBranding } from "../context/BrandingContext";
 import { BrandLogo } from "./BrandLogo";
 import { HeaderShopActions } from "./HeaderShopActions";
 import { RouteScrollManager } from "./RouteScrollManager";
@@ -34,7 +34,6 @@ export function Layout() {
   const location = useLocation();
   const { categories } = useCategories();
   const presentedCategories = usePresentedCategories(categories);
-  const { branding } = useBranding();
   const isAdminRoute =
     location.pathname === "/dashboard/admin" ||
     location.pathname.startsWith("/admin");
@@ -67,6 +66,7 @@ export function Layout() {
     { label: "Products", href: "/shop" },
     // { label: "Categories", href: "/#categories" },
     { label: "Reels", href: "/reels" },
+    { label: "Services", href: "/services" },
     // { label: "Campaigns", href: "/collections/deals" },
     { label: "About Us", href: "/terms-and-conditions" },
     // { label: "Compare", href: "/compare" },
@@ -158,7 +158,7 @@ export function Layout() {
                       <Link
                         className="enterprise-primary-button inline-flex rounded-full px-4 py-2.5 text-sm font-semibold shadow-brandMd transition hover:shadow-brandLg active:scale-95"
                         to="/role"
-                        style={{ background: branding?.brandColors?.primaryColor || "var(--color-primary)" }}
+                        style={{ background: "var(--color-primary)" }}
                       >
                         Start
                       </Link>
@@ -225,6 +225,10 @@ export function Layout() {
           categories={presentedCategories}
           onSelect={(item) => {
             setSelectedCategory(item);
+            if (categoryRedirectsToServices(item)) {
+              navigate("/services");
+              return;
+            }
             // Check if it's a subcategory or category based on presence of categoryId property
             if (item.categoryId) {
               // It's a subcategory

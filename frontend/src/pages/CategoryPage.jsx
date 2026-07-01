@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ProductCard as PremiumProductCard } from "../components/ProductCard";
 import { getCategoryBySlug, trackCategoryEvent } from "../services/categoryService";
 import * as productService from "../services/productService";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
+import { categoryRedirectsToServices } from "../utils/categoryLinks";
 
 function getSessionId() {
   if (typeof window === "undefined") return "";
@@ -72,6 +73,7 @@ function applyCategorySeo(category) {
 
 export function CategoryPage() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [category, setCategory] = useState(null);
   const [products, setProducts] = useState([]);
@@ -92,6 +94,10 @@ export function CategoryPage() {
       try {
         const data = await getCategoryBySlug(slug);
         if (cancelled) return;
+        if (categoryRedirectsToServices(data)) {
+          navigate("/services", { replace: true });
+          return;
+        }
         setCategory(data);
         applyCategorySeo(data);
         trackCategoryEvent(data._id, { eventType: "view", sessionId: getSessionId() }).catch(() => {});
@@ -108,7 +114,7 @@ export function CategoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, navigate]);
 
   useEffect(() => {
     if (!category?._id) return undefined;

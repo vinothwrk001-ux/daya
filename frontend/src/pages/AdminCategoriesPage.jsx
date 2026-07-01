@@ -26,6 +26,7 @@ const initialForm = {
   visibility: "public",
   showOnHomepage: true,
   showInHeroBanner: false,
+  redirectToServices: false,
   heroHeading: "",
   heroSubheading: "",
   isActive: true,
@@ -180,6 +181,7 @@ export function AdminCategoriesPage() {
       visibility: category.visibility || "public",
       showOnHomepage: category.showOnHomepage !== false,
       showInHeroBanner: category.showInHeroBanner === true,
+      redirectToServices: category.redirectToServices === true,
       heroHeading: category.heroHeading || "",
       heroSubheading: category.heroSubheading || "",
       isActive: category.isActive !== false,
@@ -237,6 +239,11 @@ export function AdminCategoriesPage() {
                   <div className="text-sm text-slate-600 dark:text-slate-300">{category.color || "Auto palette"}</div>
                   <div className="text-sm text-slate-600 dark:text-slate-300">Order {category.order ?? 0}</div>
                   <div className="flex flex-wrap gap-2 lg:justify-end">
+                    {category.redirectToServices ? (
+                      <span className="rounded-full bg-indigo-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                        Services
+                      </span>
+                    ) : null}
                     {category.showInHeroBanner ? (
                       <span className="rounded-full bg-red-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700 dark:bg-red-950 dark:text-red-300">
                         Hero
@@ -402,6 +409,18 @@ export function AdminCategoriesPage() {
               className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
             />
             <span className="text-sm text-slate-700 dark:text-slate-300">Show on homepage carousel</span>
+          </label>
+
+          <label className="flex items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/50 px-4 py-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+            <input
+              type="checkbox"
+              checked={form.redirectToServices}
+              onChange={(event) => setForm((current) => ({ ...current, redirectToServices: event.target.checked }))}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-300">
+              Redirect to Services page when customers click this category
+            </span>
           </label>
 
           <label className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50/50 px-4 py-3 dark:border-red-900/40 dark:bg-red-950/20">

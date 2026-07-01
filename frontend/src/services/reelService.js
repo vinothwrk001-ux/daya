@@ -116,6 +116,41 @@ export async function trackReelCart(payload) {
   return response.data.data;
 }
 
+export async function trackReelProductWidgetOpen(reelId, payload) {
+  const response = await api.post(`/api/reels/${reelId}/product-widget-open`, payload);
+  return response.data.data;
+}
+
+export async function getReelProducts(reelId) {
+  const response = await api.get(`/api/reels/${reelId}/products`);
+  return response.data.data;
+}
+
+export async function getAdminReelProducts(reelId) {
+  const response = await adminHttp.get(`/api/reels/admin/${reelId}/products`);
+  return response.data.data;
+}
+
+export async function setAdminReelProducts(reelId, payload) {
+  const response = await adminHttp.put(`/api/reels/admin/${reelId}/products`, payload);
+  return response.data.data;
+}
+
+export async function addAdminReelProducts(reelId, payload) {
+  const response = await adminHttp.post(`/api/reels/admin/${reelId}/products`, payload);
+  return response.data.data;
+}
+
+export async function removeAdminReelProduct(reelId, productId) {
+  const response = await adminHttp.delete(`/api/reels/admin/${reelId}/products/${productId}`);
+  return response.data.data;
+}
+
+export async function getReelsPerformance(params = {}) {
+  const response = await adminHttp.get("/api/reels/admin/analytics/performance", { params });
+  return response.data.data;
+}
+
 export async function listAdminReels(params = {}) {
   const response = await adminHttp.get("/api/reels/admin/list", { params });
   return response.data.data;

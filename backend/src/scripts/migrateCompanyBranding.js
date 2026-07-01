@@ -2,22 +2,29 @@ const { logger } = require("../utils/logger");
 require("../config/env");
 
 const mongoose = require("mongoose");
-const { connectDB } = require("../config/db");
+const { connectDb } = require("../config/db");
 const CompanyBranding = require("../models/CompanyBranding");
 
 async function main() {
-  await connectDB();
+  await connectDb();
   await CompanyBranding.syncIndexes();
   await CompanyBranding.updateOne(
     { tenantType: "platform", tenantKey: "default" },
     {
-      $setOnInsert: {
-        companyName: "UChooseMe",
-        legalCompanyName: "GRM Commerce",
+      $set: {
+        companyName: "DayaCreatives",
+        legalCompanyName: "DayaCreatives",
         tagline: "Premium marketplace experiences at enterprise scale.",
-        supportEmail: "support@uchooseme.com",
+        supportEmail: "support@dayacreatives.com",
         supportPhone: "+91 00000 00000",
-        websiteUrl: "https://www.uchooseme.com",
+        websiteUrl: "https://www.dayacreatives.com",
+        "footer.copyrightText": "© 2026 DayaCreatives. All rights reserved.",
+        "seoBranding.organizationName": "DayaCreatives",
+        "seoBranding.organizationUrl": "https://www.dayacreatives.com",
+      },
+      $setOnInsert: {
+        tenantType: "platform",
+        tenantKey: "default",
       },
     },
     { upsert: true }

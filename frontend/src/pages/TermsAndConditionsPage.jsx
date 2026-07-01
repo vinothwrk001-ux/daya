@@ -4,7 +4,7 @@ const sections = [
   {
     heading: "Acceptance of Terms",
     body: [
-      "By using UChooseMe, you agree to comply with these terms, our store policies, and applicable laws. If you do not agree, please discontinue use of the platform.",
+      "By using DayaCreatives, you agree to comply with these terms, our store policies, and applicable laws. If you do not agree, please discontinue use of the platform.",
       "These terms apply to browsing, account creation, purchases, order management, reviews, and support interactions across web and mobile experiences.",
     ],
   },
@@ -28,7 +28,7 @@ export function TermsAndConditionsPage() {
   return (
     <LegalPageLayout
       title="Terms & Conditions"
-      description="These terms explain how purchases, accounts, and use of the UChooseMe marketplace are governed."
+      description="These terms explain how purchases, accounts, and use of the DayaCreatives marketplace are governed."
       sections={sections}
     />
   );

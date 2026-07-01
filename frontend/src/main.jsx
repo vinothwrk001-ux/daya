@@ -7,6 +7,7 @@ import "react-date-range/dist/theme/default.css";
 import App from "./App.jsx";
 import { AuthBootstrap } from "./components/AuthBootstrap.jsx";
 import { BrandingProvider } from "./context/BrandingContext.jsx";
+import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { NotificationProvider } from "./context/NotificationContext.jsx";
 import { installEarlyScrollHandlers } from "./utils/scrollPageToTop.js";
 import { initializeCartSync } from "./utils/cartSync.js";
@@ -21,13 +22,15 @@ initializeCartSync();
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrandingProvider>
-      <NotificationProvider>
-        <BrowserRouter>
-          <AuthBootstrap>
-            <App />
-          </AuthBootstrap>
-        </BrowserRouter>
-      </NotificationProvider>
+      <ThemeProvider>
+        <NotificationProvider>
+          <BrowserRouter>
+            <AuthBootstrap>
+              <App />
+            </AuthBootstrap>
+          </BrowserRouter>
+        </NotificationProvider>
+      </ThemeProvider>
     </BrandingProvider>
   </StrictMode>,
 );

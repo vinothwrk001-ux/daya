@@ -14,7 +14,7 @@ body {
 }
 
 body {
-  font-family: "Manrope", sans-serif;
+  font-family: var(--font-body, "Manrope", sans-serif);
   @apply antialiased;
   background: var(--color-background);
   color: var(--color-text-primary);
@@ -51,7 +51,7 @@ h1,
 h2,
 h3,
 .font-display {
-  font-family: "Space Grotesk", "Manrope", sans-serif;
+  font-family: var(--font-heading, "Space Grotesk", "Manrope", sans-serif);
   color: var(--color-text-primary);
   font-weight: 700;
 }
@@ -400,9 +400,24 @@ h3,
   input,
   textarea,
   select {
-    background: var(--color-surface);
+    background: var(--color-input-background, #ffffff);
     border-color: var(--color-border);
-    color: var(--color-text-primary);
+    color: var(--color-input-text, var(--color-text-primary));
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-input-placeholder, var(--color-text-secondary));
+    opacity: 1;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: var(--color-input-text, #111111);
+    box-shadow: 0 0 0 1000px var(--color-input-background, #ffffff) inset;
   }
 
   input:focus,

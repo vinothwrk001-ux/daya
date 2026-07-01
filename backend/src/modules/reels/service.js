@@ -15,9 +15,19 @@ const {
   ReelView,
   ReelProductClick,
   ReelProductView,
+  ReelProductWidgetOpen,
   ReelAttribution,
   ReelPurchaseConversion,
 } = require("./models");
+const {
+  buildLinkedFromProductIds,
+  normalizeLinkedProductsInput,
+  validateLinkedProductIds,
+  isProductLinkedToReel,
+  populateReelProducts,
+  enrichAdminLinkedProducts,
+  resolveReelProductIds,
+} = require("./reelProductHelpers");
 
 const MIN_VIEW_SECONDS = 3;
 const COMMENT_COOLDOWN_MS = 5000;
@@ -45,27 +55,6 @@ function buildPublicFilter() {
     visibility: "public",
     $or: [{ publishDate: { $lte: new Date() } }, { publishDate: null }],
   };
-}
-
-async function populateReelProducts(reels = []) {
-  const list = Array.isArray(reels) ? reels : [reels];
-  const productIds = [...new Set(list.flatMap((reel) => (reel.associatedProducts || []).map(String)))];
-  if (!productIds.length) return list;
-
-  const products = await Product.find({ _id: { $in: productIds }, status: "active" })
-    .select("name slug price salePrice images rating reviewCount sku stock totalStock")
-    .lean();
-  const productMap = new Map(products.map((product) => [String(product._id), product]));
-
-  return list.map((reel) => {
-    const doc = reel.toObject ? reel.toObject() : reel;
-    return {
-      ...doc,
-      products: (doc.associatedProducts || [])
-        .map((id) => productMap.get(String(id)))
-        .filter(Boolean),
-    };
-  });
 }
 
 async function enrichReelForUser(reel, userId) {
@@ -107,16 +96,21 @@ class ReelService {
 
   async createReel(actor, payload, files, meta = {}) {
     const media = await this.uploadMedia(files);
-    const associatedProducts = Array.isArray(payload.associatedProducts)
-      ? payload.associatedProducts.filter((id) => mongoose.isValidObjectId(id))
-      : [];
-
-    if (associatedProducts.length) {
-      const count = await Product.countDocuments({ _id: { $in: associatedProducts } });
-      if (count !== associatedProducts.length) {
-        throw new AppError("One or more products not found", 400, "VALIDATION_ERROR");
+    let linkedProducts = [];
+    if (payload.linkedProducts) {
+      linkedProducts = normalizeLinkedProductsInput(payload.linkedProducts);
+      await validateLinkedProductIds(linkedProducts.map((item) => item.productId));
+    } else {
+      const associatedProducts = Array.isArray(payload.associatedProducts)
+        ? payload.associatedProducts.filter((id) => mongoose.isValidObjectId(id))
+        : [];
+      if (associatedProducts.length) {
+        await validateLinkedProductIds(associatedProducts);
+        linkedProducts = buildLinkedFromProductIds(associatedProducts);
       }
     }
+
+    const associatedProducts = linkedProducts.map((item) => item.productId);
 
     const reel = await Reel.create({
       title: payload.title,
@@ -133,6 +127,7 @@ class ReelService {
       attributionWindowDays: Number(payload.attributionWindowDays || 30),
       publishDate: payload.publishDate ? new Date(payload.publishDate) : null,
       associatedProducts,
+      linkedProducts,
       createdBy: actor.sub || actor._id,
     });
 
@@ -164,16 +159,19 @@ class ReelService {
       mediaUpdate = await this.uploadMedia(files, { requireVideo: false });
     }
 
-    if (payload.associatedProducts) {
+    if (payload.linkedProducts) {
+      const linkedProducts = normalizeLinkedProductsInput(payload.linkedProducts);
+      await validateLinkedProductIds(linkedProducts.map((item) => item.productId));
+      reel.linkedProducts = linkedProducts;
+      reel.associatedProducts = linkedProducts.map((item) => item.productId);
+    } else if (payload.associatedProducts) {
       const associatedProducts = Array.isArray(payload.associatedProducts)
         ? payload.associatedProducts.filter((id) => mongoose.isValidObjectId(id))
         : [];
-      const count = associatedProducts.length
-        ? await Product.countDocuments({ _id: { $in: associatedProducts } })
-        : 0;
-      if (associatedProducts.length && count !== associatedProducts.length) {
-        throw new AppError("One or more products not found", 400, "VALIDATION_ERROR");
+      if (associatedProducts.length) {
+        await validateLinkedProductIds(associatedProducts);
       }
+      reel.linkedProducts = buildLinkedFromProductIds(associatedProducts);
       reel.associatedProducts = associatedProducts;
     }
 
@@ -229,6 +227,8 @@ class ReelService {
       ReelShare.deleteMany({ reelId }),
       ReelView.deleteMany({ reelId }),
       ReelProductClick.deleteMany({ reelId }),
+      ReelProductView.deleteMany({ reelId }),
+      ReelProductWidgetOpen.deleteMany({ reelId }),
       ReelAttribution.deleteMany({ reelId }),
     ]);
 
@@ -344,7 +344,8 @@ class ReelService {
       .populate("associatedProducts", "name sku price salePrice images")
       .lean();
     if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
-    return reel;
+    const linkedProducts = await enrichAdminLinkedProducts(reel);
+    return { ...reel, linkedProducts };
   }
 
   async trackView(reelId, { userId, sessionId, viewDuration = 0, videoDuration = 0, ipAddress } = {}) {
@@ -625,7 +626,7 @@ class ReelService {
 
     const reel = await Reel.findOne({ _id: reelId, ...buildPublicFilter() });
     if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
-    if (!reel.associatedProducts.some((id) => String(id) === String(productId))) {
+    if (!isProductLinkedToReel(reel, productId)) {
       throw new AppError("Product not associated with this reel", 400, "VALIDATION_ERROR");
     }
 
@@ -668,7 +669,7 @@ class ReelService {
 
     const reel = await Reel.findOne({ _id: reelId, ...buildPublicFilter() });
     if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
-    if (!reel.associatedProducts.some((id) => String(id) === String(productId))) {
+    if (!isProductLinkedToReel(reel, productId)) {
       throw new AppError("Product not associated with this reel", 400, "VALIDATION_ERROR");
     }
 
@@ -818,6 +819,7 @@ class ReelService {
       saveAgg,
       clickAgg,
       productViewAgg,
+      widgetOpenAgg,
       cartAgg,
       orderAgg,
       revenueAgg,
@@ -831,6 +833,7 @@ class ReelService {
       Reel.aggregate([{ $group: { _id: null, total: { $sum: "$savesCount" } } }]),
       Reel.aggregate([{ $group: { _id: null, total: { $sum: "$productClicksCount" } } }]),
       Reel.aggregate([{ $group: { _id: null, total: { $sum: "$productViewsCount" } } }]),
+      Reel.aggregate([{ $group: { _id: null, total: { $sum: "$productWidgetOpensCount" } } }]),
       Reel.aggregate([{ $group: { _id: null, total: { $sum: "$addToCartCount" } } }]),
       Reel.aggregate([{ $group: { _id: null, total: { $sum: "$ordersCount" } } }]),
       Reel.aggregate([{ $group: { _id: null, total: { $sum: "$revenueTotal" } } }]),
@@ -852,6 +855,7 @@ class ReelService {
       totalSaves: saveAgg[0]?.total || 0,
       productClicks,
       productViews: productViewAgg[0]?.total || 0,
+      productWidgetOpens: widgetOpenAgg[0]?.total || 0,
       addToCart: cartAgg[0]?.total || 0,
       orders,
       revenue: revenueAgg[0]?.total || 0,
@@ -920,6 +924,182 @@ class ReelService {
           conversionRate: conversion,
         };
       }),
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    };
+  }
+
+  async getReelProducts(reelId, { admin = false } = {}) {
+    asObjectId(reelId, "reelId");
+    const filter = admin ? { _id: reelId } : { _id: reelId, ...buildPublicFilter() };
+    const reel = await Reel.findOne(filter).lean();
+    if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
+
+    const [enriched] = await populateReelProducts([reel]);
+    if (admin) {
+      const linkedProducts = await enrichAdminLinkedProducts(reel);
+      return {
+        success: true,
+        reelId: reel._id,
+        products: enriched.products || [],
+        linkedProducts,
+      };
+    }
+
+    return {
+      success: true,
+      reelId: reel._id,
+      products: enriched.linkedProducts || [],
+      linkedProducts: enriched.linkedProducts || [],
+    };
+  }
+
+  async setReelProducts(actor, reelId, payload = {}, meta = {}) {
+    asObjectId(reelId, "reelId");
+    const reel = await Reel.findById(reelId);
+    if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
+
+    const linkedProducts = normalizeLinkedProductsInput(payload.linkedProducts || payload.products || []);
+    await validateLinkedProductIds(linkedProducts.map((item) => item.productId));
+
+    reel.linkedProducts = linkedProducts;
+    reel.associatedProducts = linkedProducts.map((item) => item.productId);
+    await reel.save();
+
+    await auditService.log({
+      actor,
+      action: "REEL_PRODUCTS_UPDATED",
+      entityType: "Reel",
+      entityId: reel._id,
+      metadata: { productCount: linkedProducts.length },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
+
+    return this.getReelProducts(reelId, { admin: true });
+  }
+
+  async addReelProducts(actor, reelId, payload = {}, meta = {}) {
+    asObjectId(reelId, "reelId");
+    const reel = await Reel.findById(reelId);
+    if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
+
+    const incoming = normalizeLinkedProductsInput(payload.linkedProducts || payload.products || []);
+    const existing = reel.linkedProducts?.length
+      ? reel.linkedProducts
+      : buildLinkedFromProductIds(reel.associatedProducts || []);
+
+    const mergedMap = new Map(existing.map((item) => [String(item.productId), item]));
+    incoming.forEach((item, index) => {
+      mergedMap.set(String(item.productId), {
+        ...item,
+        sortOrder: item.sortOrder ?? existing.length + index,
+      });
+    });
+
+    const linkedProducts = normalizeLinkedProductsInput([...mergedMap.values()]);
+    reel.linkedProducts = linkedProducts;
+    reel.associatedProducts = linkedProducts.map((item) => item.productId);
+    await reel.save();
+
+    await auditService.log({
+      actor,
+      action: "REEL_PRODUCTS_ADDED",
+      entityType: "Reel",
+      entityId: reel._id,
+      metadata: { added: incoming.length, total: linkedProducts.length },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
+
+    return this.getReelProducts(reelId, { admin: true });
+  }
+
+  async removeReelProduct(actor, reelId, productId, meta = {}) {
+    asObjectId(reelId, "reelId");
+    asObjectId(productId, "productId");
+    const reel = await Reel.findById(reelId);
+    if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
+
+    const existing = reel.linkedProducts?.length
+      ? reel.linkedProducts
+      : buildLinkedFromProductIds(reel.associatedProducts || []);
+    const linkedProducts = existing
+      .filter((item) => String(item.productId) !== String(productId))
+      .map((item, index) => ({ ...item.toObject?.() || item, sortOrder: index }));
+
+    reel.linkedProducts = linkedProducts;
+    reel.associatedProducts = linkedProducts.map((item) => item.productId);
+    await reel.save();
+
+    await auditService.log({
+      actor,
+      action: "REEL_PRODUCT_REMOVED",
+      entityType: "Reel",
+      entityId: reel._id,
+      metadata: { productId },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
+
+    return this.getReelProducts(reelId, { admin: true });
+  }
+
+  async trackProductWidgetOpen(reelId, { userId, sessionId } = {}) {
+    asObjectId(reelId, "reelId");
+    const session = normalizeSessionId(sessionId);
+
+    const reel = await Reel.findOne({ _id: reelId, ...buildPublicFilter() });
+    if (!reel) throw new AppError("Reel not found", 404, "NOT_FOUND");
+    if (!resolveReelProductIds(reel).length) {
+      throw new AppError("No products linked to this reel", 400, "VALIDATION_ERROR");
+    }
+
+    await ReelProductWidgetOpen.create({
+      reelId,
+      userId: userId || null,
+      sessionId: session,
+      openedAt: new Date(),
+    });
+    await Reel.updateOne({ _id: reelId }, { $inc: { productWidgetOpensCount: 1 } });
+
+    return { tracked: true, reelId, sessionId: session };
+  }
+
+  async getReelPerformanceDashboard({ page = 1, limit = 20 } = {}) {
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      Reel.find({ status: { $in: ["published", "draft", "archived"] } })
+        .sort({ viewsCount: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select(
+          "title viewsCount productClicksCount productWidgetOpensCount addToCartCount ordersCount revenueTotal status"
+        )
+        .lean(),
+      Reel.countDocuments(),
+    ]);
+
+    const rows = items.map((reel) => {
+      const views = reel.viewsCount || 0;
+      const clicks = reel.productClicksCount || 0;
+      const widgetOpens = reel.productWidgetOpensCount || 0;
+      const ctr = views ? Number(((clicks / views) * 100).toFixed(2)) : 0;
+      return {
+        reelId: reel._id,
+        title: reel.title,
+        status: reel.status,
+        views,
+        widgetOpens,
+        productClicks: clicks,
+        ctr,
+        addToCart: reel.addToCartCount || 0,
+        purchases: reel.ordersCount || 0,
+        revenue: reel.revenueTotal || 0,
+      };
+    });
+
+    return {
+      rows,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     };
   }

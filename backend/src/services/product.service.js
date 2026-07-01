@@ -456,7 +456,7 @@ class ProductService {
    * Get product by ID
    */
   async getProductById(productId) {
-    const product = await productRepo.findById(productId);
+    const product = await productRepo.findByIdOrSlug(productId);
     if (!product) {
       throw new AppError("Product not found", 404, "NOT_FOUND");
     }

@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const { Product } = require("../models/Product");
 const { normalizeDateRange, applyDateRange } = require("../utils/dateRange");
 
@@ -262,6 +263,15 @@ class ProductRepository {
   // Find product by slug
   async findBySlug(slug) {
     return await Product.findOne({ slug }).populate("createdBy", "name email");
+  }
+
+  async findByIdOrSlug(identifier) {
+    const value = String(identifier || "").trim();
+    if (!value) return null;
+    if (mongoose.isValidObjectId(value)) {
+      return this.findById(value);
+    }
+    return this.findBySlug(value);
   }
 
   // Find by SKU

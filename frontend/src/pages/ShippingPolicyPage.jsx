@@ -28,7 +28,7 @@ export function ShippingPolicyPage() {
   return (
     <LegalPageLayout
       title="Shipping Policy"
-      description="This policy outlines dispatch expectations, delivery timelines, and shipping-related conditions for orders placed on UChooseMe."
+      description="This policy outlines dispatch expectations, delivery timelines, and shipping-related conditions for orders placed on DayaCreatives."
       sections={sections}
     />
   );

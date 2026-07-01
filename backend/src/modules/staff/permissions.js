@@ -7,6 +7,7 @@ const STAFF_PERMISSION_CATALOG = Object.freeze({
   analytics: ["read"],
   settings: ["update"],
   branding: ["view", "create", "update", "delete"],
+  theme: ["view", "create", "update", "delete"],
 });
 
 function createEmptyPermissions() {

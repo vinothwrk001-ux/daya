@@ -16,7 +16,7 @@ const path = require("path");
 const PricingConfig = require("../src/models/PricingConfig");
 const PricingRule = require("../src/models/PricingRule");
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/uchooseme";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/dayacreatives";
 
 async function connectDB() {
   try {

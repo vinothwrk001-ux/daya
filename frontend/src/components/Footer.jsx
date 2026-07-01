@@ -83,8 +83,8 @@ export function Footer() {
   const socialLinks = footer.socialLinks?.filter((link) => link?.label || link?.href) || fallbackFooter.socialLinks;
   const legalLinks = footer.legalLinks?.filter((link) => link?.label || link?.href) || fallbackFooter.legalLinks;
   const paymentIcons = footer.paymentIcons || fallbackFooter.paymentIcons;
-  const companyName = branding?.companyName || "UChooseMe";
-  const supportEmail = branding?.supportEmail || "support@uchooseme.com";
+  const companyName = branding?.companyName || "DayaCreatives";
+  const supportEmail = branding?.supportEmail || "support@dayacreatives.com";
   const supportPhone = branding?.supportPhone || "";
 
   const containerStyle = {

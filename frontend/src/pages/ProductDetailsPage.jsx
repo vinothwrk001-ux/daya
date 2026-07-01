@@ -233,13 +233,14 @@ export function ProductDetailsPage() {
   useEffect(() => {
     const attribution = getReelAttribution();
     const reelId = reelIdFromQuery || attribution?.reelId;
-    if (!reelId || !productId) return;
+    const resolvedProductId = product?._id;
+    if (!reelId || !resolvedProductId) return;
 
     trackReelProductView(reelId, {
-      productId,
+      productId: resolvedProductId,
       sessionId: attribution?.sessionId || getReelSessionId(),
     }).catch(() => {});
-  }, [productId, reelIdFromQuery]);
+  }, [product?._id, reelIdFromQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -568,6 +569,15 @@ export function ProductDetailsPage() {
         </div>
         <BackButton fallbackTo="/shop" />
       </div>
+
+      {reelIdFromQuery ? (
+        <Link
+          to={`/reels?reel=${reelIdFromQuery}`}
+          className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-700 transition hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-300"
+        >
+          ← Back to reel
+        </Link>
+      ) : null}
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div> : null}
 

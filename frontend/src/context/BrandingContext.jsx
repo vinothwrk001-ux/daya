@@ -38,7 +38,7 @@ function applyBrandingToDocument(branding) {
   if (typeof document === "undefined" || !branding) return;
   const apiBaseUrl = getApiBaseUrl();
   const faviconUrl = branding?.logos?.favicon ? resolveApiAssetUrl(branding.logos.favicon) : "";
-  const companyName = branding?.companyName || "UChooseMe";
+  const companyName = branding?.companyName || "DayaCreatives";
   const themeColor = branding?.brandColors?.primaryColor || "#0f172a";
   document.title = companyName;
   if (faviconUrl) {
@@ -65,10 +65,10 @@ export function BrandingProvider({ children }) {
       applyBrandingToDocument(nextBranding);
     } catch {
       const fallback = {
-        companyName: "UChooseMe",
-        supportEmail: "support@uchooseme.com",
+        companyName: "DayaCreatives",
+        supportEmail: "support@dayacreatives.com",
         supportPhone: "+91 00000 00000",
-        websiteUrl: "https://www.uchooseme.com",
+        websiteUrl: "https://www.dayacreatives.com",
         logos: {},
         brandColors: {
           primaryColor: "#0f172a",

@@ -28,7 +28,7 @@ export function PrivacyPolicyPage() {
   return (
     <LegalPageLayout
       title="Privacy Policy"
-      description="This policy describes what information UChooseMe collects, how it is used, and when it is shared."
+      description="This policy describes what information DayaCreatives collects, how it is used, and when it is shared."
       sections={sections}
     />
   );

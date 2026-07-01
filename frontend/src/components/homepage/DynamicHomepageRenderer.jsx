@@ -37,12 +37,6 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
   renderContext: externalRenderContext = {},
   insertAfterFeaturedProducts = null,
 }) {
-  const heroBannerRowRef = useRef(false);
-
-  useEffect(() => {
-    heroBannerRowRef.current = false;
-  }, [rows, containers, loading]);
-
   const renderContext = useMemo(
     () => ({
       ...(externalRenderContext || {}),
@@ -59,6 +53,52 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
     return buildRowsFromContainers(containers, renderContext.canvasWidth);
   }, [containers, rows, renderContext.canvasWidth]);
 
+  const rowContent = useMemo(() => {
+    if (!Array.isArray(resolvedRows) || !resolvedRows.length) {
+      return { nodes: [], showFallback: false };
+    }
+
+    let featuredSlotInserted = false;
+    let heroBannerRowSeen = false;
+    const nodes = [];
+
+    resolvedRows.forEach((row) => {
+      const isHeroBannerRow = !heroBannerRowSeen && rowHasBanner(row);
+      if (isHeroBannerRow) heroBannerRowSeen = true;
+
+      nodes.push(
+        <DynamicHomepageRow
+          key={row.id || row.order}
+          row={row}
+          bareContainers={bareContainers}
+          bareOuterLayout={bareOuterLayout}
+          bareCarouselShell={bareCarouselShell}
+          renderContext={renderContext}
+          isHeroBannerRow={isHeroBannerRow}
+        />
+      );
+
+      if (!featuredSlotInserted && insertAfterFeaturedProducts && rowHasFeaturedProducts(row)) {
+        featuredSlotInserted = true;
+        nodes.push(
+          <Fragment key="after-featured-products">{insertAfterFeaturedProducts}</Fragment>
+        );
+      }
+    });
+
+    return {
+      nodes,
+      showFallback: !featuredSlotInserted && Boolean(insertAfterFeaturedProducts),
+    };
+  }, [
+    bareCarouselShell,
+    bareContainers,
+    bareOuterLayout,
+    insertAfterFeaturedProducts,
+    renderContext,
+    resolvedRows,
+  ]);
+
   if (loading) {
     return (
       <>
@@ -70,46 +110,20 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
   }
 
   if (Array.isArray(resolvedRows) && resolvedRows.length) {
-    let featuredSlotInserted = false;
-
     return (
       <div className="space-y-0">
-        {resolvedRows.flatMap((row) => {
-          const isHeroBannerRow = !heroBannerRowRef.current && rowHasBanner(row);
-          if (isHeroBannerRow) heroBannerRowRef.current = true;
-
-          const rowNode = (
-            <DynamicHomepageRow
-              key={row.id || row.order}
-              row={row}
-              bareContainers={bareContainers}
-              bareOuterLayout={bareOuterLayout}
-              bareCarouselShell={bareCarouselShell}
-              renderContext={renderContext}
-              isHeroBannerRow={isHeroBannerRow}
-            />
-          );
-
-          if (!featuredSlotInserted && insertAfterFeaturedProducts && rowHasFeaturedProducts(row)) {
-            featuredSlotInserted = true;
-            return [
-              rowNode,
-              <Fragment key="after-featured-products">{insertAfterFeaturedProducts}</Fragment>,
-            ];
-          }
-
-          return [rowNode];
-        })}
-        {!featuredSlotInserted && insertAfterFeaturedProducts ? (
+        {rowContent.nodes}
+        {rowContent.showFallback ? (
           <Fragment key="after-featured-products-fallback">{insertAfterFeaturedProducts}</Fragment>
         ) : null}
       </div>
     );
   }
 
-  let featuredSlot = insertAfterFeaturedProducts;
-  const containerNodes = containers.reduce((nodes, container, index) => {
-    nodes.push(
+  const containerNodes = [];
+  let showFeaturedFallback = Boolean(insertAfterFeaturedProducts);
+  containers.forEach((container, index) => {
+    containerNodes.push(
       <DynamicHomepageSection
         key={container.instanceId || container._id}
         container={container}
@@ -120,16 +134,14 @@ export const DynamicHomepageRenderer = memo(function DynamicHomepageRenderer({
       />
     );
 
-    if (featuredSlot && container.containerType === "FEATURED_PRODUCTS") {
-      nodes.push(<Fragment key={`after-featured-${index}`}>{featuredSlot}</Fragment>);
-      featuredSlot = null;
+    if (insertAfterFeaturedProducts && container.containerType === "FEATURED_PRODUCTS") {
+      containerNodes.push(<Fragment key={`after-featured-${index}`}>{insertAfterFeaturedProducts}</Fragment>);
+      showFeaturedFallback = false;
     }
+  });
 
-    return nodes;
-  }, []);
-
-  if (featuredSlot) {
-    containerNodes.push(<Fragment key="after-featured-products-fallback">{featuredSlot}</Fragment>);
+  if (showFeaturedFallback && insertAfterFeaturedProducts) {
+    containerNodes.push(<Fragment key="after-featured-products-fallback">{insertAfterFeaturedProducts}</Fragment>);
   }
 
   return containerNodes;
@@ -705,7 +717,7 @@ function SectionHeader({ container, eyebrow, actionLabel = "View all" }) {
   if (centeredFancy) {
     return (
       <div className="mx-auto max-w-3xl text-center">
-        <p className="mx-auto inline-flex rounded-full border border-red-200 px-9 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-red-400">{headerEyebrow}</p>
+        <p className="mx-auto inline-flex rounded-full border border-brand-border px-9 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-primary">{headerEyebrow}</p>
         <h2 className="mt-6 text-3xl font-bold leading-tight text-slate-950 dark:text-white lg:text-4xl">
           {headerTitle}
         </h2>
@@ -718,7 +730,7 @@ function SectionHeader({ container, eyebrow, actionLabel = "View all" }) {
           <Link
             to={headerHref}
             onClick={() => trackHomepageContainerEvent(container._id, { eventType: "click" }).catch(() => {})}
-            className="mt-5 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-red-200 hover:text-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+            className="mt-5 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-brand-border hover:text-brand-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
           >
             {headerAction}
           </Link>
@@ -861,13 +873,13 @@ function BannerContainer({
 
   const campaignFallback = (
     <div className={`max-w-2xl rounded-[1.5rem] border border-zinc-200 bg-white p-6 shadow-xl sm:rounded-[2rem] sm:p-8 ${resolveTextAlign(config.textPosition)}`}>
-      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-500">Marketplace campaign</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-primary">Marketplace campaign</p>
       <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-4xl">{heading}</h2>
       {subheading ? <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">{subheading}</p> : null}
       {ctaLabel && ctaUrl ? (
         <a
           href={ctaUrl}
-          className="mt-6 inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-primaryHover"
         >
           {ctaLabel}
           <ArrowRight className="h-4 w-4" />
