@@ -3,9 +3,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Heart,
   MapPin,
+  Menu,
   MoonStar,
   SunMedium,
   UserRound,
+  X,
 } from "lucide-react";
 import { useAuthStore } from "../context/authStore";
 import { CartDrawerProvider } from "../context/CartDrawerContext";
@@ -31,6 +33,7 @@ export function Layout() {
   const [isDarkMode, setIsDarkMode] = useDarkMode();
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { categories } = useCategories();
   const presentedCategories = usePresentedCategories(categories);
@@ -60,6 +63,19 @@ export function Layout() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileMenuOpen]);
 
   const navItems = [
     { label: "Home", href: "/" },
@@ -128,6 +144,16 @@ export function Layout() {
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => setMobileMenuOpen(true)}
+                    className="enterprise-icon-button touch-target inline-flex items-center justify-center rounded-full backdrop-blur transition active:scale-95 lg:hidden"
+                    aria-label="Open menu"
+                    aria-expanded={mobileMenuOpen}
+                  >
+                    <Menu className="h-5 w-5" />
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setIsDarkMode(!isDarkMode)}
                     className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
                     aria-label={isDarkMode ? "Enable light mode" : "Enable dark mode"}
@@ -135,7 +161,7 @@ export function Layout() {
                     {isDarkMode ? <SunMedium className="h-4.5 w-4.5" /> : <MoonStar className="h-4.5 w-4.5" />}
                   </button>
 
-                  <div className="hidden xl:block xl:w-[280px]">
+                  <div className="hidden shrink-0 xl:block xl:max-w-[280px] xl:min-w-[200px]">
                     <div className="enterprise-nav-pill rounded-full p-1 backdrop-blur">
                       <LocationSelector />
                     </div>
@@ -195,26 +221,55 @@ export function Layout() {
                 )}
               </div>
 
-              <nav className="enterprise-nav-pill flex gap-2 overflow-x-auto rounded-full p-1 backdrop-blur lg:hidden">
-                {navItems.map((item) => {
-                  const isActive =
-                    location.pathname === item.href ||
-                    (item.href !== "/" && location.pathname.startsWith(item.href));
-                  return (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
-                        isActive
-                          ? "bg-brand-primary text-white"
-                          : "text-slate-700 hover:text-brand-primary"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
+              {/* Mobile menu drawer */}
+              {mobileMenuOpen ? (
+                <>
+                  <div
+                    className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm lg:hidden"
+                    onClick={() => setMobileMenuOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <nav
+                    className="fixed inset-y-0 right-0 z-50 flex w-[min(100vw,20rem)] flex-col safe-area-inset border-l border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 lg:hidden"
+                    aria-label="Mobile navigation"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+                      <span className="text-sm font-semibold text-slate-900 dark:text-white">Menu</span>
+                      <button
+                        type="button"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="touch-target inline-flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                        aria-label="Close menu"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-4">
+                      <div className="grid gap-1">
+                        {navItems.map((item) => {
+                          const isActive =
+                            location.pathname === item.href ||
+                            (item.href !== "/" && location.pathname.startsWith(item.href));
+                          return (
+                            <Link
+                              key={item.href}
+                              to={item.href}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`touch-target rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                                isActive
+                                  ? "bg-brand-primary text-white"
+                                  : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
+                              }`}
+                            >
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </nav>
+                </>
+              ) : null}
             </div>
           </div>
         </header>

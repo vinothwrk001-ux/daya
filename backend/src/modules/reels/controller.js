@@ -16,6 +16,7 @@ const listPublic = asyncHandler(async (req, res) => {
     sort: req.query.sort || "latest",
     category: req.query.category,
     tag: req.query.tag,
+    showOnStorefront: req.query.showOnStorefront,
     userId: req.user?.sub,
   });
   return ok(res, data, "Reels retrieved");

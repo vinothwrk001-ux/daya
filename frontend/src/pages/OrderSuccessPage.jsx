@@ -166,7 +166,7 @@ export function OrderSuccessPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <section className="rounded-[2rem] border border-emerald-200 bg-emerald-50 p-6">
         <div className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Order confirmed</div>
-        <h1 className="mt-2 text-3xl font-bold text-slate-950">Your order is in the system.</h1>
+        <h1 className="mt-2 fluid-h2 font-bold text-slate-950">Your order is in the system.</h1>
         <p className="mt-2 text-sm text-slate-600">
           {processing
             ? "Payment was successful. We are finishing verification and loading your order summary now."

@@ -553,13 +553,13 @@ export function ProductDetailsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 overflow-x-safe pb-24 lg:pb-0">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs font-medium uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
             Home / Shop / <span className="text-slate-700 dark:text-slate-200">{product.category}</span>
           </div>
-          <h1 className="mt-2 max-w-4xl text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">{product.name}</h1>
+          <h1 className="mt-2 max-w-4xl fluid-h2 text-slate-950 dark:text-white">{product.name}</h1>
           <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 text-sm">
             <span className="font-semibold text-slate-700 dark:text-slate-200">Sold by Daya</span>
             {product?.ratings?.averageRating ? (
@@ -581,7 +581,7 @@ export function ProductDetailsPage() {
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div> : null}
 
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.95fr)]">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
         <div className="space-y-8">
           <ProductImageGallery media={media} productName={product?.name} galleryKey={galleryKey} />
 
@@ -630,7 +630,7 @@ export function ProductDetailsPage() {
 
         </div>
 
-        <aside className="xl:sticky xl:top-24 xl:self-start">
+        <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="border-b border-slate-200 bg-[linear-gradient(135deg,_rgba(14,165,233,0.14),_rgba(251,191,36,0.12))] p-6 dark:border-slate-800">
               <div className="flex items-start justify-between gap-4">
@@ -811,6 +811,33 @@ export function ProductDetailsPage() {
         />
         </div>
       </section>
+
+      {stock > 0 ? (
+        <div className="mobile-sticky-bar">
+          <div className="mx-auto flex max-w-lg items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-semibold text-slate-900 dark:text-white">{formatCurrency(pricing.salePrice)}</div>
+              <div className="truncate text-[10px] text-slate-500 dark:text-slate-400">{activeVariant?.title || product.name}</div>
+            </div>
+            <button
+              type="button"
+              disabled={adding}
+              onClick={() => handleAddToCart()}
+              className="touch-target flex-1 rounded-xl bg-[color:var(--commerce-accent)] px-3 py-2.5 text-xs font-semibold text-white disabled:opacity-60 sm:text-sm"
+            >
+              {adding ? "Adding..." : "Add to Cart"}
+            </button>
+            <button
+              type="button"
+              disabled={buyingNow || adding}
+              onClick={handleBuyNow}
+              className="touch-target flex-1 rounded-xl bg-[color:var(--commerce-accent-warm)] px-3 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-60 sm:text-sm"
+            >
+              {buyingNow ? "..." : "Buy Now"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

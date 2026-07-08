@@ -302,65 +302,111 @@ h3,
 
   /* Responsive grid */
   .grid-responsive-cols-2 {
-    @apply grid-cols-1 xs:grid-cols-2;
+    @apply grid-cols-1 min-[360px]:grid-cols-2;
   }
 
   .grid-responsive-cols-3 {
-    @apply grid-cols-1 xs:grid-cols-2 md:grid-cols-3;
+    @apply grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3;
   }
 
   .grid-responsive-cols-4 {
-    @apply grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
+    @apply grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
   }
 
-  /* Touch-friendly elements */
+  /* Touch-friendly elements — 44px minimum touch target */
   .touch-target {
-    @apply min-h-10 min-w-10 sm:min-h-10 sm:min-w-10;
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center;
   }
 
-  /* Responsive card */
-  .card-responsive {
-    @apply border bg-white p-3 shadow-sm sm:p-4;
-    border-color: var(--color-border);
-    border-radius: var(--radius-medium);
+  .touch-target-sm {
+    @apply inline-flex min-h-10 min-w-10 items-center justify-center;
   }
 
-  /* Responsive heading bar */
-  .heading-responsive {
-    @apply flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between;
+  /* Page & content containers */
+  .page-container {
+    @apply mx-auto w-full max-w-content px-3 sm:px-4 md:px-6 lg:px-8;
   }
 
-  /* Safe area padding for mobile */
+  .page-container-wide {
+    @apply mx-auto w-full max-w-[100rem] px-3 sm:px-4 md:px-6 lg:px-8;
+  }
+
+  /* Standard product listing grid */
+  .product-grid {
+    @apply grid grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 min-[1440px]:grid-cols-5 gap-3 sm:gap-4 md:gap-5 lg:gap-6;
+  }
+
+  .product-grid-compact {
+    @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4;
+  }
+
+  /* Fluid typography */
+  .fluid-h1 {
+    font-size: clamp(1.75rem, 1.35rem + 2vw, 2.5rem);
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+
+  .fluid-h2 {
+    font-size: clamp(1.375rem, 1.1rem + 1.35vw, 2rem);
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+
+  .fluid-h3 {
+    font-size: clamp(1.125rem, 1rem + 0.6vw, 1.5rem);
+    line-height: 1.3;
+    font-weight: 600;
+  }
+
+  .fluid-body {
+    font-size: clamp(0.875rem, 0.82rem + 0.28vw, 1rem);
+    line-height: 1.6;
+  }
+
+  /* Safe area insets for notched devices */
+  .safe-area-x {
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  }
+
+  .safe-area-top {
+    padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+  }
+
   .safe-area-bottom {
-    @apply pb-4 sm:pb-0;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   }
 
-  /* Hide on mobile, show on larger screens */
-  .hide-mobile {
-    @apply hidden md:block;
+  .safe-area-inset {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
   }
 
-  /* Show only on mobile */
-  .show-mobile {
-    @apply md:hidden;
+  /* Mobile sticky action bar */
+  .mobile-sticky-bar {
+    @apply fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 backdrop-blur-lg safe-area-bottom lg:hidden dark:border-slate-800 dark:bg-slate-950/95;
   }
 
-  /* Truncate utilities */
-  .truncate-1 {
-    @apply truncate;
+  /* Prevent horizontal overflow on small screens */
+  .overflow-x-safe {
+    @apply max-w-full overflow-x-hidden;
   }
 
-  .truncate-2 {
-    @apply line-clamp-2;
+  /* Responsive table → card pattern helper */
+  .responsive-stack {
+    @apply flex flex-col gap-3 sm:gap-4;
   }
 
-  .truncate-3 {
-    @apply line-clamp-3;
-  }
-
-  /* Overflow-aware containers */
-  .overflow-wrap-safe {
-    @apply break-words overflow-wrap-break-word;
+  /* Hover-only effects degrade gracefully on touch */
+  @media (hover: none) {
+    .hover-lift-none {
+      transform: none !important;
+    }
   }
 }
 
@@ -371,6 +417,18 @@ h3,
 
   body {
     min-width: 320px;
+    overflow-x: clip;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   p,

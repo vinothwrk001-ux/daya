@@ -306,13 +306,36 @@ export function CategoryHeroBannerSplit({
 
   const categoriesPanel = (
     <div className={`flex min-h-[200px] max-h-[280px] flex-col justify-center overflow-hidden ${panelClass} sm:min-h-[220px] sm:max-h-[320px]`}>
-      <div className="mb-4 sm:mb-6">
-        <span className="inline-flex rounded-full border border-brand-primary px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-brand-primary sm:px-4 sm:text-[11px] sm:tracking-[0.28em]">
-          {config.eyebrow || "CATEGORIES"}
-        </span>
-        <p className="mt-3 max-w-md text-xs leading-6 text-zinc-600 sm:mt-4 sm:text-sm sm:leading-7">
-          {config.panelDescription || DEFAULT_HERO_CONFIG.panelDescription}
-        </p>
+      <div className="mb-4 space-y-4 sm:mb-6">
+        <div>
+          <span className="inline-flex rounded-full border border-brand-primary px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-brand-primary sm:px-4 sm:text-[11px] sm:tracking-[0.28em]">
+            {config.eyebrow || "CATEGORIES"}
+          </span>
+          <p className="mt-3 max-w-md text-xs leading-6 text-zinc-600 sm:mt-4 sm:text-sm sm:leading-7">
+            {config.panelDescription || DEFAULT_HERO_CONFIG.panelDescription}
+          </p>
+        </div>
+        {activeCategory ? (
+          <div className="rounded-[1.5rem] bg-zinc-50 p-4 shadow-sm sm:p-5">
+            {heroHeading ? (
+              <h2 className="text-lg font-black uppercase tracking-tight text-zinc-950 sm:text-xl">
+                {heroHeading}
+              </h2>
+            ) : null}
+            {heroSubheading ? (
+              <p className="mt-2 text-xs font-medium uppercase tracking-[0.16em] text-zinc-600 sm:text-sm">
+                {heroSubheading}
+              </p>
+            ) : null}
+            <Link
+              to={getCategoryHref(activeCategory)}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-primary px-4 py-2.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover sm:px-5 sm:py-3 sm:text-sm"
+            >
+              {config.ctaLabel || "Shop now"}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        ) : null}
       </div>
 
       {categories.length ? (
@@ -334,61 +357,18 @@ export function CategoryHeroBannerSplit({
 
   const heroPanel = (
     <div className={`relative min-h-[200px] max-h-[280px] overflow-hidden ${panelClass} sm:min-h-[220px] sm:max-h-[320px]`}>
-      <div className="relative z-10 flex h-full flex-col justify-between">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-brand-primary sm:text-xs">
-            {activeCategory?.name || "Featured"}
-          </p>
-          <h2 className="mt-3 max-w-xl text-2xl font-black uppercase leading-[0.95] tracking-tight text-zinc-950 transition duration-300 sm:mt-4 sm:text-4xl lg:text-5xl">
-            {heroHeading}
-          </h2>
-          {heroSubheading ? (
-            <p className="mt-3 max-w-lg text-xs font-medium uppercase tracking-[0.16em] text-zinc-600 sm:text-sm">
-              {heroSubheading}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="mt-6 flex flex-col gap-4 sm:mt-8 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            {activeCategory ? (
-              <Link
-                to={getCategoryHref(activeCategory)}
-                className="inline-flex items-center gap-2 rounded-full bg-brand-primary px-4 py-2.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover sm:px-5 sm:py-3 sm:text-sm"
-              >
-                {config.ctaLabel || "Shop now"}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            ) : null}
-            {categories.length > 1 ? (
-              <div className="flex items-center gap-2">
-                {categories.map((category, index) => (
-                  <button
-                    key={category._id}
-                    type="button"
-                    aria-label={`Show ${category.name}`}
-                    onClick={() => setActiveIndex?.(index)}
-                    className={`h-2.5 rounded-full transition-all duration-300 ${
-                      index === activeIndex ? "w-8 bg-brand-primary" : "w-2.5 bg-zinc-300 dark:bg-zinc-700"
-                    }`}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          {heroImage ? (
-            <div className="relative mx-auto flex max-w-[200px] flex-1 items-end justify-center sm:max-w-[240px] lg:mx-0 lg:max-w-[280px]">
-              <img
-                key={activeCategory?._id}
-                src={heroImage}
-                alt={heroHeading}
-                className="max-h-[180px] w-auto rounded-2xl object-contain drop-shadow-2xl transition duration-300 sm:max-h-[220px] lg:max-h-[260px]"
-                loading="lazy"
-              />
-            </div>
-          ) : null}
-        </div>
+      <div className="relative z-10 flex h-full items-center justify-center">
+        {heroImage ? (
+          <img
+            key={activeCategory?._id}
+            src={heroImage}
+            alt={heroHeading}
+            className="max-h-[220px] w-auto rounded-2xl object-contain drop-shadow-2xl transition duration-300 sm:max-h-[260px]"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-sm text-zinc-500">No image</div>
+        )}
       </div>
     </div>
   );
@@ -433,7 +413,7 @@ export function HeroBannerCategoryZone({ fallback = null }) {
   return (
     <CategoryHeroBannerSplit
       embedded
-      categoriesOnLeft={false}
+      categoriesOnLeft={true}
       categories={hero.categories}
       config={hero.config}
       activeCategory={hero.activeCategory}
@@ -449,7 +429,7 @@ export function HeroBannerCategoryZone({ fallback = null }) {
 
 export function CategoryHeroBannerInBanner({ rightContent = null, fallback = null }) {
   return (
-    <div className="mx-auto w-full max-w-[1440px] flex-col gap-4">
+    <div className="mx-auto w-full max-w-content flex-col gap-4">
       <HeroBannerCategoryZone fallback={fallback} />
       {rightContent ? <div className="mt-4 min-w-0">{rightContent}</div> : null}
     </div>

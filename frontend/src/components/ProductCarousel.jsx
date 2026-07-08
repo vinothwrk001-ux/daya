@@ -124,7 +124,7 @@ export function ProductCarousel({
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="h-[420px] animate-pulse rounded-[18px] bg-white shadow-[0_22px_70px_-55px_rgba(15,23,42,0.55)]"
+              className="aspect-[4/5] w-full animate-pulse rounded-[18px] bg-white shadow-[0_22px_70px_-55px_rgba(15,23,42,0.55)]"
             />
           ))}
         </div>

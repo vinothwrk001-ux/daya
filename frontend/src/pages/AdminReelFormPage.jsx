@@ -13,6 +13,7 @@ const defaultForm = {
   location: "",
   status: "draft",
   visibility: "public",
+  showOnStorefront: false,
   attributionWindowDays: 30,
   publishDate: "",
   linkedProducts: [],
@@ -43,6 +44,7 @@ export function AdminReelFormPage() {
           location: reel.location || "",
           status: reel.status || "draft",
           visibility: reel.visibility || "public",
+          showOnStorefront: Boolean(reel.showOnStorefront),
           attributionWindowDays: reel.attributionWindowDays || 30,
           publishDate: reel.publishDate ? reel.publishDate.slice(0, 16) : "",
           linkedProducts: (reel.linkedProducts || reel.associatedProducts || []).map((entry, index) => {
@@ -84,6 +86,7 @@ export function AdminReelFormPage() {
       payload.append("location", form.location);
       payload.append("status", form.status);
       payload.append("visibility", form.visibility);
+      payload.append("showOnStorefront", form.showOnStorefront ? "true" : "false");
       payload.append("attributionWindowDays", String(form.attributionWindowDays));
       if (form.publishDate) payload.append("publishDate", new Date(form.publishDate).toISOString());
       payload.append(
@@ -168,6 +171,20 @@ export function AdminReelFormPage() {
             onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))}
             className="w-full rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-700 dark:bg-slate-900"
           />
+        </label>
+        <label className="space-y-2 text-sm">
+          <span className="font-semibold">Show on Storefront</span>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+            <input
+              type="checkbox"
+              checked={form.showOnStorefront}
+              onChange={(event) => setForm((current) => ({ ...current, showOnStorefront: event.target.checked }))}
+              className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+            />
+            <span className="text-sm text-slate-700 dark:text-slate-200">
+              Display this reel in the admin-selected storefront carousel.
+            </span>
+          </div>
         </label>
       </div>
 

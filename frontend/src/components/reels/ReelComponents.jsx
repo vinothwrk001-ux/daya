@@ -20,6 +20,7 @@ import {
 } from "../../services/reelService";
 import { navigateToProduct } from "../../utils/scrollPageToTop";
 import { getReelLinkedProducts } from "../../utils/reelProducts";
+import { ReelCarousel } from "./ReelCarousel";
 
 function formatCount(value = 0) {
   const num = Number(value || 0);
@@ -185,9 +186,9 @@ export function ReelCard({
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-black shadow-md transition duration-300 hover:shadow-xl">
+    <div className="mx-auto w-full max-w-[320px] group relative overflow-hidden rounded-2xl bg-black shadow-md transition duration-300 hover:shadow-xl">
       <Link to={`/reels?reel=${reel._id}`} className="block">
-        <div className="relative aspect-[9/16] bg-black">
+        <div className="relative aspect-[4/5] bg-black">
           <video
             ref={videoRef}
             src={resolveApiAssetUrl(reel.videoUrl)}
@@ -265,7 +266,7 @@ export function ReelCard({
   );
 }
 
-export function ReelsSection({ title, sort, limit = 8 }) {
+export function ReelsSection({ title, sort, limit = 4 }) {
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -275,7 +276,7 @@ export function ReelsSection({ title, sort, limit = 8 }) {
       setLoading(true);
       try {
         const { listReels } = await import("../../services/reelService");
-        const data = await listReels({ sort, limit });
+        const data = await listReels({ sort, limit, showOnStorefront: true });
         if (!cancelled) setReels(data.reels || []);
       } catch {
         if (!cancelled) setReels([]);
@@ -289,50 +290,17 @@ export function ReelsSection({ title, sort, limit = 8 }) {
     };
   }, [sort, limit]);
 
-  if (loading) {
-    return (
-      <section className="px-4 py-8 lg:px-8">
-        <h2 className="mb-4 text-xl font-bold text-slate-900 dark:text-white">{title}</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="aspect-[9/16] animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
-          ))}
-        </div>
-      </section>
-    );
-  }
-
-  if (!reels.length) return null;
-
   return (
-    <section className="px-4 py-8 lg:px-8">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{title}</h2>
-        <Link to={`/reels?sort=${sort}`} className="text-sm font-semibold text-orange-600 hover:text-orange-500">
-          View all
-        </Link>
-      </div>
-
-      {/* Desktop: 5-6 columns */}
-      <div className="hidden lg:grid lg:grid-cols-6 lg:gap-3">
-        {reels.map((reel) => (
-          <ReelCard key={reel._id} reel={reel} layout="card" />
-        ))}
-      </div>
-
-      {/* Tablet: 4 columns (medium) / 3 columns (small tablet) */}
-      <div className="hidden md:grid md:grid-cols-4 md:gap-3 lg:hidden">
-        {reels.slice(0, 8).map((reel) => (
-          <ReelCard key={reel._id} reel={reel} layout="card" />
-        ))}
-      </div>
-
-      {/* Mobile: 2 columns */}
-      <div className="grid grid-cols-2 gap-3 md:hidden">
-        {reels.slice(0, 6).map((reel) => (
-          <ReelCard key={reel._id} reel={reel} layout="card" />
-        ))}
-      </div>
-    </section>
+    <ReelCarousel
+      items={reels}
+      loading={loading}
+      title={title}
+      showArrows={true}
+      showDots={true}
+      swipeEnabled={true}
+      desktopItemsPerView={4}
+      tabletItemsPerView={3}
+      mobileItemsPerView={2}
+    />
   );
 }

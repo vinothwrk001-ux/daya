@@ -86,10 +86,10 @@ function CardActions({
   onViewProduct,
 }) {
   return (
-    <div className="pointer-events-none absolute right-3 top-3 z-20 flex translate-y-2 flex-col gap-2 opacity-0 transition-all duration-300 ease-out group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100">
+    <div className="pointer-events-auto absolute right-1 top-1 z-20 flex flex-col gap-1 sm:gap-2 opacity-100 transition-all duration-300 ease-out sm:right-3 sm:top-3 lg:pointer-events-none lg:translate-y-2 lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:translate-y-0 lg:group-hover:opacity-100 lg:group-focus-within:pointer-events-auto lg:group-focus-within:translate-y-0 lg:group-focus-within:opacity-100">
       <button
         onClick={onViewProduct}
-        className="enterprise-icon-button flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:scale-110 hover:shadow-xl active:scale-95 disabled:opacity-60"
+        className="hidden sm:inline-flex enterprise-icon-button touch-target-sm h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:scale-110 hover:shadow-xl active:scale-95 disabled:opacity-60"
         title="View product"
         aria-label="View product"
         type="button"
@@ -99,14 +99,14 @@ function CardActions({
       <button
         onClick={onWishlist}
         disabled={isSubmitting}
-        className="enterprise-icon-button flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:scale-110 hover:shadow-xl active:scale-95 disabled:opacity-60"
+        className="touch-target-sm h-5 w-5 sm:h-9 sm:w-9 flex items-center justify-center rounded-full p-0 sm:p-0 bg-transparent sm:bg-white/90 transition-all hover:scale-105 active:scale-95 disabled:opacity-60"
         title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
         aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
         type="button"
       >
         <Heart
-          size={20}
-          strokeWidth={1.5}
+          size={12}
+          strokeWidth={1}
           className={`transition-all duration-300 ${
             isInWishlist ? "fill-red-500 text-red-500" : "text-slate-700 hover:text-slate-900"
           }`}
@@ -115,12 +115,13 @@ function CardActions({
       <button
         onClick={onAddToCart}
         disabled={isSubmitting || !productId || !inStock}
-        className="enterprise-primary-button flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary shadow-lg transition-all hover:scale-110 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+        className="touch-target-sm h-5 w-5 sm:h-9 sm:w-9 flex items-center justify-center rounded-full p-0 sm:p-0 bg-transparent sm:bg-white/90 transition-all hover:scale-105 active:scale-95 disabled:opacity-60"
+        style={{ border: "none", boxShadow: "none", outline: "none", borderWidth: 0 }}
         title={inStock ? `Add ${activeVariant?.title || "item"} to cart` : "Out of stock"}
         aria-label={inStock ? `Add ${activeVariant?.title || "item"} to cart` : "Out of stock"}
         type="button"
       >
-        <ShoppingCart size={20} strokeWidth={2} className="text-white" />
+        <ShoppingCart size={12} strokeWidth={1.2} className="text-brand-primary" />
       </button>
     </div>
   );
@@ -258,10 +259,10 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
       }}
       role="link"
       tabIndex={0}
-      className={`enterprise-card group relative mx-auto flex h-full w-full max-w-[320px] flex-col overflow-hidden rounded-brandLg p-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 ${cardStyleClass}`}
+      className={`enterprise-card group relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-brandLg p-3 transition-all duration-300 ease-out hover-lift-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 sm:p-4 lg:hover:-translate-y-1 lg:hover:scale-[1.01] ${cardStyleClass}`}
     >
       <div
-        className={`relative h-[320px] w-full ${imageAspectClass} flex-shrink-0 overflow-hidden rounded-brandMd bg-gradient-to-br from-brand-surfaceSecondary to-white`}
+        className={`relative w-full ${imageAspectClass} flex-shrink-0 overflow-hidden rounded-brandMd bg-gradient-to-br from-brand-surfaceSecondary to-white`}
       >
         {imageUrl ? (
           canSwapOnHover ? (

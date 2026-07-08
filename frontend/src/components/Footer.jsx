@@ -109,7 +109,7 @@ export function Footer() {
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-200/80">
               Premium commerce
             </span>
-            <h2 className="mt-4 max-w-xl text-3xl font-semibold tracking-[-0.05em] text-white lg:text-4xl">
+            <h2 className="mt-4 max-w-xl fluid-h2 text-white">
               Built for discovery, trusted by modern shoppers, and shaped for smooth conversion.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 lg:text-base">

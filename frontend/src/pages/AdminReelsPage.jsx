@@ -133,6 +133,7 @@ export function AdminReelsPage() {
             <tr>
               <th className="px-4 py-3 text-left text-xs font-bold uppercase text-slate-500">Reel</th>
               <th className="px-4 py-3 text-left text-xs font-bold uppercase text-slate-500">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase text-slate-500">Storefront</th>
               <th className="px-4 py-3 text-left text-xs font-bold uppercase text-slate-500">Views</th>
               <th className="px-4 py-3 text-left text-xs font-bold uppercase text-slate-500">Revenue</th>
               <th className="px-4 py-3 text-right text-xs font-bold uppercase text-slate-500">Actions</th>
@@ -170,6 +171,17 @@ export function AdminReelsPage() {
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize dark:bg-slate-800">
                     {reel.status}
                   </span>
+                </td>
+                <td className="px-4 py-4 text-sm">
+                  {reel.showOnStorefront ? (
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      Yes
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                      No
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-4 text-sm">{reel.viewsCount || 0}</td>
                 <td className="px-4 py-4 text-sm">{formatCurrency(reel.revenueTotal || 0)}</td>

@@ -48,10 +48,10 @@ export function RecommendationSection({
   const resolvedRecommendationType = recommendationType || deriveRecommendationType(title, mode);
   const panelClassName = fullWidth
     ? "w-full border-y border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8"
-    : "mx-auto w-full max-w-[1440px] rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8";
+    : "mx-auto w-full max-w-content rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72 sm:p-6 lg:p-8";
   const simplePanelClassName = fullWidth
     ? "w-full border-y border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"
-    : "mx-auto w-full max-w-[1440px] rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6";
+    : "mx-auto w-full max-w-content rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6";
   const viewKey = useMemo(
     () => `${resolvedRecommendationType}:${surface}:${sourceProductId}:${visibleItems.map((item) => item?._id).filter(Boolean).join(",")}`,
     [visibleItems, resolvedRecommendationType, sourceProductId, surface]
@@ -102,7 +102,7 @@ export function RecommendationSection({
   if (!visibleItems.length) {
     if (!showEmptyState) return null;
     return (
-      <section className={fullWidth ? "w-full border-y border-dashed border-slate-300 bg-white p-6 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900" : "mx-auto w-full max-w-[1440px] rounded-[2rem] border border-dashed border-slate-300 bg-white p-6 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900"}>
+      <section className={fullWidth ? "w-full border-y border-dashed border-slate-300 bg-white p-6 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900" : "mx-auto w-full max-w-content rounded-[2rem] border border-dashed border-slate-300 bg-white p-6 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900"}>
         No recommendations available
       </section>
     );
@@ -226,7 +226,7 @@ export function RecommendationSection({
   }
 
   return (
-    <div className={fullWidth ? "w-full" : "mx-auto w-full max-w-[1440px]"}>
+    <div className={fullWidth ? "w-full" : "mx-auto w-full max-w-content"}>
       <ProductCarousel
       title={title}
       subtitle={subtitle}

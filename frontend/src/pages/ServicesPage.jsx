@@ -64,7 +64,7 @@ export function ServicesPage() {
             <span className="inline-flex rounded-full border border-indigo-200/80 bg-indigo-50 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.3em] text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/50 dark:text-indigo-300">
               Our Services
             </span>
-            <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl lg:text-6xl">
+            <h1 className="mx-auto mt-6 max-w-4xl fluid-h1 font-black tracking-tight text-slate-950 dark:text-white">
               Digital Solutions &{" "}
               <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-teal-500 bg-clip-text text-transparent">
                 Creative Learning

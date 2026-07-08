@@ -68,13 +68,13 @@ export function WishlistPage() {
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
       {loading ? (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        <div className="product-grid">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="h-80 animate-pulse rounded-3xl bg-slate-100 dark:bg-slate-800" />
           ))}
         </div>
       ) : wishlistItems.length ? (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        <div className="product-grid">
           {wishlistItems.map((item) => {
             const product = item.product || item;
             const image = resolveApiAssetUrl(product?.images?.[0]?.url || item?.image);

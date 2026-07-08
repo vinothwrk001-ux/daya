@@ -49,12 +49,20 @@ function normalizeSessionId(sessionId) {
   return value;
 }
 
-function buildPublicFilter() {
-  return {
+function normalizeBoolean(value) {
+  return value === true || value === "true" || value === "1" || value === "on";
+}
+
+function buildPublicFilter(options = {}) {
+  const filter = {
     status: "published",
     visibility: "public",
     $or: [{ publishDate: { $lte: new Date() } }, { publishDate: null }],
   };
+  if (options.showOnStorefront !== undefined) {
+    filter.showOnStorefront = normalizeBoolean(options.showOnStorefront);
+  }
+  return filter;
 }
 
 async function enrichReelForUser(reel, userId) {
@@ -124,6 +132,7 @@ class ReelService {
       location: payload.location || "",
       status: payload.status || "draft",
       visibility: payload.visibility || "public",
+      showOnStorefront: normalizeBoolean(payload.showOnStorefront),
       attributionWindowDays: Number(payload.attributionWindowDays || 30),
       publishDate: payload.publishDate ? new Date(payload.publishDate) : null,
       associatedProducts,
@@ -192,6 +201,9 @@ class ReelService {
     }
     if (payload.publishDate !== undefined) {
       reel.publishDate = payload.publishDate ? new Date(payload.publishDate) : null;
+    }
+    if (payload.showOnStorefront !== undefined) {
+      reel.showOnStorefront = normalizeBoolean(payload.showOnStorefront);
     }
     if (mediaUpdate.videoUrl) reel.videoUrl = mediaUpdate.videoUrl;
     if (mediaUpdate.thumbnailUrl) reel.thumbnailUrl = mediaUpdate.thumbnailUrl;
@@ -266,8 +278,8 @@ class ReelService {
     return reel;
   }
 
-  async listPublic({ page = 1, limit = 12, sort = "latest", category, tag, userId } = {}) {
-    const query = buildPublicFilter();
+  async listPublic({ page = 1, limit = 12, sort = "latest", category, tag, showOnStorefront, userId } = {}) {
+    const query = buildPublicFilter({ showOnStorefront });
     if (category) query.category = category;
     if (tag) query.tags = tag;
 

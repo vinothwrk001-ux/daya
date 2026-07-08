@@ -967,7 +967,7 @@ function BannerContainer({
         {heroHeaderDefault}
 
         {heroBannerLayout ? (
-          <div className="mx-auto mt-4 w-full max-w-[1440px] flex flex-col items-center py-2 sm:mt-6">
+          <div className="mx-auto mt-4 w-full max-w-content flex flex-col items-center py-2 sm:mt-6">
             <HeroBannerCategoryZone fallback={campaignFallback} />
             {companionContent ? <div className="mt-3 w-full sm:mt-4">{companionContent}</div> : null}
           </div>

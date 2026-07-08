@@ -173,7 +173,7 @@ export function CategoryPage() {
         ) : null}
         <div className="relative mx-auto max-w-7xl px-4 py-14 lg:px-8">
           <p className="text-xs font-black uppercase tracking-[0.35em] text-red-400">Category</p>
-          <h1 className="mt-3 text-3xl font-black md:text-5xl">{category?.name || "Loading..."}</h1>
+          <h1 className="mt-3 fluid-h1 text-white">{category?.name || "Loading..."}</h1>
           {category?.description ? (
             <p className="mt-4 max-w-2xl text-sm text-zinc-300 md:text-base">{category.description}</p>
           ) : null}
@@ -195,7 +195,7 @@ export function CategoryPage() {
               setSearchParams(next);
             }}
             placeholder="Search in this category..."
-            className="min-w-[220px] flex-1 rounded-full border border-zinc-200 px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-full min-w-0 flex-1 rounded-full border border-zinc-200 px-4 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
           />
           <select
             value={`${sortBy}:${sortOrder}`}
@@ -216,7 +216,7 @@ export function CategoryPage() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+          <div className="product-grid">
             {Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="aspect-[3/4] animate-pulse rounded-2xl bg-zinc-200 dark:bg-zinc-800" />
             ))}
@@ -229,7 +229,7 @@ export function CategoryPage() {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+        <div className="product-grid">
           {products.map((product) => (
             <PremiumProductCard key={product._id} product={product} />
           ))}

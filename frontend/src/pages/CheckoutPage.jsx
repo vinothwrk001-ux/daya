@@ -1121,7 +1121,7 @@ export function CheckoutPage() {
         </div>
       ) : (
         <div className="grid gap-6">
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="grid gap-5">
             <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

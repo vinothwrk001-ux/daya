@@ -32,6 +32,7 @@ const reelSchema = new mongoose.Schema(
       enum: ["public", "private", "unlisted"],
       default: "public",
     },
+    showOnStorefront: { type: Boolean, default: false, index: true },
     attributionWindowDays: { type: Number, default: 30, min: 1, max: 365 },
     publishDate: { type: Date },
     associatedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],

@@ -94,7 +94,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
 
   const inner = (
     <>
-      <div className="category-card-image-container relative aspect-square overflow-hidden bg-zinc-900">
+      <div className="category-card-image-container relative flex-[0_0_60%] overflow-hidden bg-zinc-900">
         {image ? (
           <img
             src={image}
@@ -103,25 +103,25 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-[10px] font-black text-brand-primary sm:text-sm">
+          <div className="flex h-full items-center justify-center text-sm font-black text-brand-primary sm:text-base">
             {(card.title || "C").slice(0, 1)}
           </div>
         )}
       </div>
-      <div className="space-y-0 bg-zinc-950 px-1 py-1.5 text-center sm:space-y-1 sm:px-2.5 sm:py-3 lg:px-3 lg:py-3.5">
-        <p className="truncate text-[7px] font-bold leading-tight text-white sm:text-[11px] lg:text-xs">{card.title}</p>
-        {card.subtitle ? (
-          <p className="hidden truncate text-[10px] text-zinc-400 sm:block sm:text-[11px]">{card.subtitle}</p>
-        ) : null}
-        {card.showProductCount !== false && card.productCount != null ? (
-          <p className="hidden text-[10px] font-semibold uppercase tracking-wide text-zinc-400 sm:block sm:text-[11px]">
-            {card.productCount} Products
+      <div className="flex flex-[0_0_40%] flex-col justify-between gap-0.5 bg-zinc-950 px-1.5 py-1.5 text-center sm:px-2 sm:py-2">
+        <div className="space-y-0.5">
+          <p className="line-clamp-1 text-[7.5px] font-semibold uppercase tracking-[0.14em] leading-tight text-white sm:text-[8.5px] lg:text-[9.5px]">
+            {card.title}
           </p>
-        ) : null}
-        <span className="inline-flex items-center gap-0.5 text-[6px] font-bold uppercase tracking-wide text-brand-primary sm:gap-1 sm:text-[10px] lg:text-[11px]">
-          <span className="sm:hidden">Go</span>
-          <span className="hidden sm:inline">Explore</span>
-          <ArrowRight className="h-2 w-2 sm:h-3 sm:w-3" />
+          {card.showProductCount !== false && card.productCount != null ? (
+            <p className="truncate text-[7px] font-medium uppercase tracking-[0.18em] text-zinc-400 sm:text-[7.5px] lg:text-[8.5px]">
+              {card.productCount} PRODUCTS
+            </p>
+          ) : null}
+        </div>
+        <span className="mt-1 inline-flex w-full items-center justify-center gap-1 border-brand-primary/70 bg-black/10 px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.2em] text-brand-primary transition hover:bg-brand-primary/10 sm:px-3.5 sm:py-2 sm:text-[9px]">
+          Explore
+          <ArrowRight className="h-3 w-3" />
         </span>
       </div>
     </>
@@ -135,7 +135,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
     <Link
       to={card.ctaUrl || getCategoryHref(card)}
       onClick={() => onSelect?.(card)}
-      className="banner-category-card group flex w-full min-w-0 flex-col overflow-hidden rounded-md border border-zinc-700 bg-zinc-950 shadow-md transition hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-lg sm:rounded-xl lg:min-w-0"
+      className="banner-category-card group flex w-full max-w-[13rem] min-w-0 aspect-[8/11] flex-col overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-950 shadow-md transition hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-lg sm:rounded-[1.25rem] lg:min-w-0"
     >
       {inner}
     </Link>
@@ -437,7 +437,7 @@ export function HomepageBannerSlider({
                       </div>
                     ) : null}
                     {categories.length ? (
-                      <div className="hero-banner-category-cards grid w-full grid-cols-4 gap-1.5 sm:ml-auto sm:max-w-[42rem] sm:grid-cols-2 sm:gap-3.5 sm:justify-items-end lg:grid-cols-3 xl:grid-cols-4">
+                      <div className="hero-banner-category-cards grid w-full grid-cols-4 gap-1.5 sm:ml-auto sm:max-w-[38rem] sm:grid-cols-2 sm:gap-3.5 sm:justify-items-end lg:grid-cols-3 xl:grid-cols-4 lg:mt-16 md:mt-12 lg:-translate-x-0 lg:translate-y-10">
                         {categories.map((card, cardIndex) => (
                           <MotionDiv
                             key={card.id || card.categoryId}

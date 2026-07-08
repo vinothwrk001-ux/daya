@@ -225,7 +225,7 @@ export function CartPage() {
                               type="button"
                               disabled={busyId === busyKey || qty <= 1}
                               onClick={() => changeQty(String(id), variantId, qty - 1)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 font-semibold disabled:opacity-50 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                              className="touch-target inline-flex items-center justify-center rounded-lg border border-slate-300 font-semibold disabled:opacity-50 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                             >
                               −
                             </button>
@@ -236,7 +236,7 @@ export function CartPage() {
                               type="button"
                               disabled={busyId === busyKey}
                               onClick={() => changeQty(String(id), variantId, qty + 1)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 font-semibold disabled:opacity-50 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                              className="touch-target inline-flex items-center justify-center rounded-lg border border-slate-300 font-semibold disabled:opacity-50 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                             >
                               +
                             </button>
