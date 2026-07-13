@@ -27,7 +27,7 @@ function CategoryCard({ category, onClick }) {
     <Link
       to={getCategoryHref(category)}
       onClick={() => onClick?.(category)}
-      className="group relative flex aspect-[10/11] flex-col overflow-hidden rounded-3xl border-2 border-black bg-zinc-950 shadow-lg transition duration-300 hover:-translate-y-1 hover:border-brand-primary hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
+      className="group relative flex aspect-[4/4] flex-col overflow-hidden rounded-3xl border-2 border-black bg-zinc-950 shadow-lg transition duration-300 hover:-translate-y-2 hover:border-brand-primary hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
     >
       <div
         className="absolute inset-0 opacity-30"
@@ -149,7 +149,7 @@ export function CategoryCarousel() {
 
         <div
           ref={scrollerRef}
-          className="mx-auto grid justify-center grid-flow-col auto-cols-[calc(50%-0.5rem)] gap-4 overflow-x-auto pb-2 mt-8 [-ms-overflow-style:none] [scrollbar-width:none] md:auto-cols-[calc(33.333%-0.75rem)] xl:auto-cols-[calc(20%-0.8rem)] [&::-webkit-scrollbar]:hidden"
+          className="mx-auto grid justify-center grid-flow-col auto-cols-[calc(70%-1rem)] gap-4 overflow-x-auto pb-2 mt-8 [-ms-overflow-style:none] [scrollbar-width:none] sm:auto-cols-[calc(70%-1rem)] md:auto-cols-[calc(50%-1rem)] lg:auto-cols-[calc(25.333%-1rem)] xl:auto-cols-[calc(23%-1rem)] [&::-webkit-scrollbar]:hidden"
         >
           {categories.map((category) => (
             <CategoryCard key={category._id} category={category} onClick={handleCategoryClick} />
