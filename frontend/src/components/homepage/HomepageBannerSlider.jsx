@@ -91,35 +91,51 @@ function resolveBannerAsset(banner, isMobile) {
 
 const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, previewMode = false, compact = false }) {
   const image = resolveApiAssetUrl(card.cardImage);
-  const containerClasses = compact
-    ? "banner-category-card group min-w-[92px] shrink-0 overflow-hidden rounded-[12px] border border-zinc-700 bg-zinc-950 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-primary"
-    : "banner-category-card group flex w-full max-w-[13rem] min-w-0 aspect-[8/11] flex-col overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-950 shadow-md transition hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-lg sm:rounded-[1.25rem] lg:min-w-0";
+  
+  // Emoji map for categories
+  const emojiMap = {
+    "men's shirt": "🔥",
+    "men's shirts": "🔥",
+    "women's shirt": "💃",
+    "women's shirts": "💃",
+    "unisex t-shirt": "👕",
+    "unisex t-shirts": "👕",
+    "hoodie": "🧥",
+    "hoodies": "🧥",
+    "clothing": "👔",
+    "designing": "🎨",
+    "website": "🌐",
+    "workshop": "🛠️",
+  };
+  
+  const getEmojiForTitle = (title) => {
+    const lowerTitle = (title || "").toLowerCase();
+    for (const [key, emoji] of Object.entries(emojiMap)) {
+      if (lowerTitle.includes(key)) {
+        return emoji;
+      }
+    }
+    return "";
+  };
+  
+  const titleWithEmoji = `${card.title} ${getEmojiForTitle(card.title)}`.trim();
+  
+  const containerClasses = "banner-category-card group flex w-full aspect-[3/4] flex-col overflow-hidden rounded-[2rem] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
 
-  const imageWrapperClasses = compact
-    ? "mb-2 flex h-[66px] items-center justify-center overflow-hidden rounded-[10px] bg-zinc-900"
-    : "category-card-image-container relative flex-[0_0_60%] overflow-hidden bg-zinc-900";
+  const imageWrapperClasses = "relative flex-1 overflow-hidden bg-black flex items-center justify-center" + 
+    " bg-[repeating-linear-gradient(45deg,#111_0,#111_2px,transparent_2px,transparent_10px)]";
 
-  const imageClasses = compact
-    ? "h-full w-full object-contain"
-    : "category-card-image block h-full w-full object-cover transition duration-500 group-hover:scale-110";
+  const imageClasses = "h-full w-full object-contain";
 
-  const cardBodyClasses = compact
-    ? "flex h-full flex-col justify-between p-2"
-    : "flex flex-[0_0_40%] flex-col justify-between gap-0.5 bg-zinc-950 px-1.5 py-1.5 text-center sm:px-2 sm:py-2";
+  const cardBodyClasses = "flex-none w-full pb-6 pt-2 flex flex-col items-center justify-center bg-black" +
+    " bg-[repeating-linear-gradient(45deg,#111_0,#111_2px,transparent_2px,transparent_10px)]";
 
-  const titleClasses = compact
-    ? "line-clamp-2 text-[11px] font-semibold uppercase leading-tight tracking-[0.02em] text-white"
-    : "line-clamp-1 text-[7.5px] font-semibold uppercase tracking-[0.14em] leading-tight text-white sm:text-[8.5px] lg:text-[9.5px]";
+  // Container for the pill badge and secondary info - ensures perfect centering
+  const titleSectionClasses = "flex flex-col gap-0 text-center items-center justify-center w-full";
 
-  const countClasses = compact
-    ? "text-[10px] text-zinc-400"
-    : "truncate text-[7px] font-medium uppercase tracking-[0.18em] text-zinc-400 sm:text-[7.5px] lg:text-[8.5px]";
+  const countClasses = "text-xs text-zinc-400 hidden"; // Consistently hidden
 
-  const buttonClasses = compact
-    ? "mt-2 inline-flex w-full items-center justify-center rounded-full bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-primary"
-    : "mt-1 inline-flex w-full items-center justify-center gap-1 border-brand-primary/70 bg-black/10 px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.2em] text-brand-primary transition hover:bg-brand-primary/10 sm:px-3.5 sm:py-2 sm:text-[9px]";
-
-  const titleSectionClasses = compact ? "flex flex-col gap-1 text-left" : "space-y-0.5";
+  const buttonClasses = "hidden"; // Consistently hidden
 
   const CardLink = previewMode ? "div" : Link;
   const cardProps = previewMode
@@ -128,18 +144,25 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
 
   return (
     <CardLink {...cardProps}>
-      <div className={imageWrapperClasses}>
+      <div 
+        className={imageWrapperClasses}
+        style={{
+          backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,.5) 2px, rgba(0,0,0,.5) 4px)"
+        }}
+      >
         {image ? (
           <img src={image} alt={card.title} className={imageClasses} loading="lazy" />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm font-black text-brand-primary sm:text-base">
+          <div className="flex h-full w-full items-center justify-center text-4xl font-black text-zinc-700">
             {(card.title || "C").slice(0, 1)}
           </div>
         )}
       </div>
       <div className={cardBodyClasses}>
         <div className={titleSectionClasses}>
-          <p className={titleClasses}>{card.title}</p>
+          <div className="bg-white rounded-full px-3 py-1 shadow-lg w-fit max-w-[90%] flex justify-center items-center">
+            <p className="text-xs font-bold text-black whitespace-nowrap overflow-hidden text-ellipsis">{titleWithEmoji}</p>
+          </div>
           {card.showProductCount !== false && card.productCount != null ? (
             <p className={countClasses}>{card.productCount} products</p>
           ) : null}
@@ -402,29 +425,33 @@ export function HomepageBannerSlider({
 
           <div className="hero-banner-body h-full">
             <div className="hero-banner-content flex h-full flex-1 flex-col justify-center px-4 py-5 sm:px-6 sm:py-6 lg:items-end lg:px-8 lg:py-8">
-              <div className="w-full max-w-[36rem] flex h-full flex-col justify-between rounded-[1.6rem] bg-transparent p-0">
+              <div className="w-full max-w-[36rem] flex h-full flex-col justify-start gap-8 rounded-[1.6rem] bg-transparent p-0">
                 <MotionDiv
                   key={`text-${activeBanner.id || index}`}
-                  initial={{ opacity: 0, y: hoverReveal ? 12 : 0 }}
-                  animate={{ opacity: revealContent ? 1 : 0, y: revealContent ? 0 : hoverReveal ? 12 : 0 }}
-                  transition={{ duration: hoverReveal ? 0.3 : 0.35 }}
-                  className="min-h-[10rem] flex flex-col items-start text-left transition-opacity duration-300 md:items-start md:text-left"
-                  aria-hidden={!revealContent}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35 }}
+                  className="min-h-[10rem] flex flex-col items-start justify-center gap-4 text-left transition-opacity duration-300 md:items-start md:text-left"
                 >
-                  <div className="flex flex-col items-center text-center md:items-start md:text-left">
-                    {textBlock}
+                  <div className="flex flex-col items-start text-left gap-4">
+                    <div className="inline-flex items-center justify-center px-4 py-2 border border-red-500 rounded-full bg-transparent">
+                      <span className="text-sm font-bold text-red-500 uppercase tracking-wider">Categories</span>
+                    </div>
+                    <p className="text-3xl md:text-4xl font-semibold text-black leading-tight max-w-lg">
+                      Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear.
+                    </p>
                   </div>
                 </MotionDiv>
 
                 {categories.length ? (
-                  <div className="mt-6 hidden md:grid gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
+                  <div className="mt-6 hidden md:flex flex-row gap-6 justify-center items-end flex-nowrap">
                     {categories.map((card, cardIndex) => (
                       <MotionDiv
                         key={card.id || card.categoryId}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: cardIndex * 0.05, duration: 0.28 }}
-                        className="min-w-0"
+                        className="min-w-0 flex-1 max-w-xs"
                       >
                         <BannerCategoryCard
                           card={card}
@@ -500,7 +527,7 @@ export function HomepageBannerSlider({
       {categories.length ? (
         <div className="mt-4 px-4 pb-4 md:hidden">
           <div
-            className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide"
+            className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide"
             role="list"
             aria-label="Homepage category cards"
           >
@@ -510,7 +537,7 @@ export function HomepageBannerSlider({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: cardIndex * 0.05, duration: 0.28 }}
-                className="snap-start shrink-0 w-[calc((100vw-4.25rem)/4)] min-w-[calc((100vw-4.25rem)/4)]"
+                className="snap-start shrink-0 w-[calc((100vw-2rem)/2)] min-w-[calc((100vw-2rem)/2)]"
               >
                 <BannerCategoryCard
                   card={card}
