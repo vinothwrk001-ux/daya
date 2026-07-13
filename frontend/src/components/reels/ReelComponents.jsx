@@ -35,34 +35,34 @@ export function ReelProductOverlay({ reel, product, onProductClick }) {
   const original = product.salePrice ? product.price : null;
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pt-16">
+    <div className="absolute bottom-[18px] left-[18px] right-[18px] z-20 h-[74px] rounded-full bg-[rgba(55,55,55,0.72)] px-[14px] py-[10px] shadow-xl backdrop-blur-[20px] transition-all duration-[400ms] ease-out group-hover:bg-[rgba(45,45,45,0.82)] group-hover:backdrop-blur-[24px]">
       <button
         type="button"
-        onClick={() => onProductClick?.(product)}
-        className="flex w-full items-center gap-3 rounded-2xl border border-white/15 bg-white/10 p-3 text-left backdrop-blur-md transition hover:bg-white/20"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onProductClick?.(product);
+        }}
+        className="flex h-full w-full items-center gap-3 text-left"
       >
         <img
           src={resolveApiAssetUrl(product.images?.[0] || product.image)}
           alt={product.name}
-          className="h-14 w-14 rounded-xl object-cover"
+          className="h-14 w-14 shrink-0 rounded-full border-2 border-white object-cover"
           loading="lazy"
         />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">{product.name}</p>
-          <div className="mt-1 flex items-center gap-2">
-            <span className="text-sm font-bold text-emerald-300">{formatCurrency(price)}</span>
+          <p className="truncate text-[15px] font-semibold leading-tight text-white">{product.name}</p>
+          <div className="mt-0.5 flex items-center gap-2">
+            <span className="text-sm font-semibold text-white">{formatCurrency(price)}</span>
             {original ? (
-              <span className="text-xs text-white/60 line-through">{formatCurrency(original)}</span>
-            ) : null}
-            {product.rating ? (
-              <span className="text-xs text-amber-300">★ {Number(product.rating).toFixed(1)}</span>
+              <span className="text-sm text-[#9CA3AF] line-through">{formatCurrency(original)}</span>
             ) : null}
           </div>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-900">
-          <ShoppingBag className="h-3.5 w-3.5" />
-          Shop
-        </span>
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#111827] shadow-lg transition-colors duration-300 hover:bg-[#ef4444] hover:text-white">
+          <Eye className="h-5 w-5" />
+        </div>
       </button>
     </div>
   );
@@ -186,14 +186,14 @@ export function ReelCard({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[320px] group relative overflow-hidden rounded-2xl bg-black shadow-md transition duration-300 hover:shadow-xl">
-      <Link to={`/reels?reel=${reel._id}`} className="block">
-        <div className="relative aspect-[4/5] bg-black">
+    <div className="group relative mx-auto h-[560px] w-[360px] max-w-full overflow-hidden rounded-[28px] bg-white shadow-[0_28px_70px_rgba(0,0,0,0.22)] transition-all duration-[400ms] ease-out hover:-translate-y-[10px] hover:shadow-[0_40px_80px_rgba(0,0,0,0.28)]">
+      <Link to={`/reels?reel=${reel._id}`} className="block h-full w-full">
+        <div className="relative h-full w-full overflow-hidden rounded-[28px] bg-slate-100">
           <video
             ref={videoRef}
             src={resolveApiAssetUrl(reel.videoUrl)}
             poster={resolveApiAssetUrl(reel.thumbnailUrl)}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-[400ms] ease-out group-hover:scale-[1.03]"
             muted
             loop
             playsInline
@@ -204,69 +204,17 @@ export function ReelCard({
               event.currentTarget.currentTime = 0;
             }}
           />
-          
-          {/* Title - Always visible */}
-          <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2 sm:p-3">
-            <p className="line-clamp-2 text-xs font-bold text-white sm:text-sm">{reel.title}</p>
-          </div>
 
-          {/* Hover Overlay - Stats */}
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/70 p-4 opacity-0 transition duration-300 group-hover:opacity-100 sm:gap-4">
-            <div className="flex flex-wrap gap-4 justify-center sm:gap-6">
-              <div className="flex flex-col items-center gap-1">
-                <Eye className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-                <span className="text-xs font-semibold text-white sm:text-sm">{formatCount(reel.viewsCount)}</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <Heart className="h-5 w-5 text-red-400 sm:h-6 sm:w-6" />
-                <span className="text-xs font-semibold text-white sm:text-sm">{formatCount(reel.likesCount)}</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <MessageCircle className="h-5 w-5 text-blue-400 sm:h-6 sm:w-6" />
-                <span className="text-xs font-semibold text-white sm:text-sm">{formatCount(reel.commentsCount)}</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <Share2 className="h-5 w-5 text-green-400 sm:h-6 sm:w-6" />
-                <span className="text-xs font-semibold text-white sm:text-sm">{formatCount(reel.sharesCount)}</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <Bookmark className="h-5 w-5 text-amber-400 sm:h-6 sm:w-6" />
-                <span className="text-xs font-semibold text-white sm:text-sm">{formatCount(reel.savesCount)}</span>
-              </div>
-            </div>
-          </div>
+          {primaryProduct ? (
+            <ReelProductOverlay reel={reel} product={primaryProduct} onProductClick={handleProductClick} />
+          ) : null}
         </div>
       </Link>
-
-      {/* Product Card - Floating at bottom */}
-      {primaryProduct ? (
-        <div className="border-t border-white/10 bg-black/95 p-2 sm:p-3 backdrop-blur-sm">
-          <button
-            type="button"
-            onClick={() => handleProductClick(primaryProduct)}
-            className="flex w-full items-center gap-2 text-left transition hover:opacity-80 sm:gap-3"
-          >
-            <img
-              src={resolveApiAssetUrl(primaryProduct.images?.[0])}
-              alt={primaryProduct.name}
-              className="h-9 w-9 rounded-lg object-cover sm:h-10 sm:w-10"
-              loading="lazy"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="line-clamp-1 text-xs font-semibold text-white sm:text-sm">{primaryProduct.name}</p>
-              <p className="text-[10px] text-emerald-300 sm:text-xs">
-                {formatCurrency(primaryProduct.salePrice ?? primaryProduct.price ?? 0)}
-              </p>
-            </div>
-            <ShoppingBag className="h-4 w-4 shrink-0 text-white sm:h-5 sm:w-5" />
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }
 
-export function ReelsSection({ title, sort, limit = 4 }) {
+export function ReelsSection({ title, sort, limit = 3 }) {
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -295,12 +243,10 @@ export function ReelsSection({ title, sort, limit = 4 }) {
       items={reels}
       loading={loading}
       title={title}
-      showArrows={true}
       showDots={true}
       swipeEnabled={true}
-      desktopItemsPerView={4}
-      tabletItemsPerView={3}
-      mobileItemsPerView={2}
+      desktopItemsPerView={3}
+      tabletItemsPerView={2}
     />
   );
 }

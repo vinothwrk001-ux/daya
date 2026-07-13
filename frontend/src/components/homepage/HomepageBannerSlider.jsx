@@ -89,60 +89,71 @@ function resolveBannerAsset(banner, isMobile) {
   return { mediaType, url, poster };
 }
 
-const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, previewMode = false }) {
+const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, previewMode = false, compact = false }) {
   const image = resolveApiAssetUrl(card.cardImage);
+  const containerClasses = compact
+    ? "banner-category-card group min-w-[92px] shrink-0 overflow-hidden rounded-[12px] border border-zinc-700 bg-zinc-950 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-primary"
+    : "banner-category-card group flex w-full max-w-[13rem] min-w-0 aspect-[8/11] flex-col overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-950 shadow-md transition hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-lg sm:rounded-[1.25rem] lg:min-w-0";
 
-  const inner = (
-    <>
-      <div className="category-card-image-container relative flex-[0_0_60%] overflow-hidden bg-zinc-900">
+  const imageWrapperClasses = compact
+    ? "mb-2 flex h-[66px] items-center justify-center overflow-hidden rounded-[10px] bg-zinc-900"
+    : "category-card-image-container relative flex-[0_0_60%] overflow-hidden bg-zinc-900";
+
+  const imageClasses = compact
+    ? "h-full w-full object-contain"
+    : "category-card-image block h-full w-full object-cover transition duration-500 group-hover:scale-110";
+
+  const cardBodyClasses = compact
+    ? "flex h-full flex-col justify-between p-2"
+    : "flex flex-[0_0_40%] flex-col justify-between gap-0.5 bg-zinc-950 px-1.5 py-1.5 text-center sm:px-2 sm:py-2";
+
+  const titleClasses = compact
+    ? "line-clamp-2 text-[11px] font-semibold uppercase leading-tight tracking-[0.02em] text-white"
+    : "line-clamp-1 text-[7.5px] font-semibold uppercase tracking-[0.14em] leading-tight text-white sm:text-[8.5px] lg:text-[9.5px]";
+
+  const countClasses = compact
+    ? "text-[10px] text-zinc-400"
+    : "truncate text-[7px] font-medium uppercase tracking-[0.18em] text-zinc-400 sm:text-[7.5px] lg:text-[8.5px]";
+
+  const buttonClasses = compact
+    ? "mt-2 inline-flex w-full items-center justify-center rounded-full bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-primary"
+    : "mt-1 inline-flex w-full items-center justify-center gap-1 border-brand-primary/70 bg-black/10 px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.2em] text-brand-primary transition hover:bg-brand-primary/10 sm:px-3.5 sm:py-2 sm:text-[9px]";
+
+  const titleSectionClasses = compact ? "flex flex-col gap-1 text-left" : "space-y-0.5";
+
+  const CardLink = previewMode ? "div" : Link;
+  const cardProps = previewMode
+    ? { className: containerClasses }
+    : { to: card.ctaUrl || getCategoryHref(card), onClick: () => onSelect?.(card), className: containerClasses };
+
+  return (
+    <CardLink {...cardProps}>
+      <div className={imageWrapperClasses}>
         {image ? (
-          <img
-            src={image}
-            alt={card.title}
-            className="category-card-image block h-full w-full object-cover transition duration-500 group-hover:scale-110"
-            loading="lazy"
-          />
+          <img src={image} alt={card.title} className={imageClasses} loading="lazy" />
         ) : (
           <div className="flex h-full items-center justify-center text-sm font-black text-brand-primary sm:text-base">
             {(card.title || "C").slice(0, 1)}
           </div>
         )}
       </div>
-      <div className="flex flex-[0_0_40%] flex-col justify-between gap-0.5 bg-zinc-950 px-1.5 py-1.5 text-center sm:px-2 sm:py-2">
-        <div className="space-y-0.5">
-          <p className="line-clamp-1 text-[7.5px] font-semibold uppercase tracking-[0.14em] leading-tight text-white sm:text-[8.5px] lg:text-[9.5px]">
-            {card.title}
-          </p>
+      <div className={cardBodyClasses}>
+        <div className={titleSectionClasses}>
+          <p className={titleClasses}>{card.title}</p>
           {card.showProductCount !== false && card.productCount != null ? (
-            <p className="truncate text-[7px] font-medium uppercase tracking-[0.18em] text-zinc-400 sm:text-[7.5px] lg:text-[8.5px]">
-              {card.productCount} PRODUCTS
-            </p>
+            <p className={countClasses}>{card.productCount} products</p>
           ) : null}
         </div>
-        <span className="mt-1 inline-flex w-full items-center justify-center gap-1 border-brand-primary/70 bg-black/10 px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.2em] text-brand-primary transition hover:bg-brand-primary/10 sm:px-3.5 sm:py-2 sm:text-[9px]">
+        <span className={buttonClasses}>
           Explore
           <ArrowRight className="h-3 w-3" />
         </span>
       </div>
-    </>
-  );
-
-  if (previewMode) {
-    return <div className="banner-category-card group flex flex-col overflow-hidden rounded-md border border-zinc-700 bg-zinc-950 shadow-md sm:rounded-xl">{inner}</div>;
-  }
-
-  return (
-    <Link
-      to={card.ctaUrl || getCategoryHref(card)}
-      onClick={() => onSelect?.(card)}
-      className="banner-category-card group flex w-full max-w-[13rem] min-w-0 aspect-[8/11] flex-col overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-950 shadow-md transition hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-lg sm:rounded-[1.25rem] lg:min-w-0"
-    >
-      {inner}
-    </Link>
+    </CardLink>
   );
 });
 
-function BannerMedia({ banner, isMobile, isActive, previewMode }) {
+function BannerMedia({ banner, isMobile, isActive, previewMode, className = "h-full w-full object-cover object-center" }) {
   const { mediaType, url, poster } = resolveBannerAsset(banner, isMobile);
   if (!url) {
     return <div className="h-full w-full bg-gradient-to-br from-brand-surfaceSecondary via-brand-surface to-brand-surfaceSecondary" />;
@@ -153,7 +164,7 @@ function BannerMedia({ banner, isMobile, isActive, previewMode }) {
         key={url}
         src={url}
         poster={poster || undefined}
-        className="h-full w-full object-cover object-center"
+        className={className}
         autoPlay={isActive}
         muted
         loop
@@ -166,7 +177,7 @@ function BannerMedia({ banner, isMobile, isActive, previewMode }) {
     <img
       src={url}
       alt={banner.title || banner.name}
-      className="h-full w-full object-cover object-center"
+      className={className}
       loading={isActive ? "eager" : "lazy"}
     />
   );
@@ -332,21 +343,22 @@ export function HomepageBannerSlider({
 
   const textBlock = (
     <>
-      <p className="text-[9px] font-black uppercase tracking-[0.28em] text-brand-primary sm:text-xs">{featuredText}</p>
-      <h2 className="mt-1.5 text-base font-black uppercase leading-tight tracking-tight text-white sm:mt-3 sm:text-3xl lg:text-4xl">
+      <p className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-primary sm:text-xs">
+        {featuredText}
+      </p>
+      <h2 className="mt-3 max-w-xl text-2xl font-black uppercase leading-[0.95] tracking-[-0.03em] text-white sm:mt-4 sm:text-4xl lg:text-5xl">
         {activeBanner.title || activeBanner.name}
       </h2>
       {activeBanner.subtitle ? (
-        <p className="mt-2 text-xs font-medium uppercase tracking-[0.12em] text-white/90 sm:mt-3 sm:text-sm">
+        <p className="mt-3 text-sm font-medium uppercase tracking-[0.16em] text-white/90 sm:mt-4 sm:text-base">
           {activeBanner.subtitle}
         </p>
       ) : null}
-      {activeBanner.description ? (
-        <p className="mt-2 hidden text-sm leading-6 text-white/80 sm:block">{activeBanner.description}</p>
+      {!isMobile && activeBanner.description ? (
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-white/80 sm:text-[15px]">
+          {activeBanner.description}
+        </p>
       ) : null}
-      {renderBannerCta(
-        "mt-4 hidden w-fit items-center gap-2 rounded-full bg-brand-primary px-4 py-2.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover sm:mt-5 sm:px-5 sm:py-3 sm:text-sm md:inline-flex"
-      )}
     </>
   );
 
@@ -358,7 +370,7 @@ export function HomepageBannerSlider({
       onMouseLeave={() => setHovered(false)}
     >
       <div
-        className={`hero-banner-stack relative w-full ${embedded ? "h-full" : "min-h-[28rem] rounded-[1.5rem] border border-zinc-200 bg-white shadow-xl sm:min-h-[32rem] sm:rounded-[2rem]"}`}
+        className={`hero-banner-stack relative w-full ${embedded ? "h-full" : "min-h-[44rem] rounded-[1.5rem] border border-zinc-200 bg-white shadow-xl sm:min-h-[52rem] sm:rounded-[2rem]"}`}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         role="region"
@@ -383,91 +395,63 @@ export function HomepageBannerSlider({
           ) : null}
         </div>
 
-        <div className="hero-banner-foreground h-full">
+        <div className="hero-banner-foreground relative z-10 h-full">
           {headerSlot ? (
             <header className="hero-banner-header px-4 pt-3 sm:px-6 lg:px-8">{headerSlot}</header>
           ) : null}
 
-          <div className="hero-banner-body">
-            <div className="hero-banner-content flex flex-1 flex-col items-stretch gap-3 pl-3 pr-3 sm:gap-5 sm:pl-6 sm:pr-0 lg:flex-row lg:items-stretch lg:gap-8 lg:pl-8 lg:pr-0">
-              <div className="hero-banner-text-col h-full text-white lg:max-w-[42%]">
-                <AnimatePresence mode="wait">
-                  {revealContent ? (
-                    <MotionDiv
-                      key={`text-${activeBanner.id || index}`}
-                      initial={{ opacity: 0, y: hoverReveal ? 12 : 0 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: hoverReveal ? 12 : 0 }}
-                      transition={{ duration: hoverReveal ? 0.3 : 0.35 }}
-                    >
-                      {textBlock}
-                    </MotionDiv>
-                  ) : (
-                    <MotionDiv
-                      key="text-hidden"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 0 }}
-                      className="min-h-[1px]"
-                      aria-hidden="true"
-                    />
-                  )}
-                </AnimatePresence>
-              </div>
+          <div className="hero-banner-body h-full">
+            <div className="hero-banner-content flex h-full flex-1 flex-col justify-center px-4 py-5 sm:px-6 sm:py-6 lg:items-end lg:px-8 lg:py-8">
+              <div className="w-full max-w-[36rem] flex h-full flex-col justify-between rounded-[1.6rem] bg-transparent p-0">
+                <MotionDiv
+                  key={`text-${activeBanner.id || index}`}
+                  initial={{ opacity: 0, y: hoverReveal ? 12 : 0 }}
+                  animate={{ opacity: revealContent ? 1 : 0, y: revealContent ? 0 : hoverReveal ? 12 : 0 }}
+                  transition={{ duration: hoverReveal ? 0.3 : 0.35 }}
+                  className="min-h-[10rem] flex flex-col items-start text-left transition-opacity duration-300 md:items-start md:text-left"
+                  aria-hidden={!revealContent}
+                >
+                  <div className="flex flex-col items-center text-center md:items-start md:text-left">
+                    {textBlock}
+                  </div>
+                </MotionDiv>
 
-              <div className="hero-banner-category-col hidden h-full md:flex lg:ml-auto lg:max-w-none lg:flex-1">
-                <AnimatePresence mode="wait">
-                  <MotionDiv
-                    key={`cats-${activeBanner.id || index}`}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.35 }}
-                    className="hero-banner-category-panel flex w-full flex-col items-stretch lg:items-end"
-                  >
-                    {activeBanner.categoryHeading || activeBanner.categoryDescription ? (
-                      <div className="mb-2 hidden w-full max-w-[42rem] text-right sm:mb-3 sm:block lg:text-left">
-                        {activeBanner.categoryHeading ? (
-                          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-brand-primary sm:text-xs">
-                            {activeBanner.categoryHeading}
-                          </p>
-                        ) : null}
-                        {activeBanner.categoryDescription ? (
-                          <p className="mt-2 text-xs leading-5 text-white/85 sm:text-sm">{activeBanner.categoryDescription}</p>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {categories.length ? (
-                      <div className="hero-banner-category-cards grid w-full grid-cols-4 gap-1.5 sm:ml-auto sm:max-w-[38rem] sm:grid-cols-2 sm:gap-3.5 sm:justify-items-end lg:grid-cols-3 xl:grid-cols-4 lg:mt-16 md:mt-12 lg:-translate-x-0 lg:translate-y-10">
-                        {categories.map((card, cardIndex) => (
-                          <MotionDiv
-                            key={card.id || card.categoryId}
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: cardIndex * 0.05, duration: 0.28 }}
-                            className="min-w-0"
-                          >
-                            <BannerCategoryCard
-                              card={card}
-                              onSelect={handleCategoryClick}
-                              previewMode={previewMode}
-                            />
-                          </MotionDiv>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="rounded-lg border border-dashed border-white/30 px-3 py-6 text-center text-xs text-white/70">
-                        No categories assigned to this banner yet.
-                      </p>
-                    )}
-                  </MotionDiv>
-                </AnimatePresence>
+                {categories.length ? (
+                  <div className="mt-6 hidden md:grid gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
+                    {categories.map((card, cardIndex) => (
+                      <MotionDiv
+                        key={card.id || card.categoryId}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: cardIndex * 0.05, duration: 0.28 }}
+                        className="min-w-0"
+                      >
+                        <BannerCategoryCard
+                          card={card}
+                          onSelect={handleCategoryClick}
+                          previewMode={previewMode}
+                        />
+                      </MotionDiv>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
-
-          {renderBannerCta(
-            "hero-banner-mobile-cta inline-flex w-auto items-center justify-center gap-1.5 rounded-full bg-brand-primary font-bold text-white transition hover:bg-brand-primaryHover md:hidden"
-          )}
+          {isMobile && activeBanner.description ? (
+            <div className="absolute inset-x-0 bottom-[4.5rem] z-20 mx-auto flex w-full max-w-[92%] flex-col items-center gap-3 rounded-3xl bg-black/70 px-4 py-4 text-center text-white shadow-xl backdrop-blur-sm md:hidden">
+              <p className="text-sm leading-6 text-white/80">{activeBanner.description}</p>
+              {renderBannerCta(
+                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-primaryHover"
+              )}
+            </div>
+          ) : isMobile ? (
+            <div className="absolute inset-x-0 bottom-[4.5rem] z-20 mx-auto flex w-full max-w-[92%] items-center justify-center rounded-3xl bg-black/70 px-4 py-4 text-center text-white shadow-xl backdrop-blur-sm md:hidden">
+              {renderBannerCta(
+                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-primaryHover"
+              )}
+            </div>
+          ) : null}
         </div>
 
         {showArrows ? (
@@ -513,6 +497,31 @@ export function HomepageBannerSlider({
           </div>
         ) : null}
       </div>
+      {categories.length ? (
+        <div className="mt-4 px-4 pb-4 md:hidden">
+          <div
+            className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide"
+            role="list"
+            aria-label="Homepage category cards"
+          >
+            {categories.map((card, cardIndex) => (
+              <MotionDiv
+                key={card.id || card.categoryId}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: cardIndex * 0.05, duration: 0.28 }}
+                className="snap-start shrink-0 w-[calc((100vw-4.25rem)/4)] min-w-[calc((100vw-4.25rem)/4)]"
+              >
+                <BannerCategoryCard
+                  card={card}
+                  onSelect={handleCategoryClick}
+                  previewMode={previewMode}
+                />
+              </MotionDiv>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

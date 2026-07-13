@@ -3,6 +3,37 @@ import { motion as Motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ProductCard } from "./ProductCard";
 
+function ProductCarouselHeader({ eyebrowText, title, subtitle, viewAllHref, actionLabel }) {
+  return (
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="relative">
+        {viewAllHref ? (
+          <a
+            href={viewAllHref}
+            className="absolute right-0 top-20 hidden items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-[#ef4444] hover:text-[#ef4444] sm:inline-flex"
+          >
+            {actionLabel}
+          </a>
+        ) : null}
+
+        <div className="mx-auto flex max-w-3xl flex-col items-center text-center gap-5 py-4">
+          <h2 className="text-[clamp(1.75rem,3vw,2.5rem)] font-bold leading-tight tracking-[-0.02em] text-[#111827]">
+            {title || "Discover Our Top Picks"}
+          </h2>
+          <p className="inline-flex h-[34px] items-center rounded-full border border-[#ef4444] bg-white px-6 text-[11px] font-bold uppercase tracking-[0.18em] text-[#ef4444]">
+            {eyebrowText}
+          </p>
+          {subtitle ? (
+            <p className="max-w-2xl text-sm leading-7 text-slate-500 lg:text-base">
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ProductCarousel({
   items = [],
   loading = false,
@@ -29,7 +60,6 @@ export function ProductCarousel({
   const touchStartXRef = useRef(0);
   const touchEndXRef = useRef(0);
 
-  // Detect responsive breakpoints
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
@@ -47,10 +77,8 @@ export function ProductCarousel({
     return () => window.removeEventListener("resize", handleResize);
   }, [desktopItemsPerView, mobileItemsPerView, tabletItemsPerView]);
 
-  // Calculate max carousel index
   const maxIndex = Math.max(0, items.length - itemsPerView);
 
-  // Clamp current index
   useEffect(() => {
     if (currentIndex > maxIndex) {
       setCurrentIndex(Math.max(0, maxIndex));
@@ -65,7 +93,6 @@ export function ProductCarousel({
     setCurrentIndex((prev) => Math.min(maxIndex, prev + 1));
   };
 
-  // Swipe/Touch support
   const handleTouchStart = (e) => {
     touchStartXRef.current = e.touches[0].clientX;
   };
@@ -82,16 +109,13 @@ export function ProductCarousel({
 
     if (Math.abs(difference) > swipeThreshold) {
       if (difference > 0) {
-        // Swiped left, show next
         handleNext();
       } else {
-        // Swiped right, show previous
         handlePrevious();
       }
     }
   };
 
-  // Calculate translateX for smooth animation
   const translateX = -currentIndex * (100 / itemsPerView);
 
   useEffect(() => {
@@ -102,48 +126,39 @@ export function ProductCarousel({
     return () => window.clearInterval(timer);
   }, [autoSlide, items.length, itemsPerView, maxIndex, slideSpeed]);
 
+  // Reference: pure white section background
   const shellClassName = bare
-    ? "relative overflow-hidden bg-[#f6f6f6] px-4 py-14 sm:px-8 lg:px-16"
-    : "relative overflow-hidden bg-[#f6f6f6] px-4 py-14 sm:px-8 lg:px-16";
+    ? "relative overflow-hidden bg-white px-4 py-2 sm:px-8 lg:px-16"
+    : "relative overflow-hidden bg-white px-4 py-2 sm:px-8 lg:px-16";
 
-  // Show loading skeletons
   if (loading) {
     return (
       <section className={shellClassName}>
-        <div className="mx-auto max-w-3xl text-center">
-            <p className="mx-auto inline-flex rounded-full border border-red-200 px-9 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-red-400">{eyebrowText}</p>
-            <h2 className="mt-6 text-3xl font-bold leading-tight text-slate-950 lg:text-4xl">
-              {title}
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-slate-500 lg:text-base">
-              {subtitle}
-            </p>
-        </div>
-
-        <div className="mx-auto mt-10 grid max-w-7xl grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
+        <ProductCarouselHeader eyebrowText={eyebrowText} title={title} subtitle={subtitle} />
+        <div className="mx-auto mt-12 grid max-w-7xl grid-cols-2 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="aspect-[4/5] w-full animate-pulse rounded-[18px] bg-white shadow-[0_22px_70px_-55px_rgba(15,23,42,0.55)]"
-            />
+              className="mx-auto w-full max-w-[300px] overflow-hidden rounded-[20px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)]"
+            >
+              <div className="aspect-[5/6] animate-pulse bg-slate-100" />
+              <div className="space-y-3 px-3 py-4">
+                <div className="mx-auto h-2 w-20 animate-pulse rounded bg-slate-100" />
+                <div className="mx-auto h-4 w-40 animate-pulse rounded bg-slate-100" />
+                <div className="mx-auto h-4 w-24 animate-pulse rounded bg-slate-100" />
+              </div>
+            </div>
           ))}
         </div>
       </section>
     );
   }
 
-  // Show empty state
   if (items.length === 0) {
     return (
       <section className={shellClassName}>
-        <div className="mx-auto max-w-3xl text-center">
-            <p className="mx-auto inline-flex rounded-full border border-red-200 px-9 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-red-400">{eyebrowText}</p>
-            <h2 className="mt-6 text-3xl font-bold leading-tight text-slate-950 lg:text-4xl">
-              {title}
-            </h2>
-        </div>
-
-        <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
+        <ProductCarouselHeader eyebrowText={eyebrowText} title={title} subtitle={subtitle} />
+        <div className="mx-auto mt-12 max-w-3xl rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
           No products to show yet.
         </div>
       </section>
@@ -152,29 +167,17 @@ export function ProductCarousel({
 
   return (
     <section className={`homepage-product-carousel ${shellClassName}`}>
-      <div className="mx-auto max-w-3xl text-center">
-        <p className="mx-auto inline-flex rounded-full border border-red-200 px-9 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-red-400">{eyebrowText}</p>
-        <h2 className="mt-6 text-3xl font-bold leading-tight text-slate-950 lg:text-4xl">
-          {title || "Discover Our Top Picks For Every Day"}
-        </h2>
-        {subtitle ? (
-          <p className="mt-3 text-sm leading-7 text-slate-500 lg:text-base">
-            {subtitle}
-          </p>
-        ) : null}
-        {viewAllHref ? (
-          <a
-            href={viewAllHref}
-            className="mt-5 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-red-200 hover:text-red-500"
-          >
-            {actionLabel}
-          </a>
-        ) : null}
+      <div className="relative">
+        <ProductCarouselHeader
+          eyebrowText={eyebrowText}
+          title={title}
+          subtitle={subtitle}
+          viewAllHref={viewAllHref}
+          actionLabel={actionLabel}
+        />
       </div>
 
-      {/* Carousel Container */}
-      <div className="relative mx-auto mt-10 max-w-7xl py-2">
-        {/* Left Navigation Arrow */}
+      <div className="relative mx-auto mt-12 max-w-7xl overflow-visible px-2 sm:px-4">
         <CarouselArrow
           direction="left"
           onClick={handlePrevious}
@@ -182,10 +185,9 @@ export function ProductCarousel({
           show={showArrows && items.length > itemsPerView}
         />
 
-        {/* Product Carousel */}
         <div
           ref={containerRef}
-          className="overflow-x-hidden overflow-y-visible px-2"
+          className="overflow-x-hidden overflow-y-visible"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
@@ -203,7 +205,7 @@ export function ProductCarousel({
             {items.map((product) => (
               <div
                 key={product._id}
-                className="product-carousel-slide flex-shrink-0 px-1.5 transition-all duration-300 sm:px-2"
+                className="product-carousel-slide flex flex-shrink-0 justify-center px-2.5 sm:px-3"
                 style={{
                   width: `${100 / itemsPerView}%`,
                 }}
@@ -214,7 +216,6 @@ export function ProductCarousel({
           </Motion.div>
         </div>
 
-        {/* Right Navigation Arrow */}
         <CarouselArrow
           direction="right"
           onClick={handleNext}
@@ -222,9 +223,8 @@ export function ProductCarousel({
           show={showArrows && items.length > itemsPerView}
         />
 
-        {/* Carousel Indicators (Dots) */}
-        {showDots && items.length > itemsPerView && (
-          <div className="mt-8 flex items-center justify-center gap-2">
+        {showDots && items.length > itemsPerView ? (
+          <div className="mt-10 flex items-center justify-center gap-2">
             {Array.from({ length: Math.ceil(items.length / itemsPerView) }).map((_, index) => (
               <button
                 key={index}
@@ -232,14 +232,14 @@ export function ProductCarousel({
                 onClick={() => setCurrentIndex(index * itemsPerView)}
                 className={`h-2 rounded-full transition-all duration-300 ${
                   index === Math.floor(currentIndex / itemsPerView)
-                    ? "w-8 bg-red-500"
+                    ? "w-8 bg-[#ef4444]"
                     : "w-2 bg-slate-300 hover:bg-slate-400"
                 }`}
                 aria-label={`Go to carousel page ${index + 1}`}
               />
             ))}
           </div>
-        )}
+        ) : null}
       </div>
     </section>
   );
@@ -257,11 +257,11 @@ function CarouselArrow({ direction, onClick, disabled, show }) {
       onClick={onClick}
       disabled={disabled}
       aria-label={isLeft ? "Previous products" : "Next products"}
-      className={`absolute top-[42%] z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-100 bg-white text-slate-700 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 ${
-        isLeft ? "left-0 -translate-x-1 md:-translate-x-6" : "right-0 translate-x-1 md:translate-x-6"
+      className={`absolute top-[36%] z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#404040] shadow-[0_6px_20px_rgba(0,0,0,0.08)] transition-all duration-300 hover:scale-105 hover:shadow-[0_10px_24px_rgba(0,0,0,0.12)] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 ${
+        isLeft ? "left-0 -translate-x-1 md:-translate-x-4 lg:left-0" : "right-0 translate-x-1 md:translate-x-4 lg:right-0"
       }`}
     >
-      <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+      <Icon className="h-5 w-5 stroke-[1.5]" />
     </button>
   );
 }

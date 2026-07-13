@@ -1,8 +1,7 @@
 import { logger } from "../services/logger/logger.js";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion as Motion } from "framer-motion";
-import { Eye, Heart, ShoppingCart, Star } from "lucide-react";
+import { Heart, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "../utils/formatCurrency";
 import { useCart } from "../hooks/useCart";
 import { useCartDrawer } from "../hooks/useCartDrawer";
@@ -33,12 +32,12 @@ function getProductBrand(product) {
   return product?.brand || product?.vendorName || product?.sellerName || product?.category || "Daya";
 }
 
-function VariantColorSwatches({ options, selectedValue, groupName, onSelect, isEditorial }) {
+function VariantColorSwatches({ options, selectedValue, groupName, onSelect }) {
   if (!options?.length) return null;
 
   return (
     <div
-      className="flex items-center gap-1.5"
+      className="flex items-center justify-center gap-2"
       aria-label={groupName || "Available colors"}
       role="listbox"
       onClick={(event) => event.stopPropagation()}
@@ -47,7 +46,7 @@ function VariantColorSwatches({ options, selectedValue, groupName, onSelect, isE
       {options.map((option) => {
         const isSelected = selectedValue === option.value;
         const swatchColor = resolveSwatchColor(option.value);
-        const isLightSwatch = swatchColor && swatchColor.toLowerCase() === "#f8fafc";
+        const isLightSwatch = swatchColor && ["#f8fafc", "#ffffff", "#fff", "#f5f5f5"].includes(String(swatchColor).toLowerCase());
 
         return (
           <button
@@ -62,72 +61,22 @@ function VariantColorSwatches({ options, selectedValue, groupName, onSelect, isE
               event.stopPropagation();
               onSelect(option.value);
             }}
-            className={`h-4 w-4 rounded-full border transition-all duration-150 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1 ${
-              isLightSwatch ? "border-slate-300" : "border-black/10"
-            } ${isSelected ? "ring-2 ring-brand-primary ring-offset-1" : "ring-1 ring-white"} ${
-              option.inStock ? "" : "opacity-50"
-            }`}
-            style={{ backgroundColor: swatchColor || "#e2e8f0" }}
-          />
+            className={`flex h-[22px] w-[22px] items-center justify-center rounded-full transition-transform duration-150 hover:scale-110 focus-visible:outline-none ${
+              isSelected ? "ring-[1.5px] ring-[#111827] ring-offset-1" : ""
+            } ${option.inStock ? "" : "opacity-40"}`}
+          >
+            <span
+              className={`h-[14px] w-[14px] rounded-full ${isLightSwatch ? "border border-slate-300" : ""}`}
+              style={{ backgroundColor: swatchColor || "#e2e8f0" }}
+            />
+          </button>
         );
       })}
     </div>
   );
 }
 
-function CardActions({
-  productId,
-  isInWishlist,
-  isSubmitting,
-  inStock,
-  activeVariant,
-  onWishlist,
-  onAddToCart,
-  onViewProduct,
-}) {
-  return (
-    <div className="pointer-events-auto absolute right-1 top-1 z-20 flex flex-col gap-1 sm:gap-2 opacity-100 transition-all duration-300 ease-out sm:right-3 sm:top-3 lg:pointer-events-none lg:translate-y-2 lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:translate-y-0 lg:group-hover:opacity-100 lg:group-focus-within:pointer-events-auto lg:group-focus-within:translate-y-0 lg:group-focus-within:opacity-100">
-      <button
-        onClick={onViewProduct}
-        className="hidden sm:inline-flex enterprise-icon-button touch-target-sm h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:scale-110 hover:shadow-xl active:scale-95 disabled:opacity-60"
-        title="View product"
-        aria-label="View product"
-        type="button"
-      >
-        <Eye size={18} strokeWidth={1.8} className="text-slate-900" />
-      </button>
-      <button
-        onClick={onWishlist}
-        disabled={isSubmitting}
-        className="touch-target-sm h-5 w-5 sm:h-9 sm:w-9 flex items-center justify-center rounded-full p-0 sm:p-0 bg-transparent sm:bg-white/90 transition-all hover:scale-105 active:scale-95 disabled:opacity-60"
-        title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
-        aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
-        type="button"
-      >
-        <Heart
-          size={12}
-          strokeWidth={1}
-          className={`transition-all duration-300 ${
-            isInWishlist ? "fill-red-500 text-red-500" : "text-slate-700 hover:text-slate-900"
-          }`}
-        />
-      </button>
-      <button
-        onClick={onAddToCart}
-        disabled={isSubmitting || !productId || !inStock}
-        className="touch-target-sm h-5 w-5 sm:h-9 sm:w-9 flex items-center justify-center rounded-full p-0 sm:p-0 bg-transparent sm:bg-white/90 transition-all hover:scale-105 active:scale-95 disabled:opacity-60"
-        style={{ border: "none", boxShadow: "none", outline: "none", borderWidth: 0 }}
-        title={inStock ? `Add ${activeVariant?.title || "item"} to cart` : "Out of stock"}
-        aria-label={inStock ? `Add ${activeVariant?.title || "item"} to cart` : "Out of stock"}
-        type="button"
-      >
-        <ShoppingCart size={12} strokeWidth={1.2} className="text-brand-primary" />
-      </button>
-    </div>
-  );
-}
-
-function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[4/5]", onProductClick }) {
+function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[5/6]", onProductClick }) {
   const navigate = useNavigate();
   const { addItem: addCartItem } = useCart();
   const { openDrawer, showToast } = useCartDrawer();
@@ -223,17 +172,6 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
 
   const styleKey = String(cardStyle || "DEFAULT").toUpperCase();
   const isEditorial = styleKey === "EDITORIAL";
-  const cardStyleClass =
-    {
-      DEFAULT:
-        "border border-brand-border bg-brand-surface shadow-brandSm hover:shadow-brandMd hover:border-brand-primary",
-      ELEVATED: "border border-brand-border bg-brand-surface shadow-brandLg hover:shadow-brandMd",
-      MINIMAL: "border border-brand-border bg-brand-surface shadow-none hover:shadow-brandSm",
-      EDITORIAL:
-        "border border-brand-secondary bg-brand-secondary text-white shadow-brandLg ring-1 ring-black/10",
-    }[styleKey] ||
-    "border border-brand-border bg-brand-surface shadow-brandSm hover:shadow-brandMd transition-all duration-300 hover:border-brand-primary";
-
   const brandName = getProductBrand(product);
   const displayPrice = pricing.hasDiscount ? pricing.salePrice : pricing.price;
   const imageKey = `${activeVariant?.variantId || "default"}-${imageUrl}`;
@@ -245,9 +183,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
   };
 
   return (
-    <Motion.article
-      whileHover={{ y: -8 }}
-      transition={{ type: "spring", stiffness: 280, damping: 24 }}
+    <article
       onMouseEnter={() => setIsCardHovered(true)}
       onMouseLeave={() => setIsCardHovered(false)}
       onClick={goToProduct}
@@ -259,11 +195,12 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
       }}
       role="link"
       tabIndex={0}
-      className={`enterprise-card group relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-brandLg p-3 transition-all duration-300 ease-out hover-lift-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 sm:p-4 lg:hover:-translate-y-1 lg:hover:scale-[1.01] ${cardStyleClass}`}
+      className={`group relative mx-auto flex h-full w-full max-w-[300px] min-w-0 cursor-pointer flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ef4444] focus-visible:ring-offset-2 ${
+        isEditorial ? "bg-slate-950 text-white" : ""
+      }`}
     >
-      <div
-        className={`relative w-full ${imageAspectClass} flex-shrink-0 overflow-hidden rounded-brandMd bg-gradient-to-br from-brand-surfaceSecondary to-white`}
-      >
+      {/* Tall portrait image — fills card width like reference */}
+      <div className={`relative w-full ${imageAspectClass} flex-shrink-0 overflow-hidden bg-[#ececec]`}>
         {imageUrl ? (
           canSwapOnHover ? (
             <>
@@ -291,8 +228,8 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
               key={imageKey}
               src={imageUrl}
               alt={product?.name || "Product image"}
-              className={`h-full w-full object-cover object-center transition-transform duration-300 ease-out ${
-                isCardHovered ? "scale-105" : "scale-100"
+              className={`h-full w-full object-cover object-center transition-transform duration-500 ease-out ${
+                isCardHovered ? "scale-[1.03]" : "scale-100"
               }`}
               loading="lazy"
             />
@@ -301,112 +238,89 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
           <div className="flex h-full items-center justify-center text-sm text-slate-400">Image coming soon</div>
         )}
 
-        <div
-          className={`absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent transition duration-300 ${
-            isCardHovered ? "opacity-100" : "opacity-0"
-          }`}
-        />
-
         {pricing.discountPercent > 0 ? (
-          <div className="absolute left-3 top-3 z-20 rounded-full bg-brand-primary px-3 py-1.5 shadow-lg">
-            <div className="text-xs font-bold leading-none text-white">{pricing.discountPercent}% OFF</div>
+          <div className="absolute left-3 top-3 z-20 rounded-full bg-[#ef4444] px-2.5 py-[5px]">
+            <span className="text-[11px] font-semibold leading-none text-white">
+              {pricing.discountPercent}% Off
+            </span>
           </div>
         ) : null}
 
-        <CardActions
-          productId={productId}
-          isInWishlist={isInWishlist}
-          isSubmitting={isSubmitting}
-          inStock={inStock}
-          activeVariant={activeVariant}
-          onWishlist={handleWishlist}
-          onAddToCart={handleAddToCart}
-          onViewProduct={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            goToProduct();
-          }}
-        />
+        <div className="absolute right-3 top-3 z-20 flex flex-col gap-2 opacity-100 transition-opacity duration-200 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
+          <button
+            type="button"
+            onClick={handleWishlist}
+            disabled={isSubmitting}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-800 shadow-md transition hover:scale-105 active:scale-95 disabled:opacity-60"
+            title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+            aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <Heart
+              size={15}
+              strokeWidth={1.8}
+              className={isInWishlist ? "fill-red-500 text-red-500" : ""}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={isSubmitting || !productId || !inStock}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-800 shadow-md transition hover:scale-105 active:scale-95 disabled:opacity-60"
+            title={inStock ? `Add ${activeVariant?.title || "item"} to cart` : "Out of stock"}
+            aria-label={inStock ? `Add ${activeVariant?.title || "item"} to cart` : "Out of stock"}
+          >
+            <ShoppingCart size={15} strokeWidth={1.8} />
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-grow flex-col gap-3 pt-4">
+      {/* Centered info — compact like reference */}
+      <div className="flex flex-col items-center px-3 pb-4 pt-3 text-center">
         <p
-          className={
-            isEditorial
-              ? "line-clamp-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300"
-              : "line-clamp-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#777777]"
-          }
+          className={`line-clamp-1 text-[10px] font-medium uppercase tracking-[0.18em] ${
+            isEditorial ? "text-slate-400" : "text-[#A3A3A3]"
+          }`}
         >
           {brandName}
         </p>
 
         <h3
-          className={
-            isEditorial
-              ? "line-clamp-2 text-base font-semibold leading-snug text-white transition group-hover:text-slate-100"
-              : "line-clamp-2 text-base font-semibold leading-snug text-brand-textPrimary transition group-hover:text-brand-primary"
-          }
+          className={`mt-1.5 line-clamp-2 min-h-[2.25rem] text-[14px] font-semibold leading-snug tracking-[-0.01em] sm:text-[15px] ${
+            isEditorial ? "text-white" : "text-[#171717]"
+          }`}
         >
           {product.name}
         </h3>
 
-        <div className="flex-grow" />
-
-        {product?.ratings?.averageRating > 0 ? (
-          <div className="flex items-center gap-1">
-            <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-            <span
-              className={
-                isEditorial
-                  ? "text-xs font-semibold text-slate-100"
-                  : "text-xs font-semibold text-slate-600 dark:text-slate-400"
-              }
-            >
-              {Number(product.ratings.averageRating).toFixed(1)}
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+          <span className={`text-[14px] font-bold ${isEditorial ? "text-white" : "text-[#ef4444]"}`}>
+            {formatCurrency(displayPrice)}
+          </span>
+          {pricing.hasDiscount ? (
+            <span className={`text-[13px] line-through ${isEditorial ? "text-slate-500" : "text-[#A3A3A3]"}`}>
+              {formatCurrency(pricing.price)}
             </span>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
 
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={isEditorial ? "text-base font-bold text-white" : "text-base font-bold text-brand-primary"}>
-              {formatCurrency(displayPrice)}
-            </span>
-            {pricing.hasDiscount ? (
-              <span className={isEditorial ? "text-xs text-slate-400 line-through" : "text-sm text-[#999999] line-through"}>
-                {formatCurrency(pricing.price)}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex items-center justify-between gap-3">
+        {swatchOptions?.length ? (
+          <div className="mt-3">
             <VariantColorSwatches
               options={swatchOptions}
               selectedValue={selectedSwatchValue}
               groupName={swatchGroup?.name}
               onSelect={selectSwatchValue}
-              isEditorial={isEditorial}
             />
-            <div
-              className={`text-xs font-semibold ${
-                inStock
-                  ? isEditorial
-                    ? "text-emerald-300"
-                    : "text-green-600 dark:text-green-400"
-                  : isEditorial
-                    ? "text-rose-300"
-                    : "text-red-600 dark:text-red-400"
-              }`}
-            >
-              {inStock ? "In stock" : "Out of stock"}
-            </div>
           </div>
-        </div>
+        ) : (
+          <div className="mt-3 h-[22px]" aria-hidden="true" />
+        )}
       </div>
-    </Motion.article>
+    </article>
   );
 }
 
-export function PremiumProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[4/5]", onProductClick }) {
+export function PremiumProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[5/6]", onProductClick }) {
   return (
     <ProductCardInner
       product={product}
