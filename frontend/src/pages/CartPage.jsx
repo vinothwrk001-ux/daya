@@ -110,14 +110,15 @@ export function CartPage() {
 
   return (
     <div className="grid gap-4 sm:gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-3">
+        <div className="sm:col-start-2 sm:justify-self-center sm:text-center">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Cart</h1>
           <p className="mt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300">Review your items before checkout</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 sm:col-start-1 sm:justify-self-start">
           <BackButton fallbackTo="/shop" />
         </div>
+        <div className="hidden sm:block" />
       </div>
 
       {error ? (

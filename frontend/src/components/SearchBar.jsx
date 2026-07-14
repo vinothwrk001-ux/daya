@@ -55,7 +55,7 @@ export function SearchBar({ className = "" }) {
   }, []);
 
   return (
-    <div ref={searchRef} className={`group relative mx-auto w-full max-w-4xl ${className}`.trim()}>
+    <div ref={searchRef} className={`group relative ml-auto w-full max-w-[500px] ${className}`.trim()}>
       <div className="relative flex items-center">
         <input
           type="text"

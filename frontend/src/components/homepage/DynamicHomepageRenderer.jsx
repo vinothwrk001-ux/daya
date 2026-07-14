@@ -8,7 +8,8 @@ import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { trackHomepageContainerEvent } from "../../services/homepageContainerService";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { HeroBannerCategoryZone } from "./CategoryHeroBanner";
-import { HomepageBannerSlider, useHomepageBanners } from "./HomepageBannerSlider";
+import { HomepageBannerSlider } from "./HomepageBannerSlider";
+import { useHomepageBanners } from "./useHomepageBanners";
 
 const DEFAULT_CANVAS_WIDTH = {
   desktop: 1440,
@@ -1933,15 +1934,15 @@ function resolveMasonryColumns(config = {}) {
 function resolveMasonryImagePattern(cardHeights, imagePattern) {
   const pattern = String(imagePattern || cardHeights || "MIXED").toUpperCase();
   if (pattern === "AUTO" || pattern === "BALANCED") {
-    return ["aspect-[4/5]", "aspect-[1/1]", "aspect-[4/5]", "aspect-[1/1]"];
+    return ["aspect-square", "aspect-square", "aspect-square", "aspect-square"];
   }
   if (pattern === "TALL") {
-    return ["aspect-[3/4]", "aspect-[2/3]", "aspect-[4/5]", "aspect-[2/3]"];
+    return ["aspect-square", "aspect-square", "aspect-square", "aspect-square"];
   }
   if (pattern === "WIDE") {
-    return ["aspect-[4/3]", "aspect-[1/1]", "aspect-[3/2]", "aspect-[4/5]"];
+    return ["aspect-square", "aspect-square", "aspect-square", "aspect-square"];
   }
-  return ["aspect-[4/5]", "aspect-[1/1]", "aspect-[3/4]", "aspect-[4/3]", "aspect-[2/3]"];
+  return ["aspect-square", "aspect-square", "aspect-square", "aspect-square"];
 }
 
 function resolveCategoryShowcaseItems(config = {}) {

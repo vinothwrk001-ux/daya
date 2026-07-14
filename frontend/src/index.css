@@ -6,6 +6,7 @@
 
 html {
   scroll-behavior: auto;
+  font-size: clamp(15px, 1.04vw, 18px);
 }
 
 html,
@@ -15,9 +16,10 @@ body {
 
 body {
   font-family: var(--font-body, "Manrope", sans-serif);
-  @apply antialiased;
+  @apply antialiased text-base;
   background: var(--color-background);
   color: var(--color-text-primary);
+  font-size: 1rem;
 }
 
 :root {

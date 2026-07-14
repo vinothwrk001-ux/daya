@@ -76,7 +76,7 @@ function VariantColorSwatches({ options, selectedValue, groupName, onSelect }) {
   );
 }
 
-function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[5/6]", onProductClick }) {
+function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-square", onProductClick }) {
   const navigate = useNavigate();
   const { addItem: addCartItem } = useCart();
   const { openDrawer, showToast } = useCartDrawer();
@@ -239,7 +239,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
         )}
 
         {pricing.discountPercent > 0 ? (
-          <div className="absolute left-3 top-3 z-20 rounded-full bg-[#ef4444] px-2.5 py-[5px]">
+          <div className="absolute left-3 top-3 z-20 inline-flex items-center rounded-full bg-[#ef4444] px-2.5 py-[5px] shadow-sm">
             <span className="text-[11px] font-semibold leading-none text-white">
               {pricing.discountPercent}% Off
             </span>
@@ -275,9 +275,9 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
       </div>
 
       {/* Centered info — compact like reference */}
-      <div className="flex flex-col items-center px-3 pb-4 pt-3 text-center">
+      <div className="flex flex-col items-center px-6 pb-6 pt-4 text-center">
         <p
-          className={`line-clamp-1 text-[10px] font-medium uppercase tracking-[0.18em] ${
+          className={`line-clamp-1 text-[13px] font-medium uppercase tracking-[0.18em] ${
             isEditorial ? "text-slate-400" : "text-[#A3A3A3]"
           }`}
         >
@@ -285,7 +285,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
         </p>
 
         <h3
-          className={`mt-1.5 line-clamp-2 min-h-[2.25rem] text-[14px] font-semibold leading-snug tracking-[-0.01em] sm:text-[15px] ${
+          className={`mt-2 line-clamp-2 min-h-[2.25rem] text-[17px] font-semibold leading-snug tracking-[-0.01em] ${
             isEditorial ? "text-white" : "text-[#171717]"
           }`}
         >
@@ -293,18 +293,18 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
         </h3>
 
         <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
-          <span className={`text-[14px] font-bold ${isEditorial ? "text-white" : "text-[#ef4444]"}`}>
+          <span className={`text-[17px] font-bold ${isEditorial ? "text-white" : "text-[#ef4444]"}`}>
             {formatCurrency(displayPrice)}
           </span>
           {pricing.hasDiscount ? (
-            <span className={`text-[13px] line-through ${isEditorial ? "text-slate-500" : "text-[#A3A3A3]"}`}>
+            <span className={`text-[16px] line-through ${isEditorial ? "text-slate-500" : "text-[#A3A3A3]"}`}>
               {formatCurrency(pricing.price)}
             </span>
           ) : null}
         </div>
 
         {swatchOptions?.length ? (
-          <div className="mt-3">
+          <div className="mt-auto pt-3">
             <VariantColorSwatches
               options={swatchOptions}
               selectedValue={selectedSwatchValue}
@@ -313,14 +313,14 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
             />
           </div>
         ) : (
-          <div className="mt-3 h-[22px]" aria-hidden="true" />
+          <div className="mt-auto h-[22px] pt-3" aria-hidden="true" />
         )}
       </div>
     </article>
   );
 }
 
-export function PremiumProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[5/6]", onProductClick }) {
+export function PremiumProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-square", onProductClick }) {
   return (
     <ProductCardInner
       product={product}

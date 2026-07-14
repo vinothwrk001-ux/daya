@@ -37,12 +37,12 @@ export default {
         prose: "65ch",
       },
       fontSize: {
-        "fluid-sm": ["clamp(0.8125rem, 0.78rem + 0.18vw, 0.875rem)", { lineHeight: "1.5" }],
-        "fluid-base": ["clamp(0.9375rem, 0.88rem + 0.28vw, 1rem)", { lineHeight: "1.6" }],
-        "fluid-lg": ["clamp(1.0625rem, 0.98rem + 0.42vw, 1.125rem)", { lineHeight: "1.5" }],
-        "fluid-xl": ["clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem)", { lineHeight: "1.35" }],
-        "fluid-2xl": ["clamp(1.5rem, 1.25rem + 1.25vw, 2rem)", { lineHeight: "1.25" }],
-        "fluid-3xl": ["clamp(1.875rem, 1.5rem + 1.875vw, 2.5rem)", { lineHeight: "1.15" }],
+        "fluid-sm": ["clamp(0.9375rem, 0.88rem + 0.28vw, 1rem)", { lineHeight: "1.5" }],
+        "fluid-base": ["clamp(1rem, 0.92rem + 0.4vw, 1.125rem)", { lineHeight: "1.6" }],
+        "fluid-lg": ["clamp(1.125rem, 1.02rem + 0.52vw, 1.25rem)", { lineHeight: "1.5" }],
+        "fluid-xl": ["clamp(1.375rem, 1.2rem + 0.87vw, 1.75rem)", { lineHeight: "1.35" }],
+        "fluid-2xl": ["clamp(1.75rem, 1.45rem + 1.5vw, 2.25rem)", { lineHeight: "1.25" }],
+        "fluid-3xl": ["clamp(2.125rem, 1.75rem + 1.875vw, 2.75rem)", { lineHeight: "1.15" }],
       },
       boxShadow: {
         brandSm: "var(--shadow-small)",

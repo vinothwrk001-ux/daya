@@ -531,9 +531,14 @@ export function ProductDetailsPage() {
   if (error && !product) {
     return (
       <div className="min-h-[calc(100dvh-10rem)] space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Product</h1>
-          <BackButton fallbackTo="/shop" />
+        <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-3">
+          <div className="sm:col-start-2 sm:justify-self-center sm:text-center">
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Product</h1>
+          </div>
+          <div className="sm:justify-self-start">
+            <BackButton fallbackTo="/shop" />
+          </div>
+          <div className="hidden sm:block" />
         </div>
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>
         <div className="flex flex-wrap gap-3">
@@ -554,8 +559,8 @@ export function ProductDetailsPage() {
 
   return (
     <div className="space-y-8 overflow-x-safe pb-24 lg:pb-0">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-3">
+        <div className="min-w-0 sm:col-start-2 sm:justify-self-center sm:text-center">
           <div className="text-xs font-medium uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
             Home / Shop / <span className="text-slate-700 dark:text-slate-200">{product.category}</span>
           </div>
@@ -567,7 +572,10 @@ export function ProductDetailsPage() {
             ) : null}
           </div>
         </div>
-        <BackButton fallbackTo="/shop" />
+        <div className="sm:col-start-1 sm:justify-self-start">
+          <BackButton fallbackTo="/shop" />
+        </div>
+        <div className="hidden sm:block" />
       </div>
 
       {reelIdFromQuery ? (
@@ -636,27 +644,27 @@ export function ProductDetailsPage() {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">{product.category}</span>
+                    <span className="rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold uppercase tracking-wide text-slate-700">{product.category}</span>
                     {stock > 0 ? (
-                      <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">In stock</span>
+                      <span className="rounded-full bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">In stock</span>
                     ) : (
-                      <span className="rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white">Out of stock</span>
+                      <span className="rounded-full bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white">Out of stock</span>
                     )}
                   </div>
 
                   <div className="mt-4 space-y-2">
                     <div className="flex flex-wrap items-end gap-3">
-                      <div className="text-4xl font-black tracking-tight text-slate-950 dark:text-white">{formatCurrency(pricing.salePrice)}</div>
-                      {pricing.hasDiscount ? <div className="pb-1 text-lg text-slate-500 line-through dark:text-slate-400">{formatCurrency(pricing.price)}</div> : null}
+                      <div className="text-5xl font-black tracking-tight text-slate-950 dark:text-white">{formatCurrency(pricing.salePrice)}</div>
+                      {pricing.hasDiscount ? <div className="pb-1 text-xl text-slate-500 line-through dark:text-slate-400">{formatCurrency(pricing.price)}</div> : null}
                     </div>
-                    {pricing.hasDiscount ? <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">You save {formatCurrency(pricing.amountSaved)}</div> : null}
+                    {pricing.hasDiscount ? <div className="text-base font-semibold text-emerald-700 dark:text-emerald-300">You save {formatCurrency(pricing.amountSaved)}</div> : null}
                   </div>
                 </div>
 
                 {pricing.hasDiscount ? (
                   <div className="shrink-0 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2 text-center shadow-lg shadow-orange-500/30">
-                    <div className="text-lg font-black text-white">{pricing.discountPercent}%</div>
-                    <div className="text-xs font-semibold text-white">OFF</div>
+                    <div className="text-2xl font-black text-white">{pricing.discountPercent}%</div>
+                    <div className="text-sm font-semibold text-white">OFF</div>
                   </div>
                 ) : null}
               </div>

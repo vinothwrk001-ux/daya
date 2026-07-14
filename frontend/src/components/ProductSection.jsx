@@ -204,12 +204,12 @@ function ProductCard({ product }) {
       {/* Product Info Section */}
       <div className="flex flex-col flex-grow p-3 sm:p-4 gap-2">
         {/* Product Name */}
-        <h3 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-100 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
+        <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
           {product.name}
         </h3>
 
         {/* Category */}
-        <p className="text-xs text-slate-500 dark:text-slate-400">{product.category}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{product.category}</p>
 
         {/* Spacer */}
         <div className="flex-grow" />
@@ -217,8 +217,8 @@ function ProductCard({ product }) {
         {/* Rating */}
         {product.ratings?.averageRating > 0 && (
           <div className="flex items-center gap-1">
-            <span className="text-xs font-semibold text-yellow-500">⭐</span>
-            <span className="text-xs text-slate-600 dark:text-slate-400">
+            <span className="text-sm font-semibold text-yellow-500">⭐</span>
+            <span className="text-sm text-slate-600 dark:text-slate-400">
               {product.ratings.averageRating.toFixed(1)}
             </span>
           </div>
@@ -226,7 +226,7 @@ function ProductCard({ product }) {
 
         {/* Price */}
         <div className="flex items-center gap-2">
-          <span className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">
+          <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
             {formatCurrency(product.discountPrice || product.price)}
           </span>
           {product.discountPrice && (

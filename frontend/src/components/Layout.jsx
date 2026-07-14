@@ -96,7 +96,7 @@ export function Layout() {
         <header className="enterprise-header sticky top-0 z-30 backdrop-blur-xl">
           <div className="w-full px-3 py-3 sm:px-4 lg:px-8">
             <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
+              <div className="flex flex-wrap items-center justify-center gap-3 lg:flex-wrap">
                 <Link
                   to="/"
                   className={`inline-flex min-w-fit shrink-0 items-center transition hover:opacity-90 ${
@@ -110,13 +110,13 @@ export function Layout() {
                   />
                 </Link>
 
-                <div className="order-3 w-full lg:order-none lg:flex-1">
-                  <div className="group mx-auto w-full max-w-5xl transition-all duration-300 focus-within:max-w-6xl">
+                <div className="order-3 flex w-full justify-end lg:order-none lg:flex-1">
+                  <div className="group ml-auto w-full max-w-[500px] transition-all duration-300 focus-within:max-w-[560px]">
                     <SearchBar />
                   </div>
                 </div>
 
-                <nav className="enterprise-nav-pill hidden items-center gap-1 rounded-full p-1 backdrop-blur lg:flex">
+                <nav className="enterprise-nav-pill hidden w-full items-center justify-center gap-1 rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur lg:order-last lg:mt-2 lg:flex">
                   {navItems.map((item) => {
                     const isActive =
                       location.pathname === item.href ||
@@ -152,29 +152,15 @@ export function Layout() {
                     <Menu className="h-5 w-5" />
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsDarkMode(!isDarkMode)}
-                    className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
-                    aria-label={isDarkMode ? "Enable light mode" : "Enable dark mode"}
-                  >
-                    {isDarkMode ? <SunMedium className="h-4.5 w-4.5" /> : <MoonStar className="h-4.5 w-4.5" />}
-                  </button>
-
                   <div className="hidden shrink-0 xl:block xl:max-w-[280px] xl:min-w-[200px]">
-                    <div className="enterprise-nav-pill rounded-full p-1 backdrop-blur">
-                      <LocationSelector />
-                    </div>
+                    <LocationSelector />
                   </div>
 
+                  {showShopActions ? <HeaderShopActions /> : null}
                   {authReady && user ? (
-                    <>
-                      <HeaderShopActions />
-                      <UserMenu />
-                    </>
+                    <UserMenu />
                   ) : authReady ? (
                     <>
-                      <HeaderShopActions />
                       <Link
                         className="hidden rounded-full px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-brand-primary sm:inline-flex"
                         to="/login"
@@ -196,9 +182,7 @@ export function Layout() {
               </div>
 
               <div className="flex items-center justify-between gap-3 xl:hidden">
-                <div className="enterprise-nav-pill min-w-0 flex-1 rounded-full p-1 backdrop-blur">
-                  <LocationSelector />
-                </div>
+                <LocationSelector />
                 {user ? (
                   <Link
                     to={showShopActions ? "/wishlist" : "/profile"}

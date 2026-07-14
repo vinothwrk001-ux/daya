@@ -120,18 +120,17 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
   
   const titleWithEmoji = `${card.title} ${getEmojiForTitle(card.title)}`.trim();
   
-  const containerClasses = "banner-category-card group flex w-full aspect-[3/4] flex-col overflow-hidden rounded-[2rem] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
+  const containerClasses = "banner-category-card group relative flex w-full aspect-[3/4] overflow-hidden rounded-[2rem] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
 
-  const imageWrapperClasses = "relative flex-1 overflow-hidden bg-black flex items-center justify-center" + 
+  const imageWrapperClasses = "absolute inset-x-0 top-0 bottom-14 flex items-center justify-center overflow-hidden bg-black" + 
     " bg-[repeating-linear-gradient(45deg,#111_0,#111_2px,transparent_2px,transparent_10px)]";
 
   const imageClasses = "h-full w-full object-contain";
 
-  const cardBodyClasses = "flex-none w-full pb-6 pt-2 flex flex-col items-center justify-center bg-black" +
-    " bg-[repeating-linear-gradient(45deg,#111_0,#111_2px,transparent_2px,transparent_10px)]";
+  const cardBodyClasses = "pointer-events-none absolute inset-x-0 bottom-5 z-10 flex flex-col items-center justify-end";
 
   // Container for the pill badge and secondary info - ensures perfect centering
-  const titleSectionClasses = "flex flex-col gap-0 text-center items-center justify-center w-full";
+  const titleSectionClasses = "flex flex-col items-center justify-center gap-0 text-center w-full";
 
   const countClasses = "text-xs text-zinc-400 hidden"; // Consistently hidden
 
@@ -160,8 +159,8 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
       </div>
       <div className={cardBodyClasses}>
         <div className={titleSectionClasses}>
-          <div className="bg-white rounded-full px-3 py-1 shadow-lg w-fit max-w-[90%] flex justify-center items-center">
-            <p className="text-xs font-bold text-black whitespace-nowrap overflow-hidden text-ellipsis">{titleWithEmoji}</p>
+          <div className="flex w-fit max-w-[90%] items-center justify-center rounded-full bg-white px-3 py-1.5 shadow-lg">
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-bold text-black sm:text-base">{titleWithEmoji}</p>
           </div>
           {card.showProductCount !== false && card.productCount != null ? (
             <p className={countClasses}>{card.productCount} products</p>
@@ -431,13 +430,13 @@ export function HomepageBannerSlider({
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35 }}
-                  className="min-h-[10rem] flex flex-col items-start justify-center gap-4 text-left transition-opacity duration-300 md:items-start md:text-left"
+                  className="min-h-[10rem] flex flex-col items-center justify-center gap-4 text-center transition-opacity duration-300"
                 >
-                  <div className="flex flex-col items-start text-left gap-4">
-                    <div className="inline-flex items-center justify-center px-4 py-2 border border-red-500 rounded-full bg-transparent">
-                      <span className="text-sm font-bold text-red-500 uppercase tracking-wider">Categories</span>
+                  <div className="flex flex-col items-center gap-4 text-center">
+                    <div className="inline-flex items-center justify-center rounded-full border border-red-500 bg-transparent px-4 py-2">
+                      <span className="text-sm font-bold uppercase tracking-wider text-red-500">Categories</span>
                     </div>
-                    <p className="text-3xl md:text-4xl font-semibold text-black leading-tight max-w-lg">
+                    <p className="mx-auto max-w-[42rem] text-xl font-semibold leading-tight text-black sm:text-2xl md:text-[1.6rem]">
                       Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear.
                     </p>
                   </div>

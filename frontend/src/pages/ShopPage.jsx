@@ -412,13 +412,13 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
       {/* Product Info Section */}
       <div className="flex flex-col flex-grow p-3 sm:p-3.5 gap-2">
         {/* Product Name */}
-        <h3 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200 leading-tight">
+        <h3 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200 leading-tight">
           {product.name}
         </h3>
 
         {/* Category/Brand */}
         {product.category && (
-          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide line-clamp-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wide line-clamp-1">
             {product.category}
           </p>
         )}
@@ -429,11 +429,11 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
         {/* Pricing Section */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+            <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
               {formatCurrency(finalPrice)}
             </span>
             {product.discountedPrice && (
-              <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-through">
+              <span className="text-sm sm:text-base text-slate-500 dark:text-slate-400 line-through">
                 {formatCurrency(product.price)}
               </span>
             )}
@@ -442,8 +442,8 @@ function ProductCard({ product, isInWishlist, onToggleWishlist }) {
           {/* Rating */}
           {product.ratings?.averageRating ? (
             <div className="flex items-center gap-1">
-              <span className="text-xs font-semibold text-yellow-500">⭐</span>
-              <span className="text-xs text-slate-600 dark:text-slate-400">
+              <span className="text-sm font-semibold text-yellow-500">⭐</span>
+              <span className="text-sm text-slate-600 dark:text-slate-400">
                 {product.ratings.averageRating.toFixed(1)}
               </span>
             </div>
