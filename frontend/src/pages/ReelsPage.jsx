@@ -110,11 +110,11 @@ export function ReelsPage() {
 
   return (
     <ReelsErrorBoundary>
-      <div className="fixed inset-0 z-40 bg-black">
+      <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm">
         <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-3">
           <Link
             to="/"
-            className="pointer-events-auto hidden items-center gap-1 rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md md:inline-flex"
+            className="pointer-events-auto hidden items-center gap-1 rounded-full bg-black/30 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md md:inline-flex"
           >
             <ChevronLeft className="h-4 w-4" />
             Back
@@ -126,7 +126,7 @@ export function ReelsPage() {
                 type="button"
                 onClick={() => navigate(`/reels?sort=${key}${focusReelId ? `&reel=${focusReelId}` : ""}`)}
                 className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                  sort === key ? "bg-red-600 text-white" : "bg-black/50 text-zinc-300 backdrop-blur-md"
+                  sort === key ? "bg-red-600 text-white" : "bg-black/30 text-zinc-300 backdrop-blur-md"
                 }`}
               >
                 {key}

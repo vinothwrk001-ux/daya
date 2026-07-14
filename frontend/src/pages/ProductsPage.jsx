@@ -1,7 +1,7 @@
 import { logger } from "../services/logger/logger.js";
 import { useEffect, useMemo, useState, memo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronDown, Heart, ShoppingCart } from "lucide-react";
+import { Heart, ShoppingCart, X } from "lucide-react";
 import { BackButton } from "../components/BackButton";
 import { ProductCard as PremiumProductCard } from "../components/ProductCard";
 import { useCategories } from "../hooks/useCategories";
@@ -284,230 +284,179 @@ export function ProductsPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:gap-4 lg:grid-cols-6">
-        <div className="hidden lg:block lg:col-span-1">
-          <div className="sticky top-4">
-            <FilterSidebar
-            categories={categories}
-            category={category}
-            categoryId={categoryId}
-            subCategoryId={subCategoryId}
-            subcategories={subcategories}
-            search={search}
-            minPrice={minPrice}
-            maxPrice={maxPrice}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            filterDefs={filterDefs}
-            facetMap={facetMap}
-            searchParams={searchParams}
-            onCategoryChange={(nextCategoryId) =>
-              updateParams((next) => {
-                const selectedCategory = categories.find((item) => item._id === nextCategoryId);
-                if (selectedCategory) {
-                  next.set("categoryId", selectedCategory._id);
-                  next.set("category", selectedCategory.name);
-                } else {
-                  next.delete("categoryId");
-                  next.delete("category");
-                }
-                next.delete("subCategoryId");
-                clearDynamicFilters(next);
-                next.set("page", "1");
-              })
-            }
-            onSubcategoryChange={(nextSubCategoryId) =>
-              updateParams((next) => {
-                if (nextSubCategoryId) next.set("subCategoryId", nextSubCategoryId);
-                else next.delete("subCategoryId");
-                clearDynamicFilters(next);
-                next.set("page", "1");
-              })
-            }
-            onSearchChange={(value) =>
-              updateParams((next) => {
-                if (value) next.set("search", value);
-                else next.delete("search");
-                next.set("page", "1");
-              })
-            }
-            onPriceChange={(nextMin, nextMax) =>
-              updateParams((next) => {
-                if (nextMin !== "" && nextMin !== null && nextMin !== undefined) next.set("minPrice", String(nextMin));
-                else next.delete("minPrice");
-                if (nextMax !== "" && nextMax !== null && nextMax !== undefined) next.set("maxPrice", String(nextMax));
-                else next.delete("maxPrice");
-                next.set("page", "1");
-              })
-            }
-            onSortChange={(nextSortBy) =>
-              updateParams((next) => {
-                next.set("sortBy", nextSortBy);
-                next.set("sortOrder", nextSortBy === "createdAt" ? "desc" : "asc");
-                next.set("page", "1");
-              })
-            }
-            onFilterChange={(filterKey, value, type) =>
-              updateParams((next) => {
-                if (type === "checkbox") {
-                  if (Array.isArray(value) && value.length) next.set(filterKey, value.join(","));
-                  else next.delete(filterKey);
-                } else if (type === "range") {
-                  const { minKey, maxKey } = toRangeKeys(filterKey);
-                  if (value?.min !== "" && value?.min !== undefined) next.set(minKey, String(value.min));
-                  else next.delete(minKey);
-                  if (value?.max !== "" && value?.max !== undefined) next.set(maxKey, String(value.max));
-                  else next.delete(maxKey);
-                } else {
-                  if (value) next.set(filterKey, value);
-                  else next.delete(filterKey);
-                }
-                next.set("page", "1");
-              })
-            }
-          />
-        </div>
+      <div className="space-y-4">
+        <div className="sticky top-20 z-20 w-full rounded-2xl bg-white/95 p-3 shadow-sm backdrop-blur dark:bg-slate-900 sm:flex sm:items-center sm:justify-start sm:gap-3 sm:px-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={sortBy}
+              onChange={(event) =>
+                updateParams((next) => {
+                  next.set("sortBy", event.target.value);
+                  next.set("sortOrder", event.target.value === "createdAt" ? "desc" : "asc");
+                  next.set("page", "1");
+                })
+              }
+              className="rounded-full bg-slate-100/50 px-3 py-2 text-xs font-medium text-black outline-none transition hover:text-rose-600 hover:underline focus:outline-none focus:ring-0 dark:bg-slate-700/50 dark:text-white dark:hover:text-rose-400 sm:text-sm"
+            >
+              <option value="createdAt">Best Selling</option>
+              <option value="price">Price (Low to High)</option>
+              <option value="ratings.averageRating">Highest Rated</option>
+              <option value="name">Name (A-Z)</option>
+            </select>
 
-        <div className="lg:hidden">
-          <button
-            onClick={() => setShowFilters((prev) => !prev)}
-            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800 sm:text-sm"
-          >
-            {showFilters ? "Hide Filters" : "Show Filters"}
-          </button>
-          {showFilters ? (
-            <div className="mt-3">
-              <FilterSidebar
-                categories={categories}
-                category={category}
-                categoryId={categoryId}
-                subCategoryId={subCategoryId}
-                subcategories={subcategories}
-                search={search}
-                minPrice={minPrice}
-                maxPrice={maxPrice}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                filterDefs={filterDefs}
-                facetMap={facetMap}
-                searchParams={searchParams}
-                onCategoryChange={(value) =>
-                  updateParams((next) => {
-                    const selectedCategory = categories.find((item) => item._id === value);
-                    if (selectedCategory) {
-                      next.set("categoryId", selectedCategory._id);
-                      next.set("category", selectedCategory.name);
-                    } else {
-                      next.delete("categoryId");
-                      next.delete("category");
-                    }
-                    next.delete("subCategoryId");
-                    clearDynamicFilters(next);
-                    next.set("page", "1");
-                  })
-                }
-                onSubcategoryChange={(value) =>
-                  updateParams((next) => {
-                    if (value) next.set("subCategoryId", value);
-                    else next.delete("subCategoryId");
-                    clearDynamicFilters(next);
-                    next.set("page", "1");
-                  })
-                }
-                onSearchChange={(value) =>
-                  updateParams((next) => {
-                    if (value) next.set("search", value);
-                    else next.delete("search");
-                    next.set("page", "1");
-                  })
-                }
-                onPriceChange={(nextMin, nextMax) =>
-                  updateParams((next) => {
-                    if (nextMin !== "" && nextMin !== null && nextMin !== undefined) next.set("minPrice", String(nextMin));
-                    else next.delete("minPrice");
-                    if (nextMax !== "" && nextMax !== null && nextMax !== undefined) next.set("maxPrice", String(nextMax));
-                    else next.delete("maxPrice");
-                    next.set("page", "1");
-                  })
-                }
-                onSortChange={(nextSortBy) =>
-                  updateParams((next) => {
-                    next.set("sortBy", nextSortBy);
-                    next.set("sortOrder", nextSortBy === "createdAt" ? "desc" : "asc");
-                    next.set("page", "1");
-                  })
-                }
-                onFilterChange={(filterKey, value, type) =>
-                  updateParams((next) => {
-                    if (type === "checkbox") {
-                      if (Array.isArray(value) && value.length) next.set(filterKey, value.join(","));
-                      else next.delete(filterKey);
-                    } else if (type === "range") {
-                      const { minKey, maxKey } = toRangeKeys(filterKey);
-                      if (value?.min !== "" && value?.min !== undefined) next.set(minKey, String(value.min));
-                      else next.delete(minKey);
-                      if (value?.max !== "" && value?.max !== undefined) next.set(maxKey, String(value.max));
-                      else next.delete(maxKey);
-                    } else {
-                      if (value) next.set(filterKey, value);
-                      else next.delete(filterKey);
-                    }
-                    next.set("page", "1");
-                  })
-                }
-              />
-            </div>
-          ) : null}
+            <button
+              type="button"
+              onClick={() => setShowFilters((prev) => !prev)}
+              aria-expanded={showFilters}
+              className="inline-flex items-center rounded-full bg-slate-100/50 px-4 py-2 text-xs font-semibold text-black transition hover:text-rose-600 hover:underline focus:outline-none focus:ring-0 dark:bg-slate-700/50 dark:text-white dark:hover:text-rose-400 sm:text-sm"
+            >
+              {showFilters ? "Hide Filters" : "Filters"}
+            </button>
           </div>
         </div>
 
-        <div className="lg:col-span-5">
-          {loading && !products.length ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800 sm:p-8">
-              <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">Loading products...</div>
-            </div>
-          ) : products.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800 sm:p-8">
-              <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">No products found. Try adjusting your filters.</div>
-            </div>
-          ) : (
-            <div className="space-y-3 sm:space-y-4">
-              <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
-                Showing {products.length} of {pagination.total} products
-              </div>
-
-              <div className="grid product-grid">
-                {products.map((product) => (
-                  <PremiumProductCard key={product._id} product={product} />
-                ))}
-              </div>
-
-              {pagination.pages > 1 ? (
-                <div className="flex flex-col gap-3 border-t pt-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between sm:pt-6">
-                  <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
-                    Page {page} of {pagination.pages}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => updateParams((next) => next.set("page", String(Math.max(1, page - 1))))}
-                      disabled={page === 1}
-                      className="rounded-lg border border-slate-300 px-3 py-2 text-xs hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800 sm:text-sm"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => updateParams((next) => next.set("page", String(Math.min(pagination.pages, page + 1))))}
-                      disabled={page === pagination.pages}
-                      className="rounded-lg border border-slate-300 px-3 py-2 text-xs hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800 sm:text-sm"
-                    >
-                      Next
-                    </button>
-                  </div>
+        {showFilters ? (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-sm"
+              onClick={() => setShowFilters(false)}
+            />
+            <aside
+              className="fixed left-0 top-0 z-50 flex h-full w-full max-w-[360px] translate-x-0 flex-col border-r border-slate-200 bg-white shadow-2xl transition-transform duration-300 ease-out dark:border-slate-800 dark:bg-slate-900"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-slate-800">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Refine</p>
+                  <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Filters</h2>
                 </div>
-              ) : null}
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(false)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  aria-label="Close filters"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4">
+                <FilterSidebar
+                  categories={categories}
+                  category={category}
+                  categoryId={categoryId}
+                  subCategoryId={subCategoryId}
+                  subcategories={subcategories}
+                  search={search}
+                  minPrice={minPrice}
+                  maxPrice={maxPrice}
+                  filterDefs={filterDefs}
+                  facetMap={facetMap}
+                  searchParams={searchParams}
+                  onCategoryChange={(value) =>
+                    updateParams((next) => {
+                      const selectedCategory = categories.find((item) => item._id === value);
+                      if (selectedCategory) {
+                        next.set("categoryId", selectedCategory._id);
+                        next.set("category", selectedCategory.name);
+                      } else {
+                        next.delete("categoryId");
+                        next.delete("category");
+                      }
+                      next.delete("subCategoryId");
+                      clearDynamicFilters(next);
+                      next.set("page", "1");
+                    })
+                  }
+                  onSubcategoryChange={(value) =>
+                    updateParams((next) => {
+                      if (value) next.set("subCategoryId", value);
+                      else next.delete("subCategoryId");
+                      clearDynamicFilters(next);
+                      next.set("page", "1");
+                    })
+                  }
+                  onSearchChange={(value) =>
+                    updateParams((next) => {
+                      if (value) next.set("search", value);
+                      else next.delete("search");
+                      next.set("page", "1");
+                    })
+                  }
+                  onPriceChange={(nextMin, nextMax) =>
+                    updateParams((next) => {
+                      if (nextMin !== "" && nextMin !== null && nextMin !== undefined) next.set("minPrice", String(nextMin));
+                      else next.delete("minPrice");
+                      if (nextMax !== "" && nextMax !== null && nextMax !== undefined) next.set("maxPrice", String(nextMax));
+                      else next.delete("maxPrice");
+                      next.set("page", "1");
+                    })
+                  }
+                  onFilterChange={(filterKey, value, type) =>
+                    updateParams((next) => {
+                      if (type === "checkbox") {
+                        if (Array.isArray(value) && value.length) next.set(filterKey, value.join(","));
+                        else next.delete(filterKey);
+                      } else if (type === "range") {
+                        const { minKey, maxKey } = toRangeKeys(filterKey);
+                        if (value?.min !== "" && value?.min !== undefined) next.set(minKey, String(value.min));
+                        else next.delete(minKey);
+                        if (value?.max !== "" && value?.max !== undefined) next.set(maxKey, String(value.max));
+                        else next.delete(maxKey);
+                      } else {
+                        if (value) next.set(filterKey, value);
+                        else next.delete(filterKey);
+                      }
+                      next.set("page", "1");
+                    })
+                  }
+                />
+              </div>
+            </aside>
+          </>
+        ) : null}
+
+        {loading && !products.length ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800 sm:p-8">
+            <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">Loading products...</div>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800 sm:p-8">
+            <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">No products found. Try adjusting your filters.</div>
+          </div>
+        ) : (
+          <div className="space-y-3 sm:space-y-4 px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto grid w-full max-w-[1280px] product-grid">
+              {products.map((product) => (
+                <PremiumProductCard key={product._id} product={product} />
+              ))}
             </div>
-          )}
-        </div>
+
+            {pagination.pages > 1 ? (
+              <div className="flex flex-col gap-3 border-t pt-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between sm:pt-6">
+                <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
+                  Page {page} of {pagination.pages}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => updateParams((next) => next.set("page", String(Math.max(1, page - 1))))}
+                    disabled={page === 1}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-xs hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800 sm:text-sm"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => updateParams((next) => next.set("page", String(Math.min(pagination.pages, page + 1))))}
+                    disabled={page === pagination.pages}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-xs hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800 sm:text-sm"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -549,12 +498,7 @@ function FilterSidebar({
   }, [search]);
 
   return (
-    <div className="space-y-3 rounded-xl border border-slate-300 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:shadow-slate-950 sm:space-y-4 sm:p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">Filters</h2>
-        <ChevronDown className="h-4 w-4 text-slate-400" />
-      </div>
-
+    <div className="space-y-3">
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -705,19 +649,6 @@ function FilterSidebar({
         </div>
       ))}
 
-      <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">Sort By</label>
-        <select
-          value={sortBy}
-          onChange={(event) => onSortChange(event.target.value)}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 sm:text-sm"
-        >
-          <option value="createdAt">Newest</option>
-          <option value="price">Price (Low to High)</option>
-          <option value="ratings.averageRating">Highest Rated</option>
-          <option value="name">Name (A-Z)</option>
-        </select>
-      </div>
     </div>
   );
 }

@@ -135,7 +135,7 @@ export function ReelCard({
 
   if (layout === "feed") {
     return (
-      <div className="relative mx-auto flex h-[calc(100dvh-8rem)] w-full max-w-md snap-start snap-always flex-col overflow-hidden rounded-3xl bg-black shadow-2xl">
+      <div className="relative mx-auto flex h-[calc(100dvh-8rem)] w-full max-w-md snap-start snap-always flex-col overflow-hidden rounded-3xl bg-black/20 shadow-2xl backdrop-blur-sm">
         <video
           ref={videoRef}
           src={resolveApiAssetUrl(reel.videoUrl)}
@@ -149,7 +149,7 @@ export function ReelCard({
         <button
           type="button"
           onClick={() => setMuted((value) => !value)}
-          className="absolute right-4 top-4 z-30 rounded-full bg-black/40 p-2 text-white"
+          className="absolute right-4 top-4 z-30 rounded-full bg-black/20 p-2 text-white backdrop-blur-sm"
         >
           {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
@@ -162,7 +162,7 @@ export function ReelCard({
               onClick={action}
               className="flex flex-col items-center gap-1 text-white"
             >
-              <span className={`rounded-full p-2 ${active ? "bg-rose-500" : "bg-black/40"}`}>
+              <span className={`rounded-full p-2 ${active ? "bg-rose-500" : "bg-black/20"}`}>
                 <Icon className="h-5 w-5" />
               </span>
               <span className="text-xs font-semibold">{label}</span>

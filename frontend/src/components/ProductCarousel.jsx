@@ -52,8 +52,11 @@ export function ProductCarousel({
   tabletItemsPerView = 2,
   mobileItemsPerView = 2,
   getProductCardProps = () => ({}),
+  paginatedGrid = false,
+  gridItemsPerPage = 8,
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
   const [itemsPerView, setItemsPerView] = useState(4);
   const containerRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -86,10 +89,21 @@ export function ProductCarousel({
   }, [maxIndex, currentIndex]);
 
   const handlePrevious = () => {
+    if (paginatedGrid) {
+      setCurrentPage((p) => Math.max(0, p - 1));
+      return;
+    }
+
     setCurrentIndex((prev) => Math.max(0, prev - 1));
   };
 
   const handleNext = () => {
+    if (paginatedGrid) {
+      const totalPages = Math.max(0, Math.ceil(items.length / gridItemsPerPage));
+      setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
+      return;
+    }
+
     setCurrentIndex((prev) => Math.min(maxIndex, prev + 1));
   };
 
@@ -117,6 +131,15 @@ export function ProductCarousel({
   };
 
   const translateX = -currentIndex * (100 / itemsPerView);
+
+  const totalPages = Math.ceil(items.length / gridItemsPerPage);
+  const [gridVisible, setGridVisible] = useState(true);
+  useEffect(() => {
+    if (!paginatedGrid) return;
+    setGridVisible(false);
+    const t = window.setTimeout(() => setGridVisible(true), 60);
+    return () => window.clearTimeout(t);
+  }, [currentPage, paginatedGrid]);
 
   useEffect(() => {
     if (!autoSlide || items.length <= itemsPerView) return undefined;
@@ -181,61 +204,76 @@ export function ProductCarousel({
         <CarouselArrow
           direction="left"
           onClick={handlePrevious}
-          disabled={currentIndex === 0}
-          show={showArrows && items.length > itemsPerView}
+          disabled={paginatedGrid ? currentPage === 0 : currentIndex === 0}
+          show={showArrows && (paginatedGrid ? items.length > gridItemsPerPage : items.length > itemsPerView)}
+          ariaLabel={paginatedGrid ? `Previous ${gridItemsPerPage} products` : undefined}
         />
 
-        <div
-          ref={containerRef}
-          className="overflow-x-hidden overflow-y-visible"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          <Motion.div
-            ref={scrollContainerRef}
-            className="flex"
-            animate={{ x: `${translateX}%` }}
-            transition={{
-              type: "spring",
-              stiffness: 300,
-              damping: 30,
-              mass: 0.8,
-            }}
-          >
-            {items.map((product) => (
-              <div
-                key={product._id}
-                className="product-carousel-slide flex flex-shrink-0 justify-center px-2.5 sm:px-3"
-                style={{
-                  width: `${100 / itemsPerView}%`,
-                }}
-              >
+        {paginatedGrid ? (
+          <div className={`mx-auto mt-6 grid grid-cols-2 sm:grid-cols-4 gap-6 transition-opacity duration-300 ${gridVisible ? "opacity-100" : "opacity-0"}`}>
+            {items.slice(currentPage * gridItemsPerPage, currentPage * gridItemsPerPage + gridItemsPerPage).map((product) => (
+              <div key={product._id} className="flex justify-center px-2.5 sm:px-3">
                 <ProductCard product={product} {...getProductCardProps(product)} />
               </div>
             ))}
-          </Motion.div>
-        </div>
+          </div>
+        ) : (
+          <div
+            ref={containerRef}
+            className="overflow-x-hidden overflow-y-visible"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            <Motion.div
+              ref={scrollContainerRef}
+              className="flex"
+              animate={{ x: `${translateX}%` }}
+              transition={{
+                type: "spring",
+                stiffness: 300,
+                damping: 30,
+                mass: 0.8,
+              }}
+            >
+              {items.map((product) => (
+                <div
+                  key={product._id}
+                  className="product-carousel-slide flex flex-shrink-0 justify-center px-2.5 sm:px-3"
+                  style={{
+                    width: `${100 / itemsPerView}%`,
+                  }}
+                >
+                  <ProductCard product={product} {...getProductCardProps(product)} />
+                </div>
+              ))}
+            </Motion.div>
+          </div>
+        )}
 
         <CarouselArrow
           direction="right"
           onClick={handleNext}
-          disabled={currentIndex >= maxIndex}
-          show={showArrows && items.length > itemsPerView}
+          disabled={paginatedGrid ? currentPage >= Math.max(0, totalPages - 1) : currentIndex >= maxIndex}
+          show={showArrows && (paginatedGrid ? items.length > gridItemsPerPage : items.length > itemsPerView)}
+          ariaLabel={paginatedGrid ? `Next ${gridItemsPerPage} products` : undefined}
         />
 
-        {showDots && items.length > itemsPerView ? (
+        {showDots && (paginatedGrid ? items.length > gridItemsPerPage : items.length > itemsPerView) ? (
           <div className="mt-10 flex items-center justify-center gap-2">
-            {Array.from({ length: Math.ceil(items.length / itemsPerView) }).map((_, index) => (
+            {Array.from({ length: paginatedGrid ? totalPages : Math.ceil(items.length / itemsPerView) }).map((_, index) => (
               <button
                 key={index}
                 type="button"
-                onClick={() => setCurrentIndex(index * itemsPerView)}
+                onClick={() => {
+                  if (paginatedGrid) setCurrentPage(index);
+                  else setCurrentIndex(index * itemsPerView);
+                }}
                 className={`h-2 rounded-full transition-all duration-300 ${
-                  index === Math.floor(currentIndex / itemsPerView)
+                  (paginatedGrid ? index === currentPage : index === Math.floor(currentIndex / itemsPerView))
                     ? "w-8 bg-[#ef4444]"
                     : "w-2 bg-slate-300 hover:bg-slate-400"
                 }`}
-                aria-label={`Go to carousel page ${index + 1}`}
+                aria-label={paginatedGrid ? `Go to page ${index + 1} of products` : `Go to carousel page ${index + 1}`}
               />
             ))}
           </div>
@@ -245,7 +283,7 @@ export function ProductCarousel({
   );
 }
 
-function CarouselArrow({ direction, onClick, disabled, show }) {
+function CarouselArrow({ direction, onClick, disabled, show, ariaLabel }) {
   if (!show) return null;
 
   const isLeft = direction === "left";
@@ -256,7 +294,7 @@ function CarouselArrow({ direction, onClick, disabled, show }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={isLeft ? "Previous products" : "Next products"}
+      aria-label={ariaLabel || (isLeft ? "Previous products" : "Next products")}
       className={`absolute top-[36%] z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#404040] shadow-[0_6px_20px_rgba(0,0,0,0.08)] transition-all duration-300 hover:scale-105 hover:shadow-[0_10px_24px_rgba(0,0,0,0.12)] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 ${
         isLeft ? "left-0 -translate-x-1 md:-translate-x-4 lg:left-0" : "right-0 translate-x-1 md:translate-x-4 lg:right-0"
       }`}

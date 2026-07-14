@@ -28,11 +28,9 @@ import {
   trackReelView,
 } from "../../services/reelService";
 import { navigateToProduct } from "../../utils/scrollPageToTop";
-import { getReelLinkedProducts, getReelProductCount } from "../../utils/reelProducts";
+import { getReelLinkedProducts } from "../../utils/reelProducts";
 import { ReelCommentDrawer } from "./ReelCommentDrawer";
 import { ReelShareSheet } from "./ReelShareSheet";
-import { ReelProductShopDrawer } from "./ReelProductShopDrawer";
-import { ReelShoppingBadge } from "./ReelShoppingBadge";
 
 function formatCount(value = 0) {
   const num = Number(value || 0);
@@ -145,7 +143,7 @@ function ReelSlide({
   // Validate reel data
   if (!reel || !reel._id || !reel.videoUrl) {
     return (
-      <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center bg-black">
+      <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center bg-black/20 backdrop-blur-sm">
         <div className="flex flex-col items-center gap-3">
           <AlertCircle className="h-8 w-8 text-red-500" />
           <p className="text-sm text-zinc-300">Reel data unavailable</p>
@@ -164,9 +162,7 @@ function ReelSlide({
   const [productIndex, setProductIndex] = useState(0);
   const sessionId = getReelSessionId();
   const products = getReelLinkedProducts(reel);
-  const productCount = getReelProductCount(reel);
   const activeProduct = products[productIndex] || products[0];
-  const [shopDrawerOpen, setShopDrawerOpen] = useState(false);
   const lastTapRef = useRef(0);
 
   useEffect(() => {
@@ -250,11 +246,6 @@ function ReelSlide({
     navigateToProduct(navigate, `/product/${product.slug || productId}?${params.toString()}`);
   }
 
-  function openShopDrawer() {
-    if (!productCount) return;
-    setShopDrawerOpen(true);
-  }
-
   function handleDoubleTap() {
     if (!reel.liked) {
       setLikeBurst(true);
@@ -274,7 +265,7 @@ function ReelSlide({
   }
 
   return (
-    <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center bg-black">
+    <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center bg-black/20 backdrop-blur-sm">
       <div className="relative flex h-full w-full max-w-[480px] items-stretch justify-center md:max-w-[420px]">
         <video
           ref={videoRef}
@@ -317,10 +308,6 @@ function ReelSlide({
         ) : null}
 
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
-
-        <div className="absolute left-3 top-14 z-30 md:top-16">
-          <ReelShoppingBadge count={productCount} onClick={openShopDrawer} />
-        </div>
 
         <div className="absolute left-3 top-3 z-30 md:hidden">
           <Link
@@ -403,67 +390,8 @@ function ReelSlide({
             </div>
           ) : null}
         </div>
-
-        <div className="absolute bottom-24 right-2 z-30 flex flex-col items-center gap-5">
-          {[
-            {
-              key: "like",
-              icon: Heart,
-              count: reel.likesCount,
-              active: reel.liked,
-              activeClass: "text-red-500 fill-red-500",
-              onClick: onLike,
-            },
-            {
-              key: "comment",
-              icon: MessageCircle,
-              count: reel.commentsCount,
-              onClick: onCommentOpen,
-            },
-            {
-              key: "share",
-              icon: Share2,
-              count: reel.sharesCount,
-              onClick: onShareOpen,
-            },
-            {
-              key: "save",
-              icon: Bookmark,
-              count: reel.savesCount,
-              active: reel.saved,
-              activeClass: "text-white fill-white",
-              onClick: onSave,
-            },
-            {
-              key: "product",
-              icon: ShoppingBag,
-              count: productCount,
-              onClick: openShopDrawer,
-            },
-            {
-              key: "more",
-              icon: MoreHorizontal,
-              onClick: () => {},
-            },
-          ].map(({ key, icon: Icon, count, active, activeClass, onClick }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={onClick}
-              className="flex flex-col items-center gap-1 text-white"
-            >
-              <span className="rounded-full bg-black/30 p-2.5 backdrop-blur-sm transition active:scale-90">
-                <Icon className={`h-6 w-6 ${active ? activeClass : ""}`} />
-              </span>
-              {count !== undefined ? (
-                <span className="text-[11px] font-bold drop-shadow">{formatCount(count)}</span>
-              ) : null}
-            </button>
-          ))}
-        </div>
       </div>
 
-      <ReelProductShopDrawer reel={reel} open={shopDrawerOpen} onClose={() => setShopDrawerOpen(false)} />
     </section>
   );
 }
@@ -510,7 +438,7 @@ export function ReelsFeed({ reels, loading, hasMore, onLoadMore, onReelsUpdate, 
     <>
       <div
         ref={containerRef}
-        className="h-[100dvh] w-full snap-y snap-mandatory overflow-y-scroll overscroll-y-contain bg-black [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-[100dvh] w-full snap-y snap-mandatory overflow-y-scroll overscroll-y-contain bg-black/10 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {reels.map((reel, index) => (
           <div key={reel._id} data-reel-slide data-index={index}>

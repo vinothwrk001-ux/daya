@@ -20,7 +20,7 @@ export function BackButton({ fallbackTo = null }) {
   return (
     <button
       onClick={handleBack}
-      className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+      className="flex items-center gap-1 rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
       aria-label="Go back to previous page"
     >
       <svg

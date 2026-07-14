@@ -86,19 +86,8 @@ export function ProductImageGallery({ media = [], productName = "Product", galle
 
   return (
     <>
-      <section className="grid gap-4 lg:grid-cols-[96px_minmax(0,1fr)] lg:items-start">
-        {hasMultipleImages ? (
-          <ProductThumbnailList
-            media={safeMedia}
-            selectedIndex={selectedIndex}
-            onSelect={setSelectedIndex}
-            productName={productName}
-          />
-        ) : (
-          <div className="hidden lg:block" />
-        )}
-
-        <div className="relative min-w-0">
+      <section className="grid gap-4 max-w-[1200px] mx-auto">
+        <div className="relative min-w-0 max-w-[800px] mx-auto w-full">
           <ProductMainImage
             media={activeMedia}
             productName={productName}
@@ -148,6 +137,15 @@ export function ProductImageGallery({ media = [], productName = "Product", galle
             ) : null}
           </div>
         </div>
+
+        {hasMultipleImages ? (
+          <ProductThumbnailList
+            media={safeMedia}
+            selectedIndex={selectedIndex}
+            onSelect={setSelectedIndex}
+            productName={productName}
+          />
+        ) : null}
       </section>
 
       {isFullscreen && activeMedia ? (

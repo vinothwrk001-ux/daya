@@ -37,7 +37,7 @@ function VariantColorSwatches({ options, selectedValue, groupName, onSelect }) {
 
   return (
     <div
-      className="flex items-center justify-center gap-2"
+      className="flex items-center justify-start gap-2"
       aria-label={groupName || "Available colors"}
       role="listbox"
       onClick={(event) => event.stopPropagation()}
@@ -61,12 +61,12 @@ function VariantColorSwatches({ options, selectedValue, groupName, onSelect }) {
               event.stopPropagation();
               onSelect(option.value);
             }}
-            className={`flex h-[22px] w-[22px] items-center justify-center rounded-full transition-transform duration-150 hover:scale-110 focus-visible:outline-none ${
-              isSelected ? "ring-[1.5px] ring-[#111827] ring-offset-1" : ""
+            className={`flex h-[24px] w-[24px] items-center justify-center rounded-full border border-slate-200 bg-white transition-transform duration-150 hover:scale-110 focus-visible:outline-none ${
+              isSelected ? "border-black shadow-[0_0_0_2px_white,0_0_0_3px_#111827]" : ""
             } ${option.inStock ? "" : "opacity-40"}`}
           >
             <span
-              className={`h-[14px] w-[14px] rounded-full ${isLightSwatch ? "border border-slate-300" : ""}`}
+              className={`h-[16px] w-[16px] rounded-full ${isLightSwatch ? "border border-slate-300" : ""}`}
               style={{ backgroundColor: swatchColor || "#e2e8f0" }}
             />
           </button>
@@ -76,7 +76,7 @@ function VariantColorSwatches({ options, selectedValue, groupName, onSelect }) {
   );
 }
 
-function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-square", onProductClick }) {
+function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[3/4]", onProductClick }) {
   const navigate = useNavigate();
   const { addItem: addCartItem } = useCart();
   const { openDrawer, showToast } = useCartDrawer();
@@ -172,6 +172,8 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
 
   const styleKey = String(cardStyle || "DEFAULT").toUpperCase();
   const isEditorial = styleKey === "EDITORIAL";
+  const isGridCard = styleKey === "DEFAULT";
+  const showBrandLabel = !isGridCard;
   const brandName = getProductBrand(product);
   const displayPrice = pricing.hasDiscount ? pricing.salePrice : pricing.price;
   const imageKey = `${activeVariant?.variantId || "default"}-${imageUrl}`;
@@ -195,7 +197,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
       }}
       role="link"
       tabIndex={0}
-      className={`group relative mx-auto flex h-full w-full max-w-[300px] min-w-0 cursor-pointer flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ef4444] focus-visible:ring-offset-2 ${
+      className={`group relative mx-auto flex h-full w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-[12px] bg-transparent transition-all duration-300 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7061] focus-visible:ring-offset-2 ${
         isEditorial ? "bg-slate-950 text-white" : ""
       }`}
     >
@@ -238,13 +240,15 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
           <div className="flex h-full items-center justify-center text-sm text-slate-400">Image coming soon</div>
         )}
 
-        {pricing.discountPercent > 0 ? (
-          <div className="absolute left-3 top-3 z-20 inline-flex items-center rounded-full bg-[#ef4444] px-2.5 py-[5px] shadow-sm">
-            <span className="text-[11px] font-semibold leading-none text-white">
-              {pricing.discountPercent}% Off
-            </span>
-          </div>
-        ) : null}
+        <div className="absolute left-3 top-3 z-20 flex flex-col items-start gap-2">
+          {pricing.discountPercent > 0 ? (
+            <div className="inline-flex items-center rounded-full bg-[#ff7061] px-3 py-1.5 shadow-sm">
+              <span className="text-[11px] font-semibold leading-none text-white">
+                {pricing.discountPercent}% Off
+              </span>
+            </div>
+          ) : null}
+        </div>
 
         <div className="absolute right-3 top-3 z-20 flex flex-col gap-2 opacity-100 transition-opacity duration-200 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
           <button
@@ -275,25 +279,27 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
       </div>
 
       {/* Centered info — compact like reference */}
-      <div className="flex flex-col items-center px-6 pb-6 pt-4 text-center">
-        <p
-          className={`line-clamp-1 text-[13px] font-medium uppercase tracking-[0.18em] ${
-            isEditorial ? "text-slate-400" : "text-[#A3A3A3]"
-          }`}
-        >
-          {brandName}
-        </p>
+      <div className="flex flex-col items-start px-6 pb-6 pt-4 text-left">
+        {showBrandLabel ? (
+          <p
+            className={`line-clamp-1 text-[13px] font-medium uppercase tracking-[0.18em] ${
+              isEditorial ? "text-slate-400" : "text-[#A3A3A3]"
+            }`}
+          >
+            {brandName}
+          </p>
+        ) : null}
 
         <h3
-          className={`mt-2 line-clamp-2 min-h-[2.25rem] text-[17px] font-semibold leading-snug tracking-[-0.01em] ${
+          className={`mt-2 line-clamp-2 min-h-[2.25rem] text-[15px] font-medium leading-snug tracking-[-0.01em] ${
             isEditorial ? "text-white" : "text-[#171717]"
           }`}
         >
           {product.name}
         </h3>
 
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
-          <span className={`text-[17px] font-bold ${isEditorial ? "text-white" : "text-[#ef4444]"}`}>
+        <div className="mt-2 flex flex-wrap items-center justify-start gap-1.5">
+          <span className={`text-[17px] font-bold ${isEditorial ? "text-white" : "text-[#ff7061]"}`}>
             {formatCurrency(displayPrice)}
           </span>
           {pricing.hasDiscount ? (

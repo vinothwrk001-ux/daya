@@ -561,11 +561,8 @@ export function ProductDetailsPage() {
     <div className="space-y-8 overflow-x-safe pb-24 lg:pb-0">
       <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-3">
         <div className="min-w-0 sm:col-start-2 sm:justify-self-center sm:text-center">
-          <div className="text-xs font-medium uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-            Home / Shop / <span className="text-slate-700 dark:text-slate-200">{product.category}</span>
-          </div>
           <h1 className="mt-2 max-w-4xl fluid-h2 text-slate-950 dark:text-white">{product.name}</h1>
-          <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 text-sm">
+          <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-3 text-sm">
             <span className="font-semibold text-slate-700 dark:text-slate-200">Sold by Daya</span>
             {product?.ratings?.averageRating ? (
               <span className="text-slate-500 dark:text-slate-400">{product.ratings.averageRating.toFixed?.(1) || product.ratings.averageRating} rating</span>
@@ -589,7 +586,7 @@ export function ProductDetailsPage() {
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div> : null}
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
+      <div className="mx-auto grid max-w-[1200px] gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
         <div className="space-y-8">
           <ProductImageGallery media={media} productName={product?.name} galleryKey={galleryKey} />
 
@@ -760,63 +757,17 @@ export function ProductDetailsPage() {
 
       <section className="relative left-1/2 w-screen max-w-none -translate-x-1/2 space-y-6">
         <div className="w-full space-y-6">
-        <RecommendationSection
-          title="Frequently Bought Together"
-          items={visibleFbtBundle || []}
-          layout="carousel"
-          recommendationType="bundle"
-          surface="product_page"
-          sourceProductId={product._id}
-          loading={recommendationsLoading}
-          showEmptyState
-          fullWidth
-        />
-        <RecommendationSection
-          title="Featured Products"
-          items={recommendations?.featured || recommendations?.upsell || []}
-          layout="featured"
-          recommendationType="featured"
-          surface="product_page"
-          sourceProductId={product._id}
-          featuredHeroPosition="left"
-          loading={recommendationsLoading}
-          showEmptyState
-          fullWidth
-        />
-        <RecommendationSection
-          title="Featured Products"
-          items={recommendations?.featured || recommendations?.personalized || []}
-          layout="featured"
-          recommendationType="featured"
-          surface="product_page"
-          sourceProductId={product._id}
-          featuredHeroPosition="right"
-          loading={recommendationsLoading}
-          showEmptyState
-          fullWidth
-        />
-        <RecommendationSection
-          title="Trending Products"
-          items={recommendations?.trending || []}
-          layout="grid"
-          recommendationType="trending"
-          surface="product_page"
-          sourceProductId={product._id}
-          loading={recommendationsLoading}
-          showEmptyState
-          fullWidth
-        />
-        <RecommendationSection
-          title="Related Products"
-          items={recommendations?.related || []}
-          layout="grid"
-          recommendationType="related"
-          surface="product_page"
-          sourceProductId={product._id}
-          loading={recommendationsLoading}
-          showEmptyState
-          fullWidth
-        />
+          <RecommendationSection
+            title="Frequently Bought Together"
+            items={visibleFbtBundle || []}
+            layout="carousel"
+            recommendationType="bundle"
+            surface="product_page"
+            sourceProductId={product._id}
+            loading={recommendationsLoading}
+            showEmptyState
+            fullWidth
+          />
         </div>
       </section>
 

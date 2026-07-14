@@ -33,13 +33,14 @@ export function ProductMainImage({ media, productName = "Product", imageIndex = 
 
   return (
     <div className="relative min-w-0 overflow-hidden rounded-[2rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] shadow-sm">
-      <div className="relative flex h-80 w-full items-center justify-center overflow-hidden sm:h-96 lg:h-[38rem]">
+      <div className="relative flex w-full items-center justify-center overflow-hidden h-auto">
+        <div className="w-full max-w-[800px]">
         {media.type === "video" ? (
           <video
             key={media.url}
             controls
             playsInline
-            className="h-full w-full object-contain"
+            className="w-full h-auto max-h-[800px] object-contain"
             poster={fallbackPoster ? resolveApiAssetUrl(fallbackPoster) : undefined}
           >
             <source src={resolveApiAssetUrl(media.url)} />
@@ -51,7 +52,7 @@ export function ProductMainImage({ media, productName = "Product", imageIndex = 
             src={resolveApiAssetUrl(media.url)}
             alt={media.altText || `${productName} - Image ${imageIndex + 1}`}
             loading="lazy"
-            className="block h-full max-h-full w-full max-w-full object-contain transition-transform duration-300 ease-out hover:scale-125 lg:cursor-zoom-in"
+            className="block w-full h-auto max-h-[800px] object-contain transition-transform duration-300 ease-out hover:scale-125 lg:cursor-zoom-in"
             style={zoomStyle}
             onMouseMove={(event) => {
               if (window.innerWidth < 1024) return;
@@ -70,6 +71,8 @@ export function ProductMainImage({ media, productName = "Product", imageIndex = 
             }}
           />
         )}
+
+        </div>
 
         {/* Zoom hint */}
         {media.type === "image" && (

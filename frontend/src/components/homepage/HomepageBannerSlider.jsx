@@ -120,12 +120,12 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
   
   const titleWithEmoji = `${card.title} ${getEmojiForTitle(card.title)}`.trim();
   
-  const containerClasses = "banner-category-card group relative flex w-full aspect-[3/4] overflow-hidden rounded-[2rem] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
+  const containerClasses = "banner-category-card group relative flex w-full aspect-[3/4] overflow-visible rounded-[2rem] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
 
-  const imageWrapperClasses = "absolute inset-x-0 top-0 bottom-14 flex items-center justify-center overflow-hidden bg-black" + 
+  const imageWrapperClasses = "absolute inset-x-0 top-0 bottom-14 flex items-center justify-start overflow-visible bg-black" + 
     " bg-[repeating-linear-gradient(45deg,#111_0,#111_2px,transparent_2px,transparent_10px)]";
 
-  const imageClasses = "h-full w-full object-contain";
+  const imageClasses = "h-full w-auto max-w-full object-contain object-left";
 
   const cardBodyClasses = "pointer-events-none absolute inset-x-0 bottom-5 z-10 flex flex-col items-center justify-end";
 
