@@ -18,7 +18,7 @@ function ProductCarouselHeader({ eyebrowText, title, subtitle, viewAllHref, acti
 
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center gap-5 py-4">
           <h2 className="text-[clamp(1.75rem,3vw,2.5rem)] font-bold leading-tight tracking-[-0.02em] text-[#111827]">
-            {title || "Discover Our Top Picks"}
+            {title || "Discover your next favorite"}
           </h2>
           <p className="inline-flex h-[34px] items-center rounded-full border border-[#ef4444] bg-white px-6 text-[11px] font-bold uppercase tracking-[0.18em] text-[#ef4444]">
             {eyebrowText}
@@ -80,13 +80,13 @@ export function ProductCarousel({
     return () => window.removeEventListener("resize", handleResize);
   }, [desktopItemsPerView, mobileItemsPerView, tabletItemsPerView]);
 
-  const maxIndex = Math.max(0, items.length - itemsPerView);
+  const maxPageIndex = Math.max(0, Math.ceil(items.length / itemsPerView) - 1);
 
   useEffect(() => {
-    if (currentIndex > maxIndex) {
-      setCurrentIndex(Math.max(0, maxIndex));
+    if (currentIndex > maxPageIndex) {
+      setCurrentIndex(Math.max(0, maxPageIndex));
     }
-  }, [maxIndex, currentIndex]);
+  }, [maxPageIndex, currentIndex]);
 
   const handlePrevious = () => {
     if (paginatedGrid) {
@@ -104,7 +104,7 @@ export function ProductCarousel({
       return;
     }
 
-    setCurrentIndex((prev) => Math.min(maxIndex, prev + 1));
+    setCurrentIndex((prev) => Math.min(maxPageIndex, prev + 1));
   };
 
   const handleTouchStart = (e) => {
@@ -130,7 +130,7 @@ export function ProductCarousel({
     }
   };
 
-  const translateX = -currentIndex * (100 / itemsPerView);
+  const translateX = -currentIndex * 100;
 
   const totalPages = Math.ceil(items.length / gridItemsPerPage);
   const [gridVisible, setGridVisible] = useState(true);
@@ -144,10 +144,10 @@ export function ProductCarousel({
   useEffect(() => {
     if (!autoSlide || items.length <= itemsPerView) return undefined;
     const timer = window.setInterval(() => {
-      setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+      setCurrentIndex((prev) => (prev >= maxPageIndex ? 0 : prev + 1));
     }, Number(slideSpeed || 3500));
     return () => window.clearInterval(timer);
-  }, [autoSlide, items.length, itemsPerView, maxIndex, slideSpeed]);
+  }, [autoSlide, items.length, itemsPerView, maxPageIndex, slideSpeed]);
 
   // Reference: pure white section background
   const shellClassName = bare
@@ -220,13 +220,13 @@ export function ProductCarousel({
         ) : (
           <div
             ref={containerRef}
-            className="overflow-x-hidden overflow-y-visible"
+            className="scrollbar-hide snap-x snap-mandatory overflow-x-auto overflow-y-visible scroll-smooth"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
             <Motion.div
               ref={scrollContainerRef}
-              className="flex"
+              className="flex flex-nowrap"
               animate={{ x: `${translateX}%` }}
               transition={{
                 type: "spring",
@@ -238,9 +238,12 @@ export function ProductCarousel({
               {items.map((product) => (
                 <div
                   key={product._id}
-                  className="product-carousel-slide flex flex-shrink-0 justify-center px-2.5 sm:px-3"
+                  className="product-carousel-slide flex snap-start justify-center px-2.5 sm:px-3"
                   style={{
+                    flex: `0 0 ${100 / itemsPerView}%`,
                     width: `${100 / itemsPerView}%`,
+                    minWidth: `${100 / itemsPerView}%`,
+                    maxWidth: `${100 / itemsPerView}%`,
                   }}
                 >
                   <ProductCard product={product} {...getProductCardProps(product)} />
@@ -253,7 +256,7 @@ export function ProductCarousel({
         <CarouselArrow
           direction="right"
           onClick={handleNext}
-          disabled={paginatedGrid ? currentPage >= Math.max(0, totalPages - 1) : currentIndex >= maxIndex}
+          disabled={paginatedGrid ? currentPage >= Math.max(0, totalPages - 1) : currentIndex >= maxPageIndex}
           show={showArrows && (paginatedGrid ? items.length > gridItemsPerPage : items.length > itemsPerView)}
           ariaLabel={paginatedGrid ? `Next ${gridItemsPerPage} products` : undefined}
         />
@@ -266,10 +269,10 @@ export function ProductCarousel({
                 type="button"
                 onClick={() => {
                   if (paginatedGrid) setCurrentPage(index);
-                  else setCurrentIndex(index * itemsPerView);
+                  else setCurrentIndex(index);
                 }}
                 className={`h-2 rounded-full transition-all duration-300 ${
-                  (paginatedGrid ? index === currentPage : index === Math.floor(currentIndex / itemsPerView))
+                  (paginatedGrid ? index === currentPage : index === currentIndex)
                     ? "w-8 bg-[#ef4444]"
                     : "w-2 bg-slate-300 hover:bg-slate-400"
                 }`}

@@ -74,10 +74,10 @@ export const DEFAULT_GLOBAL_THEME = {
     info: "#2563eb",
   },
   typography: {
-    fontFamily: '"Manrope", sans-serif',
-    headingFont: '"Space Grotesk", "Manrope", sans-serif',
-    bodyFont: '"Manrope", sans-serif',
-    buttonFont: '"Manrope", sans-serif',
+    fontFamily: '"Poppins", sans-serif',
+    headingFont: '"Poppins", sans-serif',
+    bodyFont: '"Poppins", sans-serif',
+    buttonFont: '"Poppins", sans-serif',
   },
   spacing: {
     containerWidth: "1280px",

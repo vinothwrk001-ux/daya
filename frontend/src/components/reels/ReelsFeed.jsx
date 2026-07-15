@@ -64,7 +64,7 @@ function TikTokProductCard({ product, onShop }) {
 
   return (
     <div
-      className="flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-white/15 bg-black/55 p-3 text-left backdrop-blur-md"
+      className="flex w-full max-w-lg flex-col gap-2 rounded-2xl border border-white/15 bg-black/55 p-3 text-left backdrop-blur-md"
       onClick={(event) => event.stopPropagation()}
     >
       <button
@@ -327,18 +327,9 @@ function ReelSlide({
           {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
 
-        <div className="absolute bottom-0 left-0 right-16 z-30 space-y-3 p-4 pb-8">
+        <div className="absolute bottom-0 left-0 right-0 z-30 space-y-3 p-4 pb-8">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-xs font-black text-white ring-2 ring-white/30">
-                {(reel.createdBy?.name || "C").slice(0, 1).toUpperCase()}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-white">{reel.createdBy?.name || "Creator"}</p>
-                <p className="text-[11px] text-zinc-300">{formatCount(reel.viewsCount)} views</p>
-              </div>
-            </div>
-            <p className="line-clamp-2 text-sm font-semibold text-white">{reel.title}</p>
+              {/* <p className="line-clamp-2 text-sm font-semibold text-white">{reel.title}</p> */}
             {reel.description ? (
               <p className="line-clamp-2 text-xs text-zinc-200">{reel.description}</p>
             ) : null}

@@ -53,6 +53,10 @@ export function HeroHeader({ variant = "overlay" }) {
         </div>
 
         <div className="hero-header-grid__end flex min-w-0 items-center justify-end gap-2 sm:gap-3">
+          <HeaderShopActions
+            variant="inline"
+            className={isOverlay ? "[&_a]:text-white [&_a]:hover:text-white/80" : ""}
+          />
           {!authReady ? (
             <span className={`inline-block h-8 w-20 animate-pulse rounded-lg ${isOverlay ? "bg-white/20" : "bg-slate-200"}`} aria-hidden="true" />
           ) : user ? (
@@ -63,10 +67,6 @@ export function HeroHeader({ variant = "overlay" }) {
               <span className="hidden text-xs font-medium sm:inline sm:text-sm">Login</span>
             </Link>
           )}
-          <HeaderShopActions
-            variant="inline"
-            className={isOverlay ? "[&_a]:text-white [&_a]:hover:text-white/80" : ""}
-          />
         </div>
       </div>
 

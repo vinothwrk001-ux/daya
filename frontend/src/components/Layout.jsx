@@ -110,23 +110,23 @@ export function Layout() {
                   />
                 </Link>
 
-                <div className="order-3 flex w-full justify-end lg:order-none lg:flex-1">
-                  <div className="group ml-auto w-full max-w-[500px] transition-all duration-300 focus-within:max-w-[560px]">
+                <div className="order-3 flex w-full justify-center lg:order-none lg:flex-1">
+                  <div className="group mx-auto w-full max-w-[500px] transition-all duration-300 focus-within:max-w-[560px] lg:translate-x-[5.5rem]">
                     <SearchBar />
                   </div>
                 </div>
 
                 <nav className="enterprise-nav-pill hidden w-full items-center justify-center gap-1 rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur lg:order-last lg:flex">
-                  {navItems.map((item) => {
+                      {navItems.map((item) => {
                     const isActive =
                       location.pathname === item.href ||
                       (item.href !== "/" && location.pathname.startsWith(item.href));
 
-                    return (
+                      return (
                       <Link
                         key={item.href}
                         to={item.href}
-                        className={`group relative rounded-full px-4 py-2 text-sm font-medium transition ${
+                        className={`group relative rounded-full px-4 py-2 text-sm font-bold transition ${
                           isActive
                             ? "bg-brand-primary text-white"
                             : "text-slate-700 hover:text-brand-primary"
@@ -239,7 +239,7 @@ export function Layout() {
                               key={item.href}
                               to={item.href}
                               onClick={() => setMobileMenuOpen(false)}
-                              className={`touch-target rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                              className={`touch-target rounded-2xl px-4 py-3 text-sm font-bold transition ${
                                 isActive
                                   ? "bg-brand-primary text-white"
                                   : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"

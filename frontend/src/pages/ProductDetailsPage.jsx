@@ -758,7 +758,7 @@ export function ProductDetailsPage() {
       <section className="relative left-1/2 w-screen max-w-none -translate-x-1/2 space-y-6">
         <div className="w-full space-y-6">
           <RecommendationSection
-            title="Frequently Bought Together"
+            title="Discover Your Next Favorite"
             items={visibleFbtBundle || []}
             layout="carousel"
             recommendationType="bundle"

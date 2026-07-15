@@ -784,7 +784,7 @@ function CarouselContainer({ container, bareContainers = false, bareOuterLayout 
         swipeEnabled={config.swipeEnabled !== false}
         autoSlide={config.autoSlide === true}
         slideSpeed={Number(config.slideSpeed || 3500)}
-        desktopItemsPerView={Number(config.productsPerView || 4)}
+        desktopItemsPerView={4}
         tabletItemsPerView={Number(config.tabletProductsPerView || 2)}
         mobileItemsPerView={Number(config.mobileProductsPerView || 2)}
         getProductCardProps={() => ({ cardStyle: config.cardStyle || "DEFAULT" })}

@@ -148,7 +148,7 @@ export function RecommendationSection({
           <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white lg:text-3xl">{title}</h2>
           {subtitle ? <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300 lg:text-base">{subtitle}</p> : null}
         </div>
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-8">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
           {visibleItems.map((item) => (
             <ProductCard key={item._id} product={item} cardStyle="MINIMAL" imageAspectClass="aspect-[1/1]" onProductClick={trackClick} />
           ))}
@@ -231,8 +231,8 @@ export function RecommendationSection({
       title={title}
       subtitle={subtitle}
       items={visibleItems}
-      desktopItemsPerView={8}
-      tabletItemsPerView={4}
+      desktopItemsPerView={4}
+      tabletItemsPerView={2}
       mobileItemsPerView={2}
       getProductCardProps={() => ({
         onProductClick: trackClick,

@@ -110,7 +110,7 @@ export function ReelsPage() {
 
   return (
     <ReelsErrorBoundary>
-      <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm">
+      <div className="fixed inset-0 z-40 bg-black/20">
         <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-3">
           <Link
             to="/"
@@ -119,20 +119,7 @@ export function ReelsPage() {
             <ChevronLeft className="h-4 w-4" />
             Back
           </Link>
-          <div className="pointer-events-auto ml-auto flex gap-2 overflow-x-auto">
-            {["trending", "latest", "popular", "recommended"].map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => navigate(`/reels?sort=${key}${focusReelId ? `&reel=${focusReelId}` : ""}`)}
-                className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                  sort === key ? "bg-red-600 text-white" : "bg-black/30 text-zinc-300 backdrop-blur-md"
-                }`}
-              >
-                {key}
-              </button>
-            ))}
-          </div>
+          {/* Top-right sort buttons removed per layout update */}
         </div>
 
         <ReelsFeed

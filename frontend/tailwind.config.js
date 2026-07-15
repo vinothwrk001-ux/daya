@@ -12,6 +12,9 @@ export default {
       "2xl": "1440px",
       "3xl": "1920px",
     },
+    fontFamily: {
+      sans: ["Poppins", "sans-serif"],
+    },
     extend: {
       colors: {
         brand: {
