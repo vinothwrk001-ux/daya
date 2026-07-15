@@ -93,7 +93,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
   return (
     <>
       <nav
-        className="sticky top-20 z-30 border-b border-brand-border bg-brand-secondary text-white backdrop-blur-md will-change-none"
+        className="sticky top-[136px] mt-4 z-30 bg-white text-black backdrop-blur-md will-change-none"
         style={{ height: "48px" }}
       >
         <div className="w-full px-2 lg:px-4 h-full flex items-center relative">
@@ -102,10 +102,10 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
             <button
               type="button"
               onClick={() => scroll("left")}
-              className="hidden lg:flex absolute left-0 z-10 h-full w-12 items-center justify-center bg-gradient-to-r from-brand-secondary to-transparent transition-colors duration-200 flex-shrink-0"
+              className="hidden lg:flex absolute left-0 z-10 h-full w-12 items-center justify-center bg-gradient-to-r from-white/80 to-transparent transition-colors duration-200 flex-shrink-0"
               aria-label="Scroll categories left"
             >
-              <ChevronLeft className="h-4 w-4 text-white" />
+              <ChevronLeft className="h-4 w-4 text-black" />
             </button>
           )}
 
@@ -113,7 +113,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
           <div
             ref={scrollContainerRef}
             onScroll={checkScroll}
-            className="flex-1 overflow-x-auto scrollbar-hide flex items-center justify-center"
+            className="flex-1 overflow-x-auto scrollbar-hide flex items-center justify-center bg-white"
             style={{ scrollBehavior: "smooth", msOverflowStyle: "none" }}
           >
             <div className="mx-auto flex h-full items-center gap-1 whitespace-nowrap px-2 lg:px-12">
@@ -132,8 +132,8 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
                       onClick={() => handleCategorySelect(category)}
                       className={`flex items-center gap-2 px-3 py-2 h-full text-xs sm:text-sm font-medium transition-all duration-200 relative group/btn ${
                         isSelected
-                          ? "text-white"
-                          : "text-white/78 hover:text-white"
+                          ? "text-black"
+                          : "text-black/70 hover:text-red-600"
                       }`}
                     >
                       <span className="flex-shrink-0">{category.name}</span>

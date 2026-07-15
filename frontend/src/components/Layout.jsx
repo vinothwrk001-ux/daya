@@ -95,7 +95,7 @@ export function Layout() {
       {!hideShopChrome && location.pathname !== "/" ? (
         <header className="enterprise-header sticky top-0 z-30 backdrop-blur-xl">
           <div className="w-full px-3 py-3 sm:px-4 lg:px-8">
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-6">
               <div className="flex flex-wrap items-center justify-center gap-3 lg:flex-wrap">
                 <Link
                   to="/"
@@ -116,7 +116,7 @@ export function Layout() {
                   </div>
                 </div>
 
-                <nav className="enterprise-nav-pill hidden w-full items-center justify-center gap-1 rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur lg:order-last lg:mt-2 lg:flex">
+                <nav className="enterprise-nav-pill hidden w-full items-center justify-center gap-1 rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur lg:order-last lg:flex">
                   {navItems.map((item) => {
                     const isActive =
                       location.pathname === item.href ||

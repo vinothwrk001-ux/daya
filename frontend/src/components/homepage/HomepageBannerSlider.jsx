@@ -132,7 +132,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
   // Container for the pill badge and secondary info - ensures perfect centering
   const titleSectionClasses = "flex flex-col items-center justify-center gap-0 text-center w-full";
 
-  const countClasses = "text-xs text-zinc-400 hidden"; // Consistently hidden
+  const countClasses = "text-[8px] leading-tight text-zinc-400 hidden"; // Consistently hidden
 
   const buttonClasses = "hidden"; // Consistently hidden
 
@@ -159,8 +159,8 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
       </div>
       <div className={cardBodyClasses}>
         <div className={titleSectionClasses}>
-          <div className="flex w-fit max-w-[90%] items-center justify-center rounded-full bg-white px-3 py-1.5 shadow-lg">
-            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-bold text-black sm:text-base">{titleWithEmoji}</p>
+          <div className="flex w-fit max-w-[90%] items-center justify-center rounded-full bg-white px-2 py-1 shadow-lg">
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[8px] font-bold text-black sm:text-[8px]">{titleWithEmoji}</p>
           </div>
           {card.showProductCount !== false && card.productCount != null ? (
             <p className={countClasses}>{card.productCount} products</p>
