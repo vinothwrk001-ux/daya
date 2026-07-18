@@ -8,22 +8,28 @@ function sameDate(left, right) {
   return left.getTime() === right.getTime();
 }
 
-export function useReporting({ module, getFilters, onApply, exporter }) {
-  const [initialStartDate, initialEndDate] = defaultLast7Days();
-  const [draftDateRange, setDraftDateRange] = useState([initialStartDate, initialEndDate]);
-  const [appliedDateRange, setAppliedDateRange] = useState([initialStartDate, initialEndDate]);
+export function useReporting({ module, getFilters, onApply, exporter, initialStartDate: initialStartDateProp, initialEndDate: initialEndDateProp, initialShift: initialShiftProp }) {
+  const [defaultStartDate, defaultEndDate] = defaultLast7Days();
+  const [draftDateRange, setDraftDateRange] = useState([initialStartDateProp || defaultStartDate, initialEndDateProp || defaultEndDate]);
+  const [appliedDateRange, setAppliedDateRange] = useState([initialStartDateProp || defaultStartDate, initialEndDateProp || defaultEndDate]);
+  const [shift, setShift] = useState(initialShiftProp || "all");
+  const [appliedShift, setAppliedShift] = useState(initialShiftProp || "all");
   const [exportingFormat, setExportingFormat] = useState("");
   const [toast, setToast] = useState(null);
 
   const [startDate, endDate] = draftDateRange;
   const [appliedStartDate, appliedEndDate] = appliedDateRange;
   const appliedParams = useMemo(
-    () => buildDateRangeParams(appliedStartDate, appliedEndDate),
-    [appliedEndDate, appliedStartDate]
+    () => ({
+      ...buildDateRangeParams(appliedStartDate, appliedEndDate),
+      ...(appliedShift && appliedShift !== "all" ? { shift: appliedShift } : {}),
+    }),
+    [appliedEndDate, appliedShift, appliedStartDate]
   );
 
   function applyDateRange() {
     setAppliedDateRange([startDate || null, endDate || null]);
+    setAppliedShift(shift);
     onApply?.([startDate || null, endDate || null]);
   }
 
@@ -36,6 +42,7 @@ export function useReporting({ module, getFilters, onApply, exporter }) {
         format,
         startDate: appliedStartDate,
         endDate: appliedEndDate,
+        shift: appliedShift && appliedShift !== "all" ? appliedShift : undefined,
         filters: getFilters?.() || {},
       });
       setToast({
@@ -63,6 +70,9 @@ export function useReporting({ module, getFilters, onApply, exporter }) {
     exportReport,
     toast,
     clearToast: () => setToast(null),
-    hasPendingChanges: !sameDate(startDate, appliedStartDate) || !sameDate(endDate, appliedEndDate),
+    shift,
+    setShift,
+    appliedShift,
+    hasPendingChanges: !sameDate(startDate, appliedStartDate) || !sameDate(endDate, appliedEndDate) || shift !== appliedShift,
   };
 }

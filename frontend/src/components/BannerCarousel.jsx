@@ -109,7 +109,10 @@ export function BannerCarousel({ banners = [] }) {
               loading={index === 0 ? "eager" : "lazy"}
             />
             <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-r from-black/70 via-black/30 to-transparent px-4 py-4 sm:justify-center sm:px-8">
-              <h2 className="max-w-[70%] text-xl font-bold text-white sm:text-3xl md:text-4xl">
+              <h2
+                className="max-w-[65ch] w-full leading-tight text-lg font-bold text-white sm:text-xl md:text-xl"
+                style={{ textWrap: "balance", WebkitTextWrap: "balance" }}
+              >
                 {banner.title}
               </h2>
               <p className="mt-1 text-sm font-semibold text-yellow-300 sm:mt-2 sm:text-xl">

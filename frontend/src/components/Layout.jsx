@@ -110,23 +110,29 @@ export function Layout() {
                   />
                 </Link>
 
-                <div className="order-3 flex w-full justify-center lg:order-none lg:flex-1">
+                <div className="order-2 flex w-full justify-center lg:hidden">
+                  <div className="w-full max-w-[420px]">
+                    <SearchBar />
+                  </div>
+                </div>
+
+                <div className="order-3 hidden w-full justify-center lg:flex lg:order-none lg:flex-1">
                   <div className="group mx-auto w-full max-w-[500px] transition-all duration-300 focus-within:max-w-[560px] lg:translate-x-[5.5rem]">
                     <SearchBar />
                   </div>
                 </div>
 
-                <nav className="enterprise-nav-pill hidden w-full items-center justify-center gap-1 rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur lg:order-last lg:flex">
-                      {navItems.map((item) => {
+                <nav className="enterprise-nav-pill order-3 flex flex-nowrap w-full items-center justify-start gap-1 overflow-x-auto scroll-smooth rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur mt-3 lg:order-last lg:w-auto lg:justify-center lg:flex-wrap lg:overflow-visible lg:mt-0">
+                  {navItems.map((item) => {
                     const isActive =
                       location.pathname === item.href ||
                       (item.href !== "/" && location.pathname.startsWith(item.href));
 
-                      return (
+                    return (
                       <Link
                         key={item.href}
                         to={item.href}
-                        className={`group relative rounded-full px-4 py-2 text-sm font-bold transition ${
+                        className={`group relative shrink-0 rounded-full px-4 py-2 text-sm font-bold transition ${
                           isActive
                             ? "bg-brand-primary text-white"
                             : "text-slate-700 hover:text-brand-primary"
@@ -142,16 +148,6 @@ export function Layout() {
                 </nav>
 
                 <div className="ml-auto flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMobileMenuOpen(true)}
-                    className="enterprise-icon-button touch-target inline-flex items-center justify-center rounded-full backdrop-blur transition active:scale-95 lg:hidden"
-                    aria-label="Open menu"
-                    aria-expanded={mobileMenuOpen}
-                  >
-                    <Menu className="h-5 w-5" />
-                  </button>
-
                   <div className="hidden shrink-0 xl:block xl:max-w-[280px] xl:min-w-[200px]">
                     <LocationSelector />
                   </div>
@@ -179,30 +175,6 @@ export function Layout() {
                     <span className="inline-block h-10 w-24 animate-pulse rounded-full bg-slate-200" aria-hidden="true" />
                   )}
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 xl:hidden">
-                <LocationSelector />
-                {user ? (
-                  <Link
-                    to={showShopActions ? "/wishlist" : "/profile"}
-                    className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
-                    aria-label={showShopActions ? "Saved items" : "Profile"}
-                  >
-                    {showShopActions ? <Heart className="h-4.5 w-4.5" /> : <UserRound className="h-4.5 w-4.5" />}
-                  </Link>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <HeaderShopActions />
-                    <Link
-                      to="/login"
-                      className="enterprise-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur transition active:scale-95"
-                      aria-label="Login"
-                    >
-                      <MapPin className="h-4.5 w-4.5" />
-                    </Link>
-                  </div>
-                )}
               </div>
 
               {/* Mobile menu drawer */}

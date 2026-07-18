@@ -20,9 +20,16 @@ export function CartDrawerOverlay() {
       <div
         role="presentation"
         onClick={closeDrawer}
-        className={`fixed inset-0 z-40 transition-all duration-300 ${
-          isAnimating ? "bg-slate-950/55 backdrop-blur-[2px]" : "pointer-events-none bg-slate-950/0"
+        className={`fixed inset-0 transition-all duration-300 ${
+          isAnimating ? "bg-slate-950/55 backdrop-blur-[4px]" : "pointer-events-none bg-slate-950/0"
         }`}
+        style={{
+          inset: 0,
+          width: "100vw",
+          height: "100vh",
+          display: "block",
+          zIndex: 2147483646,
+        }}
         aria-hidden="true"
       />
     </Portal>

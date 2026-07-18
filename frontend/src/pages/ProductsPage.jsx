@@ -215,7 +215,7 @@ export function ProductsPage() {
   }, [category, filterDefs, maxPrice, minPrice, search, searchParams, subCategoryId, subcategories]);
 
   return (
-    <div className="grid gap-4 sm:gap-6">
+    <div className="mt-3 grid gap-4 sm:gap-6 sm:mt-4">
       <div className="flex flex-col gap-2 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-0">
         <div className="sm:col-start-2 sm:justify-self-center sm:text-center">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Shop Products</h1>
@@ -318,11 +318,29 @@ export function ProductsPage() {
         {showFilters ? (
           <>
             <div
-              className="fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-sm"
+              className="fixed inset-0 bg-slate-950/50 backdrop-blur-[4px]"
+              style={{
+                inset: 0,
+                width: "100vw",
+                height: "100vh",
+                display: "block",
+                zIndex: 2147483646,
+              }}
               onClick={() => setShowFilters(false)}
             />
             <aside
-              className="fixed left-0 top-0 z-50 flex h-full w-full max-w-[360px] translate-x-0 flex-col border-r border-slate-200 bg-white shadow-2xl transition-transform duration-300 ease-out dark:border-slate-800 dark:bg-slate-900"
+              className="fixed left-0 flex w-[75%] max-w-[300px] translate-x-0 flex-col border-r border-slate-200 bg-white p-0 shadow-[0_0_25px_rgba(0,0,0,0.3)] transition-transform duration-300 ease-out sm:w-[min(100vw,28rem)] sm:max-w-[28rem] dark:border-slate-800 dark:bg-slate-900"
+              style={{
+                top: 0,
+                left: 0,
+                marginTop: 0,
+                height: "100vh",
+                maxHeight: "100vh",
+                overflow: "hidden",
+                borderTopRightRadius: 20,
+                borderBottomRightRadius: 20,
+                zIndex: 2147483647,
+              }}
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-slate-800">

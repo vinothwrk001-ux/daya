@@ -318,7 +318,10 @@ export function CategoryHeroBannerSplit({
         {activeCategory ? (
           <div className="rounded-[1.5rem] bg-zinc-50 p-4 shadow-sm sm:p-5">
             {heroHeading ? (
-              <h2 className="text-lg font-black uppercase tracking-tight text-zinc-950 sm:text-xl">
+              <h2
+                className="max-w-[65ch] w-full text-lg font-black uppercase tracking-tight text-zinc-950 sm:text-xl"
+                style={{ textWrap: "balance", WebkitTextWrap: "balance", overflowWrap: "anywhere" }}
+              >
                 {heroHeading}
               </h2>
             ) : null}

@@ -521,11 +521,29 @@ h3,
     box-shadow: var(--shadow-small);
   }
 
+  @media (max-width: 767px) {
+    .enterprise-header {
+      min-height: 72px;
+    }
+  }
+
   .enterprise-nav-pill {
     border: 1px solid var(--color-border);
     background: #ffffff;
     color: var(--color-text-primary);
     box-shadow: var(--shadow-small);
+  }
+
+  @media (max-width: 1023px) {
+    .enterprise-nav-pill {
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .enterprise-nav-pill::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   .enterprise-icon-button {
@@ -933,9 +951,18 @@ h3,
   }
 
   .hero-header-grid {
-    grid-template-columns: minmax(0, 3.25rem) minmax(0, 1fr) minmax(0, auto);
+    grid-template-columns: 1fr auto 1fr;
     gap: 0.375rem;
     align-items: center;
+    justify-items: center;
+  }
+
+  .hero-header-grid__start {
+    justify-self: start;
+  }
+
+  .hero-header-grid__end {
+    justify-self: end;
   }
 
   .hero-banner-header .hero-header-logo,
@@ -945,8 +972,11 @@ h3,
   }
 
   .hero-banner-header .hero-header-grid__center {
-    max-width: none;
+    max-width: 220px;
     min-width: 0;
+    position: relative;
+    left: -10px;
+    margin-right: 0.5rem;
   }
 
   .hero-banner-header input[type="text"],

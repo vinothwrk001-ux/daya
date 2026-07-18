@@ -107,6 +107,17 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
     "website": "🌐",
     "workshop": "🛠️",
   };
+
+  const labelMap = {
+    "men's shirt": "Men's Shirt",
+    "men's shirts": "Men's Shirt",
+    "women's shirt": "Women's Shirt",
+    "women's shirts": "Women's Shirt",
+    "unisex t-shirt": "Unisex T-Shirts",
+    "unisex t-shirts": "Unisex T-Shirts",
+    "hoodie": "Hoodies",
+    "hoodies": "Hoodies",
+  };
   
   const getEmojiForTitle = (title) => {
     const lowerTitle = (title || "").toLowerCase();
@@ -117,10 +128,17 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
     }
     return "";
   };
+
+  const normalizeTitle = (title) => {
+    const lowerTitle = (title || "").toLowerCase();
+    return labelMap[lowerTitle] || title || "";
+  };
+
+  const normalizedTitle = normalizeTitle(card.title);
+  const titleWithEmoji = `${normalizedTitle} ${getEmojiForTitle(card.title)}`.trim();
+  const labelMinWidthClass = normalizedTitle === "Unisex T-Shirts" ? "min-w-[126px]" : "min-w-[118px]";
   
-  const titleWithEmoji = `${card.title} ${getEmojiForTitle(card.title)}`.trim();
-  
-  const containerClasses = "banner-category-card group relative flex w-full aspect-[3/4] overflow-visible rounded-[2rem] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
+  const containerClasses = "banner-category-card group relative flex w-full aspect-[3/4] overflow-hidden rounded-[18px] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
 
   const imageWrapperClasses = "absolute inset-x-0 top-0 bottom-14 flex items-center justify-start overflow-visible bg-black" + 
     " bg-[repeating-linear-gradient(45deg,#111_0,#111_2px,transparent_2px,transparent_10px)]";
@@ -159,8 +177,8 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
       </div>
       <div className={cardBodyClasses}>
         <div className={titleSectionClasses}>
-          <div className="flex w-fit max-w-[90%] items-center justify-center rounded-full bg-white px-2 py-1 shadow-lg">
-            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[8px] font-bold text-black sm:text-[8px]">{titleWithEmoji}</p>
+          <div className={`inline-flex h-[31px] ${labelMinWidthClass} items-center justify-center rounded-full bg-white px-[14px] shadow-lg`}>
+            <p className="overflow-visible whitespace-nowrap text-[11px] font-semibold text-black">{titleWithEmoji}</p>
           </div>
           {card.showProductCount !== false && card.productCount != null ? (
             <p className={countClasses}>{card.productCount} products</p>
@@ -368,7 +386,10 @@ export function HomepageBannerSlider({
       <p className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-primary sm:text-xs">
         {featuredText}
       </p>
-      <h2 className="mt-3 max-w-xl text-2xl font-black uppercase leading-[0.95] tracking-[-0.03em] text-white sm:mt-4 sm:text-4xl lg:text-5xl">
+      <h2
+        className="mt-3 max-w-[65ch] w-full text-center text-2xl font-black uppercase leading-tight tracking-[-0.03em] text-white sm:mt-4 sm:text-3xl md:text-4xl lg:text-5xl"
+        style={{ textWrap: "balance", WebkitTextWrap: "balance", overflowWrap: "anywhere" }}
+      >
         {activeBanner.title || activeBanner.name}
       </h2>
       {activeBanner.subtitle ? (
@@ -430,7 +451,7 @@ export function HomepageBannerSlider({
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35 }}
-                  className="min-h-[10rem] flex flex-col items-center justify-center gap-4 text-center transition-opacity duration-300"
+                  className="hidden md:flex min-h-[10rem] flex-col items-center justify-center gap-4 text-center transition-opacity duration-300"
                 >
                   <div className="flex flex-col items-center gap-4 text-center">
                     <div className="inline-flex items-center justify-center rounded-full border border-red-500 bg-transparent px-4 py-2">
@@ -465,16 +486,16 @@ export function HomepageBannerSlider({
             </div>
           </div>
           {isMobile && activeBanner.description ? (
-            <div className="absolute inset-x-0 bottom-[4.5rem] z-20 mx-auto flex w-full max-w-[92%] flex-col items-center gap-3 rounded-3xl bg-black/70 px-4 py-4 text-center text-white shadow-xl backdrop-blur-sm md:hidden">
+            <div className="absolute inset-x-0 bottom-[3rem] z-20 mx-auto flex w-full max-w-[92%] flex-col items-center gap-3 rounded-3xl bg-transparent px-4 py-4 text-center text-white backdrop-blur-none md:hidden">
               <p className="text-sm leading-6 text-white/80">{activeBanner.description}</p>
               {renderBannerCta(
-                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-primaryHover"
+                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover"
               )}
             </div>
           ) : isMobile ? (
-            <div className="absolute inset-x-0 bottom-[4.5rem] z-20 mx-auto flex w-full max-w-[92%] items-center justify-center rounded-3xl bg-black/70 px-4 py-4 text-center text-white shadow-xl backdrop-blur-sm md:hidden">
+            <div className="absolute inset-x-0 bottom-[3rem] z-20 mx-auto flex w-full max-w-[92%] items-center justify-center rounded-3xl bg-transparent px-4 py-4 text-center text-white backdrop-blur-none md:hidden">
               {renderBannerCta(
-                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-primaryHover"
+                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover"
               )}
             </div>
           ) : null}
@@ -525,6 +546,14 @@ export function HomepageBannerSlider({
       </div>
       {categories.length ? (
         <div className="mt-4 px-4 pb-4 md:hidden">
+          <div className="mb-6 flex flex-col items-center gap-3 text-center md:hidden">
+            <div className="inline-flex items-center justify-center rounded-full border border-red-500 bg-transparent px-4 py-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-red-500 sm:text-sm">Categories</span>
+            </div>
+            <p className="mx-auto max-w-[42rem] text-sm font-semibold leading-6 text-zinc-900 sm:text-base">
+              Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear.
+            </p>
+          </div>
           <div
             className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide"
             role="list"
@@ -536,7 +565,7 @@ export function HomepageBannerSlider({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: cardIndex * 0.05, duration: 0.28 }}
-                className="snap-start shrink-0 w-[calc((100vw-2rem)/2)] min-w-[calc((100vw-2rem)/2)]"
+                className="snap-start shrink-0 w-[calc((100%-1rem)/2)] min-w-[calc((100%-1rem)/2)]"
               >
                 <BannerCategoryCard
                   card={card}

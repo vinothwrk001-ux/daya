@@ -1,9 +1,41 @@
 const mongoose = require("mongoose");
 const { Order } = require("../models/Order");
 const { normalizeDateRange, applyDateRange } = require("../utils/dateRange");
+const { normalizeShiftValue, buildShiftQueryRange } = require("../utils/shiftTime");
 
 function escapeRegex(value = "") {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeOrderItem(item = {}) {
+  const productRef = item?.productId && typeof item.productId === "object" && !Array.isArray(item.productId) ? item.productId : null;
+  const resolvedProductId = productRef?._id || item?.productId || null;
+  const productName = item?.productName || item?.name || productRef?.name || "";
+  const productNumber = item?.productNumber || productRef?.productNumber || productRef?.SKU || "";
+  const sku = item?.sku || productRef?.SKU || "";
+  const quantity = Number(item?.quantity || 0);
+  const price = Number(item?.price || 0);
+
+  return {
+    ...item,
+    productId: resolvedProductId || null,
+    productName,
+    productNumber,
+    sku,
+    name: item?.name || productName || "",
+    quantity,
+    price,
+    subtotal: price * quantity,
+  };
+}
+
+function normalizeOrderResponse(order) {
+  if (!order) return order;
+  const orderObject = typeof order?.toObject === "function" ? order.toObject() : order;
+  return {
+    ...orderObject,
+    items: (orderObject?.items || []).map(normalizeOrderItem),
+  };
 }
 
 class OrderRepository {
@@ -40,6 +72,7 @@ class OrderRepository {
     sortOrder = -1,
     startDate,
     endDate,
+    shift,
   } = {}) {
     const query = {};
 
@@ -62,17 +95,26 @@ class OrderRepository {
           { invoiceNumber: { $regex: escapedSearch, $options: "i" } },
           { "shippingAddress.fullName": { $regex: escapedSearch, $options: "i" } },
           { "shippingAddress.phone": { $regex: escapedSearch, $options: "i" } },
+          { "items.productName": { $regex: escapedSearch, $options: "i" } },
+          { "items.productNumber": { $regex: escapedSearch, $options: "i" } },
+          { "items.sku": { $regex: escapedSearch, $options: "i" } },
         ];
 
         if (mongoose.isValidObjectId(searchValue)) {
           searchConditions.unshift({ _id: new mongoose.Types.ObjectId(searchValue) });
+          searchConditions.push({ "items.productId": new mongoose.Types.ObjectId(searchValue) });
         }
 
         query.$or = searchConditions;
       }
     }
 
-    applyDateRange(query, normalizeDateRange({ startDate, endDate }));
+    const normalizedShift = normalizeShiftValue(shift);
+    const baseRange = normalizeDateRange({ startDate, endDate });
+    const rangeForQuery = buildShiftQueryRange({ startDate, endDate, shift: normalizedShift }, baseRange);
+    if (rangeForQuery) {
+      applyDateRange(query, rangeForQuery);
+    }
 
     const skip = (page - 1) * limit;
     const sort = { [sortBy]: sortOrder };
@@ -81,7 +123,7 @@ class OrderRepository {
       Order.find(query)
         .populate("userId", "name email phone")
         .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-        .populate("items.productId", "name slug")
+        .populate("items.productId", "name slug productNumber SKU images")
         .sort(sort)
         .skip(skip)
         .limit(limit)
@@ -90,7 +132,7 @@ class OrderRepository {
     ]);
 
     return {
-      orders,
+      orders: orders.map(normalizeOrderResponse),
       pagination: {
         total,
         page,
@@ -114,27 +156,30 @@ class OrderRepository {
   }
 
   async findById(id) {
-    return await Order.findById(id)
+    const order = await Order.findById(id)
       .populate("userId", "name email phone")
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-      .populate("items.productId", "name slug")
+      .populate("items.productId", "name slug productNumber SKU images")
       .exec();
+    return normalizeOrderResponse(order);
   }
 
   async findByIdForUser(id, userId) {
-    return await Order.findOne({ _id: id, userId, isActive: true })
+    const order = await Order.findOne({ _id: id, userId, isActive: true })
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-      .populate("items.productId", "name slug images")
+      .populate("items.productId", "name slug productNumber SKU images")
       .exec();
+    return normalizeOrderResponse(order);
   }
 
   async findByGroupId(orderGroupId) {
-    return await Order.find({ orderGroupId })
+    const orders = await Order.find({ orderGroupId })
       .populate("userId", "name email phone")
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-      .populate("items.productId", "name slug images")
+      .populate("items.productId", "name slug productNumber SKU images")
       .sort({ createdAt: -1 })
       .exec();
+    return orders.map(normalizeOrderResponse);
   }
 
   async listByUserId({
@@ -163,7 +208,7 @@ class OrderRepository {
     const [orders, total] = await Promise.all([
       Order.find(query)
         .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-        .populate("items.productId", "name slug images")
+        .populate("items.productId", "name slug productNumber SKU images")
         .sort(sort)
         .skip(skip)
         .limit(limit)
@@ -172,7 +217,7 @@ class OrderRepository {
     ]);
 
     return {
-      orders,
+      orders: orders.map(normalizeOrderResponse),
       pagination: {
         total,
         page,
@@ -199,8 +244,12 @@ class OrderRepository {
         },
       },
       { returnDocument: "after" }
-    ).exec();
-    return updated;
+    )
+      .populate("userId", "name email phone")
+      .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
+      .populate("items.productId", "name slug productNumber SKU images")
+      .exec();
+    return normalizeOrderResponse(updated);
   }
 
   async updateStatus(id, status) {
@@ -220,9 +269,9 @@ class OrderRepository {
     const updated = await Order.findByIdAndUpdate(id, update, { returnDocument: "after" })
       .populate("userId", "name email phone")
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-      .populate("items.productId", "name slug")
+      .populate("items.productId", "name slug productNumber SKU images")
       .exec();
-    return updated;
+    return normalizeOrderResponse(updated);
   }
 
   async getMonthlyRevenue(limit = 6, match = {}) {
@@ -289,11 +338,12 @@ class OrderRepository {
       };
     }
 
-    return await Order.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true })
+    const updated = await Order.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true })
       .populate("userId", "name email phone")
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-      .populate("items.productId", "name slug")
+      .populate("items.productId", "name slug productNumber SKU images")
       .exec();
+    return normalizeOrderResponse(updated);
   }
 
   async markWhatsAppSent(id, { twilioSid } = {}) {
@@ -311,11 +361,12 @@ class OrderRepository {
       },
     };
 
-    return await Order.findByIdAndUpdate(id, update, { returnDocument: "after" })
+    const updated = await Order.findByIdAndUpdate(id, update, { returnDocument: "after" })
       .populate("userId", "name email phone")
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-      .populate("items.productId", "name slug")
+      .populate("items.productId", "name slug productNumber SKU images")
       .exec();
+    return normalizeOrderResponse(updated);
   }
 
   async shipOrderById(id, updateData = {}) {
@@ -334,11 +385,12 @@ class OrderRepository {
       },
     };
 
-    return await Order.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true })
+    const updated = await Order.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true })
       .populate("userId", "name email phone")
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-      .populate("items.productId", "name slug")
+      .populate("items.productId", "name slug productNumber SKU images")
       .exec();
+    return normalizeOrderResponse(updated);
   }
 
   async softDeleteById(id, { note } = {}) {
@@ -356,11 +408,12 @@ class OrderRepository {
           }
         : {}),
     };
-    return await Order.findByIdAndUpdate(id, update, { returnDocument: "after" })
+    const updated = await Order.findByIdAndUpdate(id, update, { returnDocument: "after" })
       .populate("userId", "name email phone")
       .populate("paymentRecordId", "status method amount razorpayOrderId razorpayPaymentId refundedAmount refundStatus")
-      .populate("items.productId", "name slug")
+      .populate("items.productId", "name slug productNumber SKU images")
       .exec();
+    return normalizeOrderResponse(updated);
   }
 }
 

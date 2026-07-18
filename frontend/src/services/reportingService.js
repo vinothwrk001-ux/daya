@@ -13,12 +13,13 @@ function getFilename(headers, module, format) {
   return `${module}.${getExtension(format)}`;
 }
 
-export async function downloadReport({ module, format, startDate, endDate, filters = {} }) {
+export async function downloadReport({ module, format, startDate, endDate, shift, filters = {} }) {
   const response = await api.get("/api/export", {
     params: {
       module,
       format,
       ...buildDateRangeParams(startDate, endDate),
+      ...(shift ? { shift } : {}),
       filters: JSON.stringify(filters),
     },
     responseType: "blob",

@@ -203,9 +203,19 @@ export function CartDrawer() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="drawer-title"
-          className={`fixed right-0 top-0 z-50 flex h-dvh w-full max-w-[min(100vw,28rem)] flex-col overflow-hidden bg-[#0f0f0f] text-white shadow-2xl shadow-black/40 transition-transform duration-300 ease-out ${
+          className={`fixed right-0 top-0 flex h-dvh w-[75%] max-w-[300px] flex-col overflow-hidden bg-[#0f0f0f] text-white shadow-[0_0_25px_rgba(0,0,0,0.3)] transition-transform duration-300 ease-out sm:w-full sm:max-w-[min(100vw,28rem)] ${
             isAnimating ? "translate-x-0" : "translate-x-full"
           } pb-[max(1rem,env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)]`}
+          style={{
+            top: 0,
+            right: 0,
+            marginTop: 0,
+            height: "100vh",
+            maxHeight: "100vh",
+            borderTopLeftRadius: 20,
+            borderBottomLeftRadius: 20,
+            zIndex: 2147483647,
+          }}
         >
           <div className="flex items-center justify-between border-b border-slate-800/80 p-4 sm:p-6">
             <div>

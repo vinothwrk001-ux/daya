@@ -3,6 +3,7 @@ const ExcelJS = require("exceljs");
 const PDFDocument = require("pdfkit");
 const { AppError } = require("../utils/AppError");
 const { normalizeDateRange, applyDateRange } = require("../utils/dateRange");
+const { normalizeShiftValue, buildShiftQueryRange } = require("../utils/shiftTime");
 const { User } = require("../models/User");
 const { Product } = require("../models/Product");
 const { Order } = require("../models/Order");
@@ -35,6 +36,130 @@ function normalizeModuleName(value) {
     .trim()
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
+}
+
+function buildOrderExportRows(orders = [], filters = {}) {
+  const rows = [];
+  let totalOrders = 0;
+  let totalProductsSold = 0;
+  let totalQuantitySold = 0;
+  let totalRevenue = 0;
+
+  for (const order of orders || []) {
+    totalOrders += 1;
+    const items = Array.isArray(order?.items) ? order.items : [];
+    for (const item of items) {
+      const quantity = Number(item?.quantity || 0);
+      const unitPrice = Number(item?.price || 0);
+      const subtotal = unitPrice * quantity;
+      totalProductsSold += 1;
+      totalQuantitySold += quantity;
+      totalRevenue += subtotal;
+      rows.push({
+        "Order ID": order?.orderNumber || String(order?._id || ""),
+        "Product ID": item?.productNumber || item?.productId?.productNumber || item?.productId?.SKU || item?.productId?._id || item?.productId || item?.sku || "N/A",
+        "Product Name": item?.productName || item?.productId?.name || item?.name || "",
+        Quantity: quantity,
+        "Unit Price": unitPrice,
+        Subtotal: subtotal,
+        Customer: order?.userId?.name || "",
+        "Payment Status": order?.paymentStatus || "",
+        "Order Status": order?.status || "",
+        "Shipping Status": order?.shippingStatus || "",
+        Date: toDateTime(order?.createdAt),
+      });
+    }
+  }
+
+  if (filters?.startDate || filters?.endDate || filters?.shift) {
+    const shiftLabel = normalizeShiftValue(filters?.shift || "all");
+    const periodLabel = [
+      filters?.startDate ? String(filters.startDate) : "All time",
+      filters?.endDate ? String(filters.endDate) : "",
+    ].filter(Boolean).join(" → ");
+
+    rows.push({
+      "Order ID": "Report Period",
+      "Product ID": periodLabel || "All time",
+      "Product Name": "",
+      Quantity: "",
+      "Unit Price": "",
+      Subtotal: "",
+      Customer: "",
+      "Payment Status": "",
+      "Order Status": "",
+      "Shipping Status": "",
+      Date: "",
+    });
+    rows.push({
+      "Order ID": "Shift",
+      "Product ID": shiftLabel === "all" ? "All Time" : shiftLabel === "day" ? "Day Shift" : "Night Shift",
+      "Product Name": "",
+      Quantity: "",
+      "Unit Price": "",
+      Subtotal: "",
+      Customer: "",
+      "Payment Status": "",
+      "Order Status": "",
+      "Shipping Status": "",
+      Date: "",
+    });
+  }
+
+  rows.push({
+    "Order ID": "Total Products Sold",
+    "Product ID": totalProductsSold,
+    "Product Name": "",
+    Quantity: "",
+    "Unit Price": "",
+    Subtotal: "",
+    Customer: "",
+    "Payment Status": "",
+    "Order Status": "",
+    "Shipping Status": "",
+    Date: "",
+  });
+  rows.push({
+    "Order ID": "Total Quantity Sold",
+    "Product ID": totalQuantitySold,
+    "Product Name": "",
+    Quantity: "",
+    "Unit Price": "",
+    Subtotal: "",
+    Customer: "",
+    "Payment Status": "",
+    "Order Status": "",
+    "Shipping Status": "",
+    Date: "",
+  });
+  rows.push({
+    "Order ID": "Total Revenue",
+    "Product ID": toCurrency(totalRevenue),
+    "Product Name": "",
+    Quantity: "",
+    "Unit Price": "",
+    Subtotal: "",
+    Customer: "",
+    "Payment Status": "",
+    "Order Status": "",
+    "Shipping Status": "",
+    Date: "",
+  });
+  rows.push({
+    "Order ID": "Total Orders",
+    "Product ID": totalOrders,
+    "Product Name": "",
+    Quantity: "",
+    "Unit Price": "",
+    Subtotal: "",
+    Customer: "",
+    "Payment Status": "",
+    "Order Status": "",
+    "Shipping Status": "",
+    Date: "",
+  });
+
+  return rows;
 }
 
 function buildFileName(moduleName, format) {
@@ -125,12 +250,15 @@ async function getRowsForModule(moduleName, user, query) {
     startDate: query.startDate,
     endDate: query.endDate,
   });
+  const shiftValue = normalizeShiftValue(query.shift || filters.shift);
+  const shiftDateRange = buildShiftQueryRange({ startDate: query.startDate, endDate: query.endDate, shift: shiftValue }, dateRange);
+  const effectiveDateRange = shiftDateRange || dateRange;
 
   const handlers = {
     users: async () => {
       const dbQuery = {};
       if (filters.role) dbQuery.role = filters.role;
-      applyDateRange(dbQuery, dateRange);
+      applyDateRange(dbQuery, effectiveDateRange);
       const users = await User.find(dbQuery).sort({ createdAt: -1 }).lean();
       return users.map((item) => ({
         Name: item.name,
@@ -145,7 +273,7 @@ async function getRowsForModule(moduleName, user, query) {
       const dbQuery = {};
       if (filters.status) dbQuery.status = filters.status;
       if (filters.category) dbQuery.category = filters.category;
-      applyDateRange(dbQuery, dateRange);
+      applyDateRange(dbQuery, effectiveDateRange);
       const products = await Product.find(dbQuery).sort({ createdAt: -1 }).lean();
       return products.map((item) => ({
         Name: item.name,
@@ -161,26 +289,23 @@ async function getRowsForModule(moduleName, user, query) {
       const dbQuery = { isActive: true };
       if (filters.status) dbQuery.status = filters.status;
       if (filters.paymentStatus) dbQuery.paymentStatus = filters.paymentStatus;
-      applyDateRange(dbQuery, dateRange);
+      applyDateRange(dbQuery, effectiveDateRange);
       const orders = await Order.find(dbQuery)
         .populate("userId", "name email")
+        .populate("items.productId", "name productNumber SKU")
         .sort({ createdAt: -1 })
         .lean();
-      return orders.map((item) => ({
-        OrderNumber: item.orderNumber || String(item._id),
-        Customer: item.userId?.name || "",
-        Email: item.userId?.email || "",
-        Amount: toCurrency(item.totalAmount),
-        PaymentStatus: item.paymentStatus,
-        Status: item.status,
-        CreatedAt: toDateTime(item.createdAt),
-      }));
+      return buildOrderExportRows(orders, {
+        startDate: query.startDate || filters.startDate,
+        endDate: query.endDate || filters.endDate,
+        shift: query.shift || filters.shift,
+      });
     },
     invoices: async () => {
       const dbQuery = { isActive: true };
       if (filters.status) dbQuery.status = filters.status;
       if (filters.paymentStatus) dbQuery.paymentStatus = filters.paymentStatus;
-      applyDateRange(dbQuery, dateRange);
+      applyDateRange(dbQuery, effectiveDateRange);
       const orders = await Order.find(dbQuery)
         .populate("userId", "name email phone")
         .sort({ createdAt: -1 })
@@ -200,7 +325,7 @@ async function getRowsForModule(moduleName, user, query) {
     payments: async () => {
       const dbQuery = {};
       if (filters.status) dbQuery.status = filters.status;
-      applyDateRange(dbQuery, dateRange);
+      applyDateRange(dbQuery, effectiveDateRange);
       const payments = await Payment.find(dbQuery).populate("userId", "name email").sort({ createdAt: -1 }).lean();
       return payments.map((item) => ({
         User: item.userId?.name || "",
@@ -215,7 +340,7 @@ async function getRowsForModule(moduleName, user, query) {
     returns: async () => {
       const dbQuery = {};
       if (filters.status) dbQuery.status = filters.status;
-      applyDateRange(dbQuery, dateRange);
+      applyDateRange(dbQuery, effectiveDateRange);
       const items = await ReturnRequest.find(dbQuery)
         .populate("orderId", "orderNumber")
         .populate("customerId", "name email")
@@ -233,7 +358,7 @@ async function getRowsForModule(moduleName, user, query) {
     },
     reviews: async () => {
       const dbQuery = {};
-      applyDateRange(dbQuery, dateRange);
+      applyDateRange(dbQuery, effectiveDateRange);
       const items = await ProductReview.find(dbQuery)
         .populate("productId", "name")
         .populate("customerId", "name email")
@@ -255,7 +380,7 @@ async function getRowsForModule(moduleName, user, query) {
       if (filters.actorRole) dbQuery.actorRole = filters.actorRole;
       if (filters.entityType) dbQuery.entityType = filters.entityType;
       if (filters.status) dbQuery.status = filters.status;
-      applyDateRange(dbQuery, dateRange);
+      applyDateRange(dbQuery, effectiveDateRange);
       const items = await AuditLog.find(dbQuery).populate("actorId", "name email").sort({ createdAt: -1 }).lean();
       return items.map((item) => ({
         Action: item.action,
@@ -357,4 +482,5 @@ async function buildExportFile({ rows, title, filenameBase, format }) {
 module.exports = {
   exportModule,
   buildExportFile,
+  buildOrderExportRows,
 };

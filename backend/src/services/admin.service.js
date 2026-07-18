@@ -396,6 +396,9 @@ async function createOrder(payload, actor, meta) {
     const price = Number(variant?.discountPrice || variant?.price || product.discountPrice || product.price || 0);
     validated.push({
       productId: product._id,
+      productName: product.name,
+      productNumber: product.productNumber || "",
+      sku: product.SKU || "",
       name: product.name,
       price,
       quantity,

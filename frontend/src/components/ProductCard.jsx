@@ -291,7 +291,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
         ) : null}
 
         <h3
-          className={`mt-2 line-clamp-2 min-h-[2.25rem] text-[15px] font-medium leading-snug tracking-[-0.01em] ${
+          className={`mt-2 line-clamp-2 min-h-[2.25rem] text-base font-bold leading-snug tracking-[-0.01em] ${
             isEditorial ? "text-white" : "text-[#171717]"
           }`}
         >

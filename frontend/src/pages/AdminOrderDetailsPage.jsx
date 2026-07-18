@@ -23,6 +23,19 @@ function formatTimelineDate(value) {
   return date.toLocaleString();
 }
 
+function resolveItemProductId(item) {
+  const value = item?.productNumber || item?.productId?.productNumber || item?.productId?.SKU || item?.productId?._id || item?.productId || item?.sku || "";
+  return value ? String(value) : "N/A";
+}
+
+function resolveItemProductName(item) {
+  return item?.productName || item?.name || "Unknown product";
+}
+
+function resolveItemSku(item) {
+  return item?.sku || item?.productId?.SKU || item?.variantSku || "";
+}
+
 function buildOrderTimeline(order) {
   if (!order) return [];
 
@@ -314,13 +327,17 @@ export function AdminOrderDetailsPage() {
                 <div key={`${it.productId?._id || it.productId}-${it.variantId || "base"}`} className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
                   <div className="h-16 w-16 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
                     {it.image ? (
-                      <img src={it.image} alt={it.name} className="h-full w-full object-cover" />
+                      <img src={it.image} alt={resolveItemProductName(it)} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">No image</div>
                     )}
                   </div>
                   <div className="min-w-0 space-y-1">
-                    <div className="truncate font-semibold text-slate-950 dark:text-white">{it.name}</div>
+                    <div className="truncate font-semibold text-slate-950 dark:text-white">{resolveItemProductName(it)}</div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="truncate" title={resolveItemProductId(it)}>Product ID: {resolveItemProductId(it)}</span>
+                      {resolveItemSku(it) ? <span>SKU: {resolveItemSku(it)}</span> : null}
+                    </div>
                     {it.variantTitle || it.variantId ? (
                       <div className="truncate text-xs text-slate-500 dark:text-slate-400">
                         Variant: {it.variantTitle || Object.entries(it.variantAttributes || {}).map(([key, value]) => `${key}: ${value}`).join(" / ")}
@@ -338,8 +355,9 @@ export function AdminOrderDetailsPage() {
                       Qty {it.quantity} · Unit {formatCurrency(it.price)}
                     </div>
                   </div>
-                  <div className="text-sm font-semibold text-slate-950 dark:text-white">
-                    {formatCurrency((it.price || 0) * (it.quantity || 0))}
+                  <div className="text-right text-sm font-semibold text-slate-950 dark:text-white">
+                    <div>{formatCurrency((it.price || 0) * (it.quantity || 0))}</div>
+                    <div className="mt-1 text-xs font-normal text-slate-500 dark:text-slate-400">Subtotal</div>
                   </div>
                 </div>
               ))

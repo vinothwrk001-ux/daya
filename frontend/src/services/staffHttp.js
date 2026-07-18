@@ -1,9 +1,10 @@
 import axios from "axios";
 import { useStaffAuthStore } from "../context/staffAuthStore";
 import { attachCsrfHeader } from "./csrf";
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
 
 export const staffHttp = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
+  baseURL: getApiBaseUrl(),
   timeout: 20000,
   withCredentials: true,
 });

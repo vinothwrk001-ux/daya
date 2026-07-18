@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { confirmAction } from "../services/notificationService";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { deleteOrder, listOrders } from "../services/adminApi";
 import { AdminTable } from "../components/AdminTable";
 import { ReportingToolbar } from "../components/ReportingToolbar";
@@ -14,8 +14,17 @@ function normalizeError(err) {
   return err?.response?.data?.message || err?.message || "Request failed";
 }
 
+function parseDateValue(value) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function AdminOrdersPage() {
   const { basePath, isLegacyAdmin } = useAdminSession();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
@@ -27,9 +36,13 @@ export function AdminOrdersPage() {
   const [busyId, setBusyId] = useState("");
   const reporting = useReporting({
     module: "orders",
+    initialStartDate: parseDateValue(searchParams.get("startDate")),
+    initialEndDate: parseDateValue(searchParams.get("endDate")),
+    initialShift: searchParams.get("shift") || "all",
     getFilters: () => ({
       ...(status ? { status } : {}),
       ...(paymentStatus ? { paymentStatus } : {}),
+      ...(reporting.shift && reporting.shift !== "all" ? { shift: reporting.shift } : {}),
     }),
     onApply: () => setPage(1),
   });
@@ -45,6 +58,20 @@ export function AdminOrdersPage() {
     }),
     [page, paymentStatus, reporting.appliedParams, search, status]
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (reporting.appliedStartDate) {
+      params.set("startDate", reporting.appliedStartDate.toISOString().split("T")[0]);
+    }
+    if (reporting.appliedEndDate) {
+      params.set("endDate", reporting.appliedEndDate.toISOString().split("T")[0]);
+    }
+    if (reporting.appliedShift && reporting.appliedShift !== "all") {
+      params.set("shift", reporting.appliedShift);
+    }
+    setSearchParams(params, { replace: true });
+  }, [reporting.appliedEndDate, reporting.appliedShift, reporting.appliedStartDate, setSearchParams]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -127,7 +154,7 @@ export function AdminOrdersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Order ID or Order Number or customer name"
+            placeholder="Order ID, Product ID, customer, email or phone"
             className="rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           />
         </label>
@@ -157,6 +184,8 @@ export function AdminOrdersPage() {
         onExport={handleExport}
         exportingFormat={reporting.exportingFormat}
         isDirty={reporting.hasPendingChanges}
+        shiftValue={reporting.shift}
+        onShiftChange={(value) => reporting.setShift(value)}
       />
 
       {error ? (
@@ -176,6 +205,8 @@ export function AdminOrdersPage() {
           columns={[
             { key: "id", label: "Order" },
             { key: "user", label: "User" },
+            { key: "productId", label: "Product ID" },
+            { key: "quantity", label: "Quantity" },
             { key: "amount", label: "Amount", align: "right" },
             { key: "shipping", label: "Shipping" },
             { key: "pay", label: "Payment" },
@@ -193,6 +224,27 @@ export function AdminOrdersPage() {
               <td className="px-4 py-3">
                 <div className="text-sm font-semibold text-slate-950 dark:text-white">{order.userId?.name || "Unknown"}</div>
                 <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{order.userId?.email || ""}</div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex min-w-[140px] max-w-[180px] flex-col gap-1">
+                  {(order.items || []).map((item, index) => {
+                    const displayValue = item?.productNumber || item?.productId?.productNumber || item?.productId?.SKU || item?.productId?._id || item?.productId || item?.sku || "N/A";
+                    return (
+                      <div key={`${order._id}-${index}`} title={displayValue} className="truncate text-sm text-slate-700 dark:text-slate-200">
+                        {displayValue}
+                      </div>
+                    );
+                  })}
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex min-w-[70px] flex-col gap-1">
+                  {(order.items || []).map((item, index) => (
+                    <div key={`${order._id}-qty-${index}`} className="text-sm text-slate-700 dark:text-slate-200">
+                      {Number(item?.quantity || 0)}
+                    </div>
+                  ))}
+                </div>
               </td>
               <td className="px-4 py-3 text-right">
                 <div className="text-sm font-semibold text-slate-950 dark:text-white">{formatCurrency(order.totalAmount || 0)}</div>

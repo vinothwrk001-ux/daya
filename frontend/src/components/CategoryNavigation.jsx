@@ -93,7 +93,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
   return (
     <>
       <nav
-        className="sticky top-[136px] mt-4 z-30 bg-white text-black backdrop-blur-md will-change-none"
+        className="sticky top-[181px] lg:top-[136px] mt-4 z-30 bg-white text-black backdrop-blur-md will-change-none"
         style={{ height: "48px" }}
       >
         <div className="w-full px-2 lg:px-4 h-full flex items-center relative">

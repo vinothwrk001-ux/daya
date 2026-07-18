@@ -243,6 +243,9 @@ async function buildValidatedItem(item) {
 
   return {
     productId: product._id,
+    productName: product.name,
+    productNumber: product.productNumber || "",
+    sku: product.SKU || "",
     name: product.name,
     image:
       variant?.images?.find((image) => image.isPrimary)?.url ||
@@ -637,6 +640,9 @@ class CheckoutService {
     const validatedItems = await Promise.all(checkoutItems.map(buildValidatedItem));
     const cleanedItems = validatedItems.map(({ product, maxAvailable, ...item }) => ({
       productId: item.productId,
+      productName: item.productName,
+      productNumber: item.productNumber,
+      sku: item.sku,
       name: item.name,
       price: item.price,
       quantity: item.quantity,

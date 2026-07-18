@@ -875,7 +875,12 @@ function BannerContainer({
   const campaignFallback = (
     <div className={`max-w-2xl rounded-[1.5rem] border border-zinc-200 bg-white p-6 shadow-xl sm:rounded-[2rem] sm:p-8 ${resolveTextAlign(config.textPosition)}`}>
       <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-primary">Marketplace campaign</p>
-      <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-4xl">{heading}</h2>
+      <h2
+        className="mt-3 max-w-[65ch] w-full text-3xl font-semibold leading-tight tracking-[-0.05em] text-slate-950 sm:text-4xl"
+        style={{ textWrap: "balance", WebkitTextWrap: "balance", overflowWrap: "anywhere" }}
+      >
+        {heading}
+      </h2>
       {subheading ? <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">{subheading}</p> : null}
       {ctaLabel && ctaUrl ? (
         <a
@@ -981,7 +986,12 @@ function BannerContainer({
             }`}
           >
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Marketplace campaign</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">{heading}</h2>
+            <h2
+              className="mt-3 max-w-[65ch] w-full text-3xl font-semibold leading-tight tracking-[-0.05em] text-white sm:text-4xl"
+              style={{ textWrap: "balance", WebkitTextWrap: "balance", overflowWrap: "anywhere" }}
+            >
+              {heading}
+            </h2>
             {subheading ? <p className="mt-4 text-sm leading-7 text-white/85 sm:text-base">{subheading}</p> : null}
             {ctaLabel && ctaUrl ? (
               <a

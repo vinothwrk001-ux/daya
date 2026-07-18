@@ -102,6 +102,7 @@ const listOrders = asyncHandler(async (req, res) => {
     sortOrder: req.query.sortOrder === "asc" ? 1 : -1,
     startDate: req.query.startDate,
     endDate: req.query.endDate,
+    shift: req.query.shift,
   });
   return ok(res, result, "Orders loaded");
 });
