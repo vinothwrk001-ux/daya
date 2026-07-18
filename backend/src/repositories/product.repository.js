@@ -65,7 +65,20 @@ function buildProductQuery({
   }
 
   if (search) {
-    query.name = { $regex: escapeRegex(search.trim()), $options: "i" };
+    const term = search.trim();
+    const searchRegex = { $regex: escapeRegex(term), $options: "i" };
+    
+    query.$or = [
+      { name: searchRegex },
+      { SKU: searchRegex },
+      { productNumber: searchRegex },
+      { category: searchRegex },
+      { creatorType: searchRegex }
+    ];
+    
+    if (mongoose.Types.ObjectId.isValid(term)) {
+      query.$or.push({ _id: term });
+    }
   }
 
   for (const [key, rawValue] of Object.entries(attributeFilters || {})) {

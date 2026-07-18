@@ -6,10 +6,12 @@ export function toApiDate(value) {
   return `${year}-${month}-${day}`;
 }
 
-export function buildDateRangeParams(startDate, endDate) {
+export function buildDateRangeParams(startDate, endDate, startTime, endTime) {
   return {
     ...(startDate ? { startDate: toApiDate(startDate) } : {}),
     ...(endDate ? { endDate: toApiDate(endDate) } : {}),
+    ...(startTime ? { startTime } : {}),
+    ...(endTime ? { endTime } : {}),
   };
 }
 

@@ -98,7 +98,8 @@ function createApp() {
     "http://127.0.0.1:5174",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    
+    "http://172.20.10.3:5173",
+
   ]);
   const allowedOrigins = new Set(origins);
 

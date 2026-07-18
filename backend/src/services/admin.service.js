@@ -487,7 +487,12 @@ async function updateOrder(orderId, patch, actor, meta) {
   if (nextStatus) assertValidOrderFlow(oldOrder.status, nextStatus);
 
   const updateData = {};
-  if (nextStatus) updateData.status = nextStatus;
+  if (nextStatus) {
+    updateData.status = nextStatus;
+    if (nextStatus === "Delivered" && oldOrder.paymentMethod === "COD") {
+      updateData.paymentStatus = "Paid";
+    }
+  }
   if (nextShippingMode) updateData.shippingMode = nextShippingMode;
   if (deliveryDetails) {
     if (deliveryDetails.trackingId !== undefined) updateData.trackingId = deliveryDetails.trackingId?.trim() || undefined;
@@ -671,7 +676,12 @@ async function updateOrderStatus(orderId, status, actor, meta) {
   const shippingUpdate = {};
   if (status === "Shipped") shippingUpdate.shippingStatus = "SHIPPED";
   if (status === "Out for Delivery") shippingUpdate.shippingStatus = "OUT_FOR_DELIVERY";
-  if (status === "Delivered") shippingUpdate.shippingStatus = "DELIVERED";
+  if (status === "Delivered") {
+    shippingUpdate.shippingStatus = "DELIVERED";
+    if (order.paymentMethod === "COD") {
+      shippingUpdate.paymentStatus = "Paid";
+    }
+  }
   const updated = await orderRepo.updateById(orderId, { status, ...shippingUpdate });
   await productAnalyticsService.refreshForOrder(orderId);
   await auditService.log({

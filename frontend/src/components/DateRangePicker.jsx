@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { DateRange } from "react-date-range";
+import { TimePicker12 } from "./TimePicker12";
 import { addDays, endOfDay, isValid, parse, startOfDay } from "date-fns";
 
 function normalizeRange(startDate, endDate) {
@@ -28,7 +29,10 @@ function parseInputValue(value) {
 export function DateRangePicker({
   startDate,
   endDate,
+  startTime,
+  endTime,
   onChange,
+  onTimeChange,
   disabled = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -132,14 +136,15 @@ export function DateRangePicker({
   return (
     <div ref={rootRef} className="relative w-full md:w-auto md:flex-none">
       <div className="flex w-full flex-col items-stretch gap-4 md:w-auto md:flex-row md:items-end md:gap-6">
-        <label className="grid w-full gap-1 shrink-0 md:w-72">
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Start Date</span>
-          <div className="date-range-input-shell">
-            <span className="date-range-input-icon" aria-hidden="true">
-              <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                <path d="M6 2a1 1 0 0 1 1 1v1h6V3a1 1 0 1 1 2 0v1h.25A2.75 2.75 0 0 1 18 6.75v8.5A2.75 2.75 0 0 1 15.25 18h-10.5A2.75 2.75 0 0 1 2 15.25v-8.5A2.75 2.75 0 0 1 4.75 4H5V3a1 1 0 0 1 1-1Zm9.25 6h-10.5a.75.75 0 0 0-.75.75v6.5c0 .414.336.75.75.75h10.5a.75.75 0 0 0 .75-.75v-6.5a.75.75 0 0 0-.75-.75Z" />
-              </svg>
-            </span>
+        <label className="grid w-full gap-1 shrink-0 md:w-auto">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Start Date & Time</span>
+          <div className="flex flex-col gap-2 md:flex-row">
+            <div className="date-range-input-shell md:w-56">
+              <span className="date-range-input-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                  <path d="M6 2a1 1 0 0 1 1 1v1h6V3a1 1 0 1 1 2 0v1h.25A2.75 2.75 0 0 1 18 6.75v8.5A2.75 2.75 0 0 1 15.25 18h-10.5A2.75 2.75 0 0 1 2 15.25v-8.5A2.75 2.75 0 0 1 4.75 4H5V3a1 1 0 0 1 1-1Zm9.25 6h-10.5a.75.75 0 0 0-.75.75v6.5c0 .414.336.75.75.75h10.5a.75.75 0 0 0 .75-.75v-6.5a.75.75 0 0 0-.75-.75Z" />
+                </svg>
+              </span>
             <input
               id={startInputId}
               type="text"
@@ -174,13 +179,16 @@ export function DateRangePicker({
                 </svg>
               </button>
             ) : null}
+            </div>
+            <TimePicker12 value={startTime} onChange={(val) => onTimeChange?.([val, endTime || ""])} disabled={disabled} />
           </div>
         </label>
 
-        <label className="grid w-full gap-1 shrink-0 md:w-72">
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">End Date</span>
-          <div className="date-range-input-shell">
-            <span className="date-range-input-icon" aria-hidden="true">
+        <label className="grid w-full gap-1 shrink-0 md:w-auto">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">End Date & Time</span>
+          <div className="flex flex-col gap-2 md:flex-row">
+            <div className="date-range-input-shell md:w-56">
+              <span className="date-range-input-icon" aria-hidden="true">
               <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                 <path d="M6 2a1 1 0 0 1 1 1v1h6V3a1 1 0 1 1 2 0v1h.25A2.75 2.75 0 0 1 18 6.75v8.5A2.75 2.75 0 0 1 15.25 18h-10.5A2.75 2.75 0 0 1 2 15.25v-8.5A2.75 2.75 0 0 1 4.75 4H5V3a1 1 0 0 1 1-1Zm9.25 6h-10.5a.75.75 0 0 0-.75.75v6.5c0 .414.336.75.75.75h10.5a.75.75 0 0 0 .75-.75v-6.5a.75.75 0 0 0-.75-.75Z" />
               </svg>
@@ -219,6 +227,8 @@ export function DateRangePicker({
                 </svg>
               </button>
             ) : null}
+            </div>
+            <TimePicker12 value={endTime} onChange={(val) => onTimeChange?.([startTime || "", val])} disabled={disabled} />
           </div>
         </label>
       </div>

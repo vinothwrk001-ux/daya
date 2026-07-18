@@ -8,10 +8,14 @@ function sameDate(left, right) {
   return left.getTime() === right.getTime();
 }
 
-export function useReporting({ module, getFilters, onApply, exporter, initialStartDate: initialStartDateProp, initialEndDate: initialEndDateProp, initialShift: initialShiftProp }) {
+export function useReporting({ module, getFilters, onApply, exporter, initialStartDate: initialStartDateProp, initialEndDate: initialEndDateProp, initialShift: initialShiftProp, initialStartTime: initialStartTimeProp, initialEndTime: initialEndTimeProp }) {
   const [defaultStartDate, defaultEndDate] = defaultLast7Days();
   const [draftDateRange, setDraftDateRange] = useState([initialStartDateProp || defaultStartDate, initialEndDateProp || defaultEndDate]);
   const [appliedDateRange, setAppliedDateRange] = useState([initialStartDateProp || defaultStartDate, initialEndDateProp || defaultEndDate]);
+  
+  const [draftTimeRange, setDraftTimeRange] = useState([initialStartTimeProp || "", initialEndTimeProp || ""]);
+  const [appliedTimeRange, setAppliedTimeRange] = useState([initialStartTimeProp || "", initialEndTimeProp || ""]);
+
   const [shift, setShift] = useState(initialShiftProp || "all");
   const [appliedShift, setAppliedShift] = useState(initialShiftProp || "all");
   const [exportingFormat, setExportingFormat] = useState("");
@@ -19,16 +23,20 @@ export function useReporting({ module, getFilters, onApply, exporter, initialSta
 
   const [startDate, endDate] = draftDateRange;
   const [appliedStartDate, appliedEndDate] = appliedDateRange;
+  const [startTime, endTime] = draftTimeRange;
+  const [appliedStartTime, appliedEndTime] = appliedTimeRange;
+
   const appliedParams = useMemo(
     () => ({
-      ...buildDateRangeParams(appliedStartDate, appliedEndDate),
+      ...buildDateRangeParams(appliedStartDate, appliedEndDate, appliedStartTime, appliedEndTime),
       ...(appliedShift && appliedShift !== "all" ? { shift: appliedShift } : {}),
     }),
-    [appliedEndDate, appliedShift, appliedStartDate]
+    [appliedEndDate, appliedShift, appliedStartDate, appliedStartTime, appliedEndTime]
   );
 
   function applyDateRange() {
     setAppliedDateRange([startDate || null, endDate || null]);
+    setAppliedTimeRange([startTime || "", endTime || ""]);
     setAppliedShift(shift);
     onApply?.([startDate || null, endDate || null]);
   }
@@ -42,6 +50,8 @@ export function useReporting({ module, getFilters, onApply, exporter, initialSta
         format,
         startDate: appliedStartDate,
         endDate: appliedEndDate,
+        startTime: appliedStartTime,
+        endTime: appliedEndTime,
         shift: appliedShift && appliedShift !== "all" ? appliedShift : undefined,
         filters: getFilters?.() || {},
       });
@@ -61,7 +71,10 @@ export function useReporting({ module, getFilters, onApply, exporter, initialSta
   return {
     startDate,
     endDate,
+    startTime,
+    endTime,
     setDateRange: setDraftDateRange,
+    setTimeRange: setDraftTimeRange,
     applyDateRange,
     appliedStartDate,
     appliedEndDate,
@@ -73,6 +86,6 @@ export function useReporting({ module, getFilters, onApply, exporter, initialSta
     shift,
     setShift,
     appliedShift,
-    hasPendingChanges: !sameDate(startDate, appliedStartDate) || !sameDate(endDate, appliedEndDate) || shift !== appliedShift,
+    hasPendingChanges: !sameDate(startDate, appliedStartDate) || !sameDate(endDate, appliedEndDate) || startTime !== appliedStartTime || endTime !== appliedEndTime || shift !== appliedShift,
   };
 }

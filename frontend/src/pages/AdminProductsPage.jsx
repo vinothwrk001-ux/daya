@@ -232,6 +232,9 @@ export function AdminProductsPage() {
       <ReportingToolbar
         startDate={reporting.startDate}
         endDate={reporting.endDate}
+        startTime={reporting.startTime}
+        endTime={reporting.endTime}
+        onTimeChange={reporting.setTimeRange}
         onDateChange={reporting.setDateRange}
         onApply={reporting.applyDateRange}
         onExport={handleExport}
@@ -251,7 +254,7 @@ export function AdminProductsPage() {
             <input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search by product name, SKU, category, or creator"
+              placeholder="Search by product name, ID, SKU, category, or creator"
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
             <button

@@ -140,7 +140,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
     ? "min-w-[90px] md:min-w-[90px] lg:min-w-[90px]"
     : "min-w-[90px] md:min-w-[90px] lg:min-w-[90px]";
 
-  const containerClasses = "banner-category-card group relative flex w-full aspect-[3/4] overflow-hidden rounded-[18px] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
+  const containerClasses = "banner-category-card group relative flex w-full max-md:aspect-[5/6] md:aspect-[3/4] overflow-hidden rounded-[18px] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
 
   const imageWrapperClasses = "absolute inset-x-0 top-0 bottom-14 flex items-center justify-start overflow-visible bg-black" +
     " bg-[repeating-linear-gradient(45deg,#111_0,#111_2px,transparent_2px,transparent_10px)]";

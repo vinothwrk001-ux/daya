@@ -82,6 +82,9 @@ export function AdminProductAnalyticsDetailPage() {
       <ReportingToolbar
         startDate={reporting.startDate}
         endDate={reporting.endDate}
+        startTime={reporting.startTime}
+        endTime={reporting.endTime}
+        onTimeChange={reporting.setTimeRange}
         onDateChange={reporting.setDateRange}
         onApply={reporting.applyDateRange}
         onExport={handleExport}

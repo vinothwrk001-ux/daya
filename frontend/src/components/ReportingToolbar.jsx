@@ -4,15 +4,16 @@ import { DateRangePicker } from "./DateRangePicker";
 export function ReportingToolbar({
   startDate,
   endDate,
+  startTime,
+  endTime,
   onDateChange,
+  onTimeChange,
   onApply,
   onExport,
   exportingFormat = "",
   disabled = false,
   isDirty = false,
   applyLabel = "Apply filters",
-  shiftValue = "all",
-  onShiftChange,
 }) {
   const [selectedFormat, setSelectedFormat] = useState("csv");
 
@@ -32,19 +33,15 @@ export function ReportingToolbar({
         </div>
 
         <div className="flex w-full flex-col gap-4 md:flex-row md:items-end md:gap-4">
-          <DateRangePicker startDate={startDate} endDate={endDate} onChange={onDateChange} disabled={disabled} />
-          <label className="grid gap-2 md:min-w-[180px]">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Shift Time</span>
-            <select
-              value={shiftValue}
-              onChange={(event) => onShiftChange?.(event.target.value)}
-              className="h-12 rounded-xl border border-slate-300 px-4 text-sm text-slate-700 outline-none focus:border-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            >
-              <option value="all">All Time</option>
-              <option value="day">Day Shift</option>
-              <option value="night">Night Shift</option>
-            </select>
-          </label>
+          <DateRangePicker 
+            startDate={startDate} 
+            endDate={endDate} 
+            startTime={startTime} 
+            endTime={endTime} 
+            onChange={onDateChange} 
+            onTimeChange={onTimeChange} 
+            disabled={disabled} 
+          />
           <button
             type="button"
             onClick={onApply}

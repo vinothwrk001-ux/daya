@@ -9,7 +9,7 @@ function parseDateValue(value, label) {
   return parsed;
 }
 
-function normalizeDateRange({ startDate, endDate } = {}) {
+function normalizeDateRange({ startDate, endDate, startTime, endTime } = {}) {
   const parsedStart = parseDateValue(startDate, "startDate");
   const parsedEnd = parseDateValue(endDate, "endDate");
 
@@ -19,11 +19,21 @@ function normalizeDateRange({ startDate, endDate } = {}) {
 
   const range = {};
   if (parsedStart) {
-    parsedStart.setHours(0, 0, 0, 0);
+    if (startTime && typeof startTime === 'string' && startTime.includes(':')) {
+      const [h, m] = startTime.split(':');
+      parsedStart.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+    } else {
+      parsedStart.setHours(0, 0, 0, 0);
+    }
     range.$gte = parsedStart;
   }
   if (parsedEnd) {
-    parsedEnd.setHours(23, 59, 59, 999);
+    if (endTime && typeof endTime === 'string' && endTime.includes(':')) {
+      const [h, m] = endTime.split(':');
+      parsedEnd.setHours(parseInt(h, 10), parseInt(m, 10), 59, 999);
+    } else {
+      parsedEnd.setHours(23, 59, 59, 999);
+    }
     range.$lte = parsedEnd;
   }
 

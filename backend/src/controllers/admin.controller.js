@@ -15,6 +15,8 @@ const analytics = asyncHandler(async (req, res) => {
     range: req.query.range,
     startDate: req.query.startDate,
     endDate: req.query.endDate,
+    startTime: req.query.startTime,
+    endTime: req.query.endTime,
     categoryId: req.query.categoryId,
     paymentMethod: req.query.paymentMethod,
     orderStatus: req.query.orderStatus,
@@ -27,6 +29,8 @@ const productAnalyticsDetail = asyncHandler(async (req, res) => {
     range: req.query.range,
     startDate: req.query.startDate,
     endDate: req.query.endDate,
+    startTime: req.query.startTime,
+    endTime: req.query.endTime,
     paymentMethod: req.query.paymentMethod,
     orderStatus: req.query.orderStatus,
   });
@@ -38,6 +42,8 @@ const listUsers = asyncHandler(async (req, res) => {
     role: req.query.role,
     startDate: req.query.startDate,
     endDate: req.query.endDate,
+    startTime: req.query.startTime,
+    endTime: req.query.endTime,
   });
   return ok(res, users, "OK");
 });
@@ -60,6 +66,8 @@ const listAuditLogs = asyncHandler(async (req, res) => {
     status: req.query.status,
     startDate: req.query.startDate,
     endDate: req.query.endDate,
+    startTime: req.query.startTime,
+    endTime: req.query.endTime,
   });
   return ok(res, logs, "OK");
 });
@@ -102,6 +110,8 @@ const listOrders = asyncHandler(async (req, res) => {
     sortOrder: req.query.sortOrder === "asc" ? 1 : -1,
     startDate: req.query.startDate,
     endDate: req.query.endDate,
+    startTime: req.query.startTime,
+    endTime: req.query.endTime,
     shift: req.query.shift,
   });
   return ok(res, result, "Orders loaded");
