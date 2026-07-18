@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useParams, useLocation } from "react-router-dom";
 import { ThemeRouteSync } from "./components/ThemeRouteSync";
 import { Layout } from "./components/Layout";
 import { ProductDetailsPage } from "./pages/ProductDetailsPage";
@@ -104,10 +104,13 @@ function ProductDetailsRoute() {
 }
 
 export default function App() {
+  const location = useLocation();
+  const backgroundLocation = location.state?.background;
+
   return (
     <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm font-bold text-slate-500">Loading...</div>}>
     <ThemeRouteSync />
-    <Routes>
+    <Routes location={backgroundLocation || location}>
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/role" element={<RoleSelectionPage />} />
@@ -249,6 +252,12 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+
+    {backgroundLocation && (
+      <Routes>
+        <Route path="/reels" element={<ReelsPage />} />
+      </Routes>
+    )}
     </Suspense>
   );
 }

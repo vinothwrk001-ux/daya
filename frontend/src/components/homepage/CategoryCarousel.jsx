@@ -124,7 +124,7 @@ export function CategoryCarousel() {
         <div className="mb-6 flex w-full max-w-3xl flex-col items-center gap-4 text-center">
           <div>
             <p className="mx-auto inline-flex rounded-full border border-brand-primary px-4 py-1.5 text-xs font-black uppercase tracking-[0.35em] text-brand-primary">{config.eyebrow}</p>
-            <h2 className="mt-2 text-2xl font-black text-zinc-950 dark:text-white md:text-3xl">{config.title}</h2>
+            <h2 className="mt-2 line-clamp-2 text-2xl font-black text-zinc-950 dark:text-white md:text-3xl">{config.title}</h2>
             {config.subtitle ? (
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{config.subtitle}</p>
             ) : null}
@@ -149,7 +149,7 @@ export function CategoryCarousel() {
 
         <div
           ref={scrollerRef}
-          className="mx-auto grid justify-center grid-flow-col auto-cols-[calc(70%-1rem)] gap-4 overflow-x-auto pb-2 mt-8 [-ms-overflow-style:none] [scrollbar-width:none] sm:auto-cols-[calc(70%-1rem)] md:auto-cols-[calc(50%-1rem)] lg:auto-cols-[calc(25.333%-1rem)] xl:auto-cols-[calc(23%-1rem)] [&::-webkit-scrollbar]:hidden"
+          className="mx-auto grid justify-center grid-flow-col auto-cols-[calc(50%-0.5rem)] gap-4 overflow-x-auto pb-2 mt-8 [-ms-overflow-style:none] [scrollbar-width:none] sm:auto-cols-[calc(50%-0.5rem)] md:auto-cols-[calc(50%-1rem)] lg:auto-cols-[calc(25.333%-1rem)] xl:auto-cols-[calc(23%-1rem)] [&::-webkit-scrollbar]:hidden"
         >
           {categories.map((category) => (
             <CategoryCard key={category._id} category={category} onClick={handleCategoryClick} />

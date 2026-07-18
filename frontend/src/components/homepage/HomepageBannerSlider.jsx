@@ -91,7 +91,7 @@ function resolveBannerAsset(banner, isMobile) {
 
 const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, previewMode = false, compact = false }) {
   const image = resolveApiAssetUrl(card.cardImage);
-  
+
   // Emoji map for categories
   const emojiMap = {
     "men's shirt": "🔥",
@@ -118,7 +118,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
     "hoodie": "Hoodies",
     "hoodies": "Hoodies",
   };
-  
+
   const getEmojiForTitle = (title) => {
     const lowerTitle = (title || "").toLowerCase();
     for (const [key, emoji] of Object.entries(emojiMap)) {
@@ -139,10 +139,10 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
   const labelMinWidthClass = normalizedTitle === "Unisex T-Shirts"
     ? "min-w-[90px] md:min-w-[90px] lg:min-w-[90px]"
     : "min-w-[90px] md:min-w-[90px] lg:min-w-[90px]";
-  
+
   const containerClasses = "banner-category-card group relative flex w-full aspect-[3/4] overflow-hidden rounded-[18px] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
 
-  const imageWrapperClasses = "absolute inset-x-0 top-0 bottom-14 flex items-center justify-start overflow-visible bg-black" + 
+  const imageWrapperClasses = "absolute inset-x-0 top-0 bottom-14 flex items-center justify-start overflow-visible bg-black" +
     " bg-[repeating-linear-gradient(45deg,#111_0,#111_2px,transparent_2px,transparent_10px)]";
 
   const imageClasses = "h-full w-auto max-w-full object-contain object-left";
@@ -163,7 +163,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
 
   return (
     <CardLink {...cardProps}>
-      <div 
+      <div
         className={imageWrapperClasses}
         style={{
           backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,.5) 2px, rgba(0,0,0,.5) 4px)"
@@ -179,8 +179,8 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
       </div>
       <div className={cardBodyClasses}>
         <div className={titleSectionClasses}>
-          <div className={`inline-flex h-[31px] w-[50%] max-w-[120px] ${labelMinWidthClass} items-center justify-center rounded-full bg-white px-[14px] shadow-lg md:w-[88%] lg:w-[92%] xl:w-[96%]`}>
-            <p className="overflow-visible whitespace-nowrap text-[11px] font-semibold text-black text-center">{titleWithEmoji}</p>
+          <div className={`inline-flex h-[31px] w-[90%] max-w-[95%] ${labelMinWidthClass} items-center justify-center rounded-full bg-white px-5 shadow-lg md:w-[88%] md:max-w-[120px] md:px-[14px] lg:w-[92%] xl:w-[96%]`}>
+            <p className="whitespace-nowrap text-[11px] font-semibold text-black text-center max-md:overflow-hidden max-md:text-ellipsis md:overflow-visible">{titleWithEmoji}</p>
           </div>
           {card.showProductCount !== false && card.productCount != null ? (
             <p className={countClasses}>{card.productCount} products</p>
@@ -310,7 +310,7 @@ export function HomepageBannerSlider({
     const key = `${activeBanner.id}:view`;
     if (trackedRef.current.has(key)) return;
     trackedRef.current.add(key);
-    trackHomepageBannerEvent(activeBanner.id, { eventType: "view", sessionId }).catch(() => {});
+    trackHomepageBannerEvent(activeBanner.id, { eventType: "view", sessionId }).catch(() => { });
   }, [activeBanner?.id, previewMode, sessionId]);
 
   useEffect(() => {
@@ -331,7 +331,7 @@ export function HomepageBannerSlider({
 
   const handleBannerCta = () => {
     if (previewMode || !activeBanner?.id) return;
-    trackHomepageBannerEvent(activeBanner.id, { eventType: "click", sessionId }).catch(() => {});
+    trackHomepageBannerEvent(activeBanner.id, { eventType: "click", sessionId }).catch(() => { });
   };
 
   const handleCategoryClick = (card) => {
@@ -340,7 +340,7 @@ export function HomepageBannerSlider({
       eventType: "category_click",
       categoryId: card.categoryId,
       sessionId,
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   const handleTouchStart = (event) => {
@@ -538,9 +538,8 @@ export function HomepageBannerSlider({
                 aria-label={`Show banner ${banner.name}`}
                 aria-selected={bannerIndex === index}
                 onClick={() => goTo(bannerIndex)}
-                className={`h-2 rounded-full transition-all ${
-                  bannerIndex === index ? "w-7 bg-brand-primary" : "w-2 bg-white/70 hover:bg-white"
-                }`}
+                className={`h-2 rounded-full transition-all ${bannerIndex === index ? "w-7 bg-brand-primary" : "w-2 bg-white/70 hover:bg-white"
+                  }`}
               />
             ))}
           </div>

@@ -266,7 +266,7 @@ function ReelSlide({
 
   return (
     <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center bg-black/20 backdrop-blur-sm">
-      <div className="relative flex h-full w-full max-w-[480px] items-stretch justify-center md:max-w-[420px]">
+      <div className="relative flex h-full w-full max-w-[480px] items-stretch justify-center overflow-hidden rounded-[2rem] sm:h-[96dvh] sm:rounded-[3rem] md:max-w-[420px]">
         <video
           ref={videoRef}
           src={resolveApiAssetUrl(reel.videoUrl)}
@@ -310,13 +310,20 @@ function ReelSlide({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
 
         <div className="absolute left-3 top-3 z-30 md:hidden">
-          <Link
-            to="/"
+          <button
+            type="button"
+            onClick={() => {
+              if (window.history.length > 2) {
+                navigate(-1);
+              } else {
+                navigate("/");
+              }
+            }}
             className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm"
           >
             <ChevronLeft className="h-4 w-4" />
-            Home
-          </Link>
+            Back
+          </button>
         </div>
 
         <button
@@ -429,7 +436,7 @@ export function ReelsFeed({ reels, loading, hasMore, onLoadMore, onReelsUpdate, 
     <>
       <div
         ref={containerRef}
-        className="h-[100dvh] w-full snap-y snap-mandatory overflow-y-scroll overscroll-y-contain bg-black/10 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-[100dvh] w-full snap-y snap-mandatory overflow-y-scroll scroll-smooth overscroll-y-contain bg-black/10 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {reels.map((reel, index) => (
           <div key={reel._id} data-reel-slide data-index={index}>

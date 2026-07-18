@@ -130,6 +130,7 @@ export function Layout() {
                       <Link
                         key={item.href}
                         to={item.href}
+                        state={item.href === "/reels" ? { background: location } : undefined}
                         className={`group relative shrink-0 rounded-full px-4 py-2 text-sm font-bold transition ${
                           isActive
                             ? "bg-brand-primary text-white"
@@ -208,6 +209,7 @@ export function Layout() {
                             <Link
                               key={item.href}
                               to={item.href}
+                              state={item.href === "/reels" ? { background: location } : undefined}
                               onClick={() => setMobileMenuOpen(false)}
                               className={`touch-target rounded-2xl px-4 py-3 text-sm font-bold transition ${
                                 isActive

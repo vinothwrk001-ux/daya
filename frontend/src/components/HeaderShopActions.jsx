@@ -18,8 +18,8 @@ export function HeaderIconLink({ to, label, badge, children, className = "", var
         <span className="relative inline-flex">
           {children}
           {badge ? (
-            <span className="absolute -right-1.5 -top-1.5 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
-              {badge}
+            <span className="absolute -right-2 -top-1.5 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-2 ring-white dark:ring-slate-950">
+              {badge > 99 ? "99+" : badge}
             </span>
           ) : null}
         </span>
@@ -36,8 +36,8 @@ export function HeaderIconLink({ to, label, badge, children, className = "", var
     >
       {children}
       {badge ? (
-        <span className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-semibold text-white">
-          {badge}
+        <span className="absolute right-1 top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-2 ring-white dark:ring-slate-950">
+          {badge > 99 ? "99+" : badge}
         </span>
       ) : null}
     </Link>
@@ -70,7 +70,7 @@ export function HeaderShopActions({ className = "", variant = "icon" }) {
     return null;
   }
 
-  const iconClassName = variant === "inline" ? "h-5 w-5 sm:h-6 sm:w-6" : "h-4.5 w-4.5";
+  const iconClassName = variant === "inline" ? "h-5 w-5 sm:h-6 sm:w-6" : "h-5 w-5 sm:h-6 sm:w-6 text-slate-700 dark:text-slate-300";
 
   return (
     <div className={`flex items-center gap-2 sm:gap-3 ${className}`}>

@@ -110,15 +110,22 @@ export function ReelsPage() {
 
   return (
     <ReelsErrorBoundary>
-      <div className="fixed inset-0 z-40 bg-black/20">
+      <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-md">
         <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-3">
-          <Link
-            to="/"
+          <button
+            type="button"
+            onClick={() => {
+              if (window.history.length > 2) {
+                navigate(-1);
+              } else {
+                navigate("/");
+              }
+            }}
             className="pointer-events-auto hidden items-center gap-1 rounded-full bg-black/30 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md md:inline-flex"
           >
             <ChevronLeft className="h-4 w-4" />
             Back
-          </Link>
+          </button>
           {/* Top-right sort buttons removed per layout update */}
         </div>
 

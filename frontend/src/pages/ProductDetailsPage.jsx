@@ -559,8 +559,8 @@ export function ProductDetailsPage() {
 
   return (
     <div className="space-y-8 overflow-x-safe pb-24 lg:pb-0">
-      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-3">
-        <div className="min-w-0 sm:col-start-2 sm:justify-self-center sm:text-center">
+      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3">
+        <div className="order-2 min-w-0 sm:order-none sm:col-start-2 sm:justify-self-center sm:text-center">
           <h1 className="mt-2 max-w-4xl fluid-h2 text-slate-950 dark:text-white">{product.name}</h1>
           <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-3 text-sm">
             <span className="font-semibold text-slate-700 dark:text-slate-200">Sold by Daya</span>
@@ -569,7 +569,7 @@ export function ProductDetailsPage() {
             ) : null}
           </div>
         </div>
-        <div className="sm:col-start-1 sm:justify-self-start">
+        <div className="order-1 sm:order-none sm:col-start-1 sm:justify-self-start">
           <BackButton fallbackTo="/shop" />
         </div>
         <div className="hidden sm:block" />
@@ -586,56 +586,55 @@ export function ProductDetailsPage() {
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div> : null}
 
-      <div className="mx-auto grid max-w-[1200px] gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-        <div className="space-y-8">
+      <div className="mx-auto flex max-w-[1200px] flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] lg:items-start lg:gap-8">
+        <div className="order-1 lg:col-start-1 lg:row-start-1">
           <ProductImageGallery media={media} productName={product?.name} galleryKey={galleryKey} />
-
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex flex-wrap items-center gap-3">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    activeTab === tab.key
-                      ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-6">
-              {activeTab === "description" ? (
-                <div className="space-y-4 text-sm leading-7 text-slate-700 dark:text-slate-200">
-                  <p>{product.description}</p>
-                  {product.shortDescription ? <p className="text-slate-500 dark:text-slate-400">{product.shortDescription}</p> : null}
-                </div>
-              ) : null}
-
-              {moduleTabs
-                .filter((tab) => tab.key === activeTab)
-                .map((tab) => (
-                  <div key={tab.key} className="grid gap-3">
-                    {(tab.fields || [])
-                      .filter((field) => tab.values[field.key] !== undefined && tab.values[field.key] !== "")
-                      .map((field) => (
-                        <div key={field.key} className="grid gap-1 rounded-2xl border border-slate-200 p-4 text-sm dark:border-slate-800 sm:grid-cols-[180px_minmax(0,1fr)]">
-                          <div className="font-semibold text-slate-950 dark:text-white">{field.name}</div>
-                          <div className="text-slate-600 dark:text-slate-300">{formatFieldValue(tab.values[field.key])}</div>
-                        </div>
-                      ))}
-                  </div>
-                ))}
-            </div>
-          </section>
-
         </div>
 
-        <aside className="lg:sticky lg:top-24 lg:self-start">
+        <section className="order-3 lg:col-start-1 lg:row-start-2 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-wrap items-center gap-3">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  activeTab === tab.key
+                    ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-6">
+            {activeTab === "description" ? (
+              <div className="space-y-4 text-sm leading-7 text-slate-700 dark:text-slate-200">
+                <p>{product.description}</p>
+                {product.shortDescription ? <p className="text-slate-500 dark:text-slate-400">{product.shortDescription}</p> : null}
+              </div>
+            ) : null}
+
+            {moduleTabs
+              .filter((tab) => tab.key === activeTab)
+              .map((tab) => (
+                <div key={tab.key} className="grid gap-3">
+                  {(tab.fields || [])
+                    .filter((field) => tab.values[field.key] !== undefined && tab.values[field.key] !== "")
+                    .map((field) => (
+                      <div key={field.key} className="grid gap-1 rounded-2xl border border-slate-200 p-4 text-sm dark:border-slate-800 sm:grid-cols-[180px_minmax(0,1fr)]">
+                        <div className="font-semibold text-slate-950 dark:text-white">{field.name}</div>
+                        <div className="text-slate-600 dark:text-slate-300">{formatFieldValue(tab.values[field.key])}</div>
+                      </div>
+                    ))}
+                </div>
+              ))}
+          </div>
+        </section>
+
+        <aside className="order-2 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
           <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="border-b border-slate-200 bg-[linear-gradient(135deg,_rgba(14,165,233,0.14),_rgba(251,191,36,0.12))] p-6 dark:border-slate-800">
               <div className="flex items-start justify-between gap-4">

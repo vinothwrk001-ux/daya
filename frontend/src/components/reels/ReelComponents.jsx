@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Bookmark,
   Heart,
@@ -78,6 +78,7 @@ export function ReelCard({
   isAuthenticated,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const videoRef = useRef(null);
   const [muted, setMuted] = useState(true);
   const [playing, setPlaying] = useState(false);
@@ -187,7 +188,7 @@ export function ReelCard({
 
   return (
     <div className="group relative mx-auto h-[560px] w-[360px] max-w-full overflow-hidden rounded-[28px] bg-white shadow-[0_28px_70px_rgba(0,0,0,0.22)] transition-all duration-[400ms] ease-out hover:-translate-y-[10px] hover:shadow-[0_40px_80px_rgba(0,0,0,0.28)]">
-      <Link to={`/reels?reel=${reel._id}`} className="block h-full w-full">
+      <Link to={`/reels?reel=${reel._id}`} state={{ background: location }} className="block h-full w-full">
         <div className="relative h-full w-full overflow-hidden rounded-[28px] bg-slate-100">
           <video
             ref={videoRef}

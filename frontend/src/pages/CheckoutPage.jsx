@@ -1074,8 +1074,8 @@ export function CheckoutPage() {
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-3">
-        <div className="sm:col-start-2 sm:justify-self-center sm:text-center">
+      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3">
+        <div className="order-2 sm:order-none sm:col-start-2 sm:justify-self-center sm:text-center">
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
             Secure checkout
           </div>
@@ -1086,7 +1086,7 @@ export function CheckoutPage() {
             Review products, shipping estimates, and pricing before signing in for the final purchase step.
           </p>
         </div>
-        <div className="sm:col-start-1 sm:justify-self-start">
+        <div className="order-1 sm:order-none sm:col-start-1 sm:justify-self-start">
           <BackButton fallbackTo="/cart" />
         </div>
         <div className="hidden sm:block" />

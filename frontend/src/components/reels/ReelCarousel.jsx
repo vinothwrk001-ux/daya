@@ -84,7 +84,7 @@ export function ReelCarousel({
     ? items
     : items.slice(currentPageIndex * itemsPerView, currentPageIndex * itemsPerView + itemsPerView);
 
-  const gridClass = `scrollbar-hide flex snap-x snap-mandatory justify-start gap-9 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:justify-items-center md:overflow-visible md:snap-none lg:grid-cols-3 lg:justify-center ${
+  const gridClass = `scroll-smooth scrollbar-hide flex snap-x snap-mandatory justify-start gap-9 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:justify-items-center md:overflow-visible md:snap-none lg:grid-cols-3 lg:justify-center ${
     isMobileScroll && swipeEnabled ? "touch-pan-x" : ""
   }`;
 
