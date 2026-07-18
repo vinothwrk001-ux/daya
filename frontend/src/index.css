@@ -534,6 +534,32 @@ h3,
     box-shadow: var(--shadow-small);
   }
 
+  .enterprise-nav-pill > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    font-weight: 700;
+    color: #334155;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .enterprise-nav-pill > a:hover,
+  .enterprise-nav-pill > a:hover .group {
+    color: #e53935;
+  }
+
+  .enterprise-nav-pill > a.bg-brand-primary,
+  .enterprise-nav-pill > a.text-white,
+  .enterprise-nav-pill > a[style*="background-color: rgb(229, 57, 53)"],
+  .enterprise-nav-pill > a[style*="background-color: #e53935"] {
+    background-color: #e53935 !important;
+    color: #ffffff !important;
+    border-radius: 9999px;
+    padding: 0.5rem 1.25rem;
+  }
+
   @media (max-width: 1023px) {
     .enterprise-nav-pill {
       -webkit-overflow-scrolling: touch;

@@ -99,9 +99,7 @@ export function Layout() {
               <div className="flex flex-wrap items-center justify-center gap-3 lg:flex-wrap">
                 <Link
                   to="/"
-                  className={`inline-flex min-w-fit shrink-0 items-center transition hover:opacity-90 ${
-                    isScrolled ? "pointer-events-none w-0 opacity-0" : "opacity-100"
-                  }`}
+                  className="inline-flex min-w-fit shrink-0 items-center transition hover:opacity-90 opacity-100"
                 >
                   <BrandLogo
                     showName={false}
@@ -122,7 +120,7 @@ export function Layout() {
                   </div>
                 </div>
 
-                <nav className="enterprise-nav-pill order-3 flex flex-nowrap w-full items-center justify-start gap-1 overflow-x-auto scroll-smooth rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur mt-3 lg:order-last lg:w-auto lg:justify-center lg:flex-wrap lg:overflow-visible lg:mt-0">
+                <nav className="enterprise-nav-pill order-3 flex flex-nowrap w-full items-center justify-start gap-3 overflow-x-auto scroll-smooth rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur mt-3 lg:order-10 lg:w-full lg:justify-center lg:flex-wrap lg:overflow-visible lg:mt-3">
                   {navItems.map((item) => {
                     const isActive =
                       location.pathname === item.href ||

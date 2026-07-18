@@ -136,7 +136,9 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
 
   const normalizedTitle = normalizeTitle(card.title);
   const titleWithEmoji = `${normalizedTitle} ${getEmojiForTitle(card.title)}`.trim();
-  const labelMinWidthClass = normalizedTitle === "Unisex T-Shirts" ? "min-w-[126px]" : "min-w-[118px]";
+  const labelMinWidthClass = normalizedTitle === "Unisex T-Shirts"
+    ? "min-w-[90px] md:min-w-[90px] lg:min-w-[90px]"
+    : "min-w-[90px] md:min-w-[90px] lg:min-w-[90px]";
   
   const containerClasses = "banner-category-card group relative flex w-full aspect-[3/4] overflow-hidden rounded-[18px] bg-black shadow-2xl transition duration-300 hover:scale-105 hover:shadow-2xl";
 
@@ -177,8 +179,8 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
       </div>
       <div className={cardBodyClasses}>
         <div className={titleSectionClasses}>
-          <div className={`inline-flex h-[31px] ${labelMinWidthClass} items-center justify-center rounded-full bg-white px-[14px] shadow-lg`}>
-            <p className="overflow-visible whitespace-nowrap text-[11px] font-semibold text-black">{titleWithEmoji}</p>
+          <div className={`inline-flex h-[31px] w-[50%] max-w-[120px] ${labelMinWidthClass} items-center justify-center rounded-full bg-white px-[14px] shadow-lg md:w-[88%] lg:w-[92%] xl:w-[96%]`}>
+            <p className="overflow-visible whitespace-nowrap text-[11px] font-semibold text-black text-center">{titleWithEmoji}</p>
           </div>
           {card.showProductCount !== false && card.productCount != null ? (
             <p className={countClasses}>{card.productCount} products</p>
@@ -464,14 +466,14 @@ export function HomepageBannerSlider({
                 </MotionDiv>
 
                 {categories.length ? (
-                  <div className="mt-6 hidden md:flex flex-row gap-6 justify-center items-end flex-nowrap">
+                  <div className="mt-4 hidden md:flex flex-row gap-2 md:gap-2 lg:gap-2 xl:gap-2 justify-center items-end flex-nowrap">
                     {categories.map((card, cardIndex) => (
                       <MotionDiv
                         key={card.id || card.categoryId}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: cardIndex * 0.05, duration: 0.28 }}
-                        className="min-w-0 flex-1 max-w-xs"
+                        className="flex-none w-[50px] md:w-[50px] lg:w-[50px] xl:w-[150px]"
                       >
                         <BannerCategoryCard
                           card={card}

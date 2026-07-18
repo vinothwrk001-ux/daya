@@ -93,7 +93,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
   return (
     <>
       <nav
-        className="sticky top-[181px] lg:top-[136px] mt-4 z-30 bg-white text-black backdrop-blur-md will-change-none"
+        className="category-navigation-sticky sticky top-[140px] lg:top-[140px] mt-0 z-30 bg-white text-black backdrop-blur-md will-change-none"
         style={{ height: "48px" }}
       >
         <div className="w-full px-2 lg:px-4 h-full flex items-center relative">
@@ -116,7 +116,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
             className="flex-1 overflow-x-auto scrollbar-hide flex items-center justify-center bg-white"
             style={{ scrollBehavior: "smooth", msOverflowStyle: "none" }}
           >
-            <div className="mx-auto flex h-full items-center gap-1 whitespace-nowrap px-2 lg:px-12">
+            <div className="mx-auto inner-category-list flex h-full items-center gap-1 whitespace-nowrap px-2 lg:px-12">
               {categoryList.map((category) => {
                 const isSelected = selectedCategory?.id === category.id || selectedCategory?.slug === category.slug;
                 

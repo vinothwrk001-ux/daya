@@ -240,40 +240,38 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
           <div className="flex h-full items-center justify-center text-sm text-slate-400">Image coming soon</div>
         )}
 
-        <div className="absolute left-3 top-3 z-20 flex flex-col items-start gap-2">
+        <div className="absolute left-2 top-2 z-20 flex flex-col items-start gap-1 lg:left-3 lg:top-3 lg:gap-2">
           {pricing.discountPercent > 0 ? (
-            <div className="inline-flex items-center rounded-full bg-[#ff7061] px-3 py-1.5 shadow-sm">
-              <span className="text-[11px] font-semibold leading-none text-white">
-                {pricing.discountPercent}% Off
-              </span>
+            <div className="inline-flex items-center rounded-full bg-[#ff7061] px-2 py-1 text-[9px] font-semibold leading-none text-white shadow-sm lg:px-3 lg:py-1.5 lg:text-[11px]">
+              {pricing.discountPercent}%
             </div>
           ) : null}
         </div>
 
-        <div className="absolute right-3 top-3 z-20 flex flex-col gap-2 opacity-100 transition-opacity duration-200 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
+        <div className="absolute right-2 top-2 z-20 flex flex-col gap-1 opacity-100 transition-opacity duration-200 lg:right-3 lg:top-3 lg:gap-2 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
           <button
             type="button"
             onClick={handleWishlist}
             disabled={isSubmitting}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-800 shadow-md transition hover:scale-105 active:scale-95 disabled:opacity-60"
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-800 shadow-md transition hover:scale-105 active:scale-95 disabled:opacity-60 lg:h-8 lg:w-8"
             title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
             aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
           >
             <Heart
-              size={15}
+              size={13}
               strokeWidth={1.8}
-              className={isInWishlist ? "fill-red-500 text-red-500" : ""}
+              className={`${isInWishlist ? "fill-red-500 text-red-500" : ""} h-[14px] w-[14px] lg:h-5 lg:w-5`}
             />
           </button>
           <button
             type="button"
             onClick={handleAddToCart}
             disabled={isSubmitting || !productId || !inStock}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-800 shadow-md transition hover:scale-105 active:scale-95 disabled:opacity-60"
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-800 shadow-md transition hover:scale-105 active:scale-95 disabled:opacity-60 lg:h-8 lg:w-8"
             title={inStock ? `Add ${activeVariant?.title || "item"} to cart` : "Out of stock"}
             aria-label={inStock ? `Add ${activeVariant?.title || "item"} to cart` : "Out of stock"}
           >
-            <ShoppingCart size={15} strokeWidth={1.8} />
+            <ShoppingCart size={13} strokeWidth={1.8} className="h-[14px] w-[14px] lg:h-5 lg:w-5" />
           </button>
         </div>
       </div>

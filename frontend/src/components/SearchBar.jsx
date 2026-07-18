@@ -63,7 +63,7 @@ export function SearchBar({ className = "" }) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => searchQuery.trim().length > 0 && setShowResults(true)}
-          className="w-full rounded-full bg-gray-100 py-3 pl-6 pr-16 text-sm text-slate-900 outline-none transition duration-300 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-gray-300"
+          className="w-full rounded-full bg-gray-100 py-3 pl-6 pr-16 text-sm text-slate-900 outline-none transition duration-300 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-gray-300 lg:ml-2"
         />
         <button
           type="button"
