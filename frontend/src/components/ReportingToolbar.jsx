@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { DateRangePicker } from "./DateRangePicker";
+import { useState, lazy, Suspense } from "react";
+
+const DateRangePicker = lazy(() => import("./DateRangePicker").then(module => ({ default: module.DateRangePicker })));
 
 export function ReportingToolbar({
   startDate,
@@ -33,15 +34,17 @@ export function ReportingToolbar({
         </div>
 
         <div className="flex w-full flex-col gap-4 md:flex-row md:items-end md:gap-4">
-          <DateRangePicker 
-            startDate={startDate} 
-            endDate={endDate} 
-            startTime={startTime} 
-            endTime={endTime} 
-            onChange={onDateChange} 
-            onTimeChange={onTimeChange} 
-            disabled={disabled} 
-          />
+          <Suspense fallback={<div className="h-12 w-full md:w-[450px] rounded-xl bg-slate-100 animate-pulse dark:bg-slate-800" />}>
+            <DateRangePicker 
+              startDate={startDate} 
+              endDate={endDate} 
+              startTime={startTime} 
+              endTime={endTime} 
+              onChange={onDateChange} 
+              onTimeChange={onTimeChange} 
+              disabled={disabled} 
+            />
+          </Suspense>
           <button
             type="button"
             onClick={onApply}

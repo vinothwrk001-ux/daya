@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, memo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Check, X, Trash2 } from "lucide-react";
 import { useCartDrawer } from "../hooks/useCartDrawer";
@@ -16,6 +16,97 @@ import {
 } from "../utils/cartState";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { navigateToProduct } from "../utils/scrollPageToTop";
+
+const CartDrawerItem = memo(function CartDrawerItem({
+  item,
+  productId,
+  variantId,
+  itemKey,
+  isDeleting,
+  isUpdating,
+  itemQty,
+  atMaxQuantity,
+  itemName,
+  itemImage,
+  itemPrice,
+  onChangeQty,
+  onDelete,
+}) {
+  return (
+    <div
+      className={`flex items-start gap-3 border-b border-slate-100 pb-3 transition last:border-b-0 last:pb-0 dark:border-slate-800 ${
+        isDeleting || isUpdating ? "pointer-events-none opacity-50" : ""
+      }`}
+    >
+      <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
+        {itemImage ? (
+          <img src={itemImage} alt={itemName} className="h-full w-full object-cover" />
+        ) : (
+          <div className="text-slate-400 dark:text-slate-600">
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <h4 className="mb-1 line-clamp-2 text-xs font-medium text-white sm:text-sm">
+          {itemName}
+        </h4>
+        {item?.variantTitle ? (
+          <p className="mb-1 line-clamp-1 text-xs text-slate-300/80">
+            {item.variantTitle}
+          </p>
+        ) : null}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col gap-2">
+            <div className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                disabled={isUpdating || itemQty <= 1}
+                onClick={() => onChangeQty(productId, variantId, itemQty - 1)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 text-slate-200 transition hover:bg-white/10 disabled:opacity-40"
+                aria-label="Decrease quantity"
+              >
+                −
+              </button>
+              <span className="min-w-8 px-2 text-center text-xs font-semibold text-white">
+                {itemQty}
+              </span>
+              <button
+                type="button"
+                disabled={isUpdating || atMaxQuantity}
+                title={atMaxQuantity ? "Maximum available quantity reached" : "Increase quantity"}
+                onClick={() => onChangeQty(productId, variantId, itemQty + 1)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 text-slate-200 transition hover:bg-white/10 disabled:opacity-40"
+                aria-label="Increase quantity"
+              >
+                +
+              </button>
+            </div>
+            {atMaxQuantity ? (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                Maximum available quantity reached
+              </p>
+            ) : null}
+            <p className="text-xs font-semibold text-[#ff4d4d] sm:text-sm">
+              {formatCurrency(itemPrice * itemQty)}
+            </p>
+          </div>
+          <button
+            onClick={() => onDelete(productId, variantId)}
+            disabled={isDeleting}
+            className="flex-shrink-0 rounded-lg p-1.5 text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-900/30"
+            aria-label={`Remove ${itemName} from cart`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export function CartDrawer() {
   const navigate = useNavigate();
@@ -288,79 +379,22 @@ export function CartDrawer() {
                     const itemPrice = Number(item?.discountedPrice ?? item?.price ?? 0);
 
                     return (
-                      <div
+                      <CartDrawerItem
                         key={itemKey}
-                        className={`flex items-start gap-3 border-b border-slate-100 pb-3 transition last:border-b-0 last:pb-0 dark:border-slate-800 ${
-                          isDeleting || isUpdating ? "pointer-events-none opacity-50" : ""
-                        }`}
-                      >
-                        <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
-                          {itemImage ? (
-                            <img src={itemImage} alt={itemName} className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="text-slate-400 dark:text-slate-600">
-                              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <h4 className="mb-1 line-clamp-2 text-xs font-medium text-white sm:text-sm">
-                            {itemName}
-                          </h4>
-                          {item?.variantTitle ? (
-                            <p className="mb-1 line-clamp-1 text-xs text-slate-300/80">
-                              {item.variantTitle}
-                            </p>
-                          ) : null}
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex flex-col gap-2">
-                              <div className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700">
-                                <button
-                                  type="button"
-                                  disabled={isUpdating || itemQty <= 1}
-                                  onClick={() => handleChangeQty(productId, variantId, itemQty - 1)}
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 text-slate-200 transition hover:bg-white/10 disabled:opacity-40"
-                                  aria-label="Decrease quantity"
-                                >
-                                  −
-                                </button>
-                                <span className="min-w-8 px-2 text-center text-xs font-semibold text-white">
-                                  {itemQty}
-                                </span>
-                                <button
-                                  type="button"
-                                  disabled={isUpdating || atMaxQuantity}
-                                  title={atMaxQuantity ? "Maximum available quantity reached" : "Increase quantity"}
-                                  onClick={() => handleChangeQty(productId, variantId, itemQty + 1)}
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 text-slate-200 transition hover:bg-white/10 disabled:opacity-40"
-                                  aria-label="Increase quantity"
-                                >
-                                  +
-                                </button>
-                              </div>
-                              {atMaxQuantity ? (
-                                <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                                  Maximum available quantity reached
-                                </p>
-                              ) : null}
-                              <p className="text-xs font-semibold text-[#ff4d4d] sm:text-sm">
-                                {formatCurrency(itemPrice * itemQty)}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => handleDeleteItem(productId, variantId)}
-                              disabled={isDeleting}
-                              className="flex-shrink-0 rounded-lg p-1.5 text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-900/30"
-                              aria-label={`Remove ${itemName} from cart`}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                        item={item}
+                        productId={productId}
+                        variantId={variantId}
+                        itemKey={itemKey}
+                        isDeleting={isDeleting}
+                        isUpdating={isUpdating}
+                        itemQty={itemQty}
+                        atMaxQuantity={atMaxQuantity}
+                        itemName={itemName}
+                        itemImage={itemImage}
+                        itemPrice={itemPrice}
+                        onChangeQty={handleChangeQty}
+                        onDelete={handleDeleteItem}
+                      />
                     );
                   })}
                 </div>
