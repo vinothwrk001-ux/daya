@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { confirmAction } from "../services/notificationService";
 import { deleteReview, listReviews, updateProductReviewModeration } from "../services/adminApi";
-import { useStaffPermission, useRequirePermission } from "../hooks/useStaffAuth";
+import { useAdminSession } from "../hooks/useAdminSession";
 
 function normalizeError(error) {
   return error?.response?.data?.message || error?.message || "Request failed";
 }
 
-export function StaffReviewsPage() {
-  useRequirePermission("reviews.read");
-  const { hasPermission } = useStaffPermission();
+export function AdminReviewsPage() {
+  const { canAccess } = useAdminSession();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [reviews, setReviews] = useState([]);
@@ -42,7 +41,7 @@ export function StaffReviewsPage() {
     };
   }, [searchTerm]);
 
-  const canDelete = hasPermission("reviews.delete");
+  const canDelete = canAccess("reviews.delete");
 
   const filteredReviews = useMemo(() => {
     if (statusFilter === "all") return reviews;
@@ -103,6 +102,8 @@ export function StaffReviewsPage() {
         >
           <option value="all">All Status</option>
           <option value="approved">Approved</option>
+          <option value="pending">Pending</option>
+          <option value="rejected">Rejected</option>
         </select>
       </div>
 
@@ -139,33 +140,39 @@ export function StaffReviewsPage() {
                       ))}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm text-slate-600">by {review.userId?.name || "Unknown customer"}</p>
+                  <p className="mt-1 text-sm text-slate-600">by {review.userId?.name || review.customerId?.name || "Unknown customer"}</p>
                   {review.title ? <p className="mt-3 text-sm font-medium text-slate-800">{review.title}</p> : null}
-                  <p className="mt-2 text-sm text-slate-700">{review.comment || "No comment provided."}</p>
+                  <p className="mt-2 text-sm text-slate-700">{review.comment || review.review || "No comment provided."}</p>
                 </div>
                 <div className="flex flex-col items-end gap-3">
-                  <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                    Approved
+                  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                    review.status === 'approved' ? 'bg-emerald-50 text-emerald-700' :
+                    review.status === 'pending' ? 'bg-amber-50 text-amber-700' :
+                    'bg-slate-100 text-slate-700'
+                  }`}>
+                    {review.status ? review.status.charAt(0).toUpperCase() + review.status.slice(1) : "Unknown"}
                   </span>
-                  <label className="flex items-center gap-2 cursor-pointer" title="Display this review on the storefront homepage">
-                    <span className="text-xs font-medium text-slate-600">Storefront</span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={!!review.displayInStorefront}
-                      disabled={busyId === review._id}
-                      onClick={() => handleToggleStorefront(review._id, !!review.displayInStorefront)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
-                        review.displayInStorefront ? "bg-emerald-500" : "bg-slate-300"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ${
-                          review.displayInStorefront ? "translate-x-4" : "translate-x-0"
+                  {review.status === 'approved' && (
+                    <label className="flex items-center gap-2 cursor-pointer" title="Display this review on the storefront homepage">
+                      <span className="text-xs font-medium text-slate-600">Storefront</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={!!review.displayInStorefront}
+                        disabled={busyId === review._id}
+                        onClick={() => handleToggleStorefront(review._id, !!review.displayInStorefront)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
+                          review.displayInStorefront ? "bg-emerald-500" : "bg-slate-300"
                         }`}
-                      />
-                    </button>
-                  </label>
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform duration-200 ${
+                            review.displayInStorefront ? "translate-x-4" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </label>
+                  )}
                   {canDelete && (
                     <button
                       type="button"

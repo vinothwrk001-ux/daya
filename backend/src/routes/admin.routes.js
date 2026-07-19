@@ -8,6 +8,7 @@ const {
   requireLegacyAdminPermission,
 } = require("../middleware/adminAccess");
 const adminController = require("../controllers/admin.controller");
+const reviewController = require("../controllers/review.controller");
 const revenueController = require("../controllers/revenue.controller");
 const productController = require("../controllers/product.controller");
 const { validate } = require("../middleware/validate");
@@ -161,8 +162,9 @@ router.get("/products/pending", requireWorkspacePermission("products.read"), pro
 router.get("/products/generate-number", requireWorkspacePermission("products.create"), productController.generateProductNumber);
 router.post("/products/media", requireWorkspacePermission("products.create"), upload.array("images", 10), productController.uploadProductImages);
 router.post("/products", requireWorkspacePermission("products.create"), validate(createProductSchema), productController.createProduct);
-router.get("/reviews", requireWorkspacePermission("reviews.read"), adminController.listReviews);
-router.delete("/reviews/:id", requireWorkspacePermission("reviews.delete"), adminController.deleteReview);
+// Reviews
+router.get("/reviews", requireWorkspacePermission("reviews.read"), reviewController.listAdminReviews);
+router.delete("/reviews/:id", requireWorkspacePermission("reviews.delete"), reviewController.deleteReview);
 
 // Parameter-based product routes (after specific routes)
 router.get("/products/:id", requireWorkspacePermission("products.read"), productController.getProductById);

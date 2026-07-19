@@ -15,6 +15,7 @@ const uploadReviewMedia = multer({
 
 const adminRoles = ["admin", "super_admin", "support_admin"];
 
+router.get("/storefront-testimonials", reviewController.getStorefrontTestimonials);
 router.get("/summary", reviewController.getReviewSummaries);
 router.get("/product/:id", reviewController.listProductReviews);
 

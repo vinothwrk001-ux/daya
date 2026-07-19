@@ -407,6 +407,7 @@ class ReviewService {
       }
       if (payload.rejectionReason !== undefined) review.rejectionReason = normalizeString(payload.rejectionReason, 500);
       if (payload.featured !== undefined) review.featured = Boolean(payload.featured);
+      if (payload.displayInStorefront !== undefined) review.displayInStorefront = Boolean(payload.displayInStorefront);
       if (payload.platformReply !== undefined || payload.reply !== undefined) {
         review.platformReply = normalizeString(payload.platformReply || payload.reply, 1200);
         review.platformReplyDate = new Date();
@@ -608,6 +609,20 @@ class ReviewService {
       mostReviewedProducts: mostReviewed,
       recentReviews,
     };
+  }
+
+  async getStorefrontTestimonials() {
+    const reviews = await ProductReview.find({
+      status: PUBLIC_STATUS,
+      displayInStorefront: true,
+    })
+      .populate("customerId", "name avatarUrl")
+      .populate("productId", "name images salePrice pricing price")
+      .sort({ createdAt: -1 })
+      .limit(12)
+      .lean();
+
+    return reviews;
   }
 
   async rankProducts({ direction = -1, byCount = false } = {}) {

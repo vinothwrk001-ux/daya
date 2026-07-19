@@ -124,7 +124,7 @@ export function CategoryCarousel() {
         <div className="mb-6 flex w-full max-w-3xl flex-col items-center gap-4 text-center">
           <div>
             <p className="mx-auto inline-flex rounded-full border border-brand-primary px-4 py-1.5 text-xs font-black uppercase tracking-[0.35em] text-brand-primary">{config.eyebrow}</p>
-            <h2 className="mt-2 line-clamp-2 text-2xl font-black text-zinc-950 dark:text-white md:text-3xl">{config.title}</h2>
+            <h2 className="mt-4 pt-2 line-clamp-2 text-2xl font-black text-zinc-950 dark:text-white md:text-3xl">{config.title}</h2>
             {config.subtitle ? (
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{config.subtitle}</p>
             ) : null}

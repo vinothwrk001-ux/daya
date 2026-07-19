@@ -37,3 +37,8 @@ export async function reportReview(reviewId, payload) {
   return data;
 }
 
+export async function getStorefrontTestimonials() {
+  const { data } = await api.get("/api/reviews/storefront-testimonials");
+  return data;
+}
+

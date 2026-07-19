@@ -65,6 +65,7 @@ const productReviewSchema = new mongoose.Schema(
     platformReplyDate: { type: Date, default: null },
     reportCount: { type: Number, min: 0, default: 0 },
     featured: { type: Boolean, default: false, index: true },
+    displayInStorefront: { type: Boolean, default: false, index: true },
     moderationSignals: { type: moderationSignalsSchema, default: () => ({}) },
     moderatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     moderatedAt: { type: Date, default: null },
@@ -81,6 +82,7 @@ productReviewSchema.index({ productId: 1, status: 1, rating: 1 });
 productReviewSchema.index({ customerId: 1, createdAt: -1 });
 productReviewSchema.index({ orderId: 1, productId: 1, customerId: 1 }, { unique: true });
 productReviewSchema.index({ helpfulCount: -1, createdAt: -1 });
+productReviewSchema.index({ displayInStorefront: 1, status: 1, createdAt: -1 });
 
 module.exports = {
   ProductReview: mongoose.models.ProductReview || mongoose.model("ProductReview", productReviewSchema),

@@ -259,7 +259,7 @@ const DynamicHomepageSection = memo(function DynamicHomepageSection({ container,
 
     const timeoutId = window.setTimeout(() => {
       trackedRef.current = true;
-      trackHomepageContainerEvent(container._id, { eventType: "impression" }).catch(() => {});
+      trackHomepageContainerEvent(container._id, { eventType: "impression" }).catch(() => { });
     }, 800);
 
     return () => window.clearTimeout(timeoutId);
@@ -299,15 +299,15 @@ const DynamicHomepageSection = memo(function DynamicHomepageSection({ container,
     ...(previewBare || stripOuterLayout
       ? {}
       : {
-          ...themeStyles,
-          background: resolveContainerBackground(layout, themeStyles),
-          color: container?.presentation?.textColor || themeStyles.color,
-          padding: `${layout.padding}px`,
-          marginTop: `${layout.marginTop}px`,
-          marginBottom: `${layout.marginBottom}px`,
-          marginLeft: `${layout.marginLeft}px`,
-          marginRight: `${layout.marginRight}px`,
-        }),
+        ...themeStyles,
+        background: resolveContainerBackground(layout, themeStyles),
+        color: container?.presentation?.textColor || themeStyles.color,
+        padding: `${layout.padding}px`,
+        marginTop: `${layout.marginTop}px`,
+        marginBottom: `${layout.marginBottom}px`,
+        marginLeft: `${layout.marginLeft}px`,
+        marginRight: `${layout.marginRight}px`,
+      }),
   };
 
   const wrapperStyle = {};
@@ -730,7 +730,7 @@ function SectionHeader({ container, eyebrow, actionLabel = "View all" }) {
         {headerHref ? (
           <Link
             to={headerHref}
-            onClick={() => trackHomepageContainerEvent(container._id, { eventType: "click" }).catch(() => {})}
+            onClick={() => trackHomepageContainerEvent(container._id, { eventType: "click" }).catch(() => { })}
             className="mt-5 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-brand-border hover:text-brand-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
           >
             {headerAction}
@@ -756,7 +756,7 @@ function SectionHeader({ container, eyebrow, actionLabel = "View all" }) {
       {headerHref ? (
         <Link
           to={headerHref}
-          onClick={() => trackHomepageContainerEvent(container._id, { eventType: "click" }).catch(() => {})}
+          onClick={() => trackHomepageContainerEvent(container._id, { eventType: "click" }).catch(() => { })}
           className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
         >
           {headerAction}
@@ -836,10 +836,10 @@ function BannerContainer({
   const mediaItems = Array.isArray(config.bannerMedia) && config.bannerMedia.length
     ? config.bannerMedia
     : [
-        config.bannerVideo
-          ? { type: "video", url: config.bannerVideo }
-          : { type: "image", url: config.bannerImage || "" },
-      ].filter((item) => item.url);
+      config.bannerVideo
+        ? { type: "video", url: config.bannerVideo }
+        : { type: "image", url: config.bannerImage || "" },
+    ].filter((item) => item.url);
   const [index, setIndex] = useState(0);
   const activeItem = mediaItems[index] || mediaItems[0] || {};
   const mediaUrl = resolveApiAssetUrl(activeItem.url || "");
@@ -896,15 +896,15 @@ function BannerContainer({
 
   const companionContent = companionContainers.length
     ? companionContainers.map((companion, index) => (
-        <div key={companion.instanceId || companion._id || `companion-${index}`} className="min-w-0">
-          {renderContainer(companion, {
-            renderContext,
-            bareContainers,
-            bareOuterLayout,
-            bareCarouselShell,
-          })}
-        </div>
-      ))
+      <div key={companion.instanceId || companion._id || `companion-${index}`} className="min-w-0">
+        {renderContainer(companion, {
+          renderContext,
+          bareContainers,
+          bareOuterLayout,
+          bareCarouselShell,
+        })}
+      </div>
+    ))
     : null;
 
   const heroHeaderOverlay = <HeroHeader variant="overlay" />;
@@ -943,9 +943,8 @@ function BannerContainer({
 
   return (
     <div
-      className={`hero-banner group relative w-full ${
-        heroBannerLayout ? heroShellClass : "min-h-[20rem]"
-      }`}
+      className={`hero-banner group relative w-full ${heroBannerLayout ? heroShellClass : "min-h-[20rem]"
+        }`}
     >
       <div className="absolute inset-0 z-0">
         {mediaUrl ? (
@@ -979,11 +978,10 @@ function BannerContainer({
           </div>
         ) : (
           <div
-            className={`mt-8 max-w-2xl transition duration-300 ${resolveTextAlign(config.textPosition)} ${
-              config.showCtaOnHover
-                ? "pointer-events-none translate-y-3 opacity-0 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100"
-                : ""
-            }`}
+            className={`mt-8 max-w-2xl transition duration-300 ${resolveTextAlign(config.textPosition)} ${config.showCtaOnHover
+              ? "pointer-events-none translate-y-3 opacity-0 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100"
+              : ""
+              }`}
           >
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">Marketplace campaign</p>
             <h2
@@ -1095,35 +1093,35 @@ function FeaturedProductsContainer({ container, renderContext }) {
         />
       ) : null}
       <div className="relative z-10">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="max-w-3xl">
-          {config.badgeText ? <div className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-amber-500">{config.badgeText}</div> : null}
-          <h2 className="text-2xl font-semibold tracking-[-0.04em] sm:text-3xl" style={{ color: config.headingTextColor || undefined }}>
-            {config.featuredHeading || container.title}
-          </h2>
-          {config.featuredSubHeading ? <div className="mt-2 text-base font-medium" style={{ color: config.bodyTextColor || undefined }}>{config.featuredSubHeading}</div> : null}
-          {config.featuredDescription || container.description ? <p className="mt-3 text-sm leading-7" style={{ color: config.bodyTextColor || undefined }}>{config.featuredDescription || container.description}</p> : null}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-3xl">
+            {config.badgeText ? <div className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-amber-500">{config.badgeText}</div> : null}
+            <h2 className="text-2xl font-semibold tracking-[-0.04em] sm:text-3xl" style={{ color: config.headingTextColor || undefined }}>
+              {config.featuredHeading || container.title}
+            </h2>
+            {config.featuredSubHeading ? <div className="mt-2 text-base font-medium" style={{ color: config.bodyTextColor || undefined }}>{config.featuredSubHeading}</div> : null}
+            {config.featuredDescription || container.description ? <p className="mt-3 text-sm leading-7" style={{ color: config.bodyTextColor || undefined }}>{config.featuredDescription || container.description}</p> : null}
+          </div>
+          {config.ctaButtonText && config.ctaUrl ? (
+            <a
+              href={config.ctaUrl}
+              target={config.ctaTarget === "BLANK" ? "_blank" : undefined}
+              rel={config.ctaTarget === "BLANK" ? "noreferrer" : undefined}
+              className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold"
+              style={buttonStyles}
+            >
+              {config.ctaButtonText}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          ) : null}
         </div>
-        {config.ctaButtonText && config.ctaUrl ? (
-          <a
-            href={config.ctaUrl}
-            target={config.ctaTarget === "BLANK" ? "_blank" : undefined}
-            rel={config.ctaTarget === "BLANK" ? "noreferrer" : undefined}
-            className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold"
-            style={buttonStyles}
-          >
-            {config.ctaButtonText}
-            <ArrowRight className="h-4 w-4" />
-          </a>
-        ) : null}
-      </div>
-      {stacked ? (
-        <div className="space-y-5">{heroNode}{gridNode}</div>
-      ) : (
-        <div className={`grid gap-5 ${heroFirst ? "lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.5fr)]" : "lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.9fr)]"}`}>
-          {orderedNodes}
-        </div>
-      )}
+        {stacked ? (
+          <div className="space-y-5">{heroNode}{gridNode}</div>
+        ) : (
+          <div className={`grid gap-5 ${heroFirst ? "lg:grid-cols-[minmax(260px,0.9fr)_minmax(0,1.5fr)]" : "lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.9fr)]"}`}>
+            {orderedNodes}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -1151,14 +1149,14 @@ function SliderContainer({ container }) {
   const slides = Array.isArray(container?.config?.slides) && container.config.slides.length
     ? container.config.slides
     : [
-        {
-          image: container?.config?.bannerImage || "",
-          heading: container?.config?.heading || container.title,
-          subheading: container?.config?.subheading || container.description,
-          ctaLabel: container?.config?.ctaButton || "Shop now",
-          ctaUrl: container?.config?.ctaUrl || (container.slug ? `/collections/${container.slug}` : "/shop"),
-        },
-      ];
+      {
+        image: container?.config?.bannerImage || "",
+        heading: container?.config?.heading || container.title,
+        subheading: container?.config?.subheading || container.description,
+        ctaLabel: container?.config?.ctaButton || "Shop now",
+        ctaUrl: container?.config?.ctaUrl || (container.slug ? `/collections/${container.slug}` : "/shop"),
+      },
+    ];
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -1296,7 +1294,7 @@ function DealsStripContainer({ container, renderContext }) {
               </div>
               <div className="min-w-0 flex-1 overflow-hidden whitespace-nowrap rounded-full bg-white/10 px-3 py-2 backdrop-blur" role="status" aria-live="polite">
                 <div className="hidden">
-                {promoItems.map((item) => item.label).join(" • ")} • {heading} • {config.couponCode ? `Use ${config.couponCode}` : "Limited time offer"} •
+                  {promoItems.map((item) => item.label).join(" • ")} • {heading} • {config.couponCode ? `Use ${config.couponCode}` : "Limited time offer"} •
                 </div>
                 <div className="animate-[deal-marquee_22s_linear_infinite] text-sm font-bold uppercase tracking-[0.22em]">
                   {buildDealMarqueeText(promoItems, heading, config)}
@@ -1367,9 +1365,8 @@ function DealCtaButton({ config = {}, compact = false }) {
       href={config.dealCtaUrl || "/shop"}
       target={config.dealCtaTarget === "BLANK" ? "_blank" : undefined}
       rel={config.dealCtaTarget === "BLANK" ? "noreferrer" : undefined}
-      className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-sm font-bold transition hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-white/70 ${
-        compact ? "px-4 py-2" : "px-5 py-3"
-      }`}
+      className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-sm font-bold transition hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-white/70 ${compact ? "px-4 py-2" : "px-5 py-3"
+        }`}
       style={resolveDealButtonStyle(config)}
     >
       {config.dealButtonIconPosition === "LEFT" ? <ArrowRight className="h-4 w-4" /> : null}
@@ -1541,7 +1538,7 @@ function MasonryContainer({ container }) {
           {items.map((product, index) => (
             <div
               key={product._id}
-              onClickCapture={() => trackHomepageContainerEvent(container._id, { eventType: "product_click", productId: product._id }).catch(() => {})}
+              onClickCapture={() => trackHomepageContainerEvent(container._id, { eventType: "product_click", productId: product._id }).catch(() => { })}
               className="inline-block w-full break-inside-avoid"
               style={{ marginBottom: `${gap}px` }}
             >
@@ -1608,9 +1605,8 @@ function CategoryShowcaseCard({ category, config = {}, layout = "CARDS", feature
   return (
     <Link
       to={href}
-      className={`group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-xl dark:border-slate-800 dark:bg-slate-950 ${
-        strip ? "w-64 shrink-0" : featured ? "sm:col-span-2 sm:row-span-2" : ""
-      }`}
+      className={`group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-xl dark:border-slate-800 dark:bg-slate-950 ${strip ? "w-64 shrink-0" : featured ? "sm:col-span-2 sm:row-span-2" : ""
+        }`}
     >
       <div className={`${compact ? "h-28" : featured ? "h-72" : "h-44"} relative overflow-hidden bg-slate-100 dark:bg-slate-900`}>
         {imageUrl ? (
@@ -1846,7 +1842,7 @@ function FlashSaleContainer({ container }) {
 function TrackedProductCard({ containerId, product, cardStyle = "DEFAULT", compact = false, featured = false }) {
   return (
     <div
-      onClickCapture={() => trackHomepageContainerEvent(containerId, { eventType: "product_click", productId: product._id }).catch(() => {})}
+      onClickCapture={() => trackHomepageContainerEvent(containerId, { eventType: "product_click", productId: product._id }).catch(() => { })}
       className={`h-full ${featured ? "" : compact ? "max-w-none" : ""}`}
     >
       <ProductCard product={product} cardStyle={cardStyle || "DEFAULT"} />

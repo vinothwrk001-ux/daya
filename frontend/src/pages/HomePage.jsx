@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { DynamicHomepageRenderer } from "../components/homepage/DynamicHomepageRenderer";
 import { CategoryCarousel } from "../components/homepage/CategoryCarousel";
 import { ReelsSection } from "../components/reels/ReelComponents";
+import { HomepageTestimonials } from "../components/homepage/HomepageTestimonials";
 import { getHomepageBuilderPublicLayout } from "../services/homepageBuilderService";
 
 export function HomePage() {
@@ -77,6 +78,8 @@ export function HomePage() {
       {!loading ? (
         <ReelsSection title="Trending Reels" sort="trending" />
       ) : null}
+
+      {!loading ? <HomepageTestimonials /> : null}
     </div>
   );
 }

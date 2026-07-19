@@ -119,7 +119,7 @@ export function Footer() {
             </a>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid grid-cols-2 gap-8">
             <div className="space-y-5">
               <h3 className="text-base font-semibold uppercase tracking-[0.24em] text-white">About Us</h3>
               <div className="grid gap-3 text-sm text-slate-300">

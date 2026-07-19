@@ -65,6 +65,11 @@ const reportReview = asyncHandler(async (req, res) => {
   return ok(res, result, "Review report submitted", 201);
 });
 
+const getStorefrontTestimonials = asyncHandler(async (req, res) => {
+  const result = await reviewService.getStorefrontTestimonials();
+  return ok(res, result, "Storefront testimonials loaded");
+});
+
 module.exports = {
   createReview,
   listProductReviews,
@@ -75,4 +80,5 @@ module.exports = {
   deleteReview,
   voteReview,
   reportReview,
+  getStorefrontTestimonials,
 };

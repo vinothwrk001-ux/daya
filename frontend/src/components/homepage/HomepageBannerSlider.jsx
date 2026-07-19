@@ -389,7 +389,7 @@ export function HomepageBannerSlider({
         {featuredText}
       </p>
       <h2
-        className="mt-3 max-w-[65ch] w-full text-center text-2xl font-black uppercase leading-tight tracking-[-0.03em] text-white sm:mt-4 sm:text-3xl md:text-4xl lg:text-5xl"
+        className="mt-3 pt-8 max-w-[65ch] w-full text-center text-2xl font-black uppercase leading-tight tracking-[-0.03em] text-white sm:mt-4 sm:pt-10 sm:text-3xl md:text-4xl lg:text-5xl"
         style={{ textWrap: "balance", WebkitTextWrap: "balance", overflowWrap: "anywhere" }}
       >
         {activeBanner.title || activeBanner.name}
@@ -455,12 +455,12 @@ export function HomepageBannerSlider({
                   transition={{ duration: 0.35 }}
                   className="hidden md:flex min-h-[10rem] flex-col items-center justify-center gap-4 text-center transition-opacity duration-300"
                 >
-                  <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="flex w-full flex-col items-center gap-4 px-4 text-center">
                     <div className="inline-flex items-center justify-center rounded-full border border-red-500 bg-transparent px-4 py-2">
                       <span className="text-sm font-bold uppercase tracking-wider text-red-500">Categories</span>
                     </div>
-                    <p className="mx-auto max-w-[42rem] text-xl font-semibold leading-tight text-black sm:text-2xl md:text-[1.6rem]">
-                      Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear.
+                    <p className="mx-auto w-full max-w-[42rem] text-xl font-semibold leading-tight text-black sm:text-2xl md:text-[1.6rem]">
+                      Discover stylish, high-quality clothing crafted for everyday comfort
                     </p>
                   </div>
                 </MotionDiv>

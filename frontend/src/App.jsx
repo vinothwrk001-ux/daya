@@ -72,6 +72,7 @@ const AdminCommerceIntelligencePage = lazyNamed(() => import("./pages/AdminComme
 const AdminProductAnalyticsDetailPage = lazyNamed(() => import("./pages/AdminProductAnalyticsDetailPage"), "AdminProductAnalyticsDetailPage");
 const AdminRevenuePage = lazyNamed(() => import("./pages/AdminRevenuePage"), "AdminRevenuePage");
 const AuditLogsPage = lazyNamed(() => import("./pages/AuditLogsPage"), "AuditLogsPage");
+const AdminReviewsPage = lazyNamed(() => import("./pages/AdminReviewsPage"), "AdminReviewsPage");
 const AdminWhatsAppLogsPage = lazyNamed(() => import("./pages/AdminWhatsAppLogsPage"), "AdminWhatsAppLogsPage");
 const AdminSettingsPage = lazyNamed(() => import("./pages/AdminSettingsPage"), "AdminSettingsPage");
 const AdminCompanyBrandingPage = lazyNamed(() => import("./pages/AdminCompanyBrandingPage"), "AdminCompanyBrandingPage");
@@ -185,6 +186,7 @@ export default function App() {
               <Route path="orders/:id/invoice" element={<AdminInvoiceDetailsPage />} />
               <Route path="orders/create" element={<AdminOrderCreatePage />} />
               <Route path="orders/:id" element={<AdminOrderDetailsPage />} />
+              <Route path="reviews" element={<AdminReviewsPage />} />
               <Route path="analytics" element={<AdminAnalyticsPage />} />
               <Route path="commerce-intelligence/settings" element={<AdminCommerceIntelligencePage />} />
               <Route path="commerce-intelligence/related-products" element={<AdminCommerceIntelligencePage />} />
