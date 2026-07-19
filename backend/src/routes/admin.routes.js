@@ -42,6 +42,7 @@ const pricingController = require("../controllers/pricing.controller");
 const codController = require("../controllers/cod.controller");
 const homepageContainerController = require("../controllers/homepage-container.controller");
 const homepageLayoutController = require("../controllers/homepage-layout.controller");
+const { updatePricingConfigSchema } = require("../utils/validators/pricing.validation");
 const shippingConfigRoutes = require("./shippingConfig.routes");
 const adminHomepageBannerRoutes = require("./admin-homepage-banner.routes");
 const themeEngineRoutes = require("../modules/theme-engine/routes");
@@ -302,6 +303,8 @@ router.get(
 router.put(
   "/pricing/:id",
   requireWorkspacePermission("settings.update", { legacyPermission: "settings:update" }),
+  express.json(),
+  validate(updatePricingConfigSchema),
   pricingController.updatePricingConfig
 );
 router.post(

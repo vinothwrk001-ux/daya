@@ -135,41 +135,6 @@ const updatePricingConfig = asyncHandler(async (req, res) => {
     notes,
   } = req.body;
 
-  // Validation
-  const errors = [];
-
-  if (deliveryFee !== undefined && (typeof deliveryFee !== "number" || deliveryFee < 0)) {
-    errors.push("Delivery fee must be a non-negative number");
-  }
-  if (deliveryFreeAbove !== undefined && (typeof deliveryFreeAbove !== "number" || deliveryFreeAbove < 0)) {
-    errors.push("Delivery free above must be a non-negative number");
-  }
-  if (platformFeePercentage !== undefined && (typeof platformFeePercentage !== "number" || platformFeePercentage < 0 || platformFeePercentage > 100)) {
-    errors.push("Platform fee percentage must be between 0 and 100");
-  }
-  if (platformFeeCapped !== undefined && (typeof platformFeeCapped !== "number" || platformFeeCapped < 0)) {
-    errors.push("Platform fee capped must be a non-negative number");
-  }
-  if (taxPercentage !== undefined && (typeof taxPercentage !== "number" || taxPercentage < 0 || taxPercentage > 100)) {
-    errors.push("Tax percentage must be between 0 and 100");
-  }
-  if (taxableBasis !== undefined && !["subtotal", "subtotalWithoutDiscount", "subtotalWithFees"].includes(taxableBasis)) {
-    errors.push("Invalid taxable basis");
-  }
-  if (handlingFee !== undefined && (typeof handlingFee !== "number" || handlingFee < 0)) {
-    errors.push("Handling fee must be a non-negative number");
-  }
-  if (bulkDiscountPercentage !== undefined && (typeof bulkDiscountPercentage !== "number" || bulkDiscountPercentage < 0 || bulkDiscountPercentage > 100)) {
-    errors.push("Bulk discount percentage must be between 0 and 100");
-  }
-  if (maxDiscountPercentage !== undefined && (typeof maxDiscountPercentage !== "number" || maxDiscountPercentage < 0 || maxDiscountPercentage > 100)) {
-    errors.push("Max discount percentage must be between 0 and 100");
-  }
-
-  if (errors.length > 0) {
-    throw new AppError(errors.join("; "), 400);
-  }
-
   const updateData = {};
 
   if (deliveryFee !== undefined) updateData.deliveryFee = deliveryFee;

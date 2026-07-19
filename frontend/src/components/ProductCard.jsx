@@ -1,5 +1,5 @@
 import { logger } from "../services/logger/logger.js";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "../utils/formatCurrency";
@@ -324,7 +324,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
   );
 }
 
-export function PremiumProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-square", onProductClick }) {
+const PremiumProductCard = memo(function PremiumProductCard({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-square", onProductClick }) {
   return (
     <ProductCardInner
       product={product}
@@ -333,6 +333,6 @@ export function PremiumProductCard({ product, cardStyle = "DEFAULT", imageAspect
       onProductClick={onProductClick}
     />
   );
-}
+});
 
 export { PremiumProductCard as ProductCard };
