@@ -1,0 +1,12 @@
+module.exports = {
+  TRANSACTION_TYPES: [
+    "RESTOCK",
+    "SALE",
+    "RETURN",
+    "MANUAL_ADJUSTMENT",
+    "CANCELLATION",
+    "RESERVED",
+    "UNRESERVED"
+  ],
+  TRANSACTION_STATUS: ["PENDING", "COMPLETED", "FAILED", "REVERSED"]
+};

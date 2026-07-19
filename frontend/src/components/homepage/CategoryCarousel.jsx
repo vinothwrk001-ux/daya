@@ -21,7 +21,7 @@ function CategoryCard({ category, onClick }) {
 
   const image = resolveApiAssetUrl(category.thumbnail_url || category.thumbnailUrl || category.logo || category.icon);
   const categoryName = category.name || "Category";
-  const productCount = typeof category.productCount === "number" ? category.productCount : 0;
+  const _productCount = typeof category.productCount === "number" ? category.productCount : 0;
 
   return (
     <Link
@@ -86,13 +86,6 @@ export function CategoryCarousel() {
       cancelled = true;
     };
   }, []);
-
-  function scrollBy(direction) {
-    const node = scrollerRef.current;
-    if (!node) return;
-    const amount = node.clientWidth * 0.85;
-    node.scrollBy({ left: direction * amount, behavior: "smooth" });
-  }
 
   function handleCategoryClick(category) {
     trackCategoryEvent(category._id, {

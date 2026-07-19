@@ -6,14 +6,14 @@ const checkoutSessionController = require("../controllers/checkoutSession.contro
 const {
   checkoutPrepareSchema,
   checkoutCreateSchema,
-} = require("../utils/validators/checkout.validation");
+} = require("../validators/checkout.validation");
 const {
   buyNowSessionCreateSchema,
   buyNowSessionUpdateSchema,
   buyNowSessionPrepareSchema,
   buyNowSessionCreateOrderSchema,
   buyNowAttachUserSchema,
-} = require("../utils/validators/checkoutSession.validation");
+} = require("../validators/checkoutSession.validation");
 
 const router = express.Router();
 

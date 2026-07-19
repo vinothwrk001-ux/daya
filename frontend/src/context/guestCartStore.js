@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { emitCartChanged, getCartItemKey } from "../utils/cartState";
+import { emitCartChanged } from "../utils/cartState";
 
 /**
  * Guest Cart Store

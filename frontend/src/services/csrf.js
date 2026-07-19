@@ -30,7 +30,7 @@ export async function ensureCsrfToken() {
   csrfPromise =
     csrfPromise ||
     axios
-      .get(`${apiBaseUrl()}/api/auth/csrf`, { withCredentials: true })
+      .get(`${getApiBaseUrl()}/api/auth/csrf`, { withCredentials: true })
       .then((response) => response.data?.data?.csrfToken || readCookie(CSRF_COOKIE_NAME))
       .finally(() => {
         csrfPromise = null;

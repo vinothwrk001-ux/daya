@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import { Copy, MessageCircle, Send, Share2, X } from "lucide-react";
@@ -69,7 +70,7 @@ export function ReelShareSheet({ reel, open, onClose, onShare }) {
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {PLATFORMS.map(({ id, label, icon: Icon, color }) => (
+              {PLATFORMS.map(({ id, label, icon: PlatformIcon, color }) => (
                 <button
                   key={id}
                   type="button"
@@ -77,7 +78,7 @@ export function ReelShareSheet({ reel, open, onClose, onShare }) {
                   className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/10"
                 >
                   <span className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-white ${color}`}>
-                    <Icon className="h-5 w-5" />
+                    <PlatformIcon className="h-5 w-5" />
                   </span>
                   <span className="text-xs font-semibold text-zinc-200">{label}</span>
                 </button>

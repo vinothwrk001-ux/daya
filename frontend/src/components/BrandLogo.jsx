@@ -2,7 +2,7 @@ import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { useBranding } from "../context/BrandingContext";
 import { pickBrandingLogo } from "../utils/brandingLogo";
 
-export function BrandLogo({ variant = "primary", className = "", imgClassName = "", showName = true, dark = false }) {
+export function BrandLogo({ className = "", imgClassName = "", showName = true, dark = false }) {
   const { branding } = useBranding();
   const logoUrl = dark
     ? pickBrandingLogo(branding, { context: "dark-header" })

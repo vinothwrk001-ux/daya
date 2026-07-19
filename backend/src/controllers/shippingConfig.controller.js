@@ -92,10 +92,6 @@ const deleteShippingRule = asyncHandler(async (req, res) => {
 const bulkUpdateShippingRules = asyncHandler(async (req, res) => {
   const { ruleIds, updates } = req.body;
 
-  if (!Array.isArray(ruleIds) || !updates) {
-    throw new AppError("ruleIds array and updates object are required", 400);
-  }
-
   const result = await shippingConfigAdminService.bulkUpdateRules(ruleIds, updates);
   return ok(res, result, "Bulk update completed");
 });
@@ -107,10 +103,6 @@ const bulkUpdateShippingRules = asyncHandler(async (req, res) => {
  */
 const calculateShippingPreview = asyncHandler(async (req, res) => {
   const { weight, state, zone } = req.body;
-
-  if (!weight || weight <= 0) {
-    throw new AppError("Weight must be provided and greater than 0", 400);
-  }
 
   const preview = await shippingConfigAdminService.calculatePreview({
     weight: parseFloat(weight),

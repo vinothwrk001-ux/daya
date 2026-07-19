@@ -165,7 +165,7 @@ export function ProductDetailsPage() {
   const [attributeGroups, setAttributeGroups] = useState({});
   const [productModules, setProductModules] = useState([]);
   const [selectedAttributes, setSelectedAttributes] = useState({});
-  const [recommendations, setRecommendations] = useState(null);
+  const [_recommendations, setRecommendations] = useState(null);
   const [fbtBundle, setFbtBundle] = useState(null);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [paintReady, setPaintReady] = useState(false);

@@ -43,7 +43,7 @@ export function CartPage() {
       hasInitialized.current = true;
       refresh();
     }
-  }, []); // Empty dependency array - only runs once on mount
+  }, [refresh]); // Only runs once on mount due to hasInitialized ref
 
   const items = useMemo(() => (Array.isArray(cart?.items) ? cart.items : []), [cart]);
   const total = Number(cart?.totalAmount || 0);

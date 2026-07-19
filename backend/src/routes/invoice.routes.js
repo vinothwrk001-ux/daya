@@ -4,7 +4,7 @@ const { adminWorkspaceAuthRequired, requireWorkspacePermission } = require("../m
 const { upload } = require("../middleware/upload");
 const { validate } = require("../middleware/validate");
 const invoiceController = require("../controllers/invoice.controller");
-const { invoiceSettingsSchema, invoiceMetadataSchema } = require("../utils/validators/invoice.validation");
+const { invoiceSettingsSchema, invoiceMetadataSchema } = require("../validators/invoice.validation");
 
 const router = express.Router();
 

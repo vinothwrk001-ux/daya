@@ -48,6 +48,7 @@ export function ReelsPage() {
         setHasMore(nextPage < (data.pagination?.pages || 1));
         setPage(nextPage);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error("Reels load error:", error);
         showError(error?.response?.data?.message || "Failed to load reels");
       } finally {
@@ -82,6 +83,7 @@ export function ReelsPage() {
         );
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("Like error:", error);
       showError(error?.response?.data?.message || "Unable to update like");
     }
@@ -103,6 +105,7 @@ export function ReelsPage() {
         );
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("Save error:", error);
       showError(error?.response?.data?.message || "Unable to update save");
     }

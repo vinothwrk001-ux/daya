@@ -1,5 +1,5 @@
 const Joi = require("joi");
-const { CONTAINER_STATUS } = require("../../models/HomepageBannerContainer");
+const { CONTAINER_STATUS } = require("../models/HomepageBannerContainer");
 
 const containerSettingsSchema = Joi.object({
   maxCategoryCards: Joi.number().integer().min(1).max(12),

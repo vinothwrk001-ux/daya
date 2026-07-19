@@ -149,7 +149,7 @@ export function CartDrawer() {
     [normalizedCart, fallbackCartItem]
   );
 
-  const handleChangeQty = async (productId, variantId, nextQty, maxQuantity) => {
+  const handleChangeQty = async (productId, variantId, nextQty) => {
     const itemKey = getCartItemKey(productId, variantId);
     if (updatingItems.has(itemKey)) return;
 
@@ -321,7 +321,7 @@ export function CartDrawer() {
                                 <button
                                   type="button"
                                   disabled={isUpdating || itemQty <= 1}
-                                  onClick={() => handleChangeQty(productId, variantId, itemQty - 1, maxQuantity)}
+                                  onClick={() => handleChangeQty(productId, variantId, itemQty - 1)}
                                   className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 text-slate-200 transition hover:bg-white/10 disabled:opacity-40"
                                   aria-label="Decrease quantity"
                                 >
@@ -334,7 +334,7 @@ export function CartDrawer() {
                                   type="button"
                                   disabled={isUpdating || atMaxQuantity}
                                   title={atMaxQuantity ? "Maximum available quantity reached" : "Increase quantity"}
-                                  onClick={() => handleChangeQty(productId, variantId, itemQty + 1, maxQuantity)}
+                                  onClick={() => handleChangeQty(productId, variantId, itemQty + 1)}
                                   className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 text-slate-200 transition hover:bg-white/10 disabled:opacity-40"
                                   aria-label="Increase quantity"
                                 >

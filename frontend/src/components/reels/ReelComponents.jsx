@@ -29,7 +29,7 @@ function formatCount(value = 0) {
   return String(num);
 }
 
-export function ReelProductOverlay({ reel, product, onProductClick }) {
+export function ReelProductOverlay({ product, onProductClick }) {
   if (!product) return null;
   const price = product.salePrice ?? product.price ?? 0;
   const original = product.salePrice ? product.price : null;
@@ -75,13 +75,12 @@ export function ReelCard({
   onSave,
   onShare,
   onComment,
-  isAuthenticated,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const videoRef = useRef(null);
   const [muted, setMuted] = useState(true);
-  const [playing, setPlaying] = useState(false);
+  const [_playing, setPlaying] = useState(false);
   const sessionId = getReelSessionId();
   const primaryProduct = getReelLinkedProducts(reel)[0];
 

@@ -1,4 +1,4 @@
-const { AppError } = require("../AppError");
+const { AppError } = require("../utils/AppError");
 
 const ALLOWED_EXTENSIONS = new Set([".png", ".svg", ".webp", ".ico"]);
 const ALLOWED_MIME_TYPES = new Set([

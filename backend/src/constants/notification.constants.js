@@ -1,0 +1,36 @@
+module.exports = {
+  NOTIFICATION_ROLES: ["ADMIN", "STAFF"],
+  NOTIFICATION_MODULES: [
+    "MANAGEMENT",
+    "FINANCE",
+    "GROWTH",
+    "MARKETING",
+    "WORKSPACE"
+  ],
+  NOTIFICATION_SUBMODULES: [
+    "ORDERS",
+    "PRODUCTS",
+    "USERS",
+    "REVIEWS",
+    "PAYMENTS",
+    "REFUNDS",
+    "REPORTS",
+    "SETTINGS",
+    "SYSTEM",
+    "ANALYTICS",
+    "CAMPAIGNS",
+    "STAFF",
+    "ROLES",
+    "SECURITY",
+    "DELIVERY"
+  ],
+  NOTIFICATION_TYPES: ["INFO", "WARNING", "SUCCESS", "ERROR", "URGENT"],
+  USER_NOTIFICATION_TYPE: [
+    "ORDER",
+    "DELIVERY",
+    "PAYMENT",
+    "ACCOUNT",
+    "SUPPORT",
+    "SYSTEM"
+  ]
+};

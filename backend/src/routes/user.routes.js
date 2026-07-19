@@ -13,7 +13,7 @@ const {
   reviewUpdateSchema,
   supportTicketSchema,
   supportReplySchema,
-} = require("../utils/validators/user.validation");
+} = require("../validators/user.validation");
 
 const router = express.Router();
 

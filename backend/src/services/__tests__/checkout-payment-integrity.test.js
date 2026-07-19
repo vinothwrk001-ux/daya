@@ -1,5 +1,5 @@
 const assert = require("assert");
-const { checkoutCreateSchema } = require("../../utils/validators/checkout.validation");
+const { checkoutCreateSchema } = require("../../validators/checkout.validation");
 
 const validAddress = {
   fullName: "Test User",

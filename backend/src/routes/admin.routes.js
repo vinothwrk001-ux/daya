@@ -17,38 +17,38 @@ const {
   createProductSchema,
   updateProductSchema,
   rejectProductSchema,
-} = require("../utils/validators/product.validation");
-const { createAdminOrderSchema, updateAdminOrderSchema, shipOrderSchema } = require("../utils/validators/order.validation");
+} = require("../validators/product.validation");
+const { createAdminOrderSchema, updateAdminOrderSchema, shipOrderSchema } = require("../validators/order.validation");
 const {
   createCategorySchema,
   updateCategorySchema,
   toggleCategorySchema,
-} = require("../utils/validators/category.validation");
+} = require("../validators/category.validation");
 const {
   createSubcategorySchema,
   updateSubcategorySchema,
   updateSubcategoryStatusSchema,
-} = require("../utils/validators/subcategory.validation");
+} = require("../validators/subcategory.validation");
 const categoryController = require("../controllers/category.controller");
 const subcategoryController = require("../controllers/subcategory.controller");
 const attributeController = require("../controllers/attribute.controller");
 const productModuleController = require("../controllers/product-module.controller");
-const { createAttributeSchema, updateAttributeSchema } = require("../utils/validators/attribute.validation");
+const { createAttributeSchema, updateAttributeSchema } = require("../validators/attribute.validation");
 const {
   createProductModuleSchema,
   updateProductModuleSchema,
-} = require("../utils/validators/product-module.validation");
+} = require("../validators/product-module.validation");
 const pricingController = require("../controllers/pricing.controller");
 const codController = require("../controllers/cod.controller");
 const homepageContainerController = require("../controllers/homepage-container.controller");
 const homepageLayoutController = require("../controllers/homepage-layout.controller");
-const { updatePricingConfigSchema } = require("../utils/validators/pricing.validation");
+const { updatePricingConfigSchema } = require("../validators/pricing.validation");
 const shippingConfigRoutes = require("./shippingConfig.routes");
 const adminHomepageBannerRoutes = require("./admin-homepage-banner.routes");
 const themeEngineRoutes = require("../modules/theme-engine/routes");
 const whatsappLogController = require("../controllers/whatsapp-log.controller");
 const companyBrandingController = require("../controllers/company-branding.controller");
-const { validateBrandingFiles } = require("../utils/validators/company-branding.validation");
+const { validateBrandingFiles } = require("../validators/company-branding.validation");
 
 const router = express.Router();
 

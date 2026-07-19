@@ -310,6 +310,7 @@ export function AdminHomepageBannersPage() {
   }
 
   async function handleCreateContainer() {
+    // eslint-disable-next-line no-alert
     const name = window.prompt("Container name", "Homepage Hero Row");
     if (!name?.trim()) return;
     setSaving(true);
@@ -336,6 +337,7 @@ export function AdminHomepageBannersPage() {
       bannerCount > 0
         ? `Delete "${activeContainer?.name || "this container"}" and all ${bannerCount} banner slide(s)? This also removes it from the Homepage Builder library.`
         : `Delete "${activeContainer?.name || "this container"}"? This also removes it from the Homepage Builder library.`;
+    // eslint-disable-next-line no-alert
     if (!window.confirm(message)) return;
 
     setSaving(true);
@@ -444,6 +446,7 @@ export function AdminHomepageBannersPage() {
   }
 
   async function handleDelete(id) {
+    // eslint-disable-next-line no-alert
     if (!window.confirm("Delete this banner?")) return;
     setSaving(true);
     try {

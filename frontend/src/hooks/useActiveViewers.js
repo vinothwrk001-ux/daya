@@ -37,6 +37,7 @@ export function useActiveViewers(productId) {
         sessionIdRef.current = result.sessionId;
         setCount(result.count);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error("Failed to initialize viewer tracking:", error);
       } finally {
         setIsLoading(false);
@@ -55,6 +56,7 @@ export function useActiveViewers(productId) {
           );
           setCount(count);
         } catch (error) {
+          // eslint-disable-next-line no-console
           console.error("Failed to keep viewer alive:", error);
         }
       }
@@ -66,6 +68,7 @@ export function useActiveViewers(productId) {
         const count = await activeViewersService.getActiveViewerCount(productId);
         setCount(count);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error("Failed to fetch active viewer count:", error);
       }
     }, POLLING_INTERVAL);
@@ -75,6 +78,7 @@ export function useActiveViewers(productId) {
       // Keep the session alive one more time when leaving
       if (sessionIdRef.current && productId) {
         activeViewersService.removeViewerSession(productId, sessionIdRef.current).catch(
+          // eslint-disable-next-line no-console
           (error) => console.error("Failed to remove viewer session:", error)
         );
       }
@@ -99,6 +103,7 @@ export function useActiveViewers(productId) {
           );
           setCount(count);
         } catch (error) {
+          // eslint-disable-next-line no-console
           console.error("Failed to refresh viewer on focus:", error);
         }
       }

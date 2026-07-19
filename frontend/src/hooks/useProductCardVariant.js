@@ -22,7 +22,7 @@ export function useProductCardVariant(product) {
   const defaultVariant = useMemo(() => getDefaultVariant(product), [product]);
   const variantSignature = useMemo(
     () => (Array.isArray(product?.variants) ? product.variants.map((item) => item?.variantId).join("|") : ""),
-    [product?.variants]
+    [product]
   );
 
   const [selectedAttributes, setSelectedAttributes] = useState(() => normalizeVariantAttributes(defaultVariant));
@@ -30,7 +30,7 @@ export function useProductCardVariant(product) {
   // Reset only when the product (or its variant list) changes — not on every parent re-render.
   useEffect(() => {
     setSelectedAttributes(normalizeVariantAttributes(getDefaultVariant(product)));
-  }, [productId, variantSignature]);
+  }, [productId, variantSignature, product]);
 
   useEffect(() => {
     preloadImageUrls(collectVariantImageUrls(product, swatchGroup));
@@ -81,7 +81,7 @@ export function useProductCardVariant(product) {
         return { ...current, [swatchGroup.key]: value };
       });
     },
-    [product, swatchGroup?.key]
+    [product, swatchGroup]
   );
 
   useEffect(() => {

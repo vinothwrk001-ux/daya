@@ -6,7 +6,7 @@ import { api } from "../services/api";
 export function LocationSelector() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("Layout Road, Kadampadi, Tamil Nadu");
+  const [, setSelectedLocation] = useState("Layout Road, Kadampadi, Tamil Nadu");
 
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectError, setDetectError] = useState("");
@@ -26,7 +26,6 @@ export function LocationSelector() {
     setDetectError("");
   };
 
-  const openPanel = () => setIsOpen(true);
 
   useEffect(() => {
     if (!isOpen) return;

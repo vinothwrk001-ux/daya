@@ -7,11 +7,12 @@ export class ReelsErrorBoundary extends Component {
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
+    // eslint-disable-next-line no-console
     console.error("Reels Error Boundary caught:", error, errorInfo);
     this.setState({ error, errorInfo });
   }
@@ -27,7 +28,7 @@ export class ReelsErrorBoundary extends Component {
               <p className="mt-2 text-sm text-zinc-400">
                 {this.state.error?.message || "Unable to load reels at this time"}
               </p>
-              {process.env.NODE_ENV === "development" && this.state.error && (
+              {import.meta.env.DEV && this.state.error && (
                 <details className="mt-4 bg-zinc-900 p-3 rounded-lg text-left">
                   <summary className="text-xs text-zinc-300 cursor-pointer font-semibold">
                     Error details

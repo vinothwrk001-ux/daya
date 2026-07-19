@@ -25,7 +25,7 @@ export function ProductThumbnailList({
     if (!scrollContainerRef.current) return;
 
     // No-op for grid layout
-  }, [isDesktop]);
+  }, []);
 
   useEffect(() => {
     checkScroll();
@@ -63,18 +63,6 @@ export function ProductThumbnailList({
     }
   }, [isDesktop, selectedIndex]);
 
-  function scroll(direction) {
-    if (!scrollContainerRef.current) return;
-    const amount = 96;
-
-    if (isDesktop) {
-      scrollContainerRef.current.scrollTop += direction === "backward" ? -amount : amount;
-    } else {
-      scrollContainerRef.current.scrollLeft += direction === "backward" ? -amount : amount;
-    }
-
-    setTimeout(checkScroll, 120);
-  }
 
   return (
     <div className="relative">

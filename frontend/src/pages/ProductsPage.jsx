@@ -490,7 +490,6 @@ function FilterSidebar({
   search,
   minPrice,
   maxPrice,
-  sortBy,
   filterDefs,
   facetMap,
   searchParams,
@@ -498,7 +497,6 @@ function FilterSidebar({
   onSubcategoryChange,
   onSearchChange,
   onPriceChange,
-  onSortChange,
   onFilterChange,
 }) {
   const [localSearch, setLocalSearch] = useState(search);

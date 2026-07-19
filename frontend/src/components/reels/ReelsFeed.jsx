@@ -32,12 +32,6 @@ import { getReelLinkedProducts } from "../../utils/reelProducts";
 import { ReelCommentDrawer } from "./ReelCommentDrawer";
 import { ReelShareSheet } from "./ReelShareSheet";
 
-function formatCount(value = 0) {
-  const num = Number(value || 0);
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return String(num);
-}
 
 function StarRating({ rating = 0 }) {
   const stars = Math.round(Number(rating || 0));
@@ -134,24 +128,8 @@ function ReelSlide({
   reel,
   isActive,
   onLike,
-  onSave,
-  onShareOpen,
-  onCommentOpen,
-  onReelUpdate,
   preloadNextUrl,
 }) {
-  // Validate reel data
-  if (!reel || !reel._id || !reel.videoUrl) {
-    return (
-      <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center bg-black/20 backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-3">
-          <AlertCircle className="h-8 w-8 text-red-500" />
-          <p className="text-sm text-zinc-300">Reel data unavailable</p>
-        </div>
-      </section>
-    );
-  }
-
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const viewTrackedRef = useRef(false);
@@ -189,10 +167,10 @@ function ReelSlide({
       video.pause();
       setPaused(true);
     }
-  }, [isActive, reel._id]);
+  }, [isActive, reel?._id]);
 
   const tryTrackView = useCallback(() => {
-    if (viewTrackedRef.current || !isActive) return;
+    if (viewTrackedRef.current || !isActive || !reel?._id) return;
     const video = videoRef.current;
     if (!video) return;
 
@@ -203,7 +181,7 @@ function ReelSlide({
     if (!qualified) return;
 
     viewTrackedRef.current = true;
-    trackReelView(reel._id, {
+    trackReelView(reel?._id, {
       sessionId,
       viewDuration,
       videoDuration,
@@ -262,6 +240,18 @@ function ReelSlide({
       togglePlay();
     }
     lastTapRef.current = now;
+  }
+
+  // Validate reel data
+  if (!reel || !reel._id || !reel.videoUrl) {
+    return (
+      <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center bg-black/20 backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-3">
+          <AlertCircle className="h-8 w-8 text-red-500" />
+          <p className="text-sm text-zinc-300">Reel data unavailable</p>
+        </div>
+      </section>
+    );
   }
 
   return (
@@ -394,7 +384,7 @@ function ReelSlide({
   );
 }
 
-export function ReelsFeed({ reels, loading, hasMore, onLoadMore, onReelsUpdate, onLike, onSave }) {
+export function ReelsFeed({ reels, loading, hasMore, onLoadMore, onReelsUpdate, onLike }) {
   const containerRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [commentReel, setCommentReel] = useState(null);
@@ -445,9 +435,6 @@ export function ReelsFeed({ reels, loading, hasMore, onLoadMore, onReelsUpdate, 
               isActive={index === activeIndex}
               preloadNextUrl={reels[index + 1]?.videoUrl}
               onLike={() => onLike?.(reel)}
-              onSave={() => onSave?.(reel)}
-              onShareOpen={() => setShareReel(reel)}
-              onCommentOpen={() => setCommentReel(reel)}
             />
           </div>
         ))}

@@ -11,7 +11,7 @@ const {
   checkoutOpenedSchema,
   refundPaymentSchema,
   razorpaySettingsSchema,
-} = require("../utils/validators/payment.validation");
+} = require("../validators/payment.validation");
 
 const router = express.Router();
 

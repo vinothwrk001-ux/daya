@@ -1,5 +1,5 @@
 const Joi = require("joi");
-const { CATEGORY_STATUS, CATEGORY_VISIBILITY } = require("../../models/Category");
+const { CATEGORY_STATUS, CATEGORY_VISIBILITY } = require("../models/Category");
 
 const categoryPayload = {
   name: Joi.string().trim().max(120),

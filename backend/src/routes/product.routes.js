@@ -7,7 +7,7 @@ const {
   createProductSchema,
   updateProductSchema,
   rejectProductSchema,
-} = require("../utils/validators/product.validation");
+} = require("../validators/product.validation");
 
 const router = express.Router();
 

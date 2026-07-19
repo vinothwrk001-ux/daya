@@ -18,7 +18,7 @@ import { LocationSelector } from "./LocationSelector";
 import { CategoryNavigation } from "./CategoryNavigation";
 import { CartDrawer } from "./CartDrawer";
 import { CartDrawerOverlay } from "./CartDrawerOverlay";
-import { useDarkMode } from "../hooks/useDarkMode";
+
 import { useCategories } from "../hooks/useCategories";
 import { categoryRedirectsToServices } from "../utils/categoryLinks";
 import { usePresentedCategories } from "../utils/categoryPresentation";
@@ -30,9 +30,7 @@ export function Layout() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const authReady = useAuthStore((s) => s.authReady);
-  const [isDarkMode, setIsDarkMode] = useDarkMode();
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { categories } = useCategories();
@@ -46,23 +44,6 @@ export function Layout() {
   const hideShopChrome = isAdminRoute || isStaffWorkspace || isReelsPage;
   const showShopActions = !user || user?.role === "user";
 
-  // Detect scroll with requestAnimationFrame for smooth performance
-  useEffect(() => {
-    let ticking = false;
-
-    function handleScroll() {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          setIsScrolled(window.scrollY > 50);
-          ticking = false;
-        });
-        ticking = true;
-      }
-    }
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   useEffect(() => {
     setMobileMenuOpen(false);

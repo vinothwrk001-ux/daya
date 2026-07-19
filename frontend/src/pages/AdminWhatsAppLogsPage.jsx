@@ -61,7 +61,7 @@ export function AdminWhatsAppLogsPage() {
         const payload = response?.data ?? response;
         if (cancelled) return;
         setLogs(payload?.logs || []);
-        setPagination(payload?.pagination || pagination);
+        setPagination((prev) => payload?.pagination || prev);
       } catch (err) {
         if (!cancelled) setError(normalizeError(err));
       } finally {

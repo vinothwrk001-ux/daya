@@ -44,8 +44,8 @@ function TestimonialCard({ review }) {
   const productImage = getProductImage(product);
   const productPrice = getProductPrice(product);
   const customerName = customer.name || "Anonymous";
-  const nameInitial = getCustomerInitial(customerName);
-  const avatarUrl = customer.avatarUrl ? resolveApiAssetUrl(customer.avatarUrl) : null;
+  const _nameInitial = getCustomerInitial(customerName);
+  const _avatarUrl = customer.avatarUrl ? resolveApiAssetUrl(customer.avatarUrl) : null;
 
   // Abbreviate name: "Emily Thompson" -> "Emily T."
   const nameParts = customerName.split(" ");

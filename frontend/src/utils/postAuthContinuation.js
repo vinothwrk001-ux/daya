@@ -127,7 +127,7 @@ export async function continueAfterPrimaryAuth({ result, attemptedFrom, nav }) {
     return nav("/checkout", { replace: true });
   }
 
-  const primaryTarget =
+  const _primaryTarget =
     redirect && isAllowedPrimaryTarget(redirect)
       ? redirect
       : attemptedFrom && isAllowedPrimaryTarget(attemptedFrom)

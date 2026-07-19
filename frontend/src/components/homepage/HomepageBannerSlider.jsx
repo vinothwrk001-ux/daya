@@ -89,7 +89,7 @@ function resolveBannerAsset(banner, isMobile) {
   return { mediaType, url, poster };
 }
 
-const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, previewMode = false, compact = false }) {
+const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, previewMode = false }) {
   const image = resolveApiAssetUrl(card.cardImage);
 
   // Emoji map for categories
@@ -362,7 +362,7 @@ export function HomepageBannerSlider({
   const showOverlay = Boolean(activeBanner.showOverlay) && Number(activeBanner.overlayOpacity || 0) > 0;
   const overlayOpacity = Math.min(1, Math.max(0, Number(activeBanner.overlayOpacity || 0)));
   const hoverReveal = Boolean(activeBanner.hoverModeEnabled) && isDesktop;
-  const revealContent = !hoverReveal || hovered || previewMode;
+  const _revealContent = !hoverReveal || hovered || previewMode;
 
   const renderBannerCta = (className) => {
     if (!activeBanner.ctaUrl) return null;
@@ -383,7 +383,7 @@ export function HomepageBannerSlider({
     );
   };
 
-  const textBlock = (
+  const _textBlock = (
     <>
       <p className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-primary sm:text-xs">
         {featuredText}

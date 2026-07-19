@@ -10,7 +10,7 @@ const {
   verifyOTPSchema,
   resendOTPSchema,
   resetPasswordSchema,
-} = require("../utils/validators/auth.validation");
+} = require("../validators/auth.validation");
 const { AppError } = require("../utils/AppError");
 
 const router = express.Router();

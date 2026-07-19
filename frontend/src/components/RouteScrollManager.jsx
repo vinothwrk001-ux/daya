@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { ProductDetailsSkeleton } from "./ProductDetailsSkeleton";
 import { isProductPath, scrollPageToTop, scrollToHash } from "../utils/scrollPageToTop";
@@ -11,14 +11,11 @@ import { isProductPath, scrollPageToTop, scrollToHash } from "../utils/scrollPag
 export function RouteScrollManager() {
   const location = useLocation();
   const [visibleKey, setVisibleKey] = useState(location.key);
-  const locationRef = useRef(location);
-
-  locationRef.current = location;
   const isProductRoute = isProductPath(location.pathname);
   const isTransitioning = visibleKey !== location.key;
 
   useLayoutEffect(() => {
-    const { hash } = locationRef.current;
+    const { hash } = location;
 
     if (hash) {
       if (!scrollToHash(hash)) {
@@ -28,8 +25,8 @@ export function RouteScrollManager() {
       scrollPageToTop();
     }
 
-    setVisibleKey(locationRef.current.key);
-  }, [location.pathname, location.hash, location.key]);
+    setVisibleKey(location.key);
+  }, [location]);
 
   if (isProductRoute && isTransitioning) {
     return <ProductDetailsSkeleton />;

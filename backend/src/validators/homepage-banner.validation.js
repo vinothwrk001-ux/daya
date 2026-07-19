@@ -1,5 +1,5 @@
 const Joi = require("joi");
-const { BANNER_STATUS } = require("../../models/HomepageBanner");
+const { BANNER_STATUS } = require("../models/HomepageBanner");
 
 const bannerCategoryItemSchema = Joi.object({
   categoryId: Joi.string().required(),

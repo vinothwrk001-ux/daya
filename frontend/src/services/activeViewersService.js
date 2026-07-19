@@ -13,6 +13,7 @@ export async function getActiveViewerCount(productId) {
     const response = await api.get(`/api/products/${productId}/viewers/count`);
     return response?.data?.data?.count || 0;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.warn(`Failed to fetch active viewer count for product ${productId}:`, error);
     return 0;
   }
@@ -32,6 +33,7 @@ export async function trackActiveViewer(productId, sessionId = null) {
       count: response?.data?.data?.count || 0,
     };
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.warn(`Failed to track active viewer for product ${productId}:`, error);
     return { sessionId: null, count: 0 };
   }
@@ -45,6 +47,7 @@ export async function keepViewerAlive(productId, sessionId) {
     const response = await api.patch(`/api/products/${productId}/viewers/${sessionId}`);
     return response?.data?.data?.count || 0;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.warn(`Failed to keep viewer alive for product ${productId}:`, error);
     return 0;
   }
@@ -58,6 +61,7 @@ export async function removeViewerSession(productId, sessionId) {
     const response = await api.delete(`/api/products/${productId}/viewers/${sessionId}`);
     return response?.data?.data?.count || 0;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.warn(`Failed to remove viewer session for product ${productId}:`, error);
     return 0;
   }

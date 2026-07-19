@@ -1,5 +1,5 @@
 import { api } from "./api";
-import { emitCartChanged, normalizeAddToCartResponse, normalizeCartPayload } from "../utils/cartState";
+import { emitCartChanged, normalizeCartPayload } from "../utils/cartState";
 import { bumpCartStateVersion } from "../utils/cartStateVersion";
 import { getReelAttribution } from "./reelService";
 import { dedupePromise, invalidateDedupePromise } from "../utils/dedupePromise";

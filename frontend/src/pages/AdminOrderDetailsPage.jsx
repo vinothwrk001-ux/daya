@@ -142,7 +142,6 @@ export function AdminOrderDetailsPage() {
     () => !!order && order.status !== "Shipped" && order.status !== "Cancelled" && !shipping && !loading,
     [order, shipping, loading]
   );
-  const hasTrackingFields = Boolean(trackingId.trim() && trackingUrl.trim());
 
   function validateTrackingFields() {
     if ((trackingId.trim() && !trackingUrl.trim()) || (!trackingId.trim() && trackingUrl.trim())) {

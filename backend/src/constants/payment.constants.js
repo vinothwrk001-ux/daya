@@ -1,0 +1,21 @@
+module.exports = {
+  PAYMENT_STATUS: [
+    "Pending",
+    "Paid",
+    "Failed",
+    "Refunded",
+    "Partially Refunded"
+  ],
+  PAYMENT_STATUS_NORMALIZED: ["PENDING", "PAID", "FAILED"],
+  PAYMENT_METHODS: ["ONLINE", "COD", "RAZORPAY"],
+  PAYMENT_SESSION_STATUS: [
+    "CREATED",
+    "ATTEMPTED",
+    "PAID",
+    "EXPIRED",
+    "FAILED"
+  ],
+  PAYMENT_ATTEMPT_STATUS: ["CREATED", "FAILED", "SUCCESS", "VERIFIED"],
+  FULFILLMENT_STATUS: ["PENDING", "PROCESSING", "COMPLETED", "FAILED"],
+  CHECKOUT_SESSION_STATUS: ["ACTIVE", "COMPLETED", "EXPIRED", "CANCELLED"]
+};

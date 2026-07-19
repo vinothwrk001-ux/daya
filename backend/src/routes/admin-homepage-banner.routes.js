@@ -8,12 +8,12 @@ const {
   assignCategoriesSchema,
   reorderBannersSchema,
   bannerSettingsSchema,
-} = require("../utils/validators/homepage-banner.validation");
+} = require("../validators/homepage-banner.validation");
 const {
   createBannerContainerSchema,
   updateBannerContainerSchema,
   reorderBannerContainersSchema,
-} = require("../utils/validators/homepage-banner-container.validation");
+} = require("../validators/homepage-banner-container.validation");
 const {
   adminWorkspaceAuthRequired,
   requireWorkspacePermission,
