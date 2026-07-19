@@ -551,7 +551,7 @@ h3,
   }
 
   .enterprise-nav-pill > a.bg-brand-primary,
-  .enterprise-nav-pill > a.text-white,
+  .enterprise-nav-pill > a[class*="text-white"],
   .enterprise-nav-pill > a[style*="background-color: rgb(229, 57, 53)"],
   .enterprise-nav-pill > a[style*="background-color: #e53935"] {
     background-color: #e53935 !important;
@@ -794,7 +794,7 @@ h3,
 
 @media (max-width: 767px) {
   .hero-banner-shell {
-    --hero-mobile-min-height: 90vh;
+    --hero-mobile-min-height: 550px;
     height: auto;
     min-height: var(--hero-mobile-min-height);
   }

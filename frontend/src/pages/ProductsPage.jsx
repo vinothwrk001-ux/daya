@@ -1,5 +1,6 @@
 import { logger } from "../services/logger/logger.js";
 import { useEffect, useMemo, useState, memo } from "react";
+import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import { Heart, ShoppingCart, X } from "lucide-react";
 import { BackButton } from "../components/BackButton";
@@ -315,7 +316,7 @@ export function ProductsPage() {
           </div>
         </div>
 
-        {showFilters ? (
+        {showFilters ? createPortal(
           <>
             <div
               className="fixed inset-0 bg-slate-950/50 backdrop-blur-[4px]"
@@ -431,7 +432,8 @@ export function ProductsPage() {
                 />
               </div>
             </aside>
-          </>
+          </>,
+          document.body
         ) : null}
 
         {loading && !products.length ? (

@@ -94,7 +94,7 @@ export function Layout() {
       <div className="enterprise-shell flex min-h-screen flex-col transition-colors">
       {!hideShopChrome && location.pathname !== "/" ? (
         <header className="enterprise-header sticky top-0 z-30 backdrop-blur-xl">
-          <div className="w-full px-3 py-3 sm:px-4 lg:px-8">
+          <div className="w-full px-3 pt-3 pb-4 sm:px-4 lg:px-8 lg:py-3">
             <div className="flex flex-col gap-6">
               <div className="flex flex-wrap items-center justify-center gap-3 lg:flex-wrap">
                 <Link
@@ -120,7 +120,7 @@ export function Layout() {
                   </div>
                 </div>
 
-                <nav className="enterprise-nav-pill order-3 flex flex-nowrap w-full items-center justify-start gap-3 overflow-x-auto scroll-smooth rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur mt-3 lg:order-10 lg:w-full lg:justify-center lg:flex-wrap lg:overflow-visible lg:mt-3">
+                <nav className="enterprise-nav-pill order-3 flex flex-nowrap w-full items-center justify-start gap-3 overflow-x-auto scroll-smooth rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur mt-4 lg:order-10 lg:w-full lg:justify-center lg:flex-wrap lg:overflow-visible lg:mt-3">
                   {navItems.map((item) => {
                     const isActive =
                       location.pathname === item.href ||
@@ -131,7 +131,7 @@ export function Layout() {
                         key={item.href}
                         to={item.href}
                         state={item.href === "/reels" ? { background: location } : undefined}
-                        className={`group relative shrink-0 rounded-full px-4 py-2 text-sm font-bold transition ${
+                        className={`group relative shrink-0 rounded-full px-3 py-1.5 text-xs lg:px-4 lg:py-2 lg:text-sm font-bold transition ${
                           isActive
                             ? "bg-brand-primary text-white"
                             : "text-slate-700 hover:text-brand-primary"

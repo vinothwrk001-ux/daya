@@ -14,9 +14,36 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
   const [hoveredCategoryId, setHoveredCategoryId] = useState(null);
   const [subcategories, setSubcategories] = useState({});
   const [loadingSubcategories, setLoadingSubcategories] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [headerHeight, setHeaderHeight] = useState(140);
   const scrollContainerRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
   const dropdownTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const updateLayout = () => {
+      setIsMobile(window.innerWidth < 1024);
+      const header = document.querySelector('.enterprise-header');
+      if (header) {
+        setHeaderHeight(header.offsetHeight);
+      }
+    };
+
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+    
+    const header = document.querySelector('.enterprise-header');
+    let ro;
+    if (header && window.ResizeObserver) {
+      ro = new ResizeObserver(() => updateLayout());
+      ro.observe(header);
+    }
+    
+    return () => {
+      window.removeEventListener('resize', updateLayout);
+      if (ro) ro.disconnect();
+    };
+  }, []);
 
   // Check scroll position for arrow visibility
   const checkScroll = () => {
@@ -93,8 +120,8 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
   return (
     <>
       <nav
-        className="category-navigation-sticky sticky top-[140px] lg:top-[140px] mt-0 z-30 bg-white text-black backdrop-blur-md will-change-none"
-        style={{ height: "48px" }}
+        className={`category-navigation-sticky sticky mt-0 z-30 bg-white text-black backdrop-blur-md will-change-none ${!isMobile ? "lg:top-[140px]" : ""}`}
+        style={{ height: "48px", ...(isMobile ? { top: `${headerHeight}px` } : {}) }}
       >
         <div className="w-full px-2 lg:px-4 h-full flex items-center relative">
           {/* Left Arrow */}
@@ -116,7 +143,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
             className="flex-1 overflow-x-auto scrollbar-hide flex items-center justify-center bg-white"
             style={{ scrollBehavior: "smooth", msOverflowStyle: "none" }}
           >
-            <div className="mx-auto inner-category-list flex h-full items-center gap-1 whitespace-nowrap px-2 lg:px-12">
+            <div className="mx-auto inner-category-list flex h-full items-center justify-start lg:justify-center gap-1 whitespace-nowrap px-2 lg:px-12">
               {categoryList.map((category) => {
                 const isSelected = selectedCategory?.id === category.id || selectedCategory?.slug === category.slug;
                 
@@ -130,7 +157,7 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
                     <button
                       type="button"
                       onClick={() => handleCategorySelect(category)}
-                      className={`flex items-center gap-2 px-3 py-2 h-full text-xs sm:text-sm font-medium transition-all duration-200 relative group/btn ${
+                      className={`flex items-center gap-2 px-2 py-1.5 text-[11px] lg:px-3 lg:py-2 lg:text-sm font-medium transition-all duration-200 relative group/btn ${
                         isSelected
                           ? "text-black"
                           : "text-black/70 hover:text-red-600"
