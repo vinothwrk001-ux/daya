@@ -239,7 +239,7 @@ export function ProductDetailsPage() {
     trackReelProductView(reelId, {
       productId: resolvedProductId,
       sessionId: attribution?.sessionId || getReelSessionId(),
-    }).catch(() => {});
+    }).catch(() => { });
   }, [product?._id, reelIdFromQuery]);
 
   useEffect(() => {
@@ -333,7 +333,7 @@ export function ProductDetailsPage() {
   useEffect(() => {
     if (!product?._id) return;
     if (isAuthenticated) {
-      trackRecentlyViewed(product._id).catch(() => {});
+      trackRecentlyViewed(product._id).catch(() => { });
       return;
     }
     trackGuestRecentlyViewed(product);
@@ -598,11 +598,10 @@ export function ProductDetailsPage() {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  activeTab === tab.key
-                    ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                }`}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${activeTab === tab.key
+                  ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                  }`}
               >
                 {tab.label}
               </button>
@@ -698,11 +697,10 @@ export function ProductDetailsPage() {
                               type="button"
                               disabled={disabled}
                               onClick={() => selectVariantValue(group.key, option.value)}
-                              className={`rounded-2xl border px-4 py-2 text-sm font-medium transition ${
-                                isSelected
-                                  ? "border-slate-950 bg-slate-950 text-white shadow-sm dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950"
-                                  : "border-slate-300 text-slate-700 hover:border-slate-950 hover:shadow-sm dark:border-slate-700 dark:text-slate-200"
-                              } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
+                              className={`rounded-2xl border px-4 py-2 text-sm font-medium transition ${isSelected
+                                ? "border-slate-950 bg-slate-950 text-white shadow-sm dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950"
+                                : "border-slate-300 text-slate-700 hover:border-slate-950 hover:shadow-sm dark:border-slate-700 dark:text-slate-200"
+                                } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
                               title={option.inStock ? option.value : `${option.value} is out of stock`}
                             >
                               {showSwatch ? (

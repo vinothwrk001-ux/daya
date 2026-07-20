@@ -364,8 +364,9 @@ export function HomepageBannerSlider({
   const hoverReveal = Boolean(activeBanner.hoverModeEnabled) && isDesktop;
   const _revealContent = !hoverReveal || hovered || previewMode;
 
-  const renderBannerCta = (className) => {
-    if (!activeBanner.ctaUrl) return null;
+  const renderBannerCta = (className, overrideUrl) => {
+    const targetUrl = overrideUrl || activeBanner.ctaUrl;
+    if (!targetUrl) return null;
     const label = activeBanner.ctaText || "Shop now";
     if (previewMode) {
       return (
@@ -376,7 +377,7 @@ export function HomepageBannerSlider({
       );
     }
     return (
-      <Link to={activeBanner.ctaUrl} onClick={handleBannerCta} className={className}>
+      <Link to={targetUrl} onClick={handleBannerCta} className={className}>
         {label}
         <ArrowRight className="h-4 w-4" />
       </Link>
@@ -491,13 +492,15 @@ export function HomepageBannerSlider({
             <div className="absolute inset-x-0 bottom-[3rem] z-20 mx-auto flex w-full max-w-[92%] flex-col items-center gap-3 rounded-3xl bg-transparent px-4 py-4 text-center text-white backdrop-blur-none md:hidden">
               <p className="text-sm leading-6 text-white/80">{activeBanner.description}</p>
               {renderBannerCta(
-                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover"
+                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover",
+                "/shop"
               )}
             </div>
           ) : isMobile ? (
             <div className="absolute inset-x-0 bottom-[3rem] z-20 mx-auto flex w-full max-w-[92%] items-center justify-center rounded-3xl bg-transparent px-4 py-4 text-center text-white backdrop-blur-none md:hidden">
               {renderBannerCta(
-                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover"
+                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover",
+                "/shop"
               )}
             </div>
           ) : null}

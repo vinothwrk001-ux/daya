@@ -218,18 +218,18 @@ class InventoryService {
     const activeVariants = getActiveVariantList(product);
     const variantRecords = activeVariants.length
       ? activeVariants.map((variant) => ({
-          variantId: variant.variantId,
-          variantTitle: buildVariantTitle(product, variant),
-          sku: variant.sku,
-          price: toNumber(variant.price),
-          discountPrice: variant.discountPrice,
-          attributes: toPlainAttributes(variant.attributes),
-          weight: variant.weight,
-          stock: toNumber(variant.stock),
-          reservedStock: toNumber(variant.reservedStock),
-          threshold: toNumber(variant.threshold, DEFAULT_THRESHOLD),
-          source: "VARIANT",
-        }))
+        variantId: variant.variantId,
+        variantTitle: buildVariantTitle(product, variant),
+        sku: variant.sku,
+        price: toNumber(variant.price),
+        discountPrice: variant.discountPrice,
+        attributes: toPlainAttributes(variant.attributes),
+        weight: variant.weight,
+        stock: toNumber(variant.stock),
+        reservedStock: toNumber(variant.reservedStock),
+        threshold: toNumber(variant.threshold, DEFAULT_THRESHOLD),
+        source: "VARIANT",
+      }))
       : [await this.buildLegacyVariant(product)];
 
     const variants = variantRecords.map((record) => this.buildInventoryView(product, record));

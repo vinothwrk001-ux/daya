@@ -61,9 +61,8 @@ function VariantColorSwatches({ options, selectedValue, groupName, onSelect }) {
               event.stopPropagation();
               onSelect(option.value);
             }}
-            className={`flex h-[24px] w-[24px] items-center justify-center rounded-full border border-slate-200 bg-white transition-transform duration-150 hover:scale-110 focus-visible:outline-none ${
-              isSelected ? "border-black shadow-[0_0_0_2px_white,0_0_0_3px_#111827]" : ""
-            } ${option.inStock ? "" : "opacity-40"}`}
+            className={`flex h-[24px] w-[24px] items-center justify-center rounded-full border border-slate-200 bg-white transition-transform duration-150 hover:scale-110 focus-visible:outline-none ${isSelected ? "border-black shadow-[0_0_0_2px_white,0_0_0_3px_#111827]" : ""
+              } ${option.inStock ? "" : "opacity-40"}`}
           >
             <span
               className={`h-[16px] w-[16px] rounded-full ${isLightSwatch ? "border border-slate-300" : ""}`}
@@ -197,9 +196,8 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
       }}
       role="link"
       tabIndex={0}
-      className={`group relative mx-auto flex h-full w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-[12px] bg-transparent transition-all duration-300 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7061] focus-visible:ring-offset-2 ${
-        isEditorial ? "bg-slate-950 text-white" : ""
-      }`}
+      className={`group relative mx-auto flex h-full w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-[12px] bg-transparent transition-all duration-300 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7061] focus-visible:ring-offset-2 ${isEditorial ? "bg-slate-950 text-white" : ""
+        }`}
     >
       {/* Tall portrait image — fills card width like reference */}
       <div className={`relative w-full ${imageAspectClass} flex-shrink-0 overflow-hidden bg-[#ececec]`}>
@@ -210,18 +208,16 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
                 key={`primary-${imageKey}`}
                 src={imageUrl}
                 alt={product?.name || "Product image"}
-                className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-300 ease-out ${
-                  isCardHovered ? "opacity-0" : "opacity-100"
-                }`}
+                className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-300 ease-out ${isCardHovered ? "opacity-0" : "opacity-100"
+                  }`}
                 loading="lazy"
               />
               <img
                 key={`hover-${imageKey}`}
                 src={hoverImageUrl}
                 alt={product?.name || "Product hover image"}
-                className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-300 ease-out ${
-                  isCardHovered ? "opacity-100" : "opacity-0"
-                }`}
+                className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-300 ease-out ${isCardHovered ? "opacity-100" : "opacity-0"
+                  }`}
                 loading="lazy"
               />
             </>
@@ -230,9 +226,8 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
               key={imageKey}
               src={imageUrl}
               alt={product?.name || "Product image"}
-              className={`h-full w-full object-cover object-center transition-transform duration-500 ease-out ${
-                isCardHovered ? "scale-[1.03]" : "scale-100"
-              }`}
+              className={`h-full w-full object-cover object-center transition-transform duration-500 ease-out ${isCardHovered ? "scale-[1.03]" : "scale-100"
+                }`}
               loading="lazy"
             />
           )
@@ -280,18 +275,16 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
       <div className="flex flex-col items-start px-6 pb-6 pt-4 text-left">
         {showBrandLabel ? (
           <p
-            className={`line-clamp-1 text-[13px] font-medium uppercase tracking-[0.18em] ${
-              isEditorial ? "text-slate-400" : "text-[#A3A3A3]"
-            }`}
+            className={`line-clamp-1 text-[13px] font-medium uppercase tracking-[0.18em] ${isEditorial ? "text-slate-400" : "text-[#A3A3A3]"
+              }`}
           >
             {brandName}
           </p>
         ) : null}
 
         <h3
-          className={`mt-2 line-clamp-2 min-h-[2.25rem] text-base font-bold leading-snug tracking-[-0.01em] ${
-            isEditorial ? "text-white" : "text-[#171717]"
-          }`}
+          className={`mt-2 line-clamp-2 min-h-[2.25rem] text-base font-bold leading-snug tracking-[-0.01em] ${isEditorial ? "text-white" : "text-[#171717]"
+            }`}
         >
           {product.name}
         </h3>
