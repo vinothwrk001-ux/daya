@@ -40,7 +40,7 @@ export function isColorLikeGroup(group) {
 export function getCardSwatchGroup(product) {
   const groups = getVariantGroups(product);
   if (!groups.length) return null;
-  return groups.find(isColorLikeGroup) || groups[0];
+  return groups.find(isColorLikeGroup) || null;
 }
 
 export function getActiveVariants(product) {
