@@ -64,6 +64,8 @@ export function CategoryCarousel() {
   const [loading, setLoading] = useState(true);
   const scrollerRef = useRef(null);
 
+  const [currentIndex, setCurrentIndex] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -113,7 +115,7 @@ export function CategoryCarousel() {
 
   return (
     <section id="categories" className="bg-white px-4 py-10 dark:bg-zinc-950 lg:px-8 flex justify-center">
-      <div className="mx-auto flex max-w-7xl flex-col items-center">
+      <div className="mx-auto flex w-full max-w-7xl flex-col items-center">
         <div className="mb-6 flex w-full max-w-3xl flex-col items-center gap-4 text-center">
           <div>
             <p className="mx-auto inline-flex rounded-full border border-brand-primary px-4 py-1.5 text-xs font-black uppercase tracking-[0.35em] text-brand-primary">{config.eyebrow}</p>
@@ -122,32 +124,48 @@ export function CategoryCarousel() {
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{config.subtitle}</p>
             ) : null}
           </div>
-          {/* <div className="flex justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => scrollBy(-1)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-700 transition hover:border-brand-primary hover:text-brand-primary dark:border-zinc-700 dark:text-zinc-200"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollBy(1)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-700 transition hover:border-brand-primary hover:text-brand-primary dark:border-zinc-700 dark:text-zinc-200"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div> */}
         </div>
 
         <div
           ref={scrollerRef}
-          className="mx-auto grid justify-center grid-flow-col auto-cols-[calc(50%-0.5rem)] gap-4 overflow-x-auto pb-2 mt-8 [-ms-overflow-style:none] [scrollbar-width:none] sm:auto-cols-[calc(50%-0.5rem)] md:auto-cols-[calc(50%-1rem)] lg:auto-cols-[calc(25.333%-1rem)] xl:auto-cols-[calc(23%-1rem)] [&::-webkit-scrollbar]:hidden"
+          onScroll={() => {
+            if (!scrollerRef.current) return;
+            const { scrollLeft, clientWidth } = scrollerRef.current;
+            const cardWidth = scrollerRef.current.children[0]?.clientWidth || (clientWidth / 2);
+            if (cardWidth > 0) {
+              setCurrentIndex(Math.round(scrollLeft / cardWidth));
+            }
+          }}
+          className="mx-auto grid justify-center grid-flow-col auto-cols-[calc(50%-0.5rem)] gap-4 overflow-x-auto pb-2 mt-8 snap-x snap-mandatory scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] sm:auto-cols-[calc(50%-0.5rem)] md:auto-cols-[calc(50%-1rem)] lg:auto-cols-[calc(25.333%-1rem)] xl:auto-cols-[calc(23%-1rem)] [&::-webkit-scrollbar]:hidden w-full"
         >
           {categories.map((category) => (
-            <CategoryCard key={category._id} category={category} onClick={handleCategoryClick} />
+            <div key={category._id} className="snap-start w-full">
+              <CategoryCard category={category} onClick={handleCategoryClick} />
+            </div>
           ))}
         </div>
+        
+        {categories.length > 2 && (
+          <div className="mt-3 flex justify-center gap-1.5 md:hidden">
+            {Array.from({ length: categories.length - 1 }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  if (!scrollerRef.current) return;
+                  const cardWidth = scrollerRef.current.children[0]?.clientWidth || (scrollerRef.current.clientWidth / 2);
+                  scrollerRef.current.scrollTo({
+                    left: i * cardWidth,
+                    behavior: 'smooth'
+                  });
+                }}
+                className={`h-1.5 rounded-full transition-all ${
+                  (currentIndex || 0) === i ? "w-4 bg-brand-primary" : "w-1.5 bg-zinc-300"
+                }`}
+                aria-label={`Go to slide ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

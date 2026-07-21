@@ -80,7 +80,7 @@ export function ProductCarousel({
     return () => window.removeEventListener("resize", handleResize);
   }, [desktopItemsPerView, mobileItemsPerView, tabletItemsPerView]);
 
-  const maxPageIndex = Math.max(0, Math.ceil(items.length / itemsPerView) - 1);
+  const maxPageIndex = Math.max(0, items.length - itemsPerView);
 
   useEffect(() => {
     if (currentIndex > maxPageIndex) {
@@ -130,7 +130,7 @@ export function ProductCarousel({
     }
   };
 
-  const translateX = -currentIndex * 100;
+  const translateX = -currentIndex * (100 / itemsPerView);
 
   const totalPages = Math.ceil(items.length / gridItemsPerPage);
   const [gridVisible, setGridVisible] = useState(true);
@@ -262,8 +262,8 @@ export function ProductCarousel({
         />
 
         {showDots && (paginatedGrid ? items.length > gridItemsPerPage : items.length > itemsPerView) ? (
-          <div className="mt-10 flex items-center justify-center gap-2">
-            {Array.from({ length: paginatedGrid ? totalPages : Math.ceil(items.length / itemsPerView) }).map((_, index) => (
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
+            {Array.from({ length: paginatedGrid ? totalPages : Math.max(0, items.length - itemsPerView + 1) }).map((_, index) => (
               <button
                 key={index}
                 type="button"

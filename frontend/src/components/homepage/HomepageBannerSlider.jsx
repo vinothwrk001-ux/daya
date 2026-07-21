@@ -262,6 +262,8 @@ export function HomepageBannerSlider({
   const trackedRef = useRef(new Set());
   const touchStartX = useRef(null);
   const containerRef = useRef(null);
+  const scrollRef = useRef(null);
+  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
   const sessionId = useMemo(() => getSessionId(), []);
   const isMobile = useIsMobile();
   const isDesktop = !isMobile;
@@ -559,7 +561,16 @@ export function HomepageBannerSlider({
             </p>
           </div>
           <div
-            className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide"
+            ref={scrollRef}
+            onScroll={() => {
+              if (!scrollRef.current) return;
+              const { scrollLeft, clientWidth } = scrollRef.current;
+              const cardWidth = scrollRef.current.children[0]?.clientWidth || (clientWidth / 2);
+              if (cardWidth > 0) {
+                setCurrentCategoryIndex(Math.round(scrollLeft / cardWidth));
+              }
+            }}
+            className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory scrollbar-hide pb-2"
             role="list"
             aria-label="Homepage category cards"
           >
@@ -579,6 +590,27 @@ export function HomepageBannerSlider({
               </MotionDiv>
             ))}
           </div>
+          {categories.length > 2 && (
+            <div className="mt-3 flex justify-center gap-1.5">
+              {Array.from({ length: categories.length - 1 }).map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    if (!scrollRef.current) return;
+                    const cardWidth = scrollRef.current.children[0]?.clientWidth || (scrollRef.current.clientWidth / 2);
+                    scrollRef.current.scrollTo({
+                      left: i * cardWidth,
+                      behavior: 'smooth'
+                    });
+                  }}
+                  className={`h-1.5 rounded-full transition-all ${
+                    (currentCategoryIndex || 0) === i ? "w-4 bg-brand-primary" : "w-1.5 bg-zinc-300"
+                  }`}
+                  aria-label={`Go to category slide ${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       ) : null}
     </div>
