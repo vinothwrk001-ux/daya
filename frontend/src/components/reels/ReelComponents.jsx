@@ -91,7 +91,7 @@ export function ReelCard({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || layout === "card") return;
+    if (!video) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -108,7 +108,7 @@ export function ReelCard({
 
     observer.observe(video);
     return () => observer.disconnect();
-  }, [layout, reel?.videoUrl]);
+  }, [reel?.videoUrl]);
 
   async function handleProductClick(product) {
     const productId = product.productId || product._id;
@@ -198,11 +198,6 @@ export function ReelCard({
             loop
             playsInline
             preload="metadata"
-            onMouseEnter={(event) => event.currentTarget.play().catch(() => {})}
-            onMouseLeave={(event) => {
-              event.currentTarget.pause();
-              event.currentTarget.currentTime = 0;
-            }}
           />
 
           {primaryProduct ? (
