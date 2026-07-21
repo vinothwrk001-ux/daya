@@ -65,15 +65,18 @@ export function ProductThumbnailList({
 
 
   return (
-    <div className="relative">
-      <div ref={scrollContainerRef} className="flex flex-wrap gap-3 justify-center">
+    <div className="relative w-full">
+      <div 
+        ref={scrollContainerRef} 
+        className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x md:flex-wrap md:justify-center md:overflow-visible md:pb-0"
+      >
         {media.map((item, index) => (
           <button
             key={`thumbnail-${item.url}-${index}`}
             data-thumbnail-index={index}
             type="button"
             onClick={() => onSelect(index)}
-            className={`group relative h-[166px] w-[166px] flex-none overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 ${
+            className={`group relative w-[calc(25%-9px)] shrink-0 snap-center aspect-square overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 md:h-[166px] md:w-[166px] md:aspect-auto ${
               index === selectedIndex
                 ? "scale-[1.02] border-[color:var(--commerce-accent)] ring-2 ring-[color:var(--commerce-accent-soft)] shadow-md"
                 : "border-slate-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
@@ -83,7 +86,7 @@ export function ProductThumbnailList({
             aria-current={index === selectedIndex}
           >
             {item.type === "video" ? (
-              <div className="flex h-full w-full items-center justify-center bg-slate-950 text-xs font-semibold uppercase tracking-wide text-white">
+              <div className="flex h-full w-full items-center justify-center bg-slate-950 text-[10px] font-semibold uppercase tracking-wide text-white md:text-xs">
                 Video
               </div>
             ) : (
@@ -91,7 +94,7 @@ export function ProductThumbnailList({
                 src={resolveApiAssetUrl(item.url)}
                 alt={item.altText || `${productName} thumbnail ${index + 1}`}
                 loading="lazy"
-                className="h-full w-full object-cover p-1 transition duration-200 group-hover:scale-[1.04]"
+                className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.04]"
                 onError={(event) => {
                   event.currentTarget.src = "https://via.placeholder.com/166x166?text=Img";
                 }}

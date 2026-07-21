@@ -33,7 +33,7 @@ export function ProductMainImage({ media, productName = "Product", imageIndex = 
 
   return (
     <div className="relative min-w-0 overflow-hidden rounded-[2rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] shadow-sm">
-      <div className="relative flex w-full items-center justify-center overflow-hidden h-auto sm:h-[800px]">
+      <div className="relative flex w-full items-center justify-center overflow-hidden aspect-square sm:aspect-auto sm:h-[800px]">
         <div className="w-full max-w-[800px] h-full">
         {media.type === "video" ? (
           <video

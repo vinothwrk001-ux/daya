@@ -35,7 +35,7 @@ export function ReelProductOverlay({ product, onProductClick }) {
   const original = product.salePrice ? product.price : null;
 
   return (
-    <div className="absolute bottom-[18px] left-[18px] right-[18px] z-20 h-[74px] rounded-full bg-[rgba(55,55,55,0.72)] px-[14px] py-[10px] shadow-xl backdrop-blur-[20px] transition-all duration-[400ms] ease-out group-hover:bg-[rgba(45,45,45,0.82)] group-hover:backdrop-blur-[24px]">
+    <div className="absolute bottom-3 left-3 right-3 z-20 h-[64px] rounded-full bg-[rgba(55,55,55,0.85)] px-2.5 py-2 shadow-xl backdrop-blur-[20px] transition-all duration-[400ms] ease-out group-hover:bg-[rgba(45,45,45,0.95)] group-hover:backdrop-blur-[24px]">
       <button
         type="button"
         onClick={(event) => {
@@ -43,25 +43,25 @@ export function ReelProductOverlay({ product, onProductClick }) {
           event.stopPropagation();
           onProductClick?.(product);
         }}
-        className="flex h-full w-full items-center gap-3 text-left"
+        className="flex h-full w-full items-center gap-2.5 text-left"
       >
         <img
           src={resolveApiAssetUrl(product.images?.[0] || product.image)}
           alt={product.name}
-          className="h-14 w-14 shrink-0 rounded-full border-2 border-white object-cover"
+          className="h-[44px] w-[44px] shrink-0 rounded-full border-[1.5px] border-white object-cover"
           loading="lazy"
         />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold leading-tight text-white">{product.name}</p>
-          <div className="mt-0.5 flex items-center gap-2">
-            <span className="text-sm font-semibold text-white">{formatCurrency(price)}</span>
+          <p className="truncate text-[13px] font-semibold leading-tight text-white">{product.name}</p>
+          <div className="mt-0.5 flex items-center gap-1.5 overflow-hidden">
+            <span className="truncate text-[12px] font-bold text-white">{formatCurrency(price)}</span>
             {original ? (
-              <span className="text-sm text-[#9CA3AF] line-through">{formatCurrency(original)}</span>
+              <span className="truncate text-[11px] text-gray-300 line-through">{formatCurrency(original)}</span>
             ) : null}
           </div>
         </div>
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#111827] shadow-lg transition-colors duration-300 hover:bg-[#ef4444] hover:text-white">
-          <Eye className="h-5 w-5" />
+        <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-white text-[#111827] shadow-lg transition-colors duration-300 hover:bg-[#ef4444] hover:text-white">
+          <Eye className="h-[18px] w-[18px]" />
         </div>
       </button>
     </div>
@@ -186,9 +186,9 @@ export function ReelCard({
   }
 
   return (
-    <div className="group relative mx-auto h-[560px] w-[360px] max-w-full overflow-hidden rounded-[28px] bg-white shadow-[0_28px_70px_rgba(0,0,0,0.22)] transition-all duration-[400ms] ease-out hover:-translate-y-[10px] hover:shadow-[0_40px_80px_rgba(0,0,0,0.28)]">
+    <div className="group relative mx-auto h-[500px] w-[280px] max-w-full overflow-hidden rounded-2xl bg-white shadow-[0_28px_70px_rgba(0,0,0,0.22)] transition-all duration-[400ms] ease-out hover:-translate-y-[10px] hover:shadow-[0_40px_80px_rgba(0,0,0,0.28)]">
       <Link to={`/reels?reel=${reel._id}`} state={{ background: location }} className="block h-full w-full">
-        <div className="relative h-full w-full overflow-hidden rounded-[28px] bg-slate-100">
+        <div className="relative h-full w-full overflow-hidden rounded-2xl bg-slate-100">
           <video
             ref={videoRef}
             src={resolveApiAssetUrl(reel.videoUrl)}
@@ -209,7 +209,7 @@ export function ReelCard({
   );
 }
 
-export function ReelsSection({ title, sort, limit = 3 }) {
+export function ReelsSection({ title, sort, limit = 12 }) {
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -240,7 +240,7 @@ export function ReelsSection({ title, sort, limit = 3 }) {
       title={title}
       showDots={true}
       swipeEnabled={true}
-      desktopItemsPerView={3}
+      desktopItemsPerView={4}
       tabletItemsPerView={2}
     />
   );

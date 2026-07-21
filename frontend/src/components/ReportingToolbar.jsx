@@ -16,7 +16,7 @@ export function ReportingToolbar({
   isDirty = false,
   applyLabel = "Apply filters",
 }) {
-  const [selectedFormat, setSelectedFormat] = useState("csv");
+  const [selectedFormat, setSelectedFormat] = useState("excel");
 
   return (
     <div className="flex flex-col gap-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900">

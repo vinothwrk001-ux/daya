@@ -48,27 +48,44 @@ function buildOrderExportRows(orders = [], filters = {}) {
   for (const order of orders || []) {
     totalOrders += 1;
     const items = Array.isArray(order?.items) ? order.items : [];
+    
+    const productIds = [];
+    const productNames = [];
+    const quantities = [];
+    
     for (const item of items) {
       const quantity = Number(item?.quantity || 0);
-      const unitPrice = Number(item?.price || 0);
-      const subtotal = unitPrice * quantity;
       totalProductsSold += 1;
       totalQuantitySold += quantity;
-      totalRevenue += subtotal;
-      rows.push({
-        "Order ID": order?.orderNumber || String(order?._id || ""),
-        "Product ID": item?.productNumber || item?.productId?.productNumber || item?.productId?.SKU || item?.productId?._id || item?.productId || item?.sku || "N/A",
-        "Product Name": item?.productName || item?.productId?.name || item?.name || "",
-        Quantity: quantity,
-        "Unit Price": unitPrice,
-        Subtotal: subtotal,
-        Customer: order?.userId?.name || "",
-        "Payment Status": order?.paymentStatus || "",
-        "Order Status": order?.status || "",
-        "Shipping Status": order?.shippingStatus || "",
-        Date: toDateTime(order?.createdAt),
-      });
+      
+      productIds.push(String(item?.productNumber || item?.productId?.productNumber || item?.productId?.SKU || item?.productId?._id || item?.productId || item?.sku || "N/A"));
+      productNames.push(String(item?.productName || item?.productId?.name || item?.name || "N/A"));
+      quantities.push(String(quantity));
     }
+    
+    const orderAmount = Number(order?.totalAmount || 0);
+    totalRevenue += orderAmount;
+    
+    const userStr = order?.userId?.name ? `${order.userId.name}\n${order.userId.email || ""}`.trim() : "Unknown";
+    
+    const shippingDetails = [
+      order?.shippingMode || "PLATFORM",
+      order?.shippingStatus || "NOT_SHIPPED",
+      order?.courierName || order?.deliveryPartner || "Shiprocket"
+    ].filter(Boolean).join("\n");
+
+    rows.push({
+      "ORDER": String(order?.orderNumber || order?._id || "").trim(),
+      "USER": userStr,
+      "PRODUCT ID": productIds.join("\n"),
+      "PRODUCT NAME": productNames.join("\n"),
+      "QUANTITY": quantities.join("\n"),
+      "AMOUNT": toCurrency(orderAmount),
+      "SHIPPING": shippingDetails,
+      "PAYMENT": order?.paymentStatus || "",
+      "STATUS": order?.status || "",
+      "DATE": toDateTime(order?.createdAt),
+    });
   }
 
   if (filters?.startDate || filters?.endDate || filters?.shift) {
@@ -79,84 +96,78 @@ function buildOrderExportRows(orders = [], filters = {}) {
     ].filter(Boolean).join(" → ");
 
     rows.push({
-      "Order ID": "Report Period",
-      "Product ID": periodLabel || "All time",
-      "Product Name": "",
-      Quantity: "",
-      "Unit Price": "",
-      Subtotal: "",
-      Customer: "",
-      "Payment Status": "",
-      "Order Status": "",
-      "Shipping Status": "",
-      Date: "",
+      "ORDER": "Report Period",
+      "USER": periodLabel || "All time",
+      "PRODUCT ID": "",
+      "PRODUCT NAME": "",
+      "QUANTITY": "",
+      "AMOUNT": "",
+      "SHIPPING": "",
+      "PAYMENT": "",
+      "STATUS": "",
+      "DATE": "",
     });
     rows.push({
-      "Order ID": "Shift",
-      "Product ID": shiftLabel === "all" ? "All Time" : shiftLabel === "day" ? "Day Shift" : "Night Shift",
-      "Product Name": "",
-      Quantity: "",
-      "Unit Price": "",
-      Subtotal: "",
-      Customer: "",
-      "Payment Status": "",
-      "Order Status": "",
-      "Shipping Status": "",
-      Date: "",
+      "ORDER": "Shift",
+      "USER": shiftLabel === "all" ? "All Time" : shiftLabel === "day" ? "Day Shift" : "Night Shift",
+      "PRODUCT ID": "",
+      "PRODUCT NAME": "",
+      "QUANTITY": "",
+      "AMOUNT": "",
+      "SHIPPING": "",
+      "PAYMENT": "",
+      "STATUS": "",
+      "DATE": "",
     });
   }
 
   rows.push({
-    "Order ID": "Total Products Sold",
-    "Product ID": totalProductsSold,
-    "Product Name": "",
-    Quantity: "",
-    "Unit Price": "",
-    Subtotal: "",
-    Customer: "",
-    "Payment Status": "",
-    "Order Status": "",
-    "Shipping Status": "",
-    Date: "",
+    "ORDER": "Total Products Sold",
+    "USER": totalProductsSold,
+    "PRODUCT ID": "",
+    "PRODUCT NAME": "",
+    "QUANTITY": "",
+    "AMOUNT": "",
+    "SHIPPING": "",
+    "PAYMENT": "",
+    "STATUS": "",
+    "DATE": "",
   });
   rows.push({
-    "Order ID": "Total Quantity Sold",
-    "Product ID": totalQuantitySold,
-    "Product Name": "",
-    Quantity: "",
-    "Unit Price": "",
-    Subtotal: "",
-    Customer: "",
-    "Payment Status": "",
-    "Order Status": "",
-    "Shipping Status": "",
-    Date: "",
+    "ORDER": "Total Quantity Sold",
+    "USER": totalQuantitySold,
+    "PRODUCT ID": "",
+    "PRODUCT NAME": "",
+    "QUANTITY": "",
+    "AMOUNT": "",
+    "SHIPPING": "",
+    "PAYMENT": "",
+    "STATUS": "",
+    "DATE": "",
   });
   rows.push({
-    "Order ID": "Total Revenue",
-    "Product ID": toCurrency(totalRevenue),
-    "Product Name": "",
-    Quantity: "",
-    "Unit Price": "",
-    Subtotal: "",
-    Customer: "",
-    "Payment Status": "",
-    "Order Status": "",
-    "Shipping Status": "",
-    Date: "",
+    "ORDER": "Total Revenue",
+    "USER": toCurrency(totalRevenue),
+    "PRODUCT ID": "",
+    "PRODUCT NAME": "",
+    "QUANTITY": "",
+    "AMOUNT": "",
+    "SHIPPING": "",
+    "PAYMENT": "",
+    "STATUS": "",
+    "DATE": "",
   });
   rows.push({
-    "Order ID": "Total Orders",
-    "Product ID": totalOrders,
-    "Product Name": "",
-    Quantity: "",
-    "Unit Price": "",
-    Subtotal: "",
-    Customer: "",
-    "Payment Status": "",
-    "Order Status": "",
-    "Shipping Status": "",
-    Date: "",
+    "ORDER": "Total Orders",
+    "USER": totalOrders,
+    "PRODUCT ID": "",
+    "PRODUCT NAME": "",
+    "QUANTITY": "",
+    "AMOUNT": "",
+    "SHIPPING": "",
+    "PAYMENT": "",
+    "STATUS": "",
+    "DATE": "",
   });
 
   return rows;
@@ -178,15 +189,44 @@ async function createExcelBuffer(rows, title) {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet(title.slice(0, 31) || "Report");
 
+  const columnWidths = {
+    "ORDER": 35,
+    "USER": 35,
+    "PRODUCT ID": 20,
+    "PRODUCT NAME": 40,
+    "QUANTITY": 15,
+    "AMOUNT": 15,
+    "SHIPPING": 25,
+    "PAYMENT": 15,
+    "STATUS": 15,
+    "DATE": 25,
+  };
+
   const headers = rows.length ? Object.keys(rows[0]) : ["No data"];
   worksheet.columns = headers.map((header) => ({
     header,
     key: header,
-    width: Math.max(16, header.length + 4),
+    width: columnWidths[header] || Math.max(20, header.length + 8),
   }));
 
   if (rows.length) {
-    rows.forEach((row) => worksheet.addRow(row));
+    rows.forEach((row) => {
+      const addedRow = worksheet.addRow(row);
+      addedRow.alignment = { vertical: "top", wrapText: true };
+      
+      let maxLines = 1;
+      Object.values(row).forEach(val => {
+        if (typeof val === 'string') {
+          const lines = val.split('\n').length;
+          if (lines > maxLines) {
+            maxLines = lines;
+          }
+        }
+      });
+      if (maxLines > 1) {
+        addedRow.height = maxLines * 15; // 15 points per line
+      }
+    });
   } else {
     worksheet.addRow({ "No data": "No data available for selected filters" });
   }
