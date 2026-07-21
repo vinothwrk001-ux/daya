@@ -27,6 +27,8 @@ router.post(
   authController.register
 );
 
+router.get("/check-username", authController.checkUsername);
+
 router.post("/login", validate(loginSchema), authController.login);
 router.post("/refresh", authController.refresh);
 router.get("/csrf", authController.csrf);

@@ -13,6 +13,13 @@ async function findByEmail(email, { includePassword = false } = {}) {
   return await q.exec();
 }
 
+async function findByName(name, { includePassword = false } = {}) {
+  if (!name) return null;
+  const q = User.findOne({ name: name.trim() });
+  if (includePassword) q.select("+password");
+  return await q.exec();
+}
+
 async function findByPhone(phone, { includePassword = false } = {}) {
   if (!phone) return null;
   const q = User.findOne({ phone: phone.trim() });
@@ -49,6 +56,7 @@ module.exports = {
   createUser,
   findByEmail,
   findByPhone,
+  findByName,
   findById,
   updateById,
   deleteById,

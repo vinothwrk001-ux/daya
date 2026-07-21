@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { label: "SHOP", to: "/shop" },
   { label: "SERVICES", to: "/services" },
   { label: "BLOGS", to: "#" },
+  { label: "ABOUT US", to: "#" },
 ];
 
 /**

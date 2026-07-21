@@ -135,6 +135,13 @@ const mergeGuestData = asyncHandler(async (req, res) => {
   return ok(res, result, "Guest data merged successfully");
 });
 
+const checkUsername = asyncHandler(async (req, res) => {
+  const { name } = req.query;
+  if (!name) return ok(res, { available: false }, "Name is required");
+  const existing = await require("../repositories/user.repository").findByName(name);
+  return ok(res, { available: !existing }, "Checked username");
+});
+
 module.exports = {
   register,
   login,
@@ -145,4 +152,5 @@ module.exports = {
   updateThemePreference,
   mergeGuestData,
   csrf,
+  checkUsername,
 };

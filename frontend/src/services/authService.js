@@ -11,6 +11,11 @@ export async function register({ name, email, phone, password, role }) {
   return data;
 }
 
+export async function checkUsername(name) {
+  const { data } = await api.get(`/api/auth/check-username?name=${encodeURIComponent(name)}`);
+  return data;
+}
+
 export async function login({ identifier, password }) {
   const { data } = await api.post("/api/auth/login", {
     identifier,

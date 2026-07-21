@@ -76,6 +76,9 @@ async function register({ name, email, phone, password, role }, meta = {}) {
   const existingPhone = await userRepo.findByPhone(phone);
   if (existingPhone) throw new AppError("Phone already in use", 409, "PHONE_EXISTS");
 
+  const existingName = await userRepo.findByName(name);
+  if (existingName) throw new AppError("username already exists", 409, "USERNAME_EXISTS");
+
   const hashed = await bcrypt.hash(password, 12);
   const user = await userRepo.createUser({
     name,

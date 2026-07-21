@@ -55,6 +55,18 @@ export function RegisterPage() {
     }
   }
 
+  const handleNameBlur = async () => {
+    if (!name.trim()) return;
+    try {
+      const res = await authService.checkUsername(name);
+      if (!res.data?.available) {
+        setFieldErrors((current) => ({ ...current, name: "username already exists" }));
+      }
+    } catch (err) {
+      // ignore network errors for inline validation
+    }
+  };
+
   return (
     <div className="mx-auto max-w-md">
       <BrandLogo showName={false} className="mb-5 text-slate-950" imgClassName="h-12 w-auto object-contain" />
@@ -74,9 +86,14 @@ export function RegisterPage() {
           <input
             className="mt-1 w-full rounded-lg border px-3 py-2"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              setFieldErrors((current) => ({ ...current, name: "" }));
+            }}
+            onBlur={handleNameBlur}
             required
           />
+          {fieldErrors.name ? <div className="mt-1 text-xs text-rose-600">{fieldErrors.name}</div> : null}
         </label>
 
         <label className="mt-4 block text-sm font-medium">
