@@ -30,6 +30,7 @@ const TermsAndConditionsPage = lazyNamed(() => import("./pages/TermsAndCondition
 const PrivacyPolicyPage = lazyNamed(() => import("./pages/PrivacyPolicyPage"), "PrivacyPolicyPage");
 const ReturnPolicyPage = lazyNamed(() => import("./pages/ReturnPolicyPage"), "ReturnPolicyPage");
 const ShippingPolicyPage = lazyNamed(() => import("./pages/ShippingPolicyPage"), "ShippingPolicyPage");
+const AboutPage = lazyNamed(() => import("./pages/AboutPage"), "AboutPage");
 const ProfilePage = lazyNamed(() => import("./pages/ProfilePage"), "ProfilePage");
 const OrdersPage = lazyNamed(() => import("./pages/OrdersPage"), "OrdersPage");
 const OrderDetailsPage = lazyNamed(() => import("./pages/OrderDetailsPage"), "OrderDetailsPage");
@@ -133,6 +134,7 @@ export default function App() {
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/return-policy" element={<ReturnPolicyPage />} />
         <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
+        <Route path="/about" element={<AboutPage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardRedirect />} />

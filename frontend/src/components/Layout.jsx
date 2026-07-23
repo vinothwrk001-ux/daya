@@ -65,7 +65,7 @@ export function Layout() {
     { label: "Reels", href: "/reels" },
     { label: "Services", href: "/services" },
     // { label: "Campaigns", href: "/collections/deals" },
-    { label: "About Us", href: "/terms-and-conditions" },
+    { label: "About Us", href: "/about" },
     // { label: "Compare", href: "/compare" },
     { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },
   ];

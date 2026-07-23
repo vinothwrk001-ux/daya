@@ -255,8 +255,16 @@ function ReelSlide({
   }
 
   return (
-    <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center bg-black/20 backdrop-blur-sm">
-      <div className="relative flex h-full w-full max-w-[480px] items-stretch justify-center overflow-hidden rounded-[2rem] sm:h-[96dvh] sm:rounded-[3rem] md:max-w-[420px]">
+    <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center">
+      <div 
+        className="relative flex h-[96dvh] w-full max-w-[480px] items-stretch justify-center overflow-hidden rounded-[2.5rem] sm:h-[90dvh] sm:rounded-[3rem] md:max-w-[420px]"
+        style={{
+          WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+          maskImage: 'radial-gradient(white, black)',
+          transform: 'translateZ(0)',
+          isolation: 'isolate'
+        }}
+      >
         <video
           ref={videoRef}
           src={resolveApiAssetUrl(reel.videoUrl)}

@@ -35,12 +35,18 @@ export function ReelsPage() {
         
         let items = (data.reels || []).filter((reel) => reel && reel._id && reel.videoUrl);
 
-        if (nextPage === 1 && focusReelId && !items.some((reel) => String(reel._id) === focusReelId)) {
-          try {
-            const focused = await getReel(focusReelId);
-            if (focused && focused._id && focused.videoUrl) items = [focused, ...items];
-          } catch {
-            // Ignore missing focus reel
+        if (nextPage === 1 && focusReelId) {
+          const existingIndex = items.findIndex((reel) => String(reel._id) === focusReelId);
+          if (existingIndex > 0) {
+            const [focused] = items.splice(existingIndex, 1);
+            items = [focused, ...items];
+          } else if (existingIndex === -1) {
+            try {
+              const focused = await getReel(focusReelId);
+              if (focused && focused._id && focused.videoUrl) items = [focused, ...items];
+            } catch {
+              // Ignore missing focus reel
+            }
           }
         }
 

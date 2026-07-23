@@ -1,94 +1,289 @@
-import { lazy, Suspense, useEffect, useState } from "react";
-import { motion as Motion } from "framer-motion";
-import { ServicePremiumCard } from "../components/services/ServicePremiumCard";
-import { SERVICES_CONTENT, SERVICES_SEO } from "../data/servicesContent";
-
-const ServiceEnquiryModal = lazy(async () => {
-  const module = await import("../components/services/ServiceEnquiryModal");
-  return { default: module.ServiceEnquiryModal };
-});
-
-function applyServicesSeo() {
-  if (typeof document === "undefined") return;
-
-  document.title = SERVICES_SEO.title;
-
-  const setMeta = (selector, attrs) => {
-    let el = document.head.querySelector(selector);
-    if (!el) {
-      el = document.createElement("meta");
-      Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
-      document.head.appendChild(el);
-    } else if (attrs.content) {
-      el.setAttribute("content", attrs.content);
-    }
-  };
-
-  setMeta('meta[name="description"]', { name: "description", content: SERVICES_SEO.description });
-}
+import { useEffect } from "react";
+import { 
+  PenTool, Laptop, Map, Video, ArrowUpRight, Phone, Mail, MapPin, 
+  Smartphone, Clapperboard, Layout, Shirt, Camera, Edit3 
+} from "lucide-react";
+import { useBranding } from "../context/BrandingContext";
+import { Link } from "react-router-dom";
 
 export function ServicesPage() {
-  const [selectedService, setSelectedService] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const { branding } = useBranding();
+  const companyName = branding?.companyName || "DayaCreatives";
 
   useEffect(() => {
-    applyServicesSeo();
-  }, []);
+    document.title = `Services | ${companyName}`;
+    return () => {
+      document.title = companyName;
+    };
+  }, [companyName]);
 
-  function openService(service) {
-    setSelectedService(service);
-    setModalOpen(true);
-  }
-
-  function closeModal() {
-    setModalOpen(false);
-    setSelectedService(null);
-  }
+  const SERVICES_LIST = [
+    {
+      id: "brand-identity",
+      icon: PenTool,
+      title: "Brand Identity",
+      desc: "Logo design, brand kits and visual identity that represent your brand perfectly.",
+      deliverables: ["Premium Logo Design", "Brand Strategy", "Brand Guidelines", "Color Palette & Typography", "Business Cards", "Stationery Design", "Brand Assets", "Social Media Branding"]
+    },
+    {
+      id: "graphic-design",
+      icon: Edit3,
+      title: "Graphic Design",
+      desc: "Creative designs for print and digital that communicate your message effectively.",
+      deliverables: ["Social Media Graphics", "Posters & Flyers", "Brochures & Menus", "Infographics", "Packaging Design", "Advertisement Creatives"]
+    },
+    {
+      id: "social-media",
+      icon: Smartphone,
+      title: "Social Media Design",
+      desc: "Engaging social media posts, stories and campaigns that increase engagement.",
+      deliverables: ["Instagram Grids", "Story Templates", "Facebook Covers", "LinkedIn Graphics", "Ad Creatives", "Social Media Guidelines"]
+    },
+    {
+      id: "video-editing",
+      icon: Clapperboard,
+      title: "Video Editing",
+      desc: "Professional videos and reels that tell your story and captivate your audience.",
+      deliverables: ["Instagram Reels", "YouTube Videos", "Promo Videos", "Color Grading", "Motion Graphics", "Video Transitions"]
+    },
+    {
+      id: "website-design",
+      icon: Layout,
+      title: "Website Design",
+      desc: "Modern, responsive websites designed for performance and user experience.",
+      deliverables: ["Custom Web Design", "Landing Pages", "E-Commerce Sites", "Responsive Design", "Wireframing", "Web Maintenance"]
+    },
+    {
+      id: "print-merch",
+      icon: Shirt,
+      title: "Print & Merchandise",
+      desc: "T-shirt designs, packaging, stickers and print materials that leave an impression.",
+      deliverables: ["T-Shirt Design", "Hoodies & Apparel", "Mug Designs", "Tote Bags", "Custom Stickers", "Event Merchandise"]
+    },
+    {
+      id: "ui-ux",
+      icon: Laptop,
+      title: "UI/UX Design",
+      desc: "User-centered UI/UX designs that create seamless digital experiences.",
+      deliverables: ["User Research", "Wireframing", "Prototyping", "Mobile App UI", "Web App UI", "Usability Testing"]
+    },
+    {
+      id: "photography",
+      icon: Camera,
+      title: "Photography",
+      desc: "High-quality product and branding photography that elevates your brand.",
+      deliverables: ["Product Photography", "Brand Lifestyle", "Event Coverage", "Corporate Headshots", "Photo Retouching", "Studio Setup"]
+    }
+  ];
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-10%] top-0 h-[420px] w-[420px] rounded-full bg-indigo-500/10 blur-3xl" />
-        <div className="absolute right-[-5%] top-32 h-[360px] w-[360px] rounded-full bg-violet-500/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-[300px] w-[300px] rounded-full bg-teal-500/10 blur-3xl" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent,rgba(15,23,42,0.02))]" />
-      </div>
+    <div className="flex w-full flex-col items-center overflow-x-hidden">
+      
+      {/* 1. Header Section */}
+      <section className="w-full bg-white px-6 pb-6 pt-2 text-center lg:pb-8 lg:pt-2">
+        <h1 className="mb-2 text-3xl font-black uppercase tracking-widest text-[#c11c1d] sm:text-4xl md:text-5xl">
+          SERVICES
+        </h1>
+        <p className="mx-auto max-w-2xl text-xs font-bold text-black sm:text-sm md:text-base">
+          Creative Solutions That Build Brands, Inspire Audiences & Drive Results
+        </p>
+      </section>
 
-      <section className="relative border-b border-slate-200/70 bg-white/70 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/70">
-        <div className="mx-auto max-w-7xl px-4 py-14 text-center lg:px-8 lg:py-20">
-          <Motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <span className="inline-flex rounded-full border border-indigo-200/80 bg-indigo-50 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.3em] text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/50 dark:text-indigo-300">
-              Our Services
-            </span>
-            <h1 className="mx-auto mt-6 max-w-4xl fluid-h1 font-black tracking-tight text-slate-950 dark:text-white">
-              Digital Solutions &{" "}
-              <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-teal-500 bg-clip-text text-transparent">
-                Creative Learning
-              </span>
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
-              Transform your ideas into reality through professional web development, hands-on workshops, and
-              industry-focused graphic design training.
+      {/* 2. Marquee Section */}
+      <section className="relative flex w-full overflow-hidden bg-[#c11c1d] py-4 sm:py-6">
+        <div className="flex animate-marquee whitespace-nowrap text-white">
+          <div className="flex shrink-0 items-center gap-12 px-6 text-3xl font-bold uppercase sm:text-4xl md:text-5xl lg:gap-24 lg:px-12">
+            <span>DESIGN</span>
+            <span>WEBSITE</span>
+            <span>DESIGN</span>
+            <span>WEBSITE</span>
+            <span>DESIGN</span>
+            <span>WEBSITE</span>
+            <span>DESIGN</span>
+            <span>WEBSITE</span>
+          </div>
+          {/* Duplicate for seamless looping */}
+          <div className="flex shrink-0 items-center gap-12 px-6 text-3xl font-bold uppercase sm:text-4xl md:text-5xl lg:gap-24 lg:px-12">
+            <span>DESIGN</span>
+            <span>WEBSITE</span>
+            <span>DESIGN</span>
+            <span>WEBSITE</span>
+            <span>DESIGN</span>
+            <span>WEBSITE</span>
+            <span>DESIGN</span>
+            <span>WEBSITE</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. What We Do Section */}
+      <section className="w-full bg-black px-6 py-20 text-white lg:py-28">
+        <div className="mx-auto max-w-7xl text-center">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c11c1d]">
+            WHAT WE DO
+          </p>
+          <h2 className="mb-16 text-3xl font-bold text-white sm:text-4xl md:text-5xl">
+            Services That Help<br />Your Brand Grow
+          </h2>
+
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {SERVICES_LIST.map((service, i) => (
+              <div 
+                key={i} 
+                className="group relative flex aspect-square w-full flex-col overflow-hidden rounded-2xl bg-[#111111] p-6 text-left transition-all duration-300 hover:bg-[#1a1a1a]"
+              >
+                {/* Static Header part */}
+                <div className="relative z-10">
+                  <service.icon className="mb-4 h-8 w-8 text-[#c11c1d] sm:mb-5" />
+                  <h3 className="mb-4 min-h-[48px] text-xl font-bold text-white leading-tight sm:mb-6 sm:min-h-[56px]">
+                    {service.title}
+                  </h3>
+                </div>
+
+                {/* Main content wrapper with relative positioning for cross-fade */}
+                <div className="relative flex-1">
+                  
+                  {/* Default State */}
+                  <div className="absolute inset-0 flex flex-col justify-between transition-all duration-300 group-hover:-translate-y-4 group-hover:opacity-0 group-hover:pointer-events-none">
+                    <p className="text-[13px] leading-relaxed text-slate-400">
+                      {service.desc}
+                    </p>
+                    <div className="mt-auto flex items-end pb-2">
+                      <ArrowUpRight className="h-5 w-5 text-[#c11c1d]" />
+                    </div>
+                  </div>
+
+                  {/* Hover State */}
+                  <div className="absolute inset-0 flex flex-col translate-y-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
+                    <p className="mb-3 text-xs font-bold text-[#c11c1d]">
+                      What We Deliver:
+                    </p>
+                    <ul className="scrollbar-hide flex-1 space-y-1.5 overflow-y-auto pb-2 text-[12px] text-slate-300 sm:space-y-2 sm:text-[13px]">
+                      {service.deliverables.map((item, j) => (
+                        <li key={j} className="flex items-start">
+                          <span className="mr-2 text-[#c11c1d]">•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Portfolio Section */}
+      <section className="w-full bg-black px-6 pb-20 pt-10 text-white lg:pb-32">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-12 flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c11c1d]">
+                OUR PORTFOLIO
+              </p>
+              <h2 className="text-3xl font-bold sm:text-4xl md:text-5xl">
+                Some Of Our Recent Work
+              </h2>
+            </div>
+            <Link
+              to="#"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#333] px-5 py-2.5 text-sm font-bold transition-colors hover:border-[#c11c1d] hover:text-[#c11c1d]"
+            >
+              View All Work <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="group flex flex-col bg-black p-4 transition-colors hover:bg-[#111]">
+                <div className="mb-4 aspect-square w-full rounded-xl bg-[#1a1a1a] flex items-center justify-center text-[#444] overflow-hidden">
+                   <div className="text-center font-black opacity-50 tracking-widest uppercase">
+                     {i % 4 === 0 && "IKIGAI"}
+                     {i % 4 === 1 && "Guided"}
+                     {i % 4 === 2 && "Frame House"}
+                     {i % 4 === 3 && "CK Tours"}
+                   </div>
+                </div>
+                <h3 className="text-sm font-bold text-white uppercase">
+                   {i % 4 === 0 && "IKIGAI"}
+                   {i % 4 === 1 && "Guided Abroad"}
+                   {i % 4 === 2 && "The Frame House Media"}
+                   {i % 4 === 3 && "CK Tours & Travels"}
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1">Brand Identity</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Contact Section */}
+      <section className="w-full bg-black px-6 py-20 text-white lg:py-32">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-16 lg:grid-cols-2">
+          
+          <div className="flex flex-col">
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c11c1d]">
+              LET'S WORK TOGETHER
             </p>
-          </Motion.div>
+            <h2 className="mb-6 text-3xl font-bold sm:text-4xl md:text-5xl">
+              Have a Project in Mind?
+            </h2>
+            <p className="mb-12 max-w-md text-sm leading-relaxed text-slate-400 sm:text-base">
+              Let's create something amazing together. Get in touch with us and let's bring your ideas to life.
+            </p>
+
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Phone className="h-5 w-5 text-[#c11c1d]" />
+                <span className="text-sm font-medium sm:text-base">+91 12345 67890</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <Mail className="h-5 w-5 text-[#c11c1d]" />
+                <span className="text-sm font-medium sm:text-base">hello@dayacreatives.com</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <MapPin className="h-5 w-5 text-[#c11c1d]" />
+                <span className="text-sm font-medium sm:text-base">Coimbatore, Tamil Nadu, India</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-[#111111] p-6 sm:p-8">
+            <form className="flex flex-col gap-4">
+              <input 
+                type="text" 
+                placeholder="Your Name" 
+                className="w-full rounded-lg border border-[#333] bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none"
+              />
+              <input 
+                type="email" 
+                placeholder="Your Email" 
+                className="w-full rounded-lg border border-[#333] bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none"
+              />
+              <input 
+                type="tel" 
+                placeholder="Your Phone" 
+                className="w-full rounded-lg border border-[#333] bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none"
+              />
+              <textarea 
+                placeholder="Tell us about your project" 
+                rows="4"
+                className="w-full resize-none rounded-lg border border-[#333] bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none"
+              />
+              <button 
+                type="button"
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#c11c1d] px-6 py-4 font-bold text-white transition-colors hover:bg-[#a01618]"
+              >
+                Send Message <ArrowUpRight className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+
         </div>
       </section>
 
-      <section className="relative mx-auto max-w-7xl px-4 py-12 lg:px-8 lg:py-16">
-        <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-          {SERVICES_CONTENT.map((service, index) => (
-            <ServicePremiumCard key={service.id} service={service} index={index} onSelect={openService} />
-          ))}
-        </div>
-      </section>
-
-      <Suspense fallback={null}>
-        <ServiceEnquiryModal service={selectedService} open={modalOpen} onClose={closeModal} />
-      </Suspense>
     </div>
   );
 }
