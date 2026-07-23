@@ -183,7 +183,7 @@ export function ServicesPage() {
               <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c11c1d]">
                 OUR PORTFOLIO
               </p>
-              <h2 className="text-3xl font-bold sm:text-4xl md:text-5xl">
+              <h2 className="text-3xl font-bold text-white sm:text-4xl md:text-5xl">
                 Some Of Our Recent Work
               </h2>
             </div>
@@ -227,7 +227,7 @@ export function ServicesPage() {
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c11c1d]">
               LET'S WORK TOGETHER
             </p>
-            <h2 className="mb-6 text-3xl font-bold sm:text-4xl md:text-5xl">
+            <h2 className="mb-6 text-3xl font-bold text-white sm:text-4xl md:text-5xl">
               Have a Project in Mind?
             </h2>
             <p className="mb-12 max-w-md text-sm leading-relaxed text-slate-400 sm:text-base">
