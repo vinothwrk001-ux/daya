@@ -21,30 +21,30 @@ body {
 }
 
 :root {
-  --color-primary: #e53935;
-  --color-primary-hover: #111111;
-  --color-secondary: #111111;
+  --color-primary: #ef4444;
+  --color-primary-hover: #dc2626;
+  --color-secondary: #111827;
   --color-background: #ffffff;
   --color-surface: #ffffff;
   --color-surface-secondary: #f5f5f5;
-  --color-text-primary: #111111;
-  --color-text-secondary: #555555;
-  --color-border: #e5e5e5;
-  --color-danger: #e53935;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-border: #e2e8f0;
+  --color-danger: #ef4444;
   --color-success: #16a34a;
   --color-warning: #f97316;
-  --color-info: #111111;
-  --shadow-small: 0 8px 24px -20px rgba(17, 17, 17, 0.42);
-  --shadow-medium: 0 22px 60px -38px rgba(17, 17, 17, 0.45);
-  --shadow-large: 0 32px 100px -48px rgba(17, 17, 17, 0.5);
+  --color-info: #111827;
+  --shadow-small: 0 8px 24px -20px rgba(15, 23, 42, 0.42);
+  --shadow-medium: 0 22px 60px -38px rgba(15, 23, 42, 0.45);
+  --shadow-large: 0 32px 100px -48px rgba(15, 23, 42, 0.5);
   --radius-small: 8px;
   --radius-medium: 12px;
   --radius-large: 16px;
   --transition-standard: 300ms ease;
   --commerce-accent: var(--color-primary);
-  --commerce-accent-soft: rgba(229, 57, 53, 0.08);
+  --commerce-accent-soft: rgba(239, 68, 68, 0.08);
   --commerce-accent-warm: var(--color-primary);
-  --surface-glow: linear-gradient(135deg, rgba(17, 17, 17, 0.05), rgba(229, 57, 53, 0.08));
+  --surface-glow: linear-gradient(135deg, rgba(15, 23, 42, 0.05), rgba(239, 68, 68, 0.08));
 }
 
 h1,
@@ -235,6 +235,28 @@ h3,
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+.custom-scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.custom-scrollbar-thin:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Responsive Utility Classes */
@@ -518,7 +540,10 @@ h3,
 
   .enterprise-header {
     min-height: 80px;
-    background: rgba(255, 255, 255, 0.96);
+    background: #ffffff;
+  }
+
+  .category-navigation-sticky {
     border-bottom: 1px solid var(--color-border);
     box-shadow: var(--shadow-small);
   }

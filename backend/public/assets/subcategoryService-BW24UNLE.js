@@ -1,0 +1,1 @@
+import{S as e}from"./authStore-DIhZrwze.js";import{t}from"./adminHttp-CJbi6ZAg.js";async function n(t){let{data:n}=await e.get(`/api/subcategories`,{params:{categoryId:t}});return n}async function r(){let{data:e}=await t.get(`/api/admin/subcategories`);return e}export{r as n,n as t};

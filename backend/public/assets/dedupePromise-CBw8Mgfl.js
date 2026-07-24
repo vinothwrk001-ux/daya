@@ -1,0 +1,1 @@
+var e=new Map;function t(t,n){if(e.has(t))return e.get(t);let r=Promise.resolve().then(n).finally(()=>{e.delete(t)});return e.set(t,r),r}function n(t){e.delete(t)}export{n,t};

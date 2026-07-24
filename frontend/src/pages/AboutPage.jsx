@@ -56,7 +56,7 @@ export function AboutPage() {
           <h2 className="mb-16 text-center text-3xl font-black uppercase tracking-tight text-black sm:text-4xl lg:text-5xl">
             OUR TEAM
           </h2>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3">
             {/* 6 Gray Cards */}
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="aspect-square w-full rounded-[2rem] bg-[#b3b3b3]" />
@@ -66,31 +66,31 @@ export function AboutPage() {
       </section>
 
       {/* Metrics Section */}
-      <section className="w-full bg-black px-6 py-6 text-white lg:py-8">
-        <div className="mx-auto grid max-w-6xl grid-cols-2 place-items-center gap-6 text-center lg:grid-cols-4">
+      <section className="w-full bg-black px-2 py-6 text-white sm:px-6 lg:py-8">
+        <div className="mx-auto grid max-w-6xl grid-cols-4 place-items-start sm:place-items-center gap-1 sm:gap-6 text-center">
           
-          <div className="flex flex-col items-center">
-            <FolderGit2 className="mb-1 h-6 w-6 text-[#c11c1d] sm:h-8 sm:w-8" strokeWidth={1.5} />
-            <p className="mb-1 text-xl font-bold sm:text-2xl lg:text-3xl">5000+</p>
-            <p className="text-[10px] font-medium text-slate-400 sm:text-xs">Projects Completed</p>
+          <div className="flex flex-col items-center w-full">
+            <FolderGit2 className="mb-1 h-5 w-5 text-[#c11c1d] sm:h-8 sm:w-8" strokeWidth={1.5} />
+            <p className="mb-0.5 text-xs font-bold sm:mb-1 sm:text-2xl lg:text-3xl">5000+</p>
+            <p className="text-[8px] font-medium leading-tight text-slate-400 sm:text-xs">Projects<br className="sm:hidden" /> Completed</p>
           </div>
           
-          <div className="flex flex-col items-center">
-            <Users className="mb-1 h-6 w-6 text-[#c11c1d] sm:h-8 sm:w-8" strokeWidth={1.5} />
-            <p className="mb-1 text-xl font-bold sm:text-2xl lg:text-3xl">450+</p>
-            <p className="text-[10px] font-medium text-slate-400 sm:text-xs">Happy Clients</p>
+          <div className="flex flex-col items-center w-full">
+            <Users className="mb-1 h-5 w-5 text-[#c11c1d] sm:h-8 sm:w-8" strokeWidth={1.5} />
+            <p className="mb-0.5 text-xs font-bold sm:mb-1 sm:text-2xl lg:text-3xl">450+</p>
+            <p className="text-[8px] font-medium leading-tight text-slate-400 sm:text-xs">Happy<br className="sm:hidden" /> Clients</p>
           </div>
           
-          <div className="flex flex-col items-center">
-            <Briefcase className="mb-1 h-6 w-6 text-[#c11c1d] sm:h-8 sm:w-8" strokeWidth={1.5} />
-            <p className="mb-1 text-xl font-bold sm:text-2xl lg:text-3xl">7+</p>
-            <p className="text-[10px] font-medium text-slate-400 sm:text-xs">Years Experience</p>
+          <div className="flex flex-col items-center w-full">
+            <Briefcase className="mb-1 h-5 w-5 text-[#c11c1d] sm:h-8 sm:w-8" strokeWidth={1.5} />
+            <p className="mb-0.5 text-xs font-bold sm:mb-1 sm:text-2xl lg:text-3xl">7+</p>
+            <p className="text-[8px] font-medium leading-tight text-slate-400 sm:text-xs">Years<br className="sm:hidden" /> Experience</p>
           </div>
 
-          <div className="flex flex-col items-center">
-            <Award className="mb-1 h-6 w-6 text-[#c11c1d] sm:h-8 sm:w-8" strokeWidth={1.5} />
-            <p className="mb-1 text-xl font-bold sm:text-2xl lg:text-3xl">20+</p>
-            <p className="text-[10px] font-medium text-slate-400 sm:text-xs">Industries Served</p>
+          <div className="flex flex-col items-center w-full">
+            <Award className="mb-1 h-5 w-5 text-[#c11c1d] sm:h-8 sm:w-8" strokeWidth={1.5} />
+            <p className="mb-0.5 text-xs font-bold sm:mb-1 sm:text-2xl lg:text-3xl">20+</p>
+            <p className="text-[8px] font-medium leading-tight text-slate-400 sm:text-xs">Industries<br className="sm:hidden" /> Served</p>
           </div>
           
         </div>
@@ -102,15 +102,15 @@ export function AboutPage() {
           <h2 className="mb-16 text-center text-2xl font-black uppercase tracking-tight text-black sm:text-3xl">
             TOP ACHIEVEMENTS
           </h2>
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:gap-8 lg:grid-cols-3">
             {/* 3 Gray Cards with Text */}
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="flex flex-col">
-                <div className="mb-6 aspect-[4/5] w-full rounded-[2rem] bg-[#b3b3b3]" />
-                <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-black">
+                <div className="mb-3 aspect-[4/5] w-full rounded-2xl bg-[#b3b3b3] sm:mb-6 sm:rounded-[2rem]" />
+                <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-black sm:mb-3 sm:text-sm">
                   WORLD RECORD
                 </h3>
-                <p className="pr-4 text-sm leading-relaxed text-slate-600">
+                <p className="pr-0 text-[10px] leading-relaxed text-slate-600 sm:pr-4 sm:text-sm">
                   From startups to established businesses, we provide creative solutions that leave a lasting impression.
                 </p>
               </div>

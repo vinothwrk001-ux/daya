@@ -94,18 +94,18 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
 
   // Emoji map for categories
   const emojiMap = {
-    "men's shirt": "🔥",
-    "men's shirts": "🔥",
-    "women's shirt": "💃",
-    "women's shirts": "💃",
-    "unisex t-shirt": "👕",
-    "unisex t-shirts": "👕",
-    "hoodie": "🧥",
-    "hoodies": "🧥",
-    "clothing": "👔",
-    "designing": "🎨",
-    "website": "🌐",
-    "workshop": "🛠️",
+    "men's shirt": "",
+    "men's shirts": "",
+    "women's shirt": "",
+    "women's shirts": "",
+    "unisex t-shirt": "",
+    "unisex t-shirts": "",
+    "hoodie": "",
+    "hoodies": "",
+    "clothing": "",
+    "designing": "",
+    "website": "",
+    "workshop": "",
   };
 
   const labelMap = {
@@ -145,7 +145,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
   const imageWrapperClasses = "absolute inset-x-0 top-0 bottom-14 flex items-center justify-start overflow-visible bg-black" +
     " bg-[repeating-linear-gradient(45deg,#111_0,#111_2px,transparent_2px,transparent_10px)]";
 
-  const imageClasses = "h-full w-auto max-w-full object-contain object-left";
+  const imageClasses = "h-full w-auto max-w-full object-contain object-left scale-[1.15]";
 
   const cardBodyClasses = "pointer-events-none absolute inset-x-0 bottom-5 z-10 flex flex-col items-center justify-end";
 
@@ -462,7 +462,7 @@ export function HomepageBannerSlider({
                     <div className="inline-flex items-center justify-center rounded-full border border-red-500 bg-transparent px-4 py-2">
                       <span className="text-sm font-bold uppercase tracking-wider text-red-500">Categories</span>
                     </div>
-                    <p className="mx-auto w-full max-w-[42rem] text-xl font-semibold leading-tight text-black sm:text-2xl md:text-[1.6rem]">
+                    <p className="mx-auto w-full max-w-[42rem] text-xl font-semibold leading-tight text-white sm:text-2xl md:text-[1.6rem]">
                       Discover stylish, high-quality clothing crafted for everyday comfort
                     </p>
                   </div>
@@ -556,7 +556,7 @@ export function HomepageBannerSlider({
             <div className="inline-flex items-center justify-center rounded-full border border-red-500 bg-transparent px-4 py-2">
               <span className="text-xs font-bold uppercase tracking-wider text-red-500 sm:text-sm">Categories</span>
             </div>
-            <p className="mx-auto max-w-[42rem] text-sm font-semibold leading-6 text-zinc-900 sm:text-base">
+            <p className="mx-auto max-w-[42rem] text-sm font-semibold leading-6 text-white sm:text-base">
               Explore a wide range of stylish apparel, designed for comfort, quality, and everyday wear.
             </p>
           </div>
@@ -603,9 +603,8 @@ export function HomepageBannerSlider({
                       behavior: 'smooth'
                     });
                   }}
-                  className={`h-1.5 rounded-full transition-all ${
-                    (currentCategoryIndex || 0) === i ? "w-4 bg-brand-primary" : "w-1.5 bg-zinc-300"
-                  }`}
+                  className={`h-1.5 rounded-full transition-all ${(currentCategoryIndex || 0) === i ? "w-4 bg-brand-primary" : "w-1.5 bg-zinc-300"
+                    }`}
                   aria-label={`Go to category slide ${i + 1}`}
                 />
               ))}

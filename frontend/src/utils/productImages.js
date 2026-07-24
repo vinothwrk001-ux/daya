@@ -1,4 +1,4 @@
-const ACCEPTED_IMAGE_TYPES = new Set(["image/png", "image/jpg", "image/jpeg", "image/webp"]);
+const ACCEPTED_IMAGE_TYPES = new Set(["image/png", "image/jpg", "image/jpeg", "image/webp", "image/gif"]);
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 export function createImageFingerprint(file) {

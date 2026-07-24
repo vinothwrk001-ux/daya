@@ -59,19 +59,19 @@ export const ANIMATION_TOKENS = [
 
 export const DEFAULT_GLOBAL_THEME = {
   colors: {
-    primary: "#e53935",
-    secondary: "#111111",
-    accent: "#f97316",
+    primary: "#ef4444",
+    secondary: "#111827",
+    accent: "#ef4444",
     background: "#ffffff",
     surface: "#ffffff",
     card: "#ffffff",
-    border: "#e5e5e5",
-    textPrimary: "#111111",
-    textSecondary: "#555555",
+    border: "#e2e8f0",
+    textPrimary: "#0f172a",
+    textSecondary: "#475569",
     success: "#16a34a",
-    warning: "#f59e0b",
-    danger: "#dc2626",
-    info: "#2563eb",
+    warning: "#ef4444",
+    danger: "#ef4444",
+    info: "#111827",
   },
   typography: {
     fontFamily: '"Poppins", sans-serif',

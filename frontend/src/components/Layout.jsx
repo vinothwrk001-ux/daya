@@ -41,6 +41,7 @@ export function Layout() {
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
   const isReelsPage = location.pathname === "/reels" || location.pathname.startsWith("/reels/");
   const isHomePage = location.pathname === "/";
+  const isContentPage = location.pathname === "/services" || location.pathname === "/about";
   const hideShopChrome = isAdminRoute || isStaffWorkspace || isReelsPage;
   const showShopActions = !user || user?.role === "user";
 
@@ -242,7 +243,9 @@ export function Layout() {
               : "flex-1"
             : isHomePage
               ? "w-full flex-1 p-0"
-              : "w-full flex-1 px-3 py-5 sm:px-4 sm:py-7 lg:px-8 lg:py-10"
+              : isContentPage
+                ? "w-full flex-1 px-3 py-0 sm:px-4 md:px-0 lg:px-0"
+                : "w-full flex-1 px-3 py-0 sm:px-4 md:px-6 lg:px-8"
         }
       >
         <RouteScrollManager />

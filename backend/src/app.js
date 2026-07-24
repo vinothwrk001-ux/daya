@@ -81,7 +81,13 @@ function createApp() {
 
   app.disable("x-powered-by");
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginOpenerPolicy: { policy: "unsafe-none" },
+      crossOriginEmbedderPolicy: false,
+      contentSecurityPolicy: false,
+    })
+  );
 
   const origins = (process.env.CORS_ORIGINS || [
     process.env.FRONTEND_URL,
@@ -98,7 +104,9 @@ function createApp() {
     "http://127.0.0.1:5174",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:4173",
     "http://172.20.10.3:5173",
+    "https://dayacreatives.com"
 
   ]);
   const allowedOrigins = new Set(origins);
@@ -249,6 +257,18 @@ function createApp() {
   app.use("/api/invoices", invoiceRoutes);
   app.use("/api/recommendations", recommendationRoutes);
   app.use("/api/reels", reelRoutes);
+
+  // Serve static files from the 'public' directory
+  app.use(express.static(path.join(process.cwd(), "public")));
+
+  // Handle SPA routing: serve index.html for non-API requests
+  app.use((req, res, next) => {
+    if (req.method === "GET" && !req.originalUrl.startsWith("/api")) {
+      res.sendFile(path.join(process.cwd(), "public", "index.html"));
+    } else {
+      next();
+    }
+  });
 
   app.use(notFound);
   app.use(errorHandler);

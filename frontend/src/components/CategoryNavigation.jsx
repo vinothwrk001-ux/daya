@@ -120,8 +120,8 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
   return (
     <>
       <nav
-        className={`category-navigation-sticky sticky mt-0 z-30 bg-white text-black backdrop-blur-md will-change-none ${!isMobile ? "lg:top-[140px]" : ""}`}
-        style={{ height: "48px", ...(isMobile ? { top: `${headerHeight}px` } : {}) }}
+        className="category-navigation-sticky sticky mt-0 z-30 bg-white text-black backdrop-blur-md will-change-none"
+        style={{ height: "48px", top: `${headerHeight}px` }}
       >
         <div className="w-full px-2 lg:px-4 h-full flex items-center relative">
           {/* Left Arrow */}

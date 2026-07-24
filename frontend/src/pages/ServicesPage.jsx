@@ -126,16 +126,16 @@ export function ServicesPage() {
             Services That Help<br />Your Brand Grow
           </h2>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
             {SERVICES_LIST.map((service, i) => (
               <div 
                 key={i} 
-                className="group relative flex aspect-square w-full flex-col overflow-hidden rounded-2xl bg-[#111111] p-6 text-left transition-all duration-300 hover:bg-[#1a1a1a]"
+                className="group relative flex h-[240px] sm:h-auto sm:aspect-square w-full flex-col overflow-hidden rounded-2xl bg-[#111111] p-4 sm:p-6 text-left transition-all duration-300 hover:bg-[#1a1a1a]"
               >
                 {/* Static Header part */}
                 <div className="relative z-10">
-                  <service.icon className="mb-4 h-8 w-8 text-[#c11c1d] sm:mb-5" />
-                  <h3 className="mb-4 min-h-[48px] text-xl font-bold text-white leading-tight sm:mb-6 sm:min-h-[56px]">
+                  <service.icon className="mb-3 h-6 w-6 text-[#c11c1d] sm:mb-5 sm:h-8 sm:w-8" />
+                  <h3 className="mb-3 min-h-[40px] text-lg font-bold text-white leading-tight sm:mb-6 sm:min-h-[56px] sm:text-xl">
                     {service.title}
                   </h3>
                 </div>
@@ -145,23 +145,23 @@ export function ServicesPage() {
                   
                   {/* Default State */}
                   <div className="absolute inset-0 flex flex-col justify-between transition-all duration-300 group-hover:-translate-y-4 group-hover:opacity-0 group-hover:pointer-events-none">
-                    <p className="text-[13px] leading-relaxed text-slate-400">
+                    <p className="text-[11px] leading-relaxed text-slate-400 sm:text-[13px]">
                       {service.desc}
                     </p>
-                    <div className="mt-auto flex items-end pb-2">
-                      <ArrowUpRight className="h-5 w-5 text-[#c11c1d]" />
+                    <div className="mt-auto flex items-end pb-1 sm:pb-2">
+                      <ArrowUpRight className="h-4 w-4 text-[#c11c1d] sm:h-5 sm:w-5" />
                     </div>
                   </div>
 
                   {/* Hover State */}
                   <div className="absolute inset-0 flex flex-col translate-y-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
-                    <p className="mb-3 text-xs font-bold text-[#c11c1d]">
+                    <p className="mb-2 text-[10px] font-bold text-[#c11c1d] sm:mb-3 sm:text-xs">
                       What We Deliver:
                     </p>
-                    <ul className="scrollbar-hide flex-1 space-y-1.5 overflow-y-auto pb-2 text-[12px] text-slate-300 sm:space-y-2 sm:text-[13px]">
+                    <ul className="custom-scrollbar-thin flex-1 space-y-1 overflow-y-auto pr-1 pb-1 text-[10px] text-slate-300 sm:space-y-2 sm:text-[13px] sm:pr-2 sm:pb-2">
                       {service.deliverables.map((item, j) => (
                         <li key={j} className="flex items-start">
-                          <span className="mr-2 text-[#c11c1d]">•</span>
+                          <span className="mr-1.5 text-[#c11c1d] sm:mr-2">•</span>
                           <span>{item}</span>
                         </li>
                       ))}
@@ -176,7 +176,7 @@ export function ServicesPage() {
       </section>
 
       {/* 4. Portfolio Section */}
-      <section className="w-full bg-black px-6 pb-20 pt-10 text-white lg:pb-32">
+      <section className="w-full bg-black px-6 pb-8 pt-10 text-white sm:pb-20 lg:pb-32">
         <div className="mx-auto max-w-7xl">
           <div className="mb-12 flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
             <div>
@@ -195,24 +195,24 @@ export function ServicesPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="group flex flex-col bg-black p-4 transition-colors hover:bg-[#111]">
-                <div className="mb-4 aspect-square w-full rounded-xl bg-[#1a1a1a] flex items-center justify-center text-[#444] overflow-hidden">
-                   <div className="text-center font-black opacity-50 tracking-widest uppercase">
+              <div key={i} className="group flex flex-col bg-black p-2 sm:p-4 transition-colors hover:bg-[#111]">
+                <div className="mb-2 sm:mb-4 aspect-square w-full rounded-lg sm:rounded-xl bg-[#1a1a1a] flex items-center justify-center text-[#444] overflow-hidden">
+                   <div className="text-center font-black opacity-50 uppercase tracking-widest text-[9px] sm:text-base">
                      {i % 4 === 0 && "IKIGAI"}
                      {i % 4 === 1 && "Guided"}
                      {i % 4 === 2 && "Frame House"}
                      {i % 4 === 3 && "CK Tours"}
                    </div>
                 </div>
-                <h3 className="text-sm font-bold text-white uppercase">
+                <h3 className="text-[10px] leading-tight sm:leading-normal sm:text-sm font-bold text-white uppercase">
                    {i % 4 === 0 && "IKIGAI"}
                    {i % 4 === 1 && "Guided Abroad"}
                    {i % 4 === 2 && "The Frame House Media"}
                    {i % 4 === 3 && "CK Tours & Travels"}
                 </h3>
-                <p className="text-[11px] text-slate-500 mt-1">Brand Identity</p>
+                <p className="text-[8px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1">Brand Identity</p>
               </div>
             ))}
           </div>
@@ -220,7 +220,7 @@ export function ServicesPage() {
       </section>
 
       {/* 5. Contact Section */}
-      <section className="w-full bg-black px-6 py-20 text-white lg:py-32">
+      <section className="w-full bg-black px-6 pt-8 pb-20 text-white sm:py-20 lg:py-32">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-16 lg:grid-cols-2">
           
           <div className="flex flex-col">

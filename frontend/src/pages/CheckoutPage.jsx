@@ -1126,7 +1126,7 @@ export function CheckoutPage() {
         <div className="grid gap-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="grid gap-5">
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 sm:p-8 xl:p-10">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
@@ -1237,7 +1237,7 @@ export function CheckoutPage() {
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 sm:p-8 xl:p-10">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
@@ -1275,7 +1275,7 @@ export function CheckoutPage() {
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 sm:p-8 xl:p-10">
               <div>
                 <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                   Step 3
@@ -1305,29 +1305,31 @@ export function CheckoutPage() {
                     type="button"
                     onClick={() => !option.disabled && setPaymentMethod(option.value)}
                     disabled={option.disabled}
-                    className={`rounded-[1.5rem] border p-4 text-left transition ${
+                    className={`rounded-[1.5rem] border-2 p-5 text-left transition-all ${
                       paymentMethod === option.value
-                        ? "border-[color:var(--commerce-accent)] bg-[color:var(--commerce-accent-soft)]"
-                        : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700"
+                        ? "border-slate-950 bg-slate-50 dark:border-slate-100 dark:bg-slate-900"
+                        : "border-slate-100 bg-white hover:border-slate-300 hover:bg-slate-50/50 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700"
                     } ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-base font-semibold text-slate-950 dark:text-white">{option.title}</div>
-                        <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">{option.description}</div>
+                        <div className="text-base font-bold text-slate-950 dark:text-white">{option.title}</div>
+                        <div className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{option.description}</div>
                         {option.value === "COD" && codAvailability?.codAvailable === false ? (
-                          <div className="mt-2 text-xs font-medium text-rose-600">
+                          <div className="mt-2 text-xs font-bold text-rose-600">
                             COD unavailable: {(codAvailability.reasons || []).join(", ")}
                           </div>
                         ) : null}
                       </div>
                       <div
-                        className={`h-5 w-5 rounded-full border ${
+                        className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${
                           paymentMethod === option.value
-                            ? "border-[color:var(--commerce-accent)] bg-[color:var(--commerce-accent)]"
+                            ? "border-slate-950 bg-slate-950 dark:border-white dark:bg-white"
                             : "border-slate-300 dark:border-slate-700"
                         }`}
-                      />
+                      >
+                        {paymentMethod === option.value && <div className="h-2.5 w-2.5 rounded-full bg-white dark:bg-slate-950" />}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -1344,20 +1346,20 @@ export function CheckoutPage() {
                 </div>
               ) : null}
 
-              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="rounded-[2.5rem] bg-white p-6 shadow-2xl dark:bg-slate-900 sm:p-8">
                 <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                   Order total
                 </div>
-                <div className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
+                <div className="mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
                   <span
                     className={`inline-block transition-all duration-300 ${
-                      amountPulse ? "translate-y-[-1px] scale-[1.03] text-[color:var(--commerce-accent)]" : ""
+                      amountPulse ? "translate-y-[-1px] scale-[1.03] text-slate-900" : ""
                     }`}
                   >
                     {formatCurrency(totalAmount || 0)}
                   </span>
                 </div>
-                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                <div className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
                   {!isAuthenticated
                     ? "Review complete. Sign in only when you are ready to place the order."
                     : paymentMethod === "ONLINE"
@@ -1369,17 +1371,20 @@ export function CheckoutPage() {
                   type="button"
                   disabled={placing || orderItems.length === 0 || (paymentMethod === "COD" && codAvailability?.codAvailable === false)}
                   onClick={placeOrder}
-                  className="mt-5 w-full rounded-2xl bg-[color:var(--commerce-accent-warm)] px-4 py-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:translate-y-[-1px] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+                  className="group relative mt-6 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950 px-5 py-4 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
                 >
-                  {placing
-                    ? "Processing..."
-                    : !isAuthenticated
-                      ? paymentMethod === "ONLINE"
-                        ? "Login to Continue to Razorpay"
-                        : "Login to Place COD Order"
-                      : paymentMethod === "ONLINE"
-                        ? "Continue to Razorpay"
-                        : "Place COD Order"}
+                  <span className="relative z-10">
+                    {placing
+                      ? "Processing..."
+                      : !isAuthenticated
+                        ? paymentMethod === "ONLINE"
+                          ? "Login to Continue to Razorpay"
+                          : "Login to Place COD Order"
+                        : paymentMethod === "ONLINE"
+                          ? "Continue to Razorpay"
+                          : "Place COD Order"}
+                  </span>
+                  <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-black/10" />
                 </button>
 
                 {!isAuthenticated ? (

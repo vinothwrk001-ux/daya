@@ -20,15 +20,25 @@ const { initializeRecommendationJobs } = require("./modules/recommendation/job")
 const paymentService = require("./services/payment.service");
 
 async function start() {
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = Number(process.env.PORT || 5000);
+  
+  server.listen(port, () => {
+    logger.info(`API listening on port ${port}`);
+  });
+
   await connectDb();
+
   await ensurePaymentIndexes();
   await ensurePredefinedStaffRoles();
   await ensureDefaultPricingCategories();
 
-  const razorpayHealth = await paymentService.validateRazorpayConfiguration({
+  // Run the external network calls in the background so they don't block startup
+  paymentService.validateRazorpayConfiguration({
     verifyCredentials: process.env.NODE_ENV !== "test",
-  });
-  logger.info("Razorpay configuration validated", razorpayHealth);
+  }).then(razorpayHealth => logger.info("Razorpay configuration validated", razorpayHealth))
+    .catch(err => logger.error("Razorpay validation failed", err));
 
   initializeEventBus();
 
@@ -58,14 +68,6 @@ async function start() {
     });
   }
 
-  const app = createApp();
-  const server = http.createServer(app);
-
-  const port = Number(process.env.PORT || 5000);
-  server.listen(port, () => {
-    logger.info(`API listening on port ${port}`);
-  });
-
   // Graceful shutdown
   process.on("SIGTERM", async () => {
     logger.info("SIGTERM received, shutting down gracefully");
@@ -89,11 +91,13 @@ async function start() {
 }
 
 start().catch((err) => {
+  console.error("CRITICAL FATAL STARTUP ERROR:", err);
   logger.error("Fatal startup error", {
     source: "server",
     event: "startup_failed",
     error: err,
   });
-  process.exit(1);
+  // Wait briefly for winston to flush before exiting
+  setTimeout(() => process.exit(1), 1000);
 });
 

@@ -53,7 +53,7 @@ export function StaffUnauthorizedPage() {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
             onClick={() => navigate(nextRoute)}
-            className="rounded-lg bg-amber-600 px-6 py-2 font-medium text-white hover:bg-amber-700"
+            className="rounded-lg bg-red-500 px-6 py-2 font-medium text-white hover:bg-red-600"
           >
             Go to Workspace
           </button>

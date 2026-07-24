@@ -86,7 +86,7 @@ const CartDrawerItem = memo(function CartDrawerItem({
               </button>
             </div>
             {atMaxQuantity ? (
-              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              <p className="text-[11px] text-red-500 dark:text-red-400">
                 Maximum available quantity reached
               </p>
             ) : null}

@@ -67,7 +67,7 @@ export function Footer() {
         <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <img
-              src={branding?.logoUrl || "/assets/dayacreatives-logo.png"}
+              src={branding?.logoUrl || "/assets/white.png"}
               alt={`${companyName} logo`}
               className="h-14 w-auto object-contain"
             />

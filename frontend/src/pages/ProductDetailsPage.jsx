@@ -558,21 +558,9 @@ export function ProductDetailsPage() {
   }
 
   return (
-    <div className="space-y-8 overflow-x-safe pb-24 lg:pb-0">
-      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3">
-        <div className="order-2 min-w-0 sm:order-none sm:col-start-2 sm:justify-self-center sm:text-center">
-          <h1 className="mt-2 max-w-4xl fluid-h2 text-slate-950 dark:text-white">{product.name}</h1>
-          <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-3 text-sm">
-            <span className="font-semibold text-slate-700 dark:text-slate-200">Sold by Daya</span>
-            {product?.ratings?.averageRating ? (
-              <span className="text-slate-500 dark:text-slate-400">{product.ratings.averageRating.toFixed?.(1) || product.ratings.averageRating} rating</span>
-            ) : null}
-          </div>
-        </div>
-        <div className="order-1 sm:order-none sm:col-start-1 sm:justify-self-start">
-          <BackButton fallbackTo="/shop" />
-        </div>
-        <div className="hidden sm:block" />
+    <div className="space-y-8 pb-24 lg:pb-0">
+      <div className="flex w-full items-start px-4 lg:px-0">
+        <BackButton fallbackTo="/shop" />
       </div>
 
       {reelIdFromQuery ? (
@@ -586,21 +574,21 @@ export function ProductDetailsPage() {
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div> : null}
 
-      <div className="mx-auto flex max-w-[1200px] flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] lg:items-start lg:gap-8">
+      <div className="mx-auto flex max-w-[1300px] flex-col gap-10 lg:grid lg:grid-cols-[1.3fr_0.9fr] lg:items-start lg:gap-16 px-4 xl:px-0">
         <div className="order-1 lg:col-start-1 lg:row-start-1">
           <ProductImageGallery media={media} productName={product?.name} galleryKey={galleryKey} />
         </div>
 
-        <section className="order-3 lg:col-start-1 lg:row-start-2 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-wrap items-center gap-3">
+        <section className="order-3 lg:col-start-1 lg:row-start-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-slate-100/60 p-1.5 dark:bg-slate-800/50 sm:w-fit">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${activeTab === tab.key
-                  ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${activeTab === tab.key
+                  ? "bg-white text-slate-950 shadow-sm dark:bg-slate-700 dark:text-white"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   }`}
               >
                 {tab.label}
@@ -634,44 +622,42 @@ export function ProductDetailsPage() {
         </section>
 
         <aside className="order-2 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
-          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="border-b border-slate-200 bg-[linear-gradient(135deg,_rgba(14,165,233,0.14),_rgba(251,191,36,0.12))] p-6 dark:border-slate-800">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold uppercase tracking-wide text-slate-700">{product.category}</span>
-                    {stock > 0 ? (
-                      <span className="rounded-full bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">In stock</span>
-                    ) : (
-                      <span className="rounded-full bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white">Out of stock</span>
-                    )}
-                  </div>
+          <div className="flex flex-col gap-6">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-slate-600 dark:bg-slate-800 dark:text-slate-300">{product.category}</span>
+                {stock > 0 ? (
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-widest text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">In stock</span>
+                ) : (
+                  <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold uppercase tracking-widest text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">Out of stock</span>
+                )}
+              </div>
 
-                  <div className="mt-4 space-y-2">
-                    <div className="flex flex-wrap items-end gap-3">
-                      <div className="text-5xl font-black tracking-tight text-slate-950 dark:text-white">{formatCurrency(pricing.salePrice)}</div>
-                      {pricing.hasDiscount ? <div className="pb-1 text-xl text-slate-500 line-through dark:text-slate-400">{formatCurrency(pricing.price)}</div> : null}
-                    </div>
-                    {pricing.hasDiscount ? <div className="text-base font-semibold text-emerald-700 dark:text-emerald-300">You save {formatCurrency(pricing.amountSaved)}</div> : null}
-                  </div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">{product.name}</h1>
+              
+              {product?.ratings?.averageRating ? (
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-200">
+                    ⭐ {product.ratings.averageRating.toFixed?.(1) || product.ratings.averageRating}
+                  </span>
                 </div>
+              ) : null}
+            </div>
 
+            <div className="space-y-2 border-y border-slate-200 py-6 dark:border-slate-800">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="text-4xl font-extrabold tracking-tight text-slate-950 dark:text-white">{formatCurrency(pricing.salePrice)}</div>
                 {pricing.hasDiscount ? (
-                  <div className="shrink-0 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2 text-center shadow-lg shadow-orange-500/30">
-                    <div className="text-2xl font-black text-white">{pricing.discountPercent}%</div>
-                    <div className="text-sm font-semibold text-white">OFF</div>
+                  <div className="flex items-center gap-3">
+                    <div className="pb-1 text-xl font-medium text-slate-400 line-through dark:text-slate-500">{formatCurrency(pricing.price)}</div>
+                    <div className="mb-1 rounded-md bg-rose-100 px-2 py-0.5 text-sm font-bold text-rose-700 dark:bg-rose-950/50 dark:text-rose-400">Save {pricing.discountPercent}%</div>
                   </div>
                 ) : null}
               </div>
-
-              <ActiveViewersDisplay productId={product?._id} className="mt-4" />
+              <ActiveViewersDisplay productId={product?._id} className="mt-2 text-sm text-slate-500" />
             </div>
 
-            <div className="space-y-5 p-6">
-              <div className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
-                <div className="font-semibold text-slate-950 dark:text-white">Platform fulfilled</div>
-                <div className="mt-1">Inventory, checkout, and support are handled directly by Daya.</div>
-              </div>
+            <div className="space-y-6">
 
               {variantGroups.length ? (
                 <div className="grid gap-4">
@@ -697,10 +683,10 @@ export function ProductDetailsPage() {
                               type="button"
                               disabled={disabled}
                               onClick={() => selectVariantValue(group.key, option.value)}
-                              className={`rounded-2xl border px-4 py-2 text-sm font-medium transition ${isSelected
-                                ? "border-slate-950 bg-slate-950 text-white shadow-sm dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950"
-                                : "border-slate-300 text-slate-700 hover:border-slate-950 hover:shadow-sm dark:border-slate-700 dark:text-slate-200"
-                                } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
+                              className={`min-w-[3.5rem] rounded-xl border-2 px-3 py-2.5 text-center text-sm font-bold transition-all ${isSelected
+                                ? "border-slate-950 bg-slate-950 text-white shadow-md dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:bg-slate-800"
+                                } ${disabled ? "cursor-not-allowed opacity-40" : "hover:-translate-y-0.5"}`}
                               title={option.inStock ? option.value : `${option.value} is out of stock`}
                             >
                               {showSwatch ? (
@@ -734,15 +720,16 @@ export function ProductDetailsPage() {
                 </div>
               </div>
 
-              <div className="grid gap-3">
-                <button type="button" disabled={stock === 0 || adding} onClick={() => handleAddToCart()} className="rounded-2xl bg-[color:var(--commerce-accent)] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:translate-y-[-1px] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60">
-                  {adding ? "Adding to cart..." : "Add to Cart"}
+              <div className="grid gap-3 pt-4">
+                <button type="button" disabled={stock === 0 || adding} onClick={() => handleAddToCart()} className="group relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-slate-950 px-5 py-4 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100">
+                  <span className="relative z-10">{adding ? "Adding to cart..." : "Add to Cart"}</span>
+                  <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-black/10" />
                 </button>
-                <button type="button" disabled={stock === 0 || buyingNow || adding} onClick={handleBuyNow} className="rounded-2xl bg-[color:var(--commerce-accent-warm)] px-5 py-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:translate-y-[-1px] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="button" disabled={stock === 0 || buyingNow || adding} onClick={handleBuyNow} className="flex w-full items-center justify-center rounded-xl bg-red-500 px-5 py-4 text-sm font-bold text-white shadow-sm transition-all hover:bg-red-600 hover:shadow-md hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">
                   {buyingNow ? "Starting checkout..." : "Buy Now"}
                 </button>
-                <button type="button" disabled={stock === 0 || wishlistLoading} onClick={handleWishlistToggle} className="rounded-2xl border border-slate-300 bg-white px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800">
-                  {stock === 0 ? "Out of Stock" : wishlistLoading ? "Updating..." : wishlistSaved ? "Saved to Wishlist" : "Save to Wishlist"}
+                <button type="button" disabled={stock === 0 || wishlistLoading} onClick={handleWishlistToggle} className="flex w-full items-center justify-center rounded-xl border-2 border-slate-200 bg-transparent px-5 py-3.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800/50">
+                  {stock === 0 ? "Out of Stock" : wishlistLoading ? "Updating..." : wishlistSaved ? "♥ Saved to Wishlist" : "♡ Save to Wishlist"}
                 </button>
               </div>
             </div>
@@ -787,7 +774,7 @@ export function ProductDetailsPage() {
               type="button"
               disabled={buyingNow || adding}
               onClick={handleBuyNow}
-              className="touch-target flex-1 rounded-xl bg-[color:var(--commerce-accent-warm)] px-3 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-60 sm:text-sm"
+              className="touch-target flex-1 rounded-xl bg-red-500 px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-red-600 hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 sm:text-sm"
             >
               {buyingNow ? "..." : "Buy Now"}
             </button>

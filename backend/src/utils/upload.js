@@ -13,6 +13,7 @@ const ALLOWED_MIME = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/gif",
   "video/mp4",
   "video/webm",
   "video/quicktime",
