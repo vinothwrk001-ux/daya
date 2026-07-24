@@ -15,15 +15,26 @@ const userSchema = new mongoose.Schema(
       sparse: true,
       index: true,
     },
+    googleId: { type: String, sparse: true, unique: true },
     phone: {
       type: String,
-      required: true,
+      required: function () {
+        return !this.googleId;
+      },
       trim: true,
       maxlength: 30,
+      sparse: true,
       unique: true,
       index: true,
     },
-    password: { type: String, required: true, minlength: 8, select: false },
+    password: { 
+      type: String, 
+      required: function () {
+        return !this.googleId;
+      },
+      minlength: 8, 
+      select: false 
+    },
     role: { type: String, enum: USER_ROLES, default: "user", index: true },
     roles: {
       type: [{ type: String, enum: USER_ROLES }],

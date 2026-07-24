@@ -30,6 +30,7 @@ router.post(
 router.get("/check-username", authController.checkUsername);
 
 router.post("/login", validate(loginSchema), authController.login);
+router.post("/google", authController.googleLogin);
 router.post("/refresh", authController.refresh);
 router.get("/csrf", authController.csrf);
 // Use authOptional for logout - allows graceful logout even if token is missing

@@ -119,15 +119,15 @@ export function UserMenu({ variant = "default" }) {
 
   const isHero = variant === "hero";
   const triggerClass = isHero
-    ? `flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-all sm:px-3 ${
+    ? `flex items-center gap-2 rounded-lg px-2.5 py-2 transition-all sm:px-3 ${
         isOpen
-          ? "border-white/40 bg-white/15 text-white shadow-md"
-          : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+          ? "bg-white/15 text-white shadow-md"
+          : "bg-white/10 text-white hover:bg-white/15"
       }`
-    : `flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-all sm:px-3 ${
+    : `flex items-center gap-2 rounded-lg px-2.5 py-2 transition-all sm:px-3 ${
         isOpen
-          ? "border-blue-300 bg-blue-50 shadow-md"
-          : "border-slate-200 bg-white hover:bg-slate-50"
+          ? "bg-blue-50 shadow-md"
+          : "bg-white hover:bg-slate-50"
       }`;
   const nameClass = isHero ? "hidden max-w-[8rem] truncate text-sm font-medium text-white sm:inline" : "hidden max-w-[8rem] truncate text-sm font-medium text-slate-700 sm:inline";
   const chevronClass = isHero ? `h-4 w-4 text-white/80 transition-transform ${isOpen ? "rotate-180" : ""}` : `h-4 w-4 text-slate-500 transition-transform ${isOpen ? "rotate-180" : ""}`;

@@ -33,6 +33,11 @@ async function findById(id, { includePassword = false } = {}) {
   return await q.exec();
 }
 
+async function findByGoogleId(googleId) {
+  if (!googleId) return null;
+  return await User.findOne({ googleId }).exec();
+}
+
 async function updateById(id, update) {
   return await User.findByIdAndUpdate(id, { $set: update }, { returnDocument: "after" }).exec();
 }
@@ -58,6 +63,7 @@ module.exports = {
   findByPhone,
   findByName,
   findById,
+  findByGoogleId,
   updateById,
   deleteById,
   listUsers,

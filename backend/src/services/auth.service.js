@@ -129,6 +129,70 @@ async function login({ identifier, password }, meta = {}) {
   return auth;
 }
 
+const { OAuth2Client } = require("google-auth-library");
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+async function googleLogin(idToken, meta = {}) {
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch (error) {
+    throw new AppError("Invalid Google token", 401, "INVALID_TOKEN");
+  }
+
+  const { sub: googleId, email, name, picture } = payload;
+  if (!email) throw new AppError("Email required from Google account", 400, "EMAIL_REQUIRED");
+
+  const normalizedEmail = email.toLowerCase();
+  
+  // Check if user exists by googleId
+  let user = await userRepo.findByGoogleId(googleId);
+
+  if (!user) {
+    // Check if user exists by email
+    user = await userRepo.findByEmail(normalizedEmail);
+    if (user) {
+      // Link google account to existing user
+      user = await userRepo.updateById(user._id, { googleId, avatarUrl: user.avatarUrl || picture });
+    } else {
+      // Create new user
+      // Give a dummy unique name if name already exists
+      let uniqueName = name;
+      let existingName = await userRepo.findByName(uniqueName);
+      if (existingName) {
+         uniqueName = `${name} ${googleId.slice(0, 5)}`;
+      }
+
+      user = await userRepo.createUser({
+        name: uniqueName,
+        email: normalizedEmail,
+        googleId,
+        avatarUrl: picture,
+        role: "user",
+        roles: ["user"],
+        status: "active",
+      });
+    }
+  }
+
+  if (user.status !== "active") throw new AppError("Account disabled", 403, "ACCOUNT_DISABLED");
+
+  const auth = await createSessionTokens(user, meta);
+  await auditService.log({
+    actor: { _id: user._id, role: user.role },
+    action: "auth.google_login",
+    entityType: "User",
+    entityId: user._id,
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+  return auth;
+}
+
 async function refreshSession(refreshToken, meta = {}) {
   if (!refreshToken) throw new AppError("Refresh token required", 401, "UNAUTHORIZED");
 
@@ -252,6 +316,7 @@ async function updateThemePreference(userId, theme, meta = {}) {
 module.exports = {
   register,
   login,
+  googleLogin,
   refreshSession,
   logout,
   logoutAll,

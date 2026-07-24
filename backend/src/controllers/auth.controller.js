@@ -54,6 +54,20 @@ const login = asyncHandler(async (req, res) => {
   return ok(res, publicAuthPayload(result), "Logged in successfully");
 });
 
+const googleLogin = asyncHandler(async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) {
+    throw new AppError("Google credential is required", 400, "VALIDATION_ERROR");
+  }
+  const result = await authService.googleLogin(credential, {
+    ipAddress: req.ip,
+    userAgent: req.get("user-agent"),
+  });
+  setSessionCookies(res, result);
+  issueCsrfToken(req, res);
+  return ok(res, publicAuthPayload(result), "Google login successful");
+});
+
 const refresh = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.refreshToken;
   const result = await authService.refreshSession(refreshToken, {
@@ -145,6 +159,7 @@ const checkUsername = asyncHandler(async (req, res) => {
 module.exports = {
   register,
   login,
+  googleLogin,
   refresh,
   logout,
   logoutAll,

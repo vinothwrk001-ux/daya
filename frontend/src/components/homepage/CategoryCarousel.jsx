@@ -36,13 +36,13 @@ function CategoryCard({ category, onClick }) {
             "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08) 0, transparent 35%), radial-gradient(circle at 80% 0%, rgba(220,38,38,0.15) 0, transparent 40%)",
         }}
       />
-      <div className="category-card-image-container relative flex flex-1 overflow-hidden">
+      <div className="category-card-image-container relative flex flex-1 items-center justify-center overflow-hidden p-6">
         {image ? (
           <img
             src={image}
             alt={categoryName}
             loading="lazy"
-            className="category-card-image block h-full w-full object-cover"
+            className="category-card-image block h-[70%] w-[70%] object-contain transition-transform duration-500 group-hover:scale-110"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-brand-primary/20 text-2xl font-black text-brand-primary">

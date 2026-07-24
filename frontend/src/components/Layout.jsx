@@ -40,9 +40,10 @@ export function Layout() {
     location.pathname.startsWith("/admin");
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
   const isReelsPage = location.pathname === "/reels" || location.pathname.startsWith("/reels/");
+  const isAuthPage = ["/login", "/register", "/role", "/forgot-password"].includes(location.pathname);
   const isHomePage = location.pathname === "/";
   const isContentPage = location.pathname === "/services" || location.pathname === "/about";
-  const hideShopChrome = isAdminRoute || isStaffWorkspace || isReelsPage;
+  const hideShopChrome = isAdminRoute || isStaffWorkspace || isReelsPage || isAuthPage;
   const showShopActions = !user || user?.role === "user";
 
 

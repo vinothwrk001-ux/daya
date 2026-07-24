@@ -12,6 +12,8 @@ import { NotificationProvider } from "./context/NotificationContext.jsx";
 import { installEarlyScrollHandlers } from "./utils/scrollPageToTop.js";
 import { initializeCartSync } from "./utils/cartSync.js";
 
+import { GoogleOAuthProvider } from "@react-oauth/google";
+
 if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
   window.history.scrollRestoration = "manual";
 }
@@ -19,18 +21,22 @@ if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
 installEarlyScrollHandlers();
 initializeCartSync();
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "placeholder_client_id";
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <BrandingProvider>
-      <ThemeProvider>
-        <NotificationProvider>
-          <BrowserRouter>
-            <AuthBootstrap>
-              <App />
-            </AuthBootstrap>
-          </BrowserRouter>
-        </NotificationProvider>
-      </ThemeProvider>
-    </BrandingProvider>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <BrandingProvider>
+        <ThemeProvider>
+          <NotificationProvider>
+            <BrowserRouter>
+              <AuthBootstrap>
+                <App />
+              </AuthBootstrap>
+            </BrowserRouter>
+          </NotificationProvider>
+        </ThemeProvider>
+      </BrandingProvider>
+    </GoogleOAuthProvider>
   </StrictMode>,
 );

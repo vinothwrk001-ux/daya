@@ -24,6 +24,11 @@ export async function login({ identifier, password }) {
   return data;
 }
 
+export async function googleLogin(credential) {
+  const { data } = await api.post("/api/auth/google", { credential });
+  return data;
+}
+
 export async function forgotPasswordRequest({ identifier, otpType }) {
   const { data } = await api.post("/api/auth/forgot-password/request", {
     identifier,
