@@ -166,9 +166,7 @@ export function OrdersPage() {
                 </div>
 
                 <div className="mt-4 grid gap-3">
-                  <div className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
-                    <span className="font-semibold text-slate-950 dark:text-white">Sold by Daya</span>
-                  </div>
+
                   {(order.items || []).map((item) => (
                     <div key={`${order._id}-${item.productId}`} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
                       <div className="min-w-0">

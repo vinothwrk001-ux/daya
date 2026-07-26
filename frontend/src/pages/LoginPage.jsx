@@ -10,7 +10,7 @@ import { consumeRedirectAfterLogin } from "../utils/loginRedirect";
 import { continueAfterPrimaryAuth } from "../utils/postAuthContinuation";
 import { BrandLogo } from "../components/BrandLogo";
 import { useBranding } from "../context/BrandingContext";
-import { ShieldCheck, Zap, Package, Mail, Lock } from "lucide-react";
+import { ShieldCheck, Zap, Package, Mail, Lock, ArrowLeft } from "lucide-react";
 
 import { GoogleLogin } from "@react-oauth/google";
 
@@ -32,7 +32,7 @@ function isAuthPageTarget(target) {
   const pathname = target?.startsWith("http://") || target?.startsWith("https://")
     ? new URL(target).pathname
     : target || "";
-  return ["/login", "/register", "/role", "/staff/login"].includes(pathname);
+  return ["/login", "/register", "/staff/login"].includes(pathname);
 }
 
 export function LoginPage() {
@@ -134,7 +134,14 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-white md:flex-row">
       {/* Left Side */}
-      <div className="relative flex flex-1 flex-col justify-center overflow-hidden bg-black p-10 text-white md:min-h-full">
+      <div className="relative hidden md:flex flex-1 flex-col justify-center overflow-hidden bg-black p-10 text-white md:min-h-full">
+        <Link 
+          to="/" 
+          className="absolute left-6 top-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20 xl:left-10 xl:top-10"
+          title="Back to Home"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-red-950 via-black to-black opacity-60"></div>
         <div

@@ -1,20 +1,11 @@
 import { useEffect, useState } from "react";
-import { LocationPickerMap } from "./LocationPickerMap";
-import { getCurrentLocationAddress, reverseGeocodeCoordinates } from "../services/locationService";
+import { getCurrentLocationAddress } from "../services/locationService";
 import { EMPTY_ADDRESS_FORM, getAddressPayloadFromForm, validateAddressForm } from "../utils/checkout";
-
-function buildMapCoordinates(initialForm) {
-  return {
-    lat: Number(initialForm?.latitude ?? Number.NaN),
-    lng: Number(initialForm?.longitude ?? Number.NaN),
-  };
-}
 
 export function AddressModal({
   open,
   initialValues = EMPTY_ADDRESS_FORM,
   saving = false,
-  mapsKey,
   title = "Add New Address",
   description = "Save a delivery address without leaving checkout.",
   submitLabel = "Save address",
@@ -24,14 +15,11 @@ export function AddressModal({
   const [form, setForm] = useState(initialValues);
   const [errors, setErrors] = useState({});
   const [locationLoading, setLocationLoading] = useState(false);
-  const [mapLoading, setMapLoading] = useState(false);
-  const [mapCoords, setMapCoords] = useState(buildMapCoordinates(initialValues));
 
   useEffect(() => {
     if (!open) return;
     setForm(initialValues);
     setErrors({});
-    setMapCoords(buildMapCoordinates(initialValues));
   }, [initialValues, open]);
 
   useEffect(() => {
@@ -60,32 +48,6 @@ export function AddressModal({
     setErrors((current) => ({ ...current, [key]: "" }));
   }
 
-  async function reverseGeocodeWithGoogle({ lat, lng }) {
-    if (typeof window === "undefined" || !window.google?.maps?.Geocoder) {
-      return null;
-    }
-
-    const geocoder = new window.google.maps.Geocoder();
-    const result = await geocoder.geocode({ location: { lat, lng } });
-    const first = Array.isArray(result?.results) ? result.results[0] : null;
-    if (!first) return null;
-
-    const byType = (type) =>
-      first.address_components?.find((component) => component.types?.includes(type))?.long_name || "";
-
-    return {
-      address: {
-        addressLine: [byType("street_number"), byType("route"), byType("sublocality_level_1")].filter(Boolean).join(", "),
-        city: byType("locality") || byType("administrative_area_level_2"),
-        state: byType("administrative_area_level_1"),
-        pincode: byType("postal_code"),
-        country: byType("country") || "India",
-        latitude: lat,
-        longitude: lng,
-      },
-    };
-  }
-
   async function applyResolvedLocation(location) {
     setForm((current) => ({
       ...current,
@@ -97,23 +59,6 @@ export function AddressModal({
       latitude: location?.address?.latitude,
       longitude: location?.address?.longitude,
     }));
-    setMapCoords({
-      lat: Number(location?.address?.latitude),
-      lng: Number(location?.address?.longitude),
-    });
-  }
-
-  async function handleMapLocationChange({ lat, lng }) {
-    setMapCoords({ lat, lng });
-    setMapLoading(true);
-    try {
-      const location =
-        (mapsKey ? await reverseGeocodeWithGoogle({ lat, lng }) : null) ||
-        (await reverseGeocodeCoordinates({ latitude: lat, longitude: lng }));
-      await applyResolvedLocation(location);
-    } finally {
-      setMapLoading(false);
-    }
   }
 
   async function handleUseCurrentLocation() {
@@ -172,11 +117,6 @@ export function AddressModal({
             >
               {locationLoading ? "Detecting..." : "Use Current Location"}
             </button>
-            {mapLoading ? (
-              <div className="flex items-center text-xs font-medium text-[color:var(--commerce-accent)]">
-                Resolving address...
-              </div>
-            ) : null}
           </div>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -205,27 +145,7 @@ export function AddressModal({
             ))}
           </div>
 
-          <div className="mt-5 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
-            <div className="text-sm font-semibold text-slate-950 dark:text-white">Pick address on Google Maps</div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Search, click, or drag the marker to autofill address details.
-            </div>
 
-            {mapsKey ? (
-              <div className="mt-4">
-                <LocationPickerMap
-                  apiKey={mapsKey}
-                  lat={mapCoords.lat}
-                  lng={mapCoords.lng}
-                  onChange={handleMapLocationChange}
-                />
-              </div>
-            ) : (
-              <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                Add <code className="font-mono">VITE_GOOGLE_MAPS_API_KEY</code> to enable the embedded map picker.
-              </div>
-            )}
-          </div>
 
           <label className="mt-4 flex items-center gap-3 text-sm text-slate-700 dark:text-slate-200">
             <input

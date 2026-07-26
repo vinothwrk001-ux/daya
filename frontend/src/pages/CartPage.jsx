@@ -199,7 +199,7 @@ export function CartPage() {
                                 <span className="font-medium">{variantLabel}</span>
                               </div>
                             )}
-                            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Sold by Daya</div>
+
                             {productWeightLabel && (
                               <div className="text-xs text-slate-500 dark:text-slate-400">
                                 <span className="font-medium">Weight:</span> {productWeightLabel}

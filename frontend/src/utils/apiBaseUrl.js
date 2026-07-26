@@ -1,15 +1,14 @@
 /**
  * API base URL for axios and asset resolution.
- * In dev, defaults to "" so Vite proxies /api and /uploads to the backend (works on LAN).
+ * In dev and preview, defaults to "" so Vite proxies /api and /uploads to the backend.
  * Set VITE_API_URL to override (e.g. production build or direct backend access).
  */
 export function getApiBaseUrl() {
   const configured = import.meta.env.VITE_API_URL;
-  if (configured) {
+  // If explicitly configured to a full URL, use it
+  if (configured && configured.startsWith("http")) {
     return String(configured).replace(/\/$/, "");
   }
-  if (import.meta.env.DEV) {
-    return "";
-  }
-  return "http://localhost:5000";
+  // Otherwise, default to empty string so requests are relative (and handled by Vite proxy or same-domain production server)
+  return "";
 }

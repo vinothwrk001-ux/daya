@@ -290,6 +290,10 @@ export function CheckoutPage() {
   );
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     async function loadRecommendations() {
       if (!checkoutProductIds.length) {
@@ -1225,16 +1229,6 @@ export function CheckoutPage() {
                   )}
                 </div>
               ) : null}
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep("summary")}
-                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-950"
-                >
-                  Continue to summary
-                </button>
-              </div>
             </section>
 
             <section className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 sm:p-8 xl:p-10">
@@ -1262,16 +1256,6 @@ export function CheckoutPage() {
                     onRemove={() => handleRemoveItem(extractProductId(item?.productId || item), extractVariantId(item))}
                   />
                 ))}
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep("payment")}
-                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-950"
-                >
-                  Continue to payment
-                </button>
               </div>
             </section>
 

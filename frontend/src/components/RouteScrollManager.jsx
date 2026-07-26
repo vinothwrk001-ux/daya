@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigationType } from "react-router-dom";
 import { ProductDetailsSkeleton } from "./ProductDetailsSkeleton";
 import { isProductPath, scrollPageToTop, scrollToHash } from "../utils/scrollPageToTop";
@@ -15,7 +15,7 @@ export function RouteScrollManager() {
   const isProductRoute = isProductPath(location.pathname);
   const isTransitioning = visibleKey !== location.key;
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const { hash, state } = location;
 
     // Do not force scroll to top if we are opening a background overlay (like reels modal)
@@ -25,13 +25,16 @@ export function RouteScrollManager() {
       return;
     }
 
-    if (hash) {
-      if (!scrollToHash(hash)) {
-        scrollPageToTop();
+    // Use setTimeout to ensure the DOM has updated before scrolling
+    setTimeout(() => {
+      if (hash) {
+        if (!scrollToHash(hash)) {
+          window.scrollTo(0, 0);
+        }
+      } else {
+        window.scrollTo(0, 0);
       }
-    } else {
-      scrollPageToTop();
-    }
+    }, 10);
 
     setVisibleKey(location.key);
   }, [location, navigationType]);

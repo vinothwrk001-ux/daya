@@ -111,9 +111,7 @@ export function ReelCarousel({
 
   const justifyClass = items.length <= itemsPerView ? "md:justify-center" : "md:justify-start";
 
-  const flexClass = `scroll-smooth scrollbar-hide flex snap-x snap-mandatory justify-start gap-4 overflow-x-auto pb-2 md:gap-6 md:snap-none md:overflow-x-hidden ${justifyClass} ${
-    isMobileScroll && swipeEnabled ? "touch-pan-x" : ""
-  }`;
+  const flexClass = `scroll-smooth scrollbar-hide flex snap-x snap-mandatory justify-start gap-4 overflow-x-auto pb-2 md:gap-6 md:snap-none md:overflow-x-hidden ${justifyClass}`;
 
   const maxGroupWidth = !isMobileScroll ? itemsPerView * 280 + Math.max(0, itemsPerView - 1) * 24 + 128 : "100%";
 

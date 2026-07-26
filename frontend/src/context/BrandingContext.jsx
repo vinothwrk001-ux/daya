@@ -8,9 +8,7 @@ const BrandingContext = createContext({
   reload: async () => {},
 });
 
-function getApiBaseUrl() {
-  return (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
-}
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
 
 function ensureHeadLink(selector, attributes) {
   let element = document.head.querySelector(selector);

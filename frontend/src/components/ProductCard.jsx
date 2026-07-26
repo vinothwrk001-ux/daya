@@ -7,6 +7,7 @@ import { useCart } from "../hooks/useCart";
 import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
 import { useProductCardVariant } from "../hooks/useProductCardVariant";
+import { useNotification } from "../context/NotificationContext";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { resolveSwatchColor } from "../utils/variantDisplay";
 import { navigateToProduct } from "../utils/scrollPageToTop";
@@ -77,8 +78,9 @@ function VariantColorSwatches({ options, selectedValue, groupName, onSelect }) {
 
 function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "aspect-[3/4]", onProductClick }) {
   const navigate = useNavigate();
-  const { addItem: addCartItem } = useCart();
-  const { openDrawer, showToast } = useCartDrawer();
+  const { cart, addItem: addCartItem } = useCart();
+  const { openDrawer } = useCartDrawer();
+  const { showError } = useNotification();
   const { addItem: addWishlistItem, removeItem: removeWishlistItem, isInWishlist: checkWishlistStatus } = useWishlist();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
@@ -143,7 +145,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
       }
     } catch (err) {
       reportProductCardError("Failed to update wishlist.", { productId, error: err });
-      showToast(getCartErrorMessage(err, "Unable to update wishlist."));
+      showError(getCartErrorMessage(err, "Unable to update wishlist."));
     } finally {
       setIsSubmitting(false);
     }
@@ -154,16 +156,24 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
     event.stopPropagation();
     if (isSubmitting || !productId || !inStock) return;
 
+    const variantId = activeVariant?.variantId || "";
+    const cartItem = cart?.items?.find((i) => String(i.productId) === String(productId) && String(i.variantId || "") === String(variantId));
+    const atMaxQuantity = cartItem && cartItem.quantity >= (cartItem.maxQuantity ?? cartItem.availableStock ?? 999);
+
+    if (atMaxQuantity) {
+      showError("Maximum available quantity reached for this size/color.", { duration: 2000 });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      const variantId = activeVariant?.variantId || "";
       const added = await addCartItem(productId, 1, variantId);
       if (added) {
         openDrawer(product, activeVariant || added?.variant || added || null, added?.quantity || 1);
       }
     } catch (err) {
       reportProductCardError("Failed to add product to cart.", { productId, error: err });
-      showToast(getCartErrorMessage(err, "Failed to add item to cart."));
+      showError(getCartErrorMessage(err, "Failed to add item to cart."));
     } finally {
       setIsSubmitting(false);
     }

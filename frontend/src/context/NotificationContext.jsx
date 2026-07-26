@@ -6,7 +6,7 @@ const NotificationContext = createContext(null);
 
 const toneStyles = {
   success: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950 dark:text-emerald-100",
-  error: "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/60 dark:bg-rose-950 dark:text-rose-100",
+  error: "border-slate-800 bg-slate-950 text-rose-400 shadow-xl dark:border-slate-800 dark:bg-slate-950 dark:text-rose-400",
   warning: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950 dark:text-amber-100",
   loading: "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950 dark:text-blue-100",
   info: "border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100",
@@ -38,14 +38,24 @@ export function NotificationProvider({ children }) {
   const inputRef = useRef(null);
 
   const dismissNotification = useCallback((id) => {
-    setNotifications((items) => items.filter((item) => item.id !== id));
+    setNotifications((items) => {
+      if (!items.some((item) => item.id === id)) return items;
+      return items.filter((item) => item.id !== id);
+    });
   }, []);
 
   const showNotification = useCallback((input) => {
     const next = createNotification(input);
     setNotifications((items) => [next, ...items].slice(0, 6));
+    
+    if (next.duration > 0) {
+      setTimeout(() => {
+        dismissNotification(next.id);
+      }, next.duration);
+    }
+    
     return next.id;
-  }, []);
+  }, [dismissNotification]);
 
   const clearNotifications = useCallback(() => setNotifications([]), []);
 
@@ -108,7 +118,7 @@ export function NotificationProvider({ children }) {
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed right-4 top-4 z-[80] flex w-[min(420px,calc(100vw-2rem))] flex-col gap-3" aria-live="polite" aria-relevant="additions">
+      <div className="pointer-events-none fixed right-4 top-4 z-[9999] flex w-[min(420px,calc(100vw-2rem))] flex-col gap-3" aria-live="polite" aria-relevant="additions">
         {notifications.map((item) => {
           const Icon = toneIcons[item.type] || Info;
           return (

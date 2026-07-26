@@ -40,7 +40,7 @@ export function Layout() {
     location.pathname.startsWith("/admin");
   const isStaffWorkspace = location.pathname.startsWith("/staff/");
   const isReelsPage = location.pathname === "/reels" || location.pathname.startsWith("/reels/");
-  const isAuthPage = ["/login", "/register", "/role", "/forgot-password"].includes(location.pathname);
+  const isAuthPage = ["/login", "/register", "/forgot-password"].includes(location.pathname);
   const isHomePage = location.pathname === "/";
   const isContentPage = location.pathname === "/services" || location.pathname === "/about";
   const hideShopChrome = isAdminRoute || isStaffWorkspace || isReelsPage || isAuthPage;
@@ -140,17 +140,10 @@ export function Layout() {
                   ) : authReady ? (
                     <>
                       <Link
-                        className="hidden rounded-full px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-brand-primary sm:inline-flex"
+                        className="rounded-full px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-brand-primary inline-flex"
                         to="/login"
                       >
                         Login
-                      </Link>
-                      <Link
-                        className="enterprise-primary-button inline-flex rounded-full px-4 py-2.5 text-sm font-semibold shadow-brandMd transition hover:shadow-brandLg active:scale-95"
-                        to="/role"
-                        style={{ background: "var(--color-primary)" }}
-                      >
-                        Start
                       </Link>
                     </>
                   ) : (
@@ -214,7 +207,7 @@ export function Layout() {
         </header>
       ) : null}
 
-      {!hideShopChrome && location.pathname !== "/" ? (
+      {!hideShopChrome && location.pathname !== "/" && !["/cart", "/wishlist", "/services", "/about", "/blogs", "/privacy", "/terms-conditions", "/shipping"].includes(location.pathname) ? (
         <CategoryNavigation 
           categories={presentedCategories}
           onSelect={(item) => {

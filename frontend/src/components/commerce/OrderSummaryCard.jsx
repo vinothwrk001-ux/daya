@@ -27,7 +27,7 @@ export function OrderSummaryCard({
         <div className="min-w-0 flex-1">
           <div className="line-clamp-2 text-sm font-semibold text-slate-950 dark:text-white">{item?.name}</div>
           {item?.variantTitle ? <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Variant: {item.variantTitle}</div> : null}
-          <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Sold by Daya</div>
+
           <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Unit price: {formatCurrency(item?.price || 0)}</div>
           {unitWeight > 0 ? (
             <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">

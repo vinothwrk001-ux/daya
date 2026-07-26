@@ -60,7 +60,7 @@ const CartDrawerItem = memo(function CartDrawerItem({
           </p>
         ) : null}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col items-start gap-2">
             <div className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-700">
               <button
                 type="button"
@@ -284,12 +284,11 @@ export function CartDrawer() {
     }
   };
 
-  if (!isRendered) return null;
-
   return (
     <Portal>
       <>
-        <aside
+        {isRendered ? (
+          <aside
           ref={drawerRef}
           role="dialog"
           aria-modal="true"
@@ -492,6 +491,7 @@ export function CartDrawer() {
             </button>
           </div>
         </aside>
+        ) : null}
 
         <InlineToast toast={toast} onClose={clearToast} />
       </>

@@ -886,7 +886,7 @@ const ProductCard = memo(function ProductCard({ product }) {
           <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
             {product.category}
           </p>
-          <div className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">Sold by Daya</div>
+
         </div>
 
         {product.ratings?.averageRating > 0 && (

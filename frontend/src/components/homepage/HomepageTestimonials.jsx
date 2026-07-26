@@ -128,13 +128,22 @@ export function HomepageTestimonials() {
     return () => { cancelled = true; };
   }, []);
 
+  const [isMobile, setIsMobile] = useState(false);
+
   // Responsive cards per page
   useEffect(() => {
     function handleResize() {
       const w = window.innerWidth;
-      if (w < 640) setCardsPerPage(1);
-      else if (w < 1024) setCardsPerPage(2);
-      else setCardsPerPage(3);
+      if (w < 640) {
+        setCardsPerPage(1);
+        setIsMobile(true);
+      } else if (w < 1024) {
+        setCardsPerPage(2);
+        setIsMobile(false);
+      } else {
+        setCardsPerPage(3);
+        setIsMobile(false);
+      }
     }
     handleResize();
     window.addEventListener("resize", handleResize);
@@ -154,19 +163,19 @@ export function HomepageTestimonials() {
     setCurrentPage(Math.max(0, Math.min(page, totalPages - 1)));
   }, [totalPages]);
 
-  // Auto-rotate every 5 seconds
+  // Auto-rotate every 5 seconds (disable on mobile for native scroll)
   useEffect(() => {
-    if (totalPages <= 1) return;
+    if (totalPages <= 1 || isMobile) return;
     const interval = setInterval(() => {
       setCurrentPage((prev) => (prev + 1) % totalPages);
     }, 5000);
     return () => clearInterval(interval);
-  }, [totalPages]);
+  }, [totalPages, isMobile]);
 
   if (loading || reviews.length === 0) return null;
 
   const startIndex = currentPage * cardsPerPage;
-  const visibleReviews = reviews.slice(startIndex, startIndex + cardsPerPage);
+  const visibleReviews = isMobile ? reviews : reviews.slice(startIndex, startIndex + cardsPerPage);
 
   return (
     <section className="testimonials-section" id="homepage-testimonials">
@@ -190,7 +199,7 @@ export function HomepageTestimonials() {
         </div>
 
         {/* Dot pagination */}
-        {totalPages > 1 ? (
+        {!isMobile && totalPages > 1 ? (
           <div className="testimonials-section__dots">
             {Array.from({ length: totalPages }).map((_, i) => (
               <button

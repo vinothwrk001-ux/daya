@@ -418,7 +418,7 @@ export function OrderDetailsPage() {
             <section className="print-card rounded-3xl border border-slate-200 p-5 dark:border-slate-800 print:rounded-none print:border print:border-slate-300">
               <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Fulfillment</h2>
               <div className="mt-4 text-sm text-slate-600 dark:text-slate-300">
-                <div className="font-semibold text-slate-950 dark:text-white">Sold by Daya</div>
+
                 <div className="mt-1">Order support, shipping updates, and invoices are handled directly by the platform.</div>
               </div>
             </section>

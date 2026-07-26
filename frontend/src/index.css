@@ -1027,11 +1027,10 @@ h3,
   }
 
   .hero-banner-header .hero-header-grid__center {
-    max-width: 220px;
+    max-width: 240px;
     min-width: 0;
     position: relative;
-    left: -10px;
-    margin-right: 0.5rem;
+    left: -5px;
   }
 
   .hero-banner-header input[type="text"],
@@ -1205,6 +1204,24 @@ h3,
   grid-template-columns: repeat(var(--cards-per-page, 3), 1fr);
   gap: 1.25rem;
   transition: opacity 0.35s ease;
+}
+
+@media (max-width: 639px) {
+  .testimonials-section__grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 1rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  .testimonials-section__grid::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+  .testimonial-card {
+    min-width: 280px;
+    scroll-snap-align: center;
+  }
 }
 
 /* ── Card ────────────────────────────────────────────────── */

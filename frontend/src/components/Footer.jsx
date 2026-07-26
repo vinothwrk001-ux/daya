@@ -1,5 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 import { useBranding } from "../context/BrandingContext";
+import { BrandingLogoImage } from "./BrandingLogoImage";
 
 const fallbackFooter = {
   enabled: true,
@@ -16,9 +17,9 @@ const fallbackFooter = {
     {
       title: "Resource",
       links: [
-        { label: "Privacy Policies", href: "/privacy-policy" },
-        { label: "Terms & Conditions", href: "/terms-and-conditions" },
-        { label: "Returns & Refunds", href: "/returns" },
+        { label: "Privacy Policies", href: "/privacy" },
+        { label: "Terms & Conditions", href: "/terms-conditions" },
+        { label: "Returns & Refunds", href: "/return-policy" },
         { label: "FAQ’s", href: "/faq" },
         { label: "Shipping", href: "/shipping" },
       ],
@@ -66,8 +67,7 @@ export function Footer() {
       <div className="mx-auto max-w-screen-2xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <img
-              src={branding?.logoUrl || "/assets/white.png"}
+            <BrandingLogoImage
               alt={`${companyName} logo`}
               className="h-14 w-auto object-contain"
             />
@@ -108,15 +108,7 @@ export function Footer() {
                 <span>{supportEmail}</span>
               </div>
             </div>
-            <a
-              href="https://www.google.com/maps"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-red-500 transition hover:text-white"
-            >
-              Get direction
-              <ArrowUpRight className="h-4 w-4" />
-            </a>
+
           </div>
 
           <div className="grid grid-cols-2 gap-8">

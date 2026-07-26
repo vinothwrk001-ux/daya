@@ -60,7 +60,7 @@ export function WishlistPage() {
 
   return (
     <div className="grid gap-6">
-      <div>
+      <div className="text-center">
         <h1 className="text-2xl font-semibold text-slate-950 dark:text-white">Wishlist</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Save products for later and move them back into your cart when you are ready.</p>
       </div>
@@ -107,7 +107,7 @@ export function WishlistPage() {
                         Selected: {variantTitle}
                       </div>
                     )}
-                    <div className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">Sold by Daya</div>
+
                     <div className="mt-2 text-base font-bold text-slate-950 dark:text-white">
                       {discountPrice ? (
                         <>

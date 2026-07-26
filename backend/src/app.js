@@ -105,9 +105,11 @@ function createApp() {
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:4173",
+    "http://127.0.0.1:4173",
+    "http://localhost:4174",
+    "http://127.0.0.1:4174",
     "http://172.20.10.3:5173",
     "https://dayacreatives.com"
-
   ]);
   const allowedOrigins = new Set(origins);
 
@@ -119,7 +121,8 @@ function createApp() {
     cors({
       origin(origin, callback) {
         if (!origin) return callback(null, true);
-        if (allowedOrigins.has(origin) || (isDevelopment && developmentOrigins.has(origin))) {
+        const isLocalNetwork = origin.startsWith("http://192.168.") || origin.startsWith("http://10.") || origin.startsWith("http://172.");
+        if (allowedOrigins.has(origin) || (isDevelopment && (developmentOrigins.has(origin) || isLocalNetwork))) {
           logger.debug("CORS origin allowed", { origin });
           return callback(null, true);
         }

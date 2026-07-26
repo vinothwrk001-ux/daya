@@ -55,7 +55,7 @@ const EMPTY_FORM = {
         title: "Customer care",
         description: "Support and policy links for every journey.",
         links: [
-          { label: "Shipping policy", href: "/shipping-policy" },
+          { label: "Shipping policy", href: "/shipping" },
           { label: "Returns", href: "/return-policy" },
         ],
       },
@@ -73,8 +73,9 @@ const EMPTY_FORM = {
       { label: "LinkedIn", href: "https://linkedin.com" },
     ],
     legalLinks: [
-      { label: "Privacy policy", href: "/privacy-policy" },
-      { label: "Terms & conditions", href: "/terms-and-conditions" },
+      { label: "Privacy policy", href: "/privacy" },
+      { label: "Terms & conditions", href: "/terms-conditions" },
+      { label: "Returns & Refunds", href: "/return-policy" },
     ],
     copyrightText: "© 2026 DayaCreatives. All rights reserved.",
   },

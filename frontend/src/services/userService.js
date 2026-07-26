@@ -102,8 +102,10 @@ export async function downloadUserInvoice(id) {
   window.URL.revokeObjectURL(downloadUrl);
 }
 
+import { getApiBaseUrl } from "../utils/apiBaseUrl";
+
 export function getUserInvoiceUrl(id) {
-  const base = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
+  const base = getApiBaseUrl();
   return `${base}/api/user/orders/${id}/invoice`;
 }
 

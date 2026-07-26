@@ -24,7 +24,7 @@ function getPathnameFromTarget(target) {
 
 function isAuthPageTarget(target) {
   const pathname = getPathnameFromTarget(target);
-  return ["/login", "/register", "/role", "/staff/login"].includes(pathname);
+  return ["/login", "/register", "/staff/login"].includes(pathname);
 }
 
 function isAllowedPrimaryTarget(target) {

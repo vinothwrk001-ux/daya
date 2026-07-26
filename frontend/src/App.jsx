@@ -14,7 +14,6 @@ import { StaffDashboardLayout } from "./components/staff/DashboardLayout";
 const lazyNamed = (loader, exportName) => lazy(() => loader().then((module) => ({ default: module[exportName] })));
 
 const HomePage = lazyNamed(() => import("./pages/HomePage"), "HomePage");
-const RoleSelectionPage = lazyNamed(() => import("./pages/RoleSelectionPage"), "RoleSelectionPage");
 const LoginPage = lazyNamed(() => import("./pages/LoginPage"), "LoginPage");
 const RegisterPage = lazyNamed(() => import("./pages/RegisterPage"), "RegisterPage");
 const ForgotPasswordPage = lazyNamed(() => import("./pages/ForgotPasswordPage"), "ForgotPasswordPage");
@@ -30,6 +29,7 @@ const TermsAndConditionsPage = lazyNamed(() => import("./pages/TermsAndCondition
 const PrivacyPolicyPage = lazyNamed(() => import("./pages/PrivacyPolicyPage"), "PrivacyPolicyPage");
 const ReturnPolicyPage = lazyNamed(() => import("./pages/ReturnPolicyPage"), "ReturnPolicyPage");
 const ShippingPolicyPage = lazyNamed(() => import("./pages/ShippingPolicyPage"), "ShippingPolicyPage");
+const BlogsPage = lazyNamed(() => import("./pages/BlogsPage"), "BlogsPage");
 const AboutPage = lazyNamed(() => import("./pages/AboutPage"), "AboutPage");
 const ProfilePage = lazyNamed(() => import("./pages/ProfilePage"), "ProfilePage");
 const OrdersPage = lazyNamed(() => import("./pages/OrdersPage"), "OrdersPage");
@@ -115,7 +115,6 @@ export default function App() {
     <Routes location={backgroundLocation || location}>
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
-        <Route path="/role" element={<RoleSelectionPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/staff/login" element={<Navigate to="/login" replace />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -130,10 +129,11 @@ export default function App() {
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/compare" element={<ComparePage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
-        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms-conditions" element={<TermsAndConditionsPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/return-policy" element={<ReturnPolicyPage />} />
-        <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
+        <Route path="/shipping" element={<ShippingPolicyPage />} />
+        <Route path="/blogs" element={<BlogsPage />} />
         <Route path="/about" element={<AboutPage />} />
 
         <Route element={<ProtectedRoute />}>

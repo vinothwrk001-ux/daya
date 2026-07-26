@@ -24,6 +24,7 @@ import { getFormattedWeight } from "../utils/weight";
 import { useCart } from "../hooks/useCart";
 import { useCartDrawer } from "../hooks/useCartDrawer";
 import { useWishlist } from "../hooks/useWishlist";
+import { useNotification } from "../context/NotificationContext";
 import buyNowSessionService from "../services/buyNowSessionService";
 import { getCartErrorMessage } from "../utils/cartErrors";
 import { getReelAttribution, getReelSessionId, trackReelProductView } from "../services/reelService";
@@ -146,8 +147,9 @@ export function ProductDetailsPage() {
   const variantIdFromQuery = searchParams.get("variantId");
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const { addItem: addCartItem } = useCart();
+  const { cart, addItem: addCartItem } = useCart();
   const { openDrawer } = useCartDrawer();
+  const { showError } = useNotification();
   const {
     addItem: addWishlistItem,
     removeItem: removeWishlistItem,
@@ -437,12 +439,20 @@ export function ProductDetailsPage() {
 
   async function handleAddToCart(redirectTo = null) {
     if (adding || buyingNow) return;
+
+    const quantity = 1;
+    const variantId = activeVariant?.variantId || "";
+    const cartItem = cart?.items?.find((i) => String(i.productId) === String(product?._id) && String(i.variantId || "") === String(variantId));
+    const atMaxQuantity = cartItem && cartItem.quantity >= (cartItem.maxQuantity ?? cartItem.availableStock ?? 999);
+
+    if (atMaxQuantity) {
+      showError("Maximum available quantity reached for this size/color.", { duration: 2000 });
+      return;
+    }
+
     setAdding(true);
     setError("");
     try {
-      const quantity = 1;
-      const variantId = activeVariant?.variantId || "";
-
       const added = await addCartItem(product._id, quantity, variantId);
       if (!added) {
         return;
@@ -451,7 +461,7 @@ export function ProductDetailsPage() {
         openDrawer(product, activeVariant, quantity);
       }
     } catch (err) {
-      setError(getCartErrorMessage(err, "Failed to add to cart"));
+      showError(getCartErrorMessage(err, "Failed to add to cart"));
     } finally {
       setAdding(false);
     }
@@ -459,12 +469,20 @@ export function ProductDetailsPage() {
 
   async function handleBuyNow() {
     if (buyingNow || adding || !product?._id) return;
+
+    const quantity = 1;
+    const variantId = activeVariant?.variantId || "";
+    const cartItem = cart?.items?.find((i) => String(i.productId) === String(product?._id) && String(i.variantId || "") === String(variantId));
+    const atMaxQuantity = cartItem && cartItem.quantity >= (cartItem.maxQuantity ?? cartItem.availableStock ?? 999);
+
+    if (atMaxQuantity) {
+      showError("Maximum available quantity reached for this size/color.", { duration: 2000 });
+      return;
+    }
+
     setBuyingNow(true);
     setError("");
     try {
-      const quantity = 1;
-      const variantId = activeVariant?.variantId || "";
-
       if (!isAuthenticated) {
         const guestToken = buyNowSessionService.getOrCreateGuestToken();
         const session = await buyNowSessionService.createBuyNowSession(product._id, quantity, variantId, {
@@ -477,7 +495,7 @@ export function ProductDetailsPage() {
       const session = await buyNowSessionService.createBuyNowSession(product._id, quantity, variantId);
       navigate(`/checkout?mode=buy-now&session=${encodeURIComponent(session.sessionId)}`);
     } catch (err) {
-      setError(getCartErrorMessage(err, "Failed to start checkout"));
+      showError(getCartErrorMessage(err, "Failed to start checkout"));
     } finally {
       setBuyingNow(false);
     }

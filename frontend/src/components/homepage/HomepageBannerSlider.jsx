@@ -147,7 +147,7 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
 
   const imageClasses = "h-full w-auto max-w-full object-contain object-left scale-[1.15]";
 
-  const cardBodyClasses = "pointer-events-none absolute inset-x-0 bottom-5 z-10 flex flex-col items-center justify-end";
+  const cardBodyClasses = "pointer-events-none absolute inset-x-0 bottom-5 md:bottom-2 z-10 flex flex-col items-center justify-end";
 
   // Container for the pill badge and secondary info - ensures perfect centering
   const titleSectionClasses = "flex flex-col items-center justify-center gap-0 text-center w-full";

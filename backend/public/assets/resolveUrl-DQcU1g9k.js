@@ -1,0 +1,1 @@
+function e(t){return Array.isArray(t)?e(t[0]):(t&&typeof t==`object`&&(t=t.url||t.secureUrl||t.path||t.src||``),!t||(t=String(t),t.startsWith(`http://`)||t.startsWith(`https://`))||t.startsWith(`data:`)||t.startsWith(`blob:`)?t:`${`http://localhost:5000`.replace(/\/$/,``)}${t.startsWith(`/`)?t:`/${t}`}`)}export{e as t};

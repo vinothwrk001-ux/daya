@@ -257,7 +257,7 @@ function ReelSlide({
   return (
     <section className="relative flex h-[100dvh] w-full snap-start snap-always items-center justify-center">
       <div 
-        className="relative flex h-[96dvh] w-full max-w-[480px] items-stretch justify-center overflow-hidden rounded-[2.5rem] sm:h-[90dvh] sm:rounded-[3rem] md:max-w-[420px]"
+        className="relative flex h-[100dvh] w-full max-w-full items-stretch justify-center overflow-hidden rounded-none sm:h-[96dvh] sm:max-w-[480px] sm:rounded-[2.5rem] md:h-[90dvh] md:max-w-[420px] md:rounded-[3rem]"
         style={{
           WebkitMaskImage: '-webkit-radial-gradient(white, black)',
           maskImage: 'radial-gradient(white, black)',
@@ -307,7 +307,7 @@ function ReelSlide({
 
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
 
-        <div className="absolute left-3 top-3 z-30 md:hidden">
+        <div className="absolute left-3 top-8 z-30 sm:top-3 md:hidden">
           <button
             type="button"
             onClick={() => {
@@ -327,7 +327,7 @@ function ReelSlide({
         <button
           type="button"
           onClick={() => setMuted((value) => !value)}
-          className="absolute right-3 top-3 z-30 rounded-full bg-black/40 p-2.5 text-white backdrop-blur-sm"
+          className="absolute right-3 top-8 z-30 rounded-full bg-black/40 p-2.5 text-white backdrop-blur-sm sm:top-3"
         >
           {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
