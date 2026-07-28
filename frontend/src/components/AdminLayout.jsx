@@ -19,6 +19,10 @@ const pageMeta = {
     title: "Orders",
     subtitle: "Track fulfillment progress and update order statuses.",
   },
+  "/admin/service-requests": {
+    title: "Services Requests",
+    subtitle: "Manage and track incoming service requests from clients.",
+  },
   "/admin/payments": {
     title: "Payments",
     subtitle: "Review captured payments, verification state, and gateway records.",

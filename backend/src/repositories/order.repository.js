@@ -127,6 +127,7 @@ class OrderRepository {
         .sort(sort)
         .skip(skip)
         .limit(limit)
+        .lean()
         .exec(),
       Order.countDocuments(query),
     ]);
@@ -212,6 +213,7 @@ class OrderRepository {
         .sort(sort)
         .skip(skip)
         .limit(limit)
+        .lean()
         .exec(),
       Order.countDocuments(query),
     ]);
@@ -318,6 +320,7 @@ class OrderRepository {
       createdAt: { $gte: startDate, $lte: endDate },
     })
       .sort({ createdAt: -1 })
+      .lean()
       .exec();
   }
 

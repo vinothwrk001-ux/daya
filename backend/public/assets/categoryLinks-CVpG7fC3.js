@@ -1,0 +1,1 @@
+function e(e){return!!(e?.redirectToServices||e?.redirect_to_services)}function t(t){return e(t)?`/services`:t?.slug?`/category/${t.slug}`:`/shop`}export{t as n,e as t};

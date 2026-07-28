@@ -642,6 +642,13 @@ h3,
     }
   }
 
+  @media (min-width: 1280px) {
+    .hero-header-grid {
+      grid-template-columns: minmax(0, 1fr) clamp(280px, 30vw, 500px) minmax(0, 1fr);
+      gap: clamp(1rem, 2vw, 2.5rem);
+    }
+  }
+
   .hero-header-grid__start {
     justify-self: start;
   }
@@ -1049,7 +1056,7 @@ h3,
   }
 
   .hero-banner-header nav {
-    margin-top: 0.375rem;
+    margin-top: 1.5rem;
   }
 
   .hero-banner-header nav .flex {
@@ -1057,7 +1064,7 @@ h3,
   }
 
   .hero-banner-header nav a {
-    font-size: 0.625rem;
+    font-size: 0.75rem;
     letter-spacing: 0.04em;
   }
 
@@ -1440,4 +1447,118 @@ h3,
   .testimonial-card {
     padding: 1.25rem;
   }
+}
+
+/* ============================================================
+   Enterprise Desktop Resolution Optimization (STRICT)
+   Target: 1600px, 1536px, 1440px, 1366px, 1280px
+   1920px remains untouched.
+   ============================================================ */
+
+/* 1728px breakpoint */
+@media (min-width: 1728px) and (max-width: 1919px) {
+  .hero-banner-stack { min-height: 749px !important; }
+  .hero-banner-body { max-width: 1320px !important; }
+  .hero-header-grid { grid-template-columns: minmax(0, 1fr) 450px minmax(0, 1fr) !important; gap: 36px !important; }
+  .hero-banner-content > div { max-width: 518px !important; }
+  .hero-banner-content > div p.text-xl { font-size: 23px !important; }
+  .hero-banner-content > div h2 { font-size: 43px !important; line-height: 1.1 !important; }
+  .hero-banner-content > div span.text-sm.tracking-wider { font-size: 12.6px !important; }
+  .hero-banner-content > div > div.mt-4 { gap: 7.2px !important; transform: translateY(-29px) !important; }
+  .hero-banner-content > div > div.mt-4 > div { width: 162px !important; height: 216px !important; }
+  .banner-category-card p { font-size: 9.9px !important; }
+  .hero-banner-stack button.absolute { width: 50.4px !important; height: 50.4px !important; }
+  .enterprise-header .group.max-w-\[500px\] { max-width: 450px !important; }
+  .enterprise-nav-pill { gap: 10.8px !important; }
+  .enterprise-nav-pill a { padding-left: 14.4px !important; padding-right: 14.4px !important; font-size: 12.6px !important; }
+  .hero-banner-overlay img, .hero-banner-overlay video { width: 100% !important; object-fit: cover !important; object-position: center !important; }
+}
+
+/* 1600px breakpoint */
+@media (min-width: 1600px) and (max-width: 1727px) {
+  .hero-banner-stack { min-height: 693px !important; }
+  .hero-banner-body { max-width: 1300px !important; }
+  .hero-header-grid { grid-template-columns: minmax(0, 1fr) 417px minmax(0, 1fr) !important; gap: 33px !important; }
+  .hero-banner-content > div { max-width: 480px !important; }
+  .hero-banner-content > div p.text-xl { font-size: 21.3px !important; }
+  .hero-banner-content > div h2 { font-size: 40px !important; line-height: 1.1 !important; }
+  .hero-banner-content > div span.text-sm.tracking-wider { font-size: 11.7px !important; }
+  .hero-banner-content > div > div.mt-4 { gap: 6.7px !important; transform: translateY(-27px) !important; }
+  .hero-banner-content > div > div.mt-4 > div { width: 150px !important; height: 200px !important; }
+  .banner-category-card p { font-size: 9.2px !important; }
+  .hero-banner-stack button.absolute { width: 46.7px !important; height: 46.7px !important; }
+  .enterprise-header .group.max-w-\[500px\] { max-width: 417px !important; }
+  .enterprise-nav-pill { gap: 10px !important; }
+  .enterprise-nav-pill a { padding-left: 13.3px !important; padding-right: 13.3px !important; font-size: 11.7px !important; }
+  .hero-banner-overlay img, .hero-banner-overlay video { width: 100% !important; object-fit: cover !important; object-position: center !important; }
+}
+
+/* 1536px breakpoint */
+@media (min-width: 1536px) and (max-width: 1599px) {
+  .hero-banner-stack { min-height: 666px !important; }
+  .hero-banner-body { max-width: 1280px !important; }
+  .hero-header-grid { grid-template-columns: minmax(0, 1fr) 400px minmax(0, 1fr) !important; gap: 32px !important; }
+  .hero-banner-content > div { max-width: 461px !important; }
+  .hero-banner-content > div p.text-xl { font-size: 20.5px !important; }
+  .hero-banner-content > div h2 { font-size: 38.4px !important; line-height: 1.1 !important; }
+  .hero-banner-content > div span.text-sm.tracking-wider { font-size: 11.2px !important; }
+  .hero-banner-content > div > div.mt-4 { gap: 6.4px !important; transform: translateY(-25.6px) !important; }
+  .hero-banner-content > div > div.mt-4 > div { width: 144px !important; height: 192px !important; }
+  .banner-category-card p { font-size: 8.8px !important; }
+  .hero-banner-stack button.absolute { width: 44.8px !important; height: 44.8px !important; }
+  .enterprise-header .group.max-w-\[500px\] { max-width: 400px !important; }
+  .enterprise-nav-pill { gap: 9.6px !important; }
+  .enterprise-nav-pill a { padding-left: 12.8px !important; padding-right: 12.8px !important; font-size: 11.2px !important; }
+  .hero-banner-overlay img, .hero-banner-overlay video { width: 100% !important; object-fit: cover !important; object-position: center !important; }
+}
+
+/* 1440px breakpoint */
+@media (min-width: 1440px) and (max-width: 1535px) {
+  .hero-banner-stack { min-height: 624px !important; }
+  .hero-banner-body { max-width: 1250px !important; }
+  .hero-header-grid { grid-template-columns: minmax(0, 1fr) 375px minmax(0, 1fr) !important; gap: 30px !important; }
+  .hero-banner-content > div { max-width: 432px !important; }
+  .hero-banner-content > div p.text-xl { font-size: 19.2px !important; }
+  .hero-banner-content > div h2 { font-size: 36px !important; line-height: 1.1 !important; }
+  .hero-banner-content > div span.text-sm.tracking-wider { font-size: 10.5px !important; }
+  .hero-banner-content > div > div.mt-4 { gap: 6px !important; transform: translateY(-24px) !important; }
+  .hero-banner-content > div > div.mt-4 > div { width: 135px !important; height: 180px !important; }
+  .banner-category-card p { font-size: 8.25px !important; }
+  .hero-banner-stack button.absolute { width: 42px !important; height: 42px !important; }
+  .enterprise-header .group.max-w-\[500px\] { max-width: 375px !important; }
+  .enterprise-nav-pill { gap: 9px !important; }
+  .enterprise-nav-pill a { padding-left: 12px !important; padding-right: 12px !important; font-size: 10.5px !important; }
+  .hero-banner-overlay img, .hero-banner-overlay video { width: 100% !important; object-fit: cover !important; object-position: center !important; }
+}
+
+/* 1366px breakpoint */
+@media (min-width: 1366px) and (max-width: 1439px) {
+  .hero-banner-stack { min-height: 650px !important; }
+  .hero-banner-content > div { max-width: 420px !important; }
+  .hero-banner-content > div p.text-xl { font-size: 19px !important; }
+  .hero-banner-content > div span.text-sm.tracking-wider { font-size: 11px !important; }
+  .hero-banner-content > div > div.mt-4 { gap: 5px !important; transform: translateY(-12px) !important; }
+  .hero-banner-content > div > div.mt-4 > div { width: 135px !important; height: 180px !important; }
+  .banner-category-card p { font-size: 8.5px !important; }
+  .hero-banner-stack button.absolute { width: 46px !important; height: 46px !important; }
+  
+  .enterprise-header .group.max-w-\[500px\] { max-width: 380px !important; }
+  .enterprise-nav-pill { gap: 6px !important; }
+  .enterprise-nav-pill a { padding-left: 8px !important; padding-right: 8px !important; font-size: 12px !important; }
+}
+
+/* 1280px breakpoint */
+@media (min-width: 1280px) and (max-width: 1365px) {
+  .hero-banner-stack { min-height: 620px !important; }
+  .hero-banner-content > div { max-width: 390px !important; }
+  .hero-banner-content > div p.text-xl { font-size: 18px !important; }
+  .hero-banner-content > div span.text-sm.tracking-wider { font-size: 11px !important; }
+  .hero-banner-content > div > div.mt-4 { gap: 4px !important; transform: translateY(-8px) !important; }
+  .hero-banner-content > div > div.mt-4 > div { width: 128px !important; height: 170px !important; }
+  .banner-category-card p { font-size: 8px !important; }
+  .hero-banner-stack button.absolute { width: 44px !important; height: 44px !important; }
+  
+  .enterprise-header .group.max-w-\[500px\] { max-width: 360px !important; }
+  .enterprise-nav-pill { gap: 6px !important; }
+  .enterprise-nav-pill a { padding-left: 8px !important; padding-right: 8px !important; font-size: 12px !important; }
 }

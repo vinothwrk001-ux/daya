@@ -1,15 +1,17 @@
+import { useState } from "react";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { useBranding } from "../context/BrandingContext";
 import { pickBrandingLogo } from "../utils/brandingLogo";
 
 export function BrandLogo({ className = "", imgClassName = "", showName = true, dark = false }) {
   const { branding } = useBranding();
+  const [error, setError] = useState(false);
   const logoUrl = dark
     ? pickBrandingLogo(branding, { context: "dark-header" })
     : pickBrandingLogo(branding, { context: "default" });
   const name = branding?.companyName || "DayaCreatives";
 
-  if (logoUrl) {
+  if (logoUrl && !error) {
     return (
       <div className={`inline-flex items-center gap-3 ${className}`.trim()}>
         <img
@@ -18,6 +20,7 @@ export function BrandLogo({ className = "", imgClassName = "", showName = true, 
           className={imgClassName || "branding-logo-image"}
           loading="eager"
           decoding="async"
+          onError={() => setError(true)}
         />
         {showName ? <span className="text-sm font-semibold tracking-[-0.03em]">{name}</span> : null}
       </div>

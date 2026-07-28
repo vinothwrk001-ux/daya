@@ -56,14 +56,14 @@ export function SearchBar({ className = "" }) {
 
   return (
     <div ref={searchRef} className={`group relative mx-auto w-full max-w-[500px] sm:ml-auto sm:mr-0 ${className}`.trim()}>
-      <div className="relative mx-[13px] flex w-[calc(100%-26px)] items-center sm:mx-0 sm:w-full">
+      <div className="relative mx-[13px] flex w-[calc(100%-26px)] items-center rounded-full bg-gray-100 pl-4 pr-1.5 py-1.5 transition duration-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-gray-300 sm:mx-0 sm:w-full lg:ml-2">
         <input
           type="text"
           placeholder="Search product"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => searchQuery.trim().length > 0 && setShowResults(true)}
-          className="w-full rounded-full bg-gray-100 py-3 pl-6 pr-16 text-sm text-slate-900 outline-none transition duration-300 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-gray-300 lg:ml-2"
+          className="min-w-0 flex-1 bg-transparent px-2 py-1 text-sm text-slate-900 outline-none placeholder:text-gray-400"
         />
         <button
           type="button"
@@ -72,9 +72,9 @@ export function SearchBar({ className = "" }) {
               // Optionally redirect to search results or trigger search
             }
           }}
-          className="absolute right-1.5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white transition hover:bg-gray-900"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"
         >
-          <Search className="h-5 w-5" />
+          <Search className="h-4 w-4" />
         </button>
       </div>
 

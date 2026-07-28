@@ -64,22 +64,22 @@ export function HeroHeader({ variant = "overlay" }) {
             <UserMenu variant={isOverlay ? "hero" : "default"} />
           ) : (
             <Link to="/login" className={`flex items-center gap-2 transition ${textClass}`}>
-              <User className="h-5 w-5 sm:h-6 sm:w-6" />
-              <span className="hidden text-xs font-medium sm:inline sm:text-sm">Login</span>
+              <User className="h-[clamp(1.25rem,1.5vw,1.5rem)] w-[clamp(1.25rem,1.5vw,1.5rem)]" />
+              <span className="hidden font-medium sm:inline xl:text-[clamp(.9rem,.95vw,1rem)]">Login</span>
             </Link>
           )}
         </div>
       </div>
 
-      <nav className="mt-3 flex w-full justify-center sm:mt-4" aria-label="Primary">
+      <nav className="mt-6 flex w-full justify-center sm:mt-4" aria-label="Primary">
         <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
           {NAV_LINKS.map((item) =>
             item.to.startsWith("/") ? (
-              <Link key={item.label} to={item.to} className={`text-xs font-semibold transition sm:text-sm ${navClass}`}>
+              <Link key={item.label} to={item.to} className={`font-semibold transition xl:text-[clamp(.9rem,.95vw,1rem)] ${navClass}`}>
                 {item.label}
               </Link>
             ) : (
-              <a key={item.label} href={item.to} className={`text-xs font-semibold transition sm:text-sm ${navClass}`}>
+              <a key={item.label} href={item.to} className={`font-semibold transition xl:text-[clamp(.9rem,.95vw,1rem)] ${navClass}`}>
                 {item.label}
               </a>
             )

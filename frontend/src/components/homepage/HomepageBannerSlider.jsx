@@ -179,8 +179,8 @@ const BannerCategoryCard = memo(function BannerCategoryCard({ card, onSelect, pr
       </div>
       <div className={cardBodyClasses}>
         <div className={titleSectionClasses}>
-          <div className={`inline-flex h-[31px] w-[90%] max-w-[95%] ${labelMinWidthClass} items-center justify-center rounded-full bg-white px-5 shadow-lg md:w-[88%] md:max-w-[120px] md:px-[14px] lg:w-[92%] xl:w-[96%]`}>
-            <p className="whitespace-nowrap text-[11px] font-semibold text-black text-center max-md:overflow-hidden max-md:text-ellipsis md:overflow-visible">{titleWithEmoji}</p>
+          <div className={`inline-flex h-[clamp(24px,1.5vw,31px)] w-[90%] max-w-[95%] ${labelMinWidthClass} items-center justify-center rounded-full bg-white px-[clamp(8px,.5vw,20px)] shadow-lg md:w-[88%] md:max-w-[120px] md:px-[14px] lg:w-[92%] xl:w-[96%]`}>
+            <p className="whitespace-nowrap text-[clamp(9px,0.8vw,11px)] font-semibold text-black text-center max-md:overflow-hidden max-md:text-ellipsis md:overflow-visible">{titleWithEmoji}</p>
           </div>
           {card.showProductCount !== false && card.productCount != null ? (
             <p className={countClasses}>{card.productCount} products</p>
@@ -388,11 +388,11 @@ export function HomepageBannerSlider({
 
   const _textBlock = (
     <>
-      <p className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-primary sm:text-xs">
+      <p className="text-[10px] font-black uppercase tracking-[0.32em] text-brand-primary sm:text-xs xl:text-[clamp(.7rem,.7vw,.875rem)]">
         {featuredText}
       </p>
       <h2
-        className="mt-3 pt-8 max-w-[65ch] w-full text-center text-2xl font-black uppercase leading-tight tracking-[-0.03em] text-white sm:mt-4 sm:pt-10 sm:text-3xl md:text-4xl lg:text-5xl"
+        className="mt-3 pt-8 max-w-[65ch] w-full text-center text-2xl font-black uppercase leading-tight tracking-[-0.03em] text-white sm:mt-4 sm:pt-10 sm:text-3xl md:text-4xl lg:text-5xl xl:text-[clamp(2rem,2.5vw,3rem)]"
         style={{ textWrap: "balance", WebkitTextWrap: "balance", overflowWrap: "anywhere" }}
       >
         {activeBanner.title || activeBanner.name}
@@ -418,7 +418,7 @@ export function HomepageBannerSlider({
       onMouseLeave={() => setHovered(false)}
     >
       <div
-        className={`hero-banner-stack relative w-full ${embedded ? "h-full" : "min-h-[44rem] rounded-[1.5rem] border border-zinc-200 bg-white shadow-xl sm:min-h-[52rem] sm:rounded-[2rem]"}`}
+        className={`hero-banner-stack relative w-full ${embedded ? "h-full" : "min-h-[44rem] rounded-[1.5rem] border border-zinc-200 bg-white shadow-xl sm:min-h-[52rem] xl:min-h-[clamp(650px,43.3vw,832px)] xl:rounded-[2rem]"}`}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         role="region"
@@ -448,8 +448,8 @@ export function HomepageBannerSlider({
             <header className="hero-banner-header px-4 pt-3 sm:px-6 lg:px-8">{headerSlot}</header>
           ) : null}
 
-          <div className="hero-banner-body h-full">
-            <div className="hero-banner-content flex h-full flex-1 flex-col justify-center px-4 py-5 sm:px-6 sm:py-6 lg:items-end lg:px-8 lg:py-8">
+          <div className="hero-banner-body h-full w-full mx-auto max-w-[1350px]">
+            <div className="hero-banner-content flex h-full flex-1 flex-col justify-center px-4 py-5 sm:px-6 sm:py-6 lg:items-end lg:pl-8 lg:pr-2 xl:pr-0">
               <div className="w-full max-w-[36rem] flex h-full flex-col justify-start gap-8 rounded-[1.6rem] bg-transparent p-0">
                 <MotionDiv
                   key={`text-${activeBanner.id || index}`}
@@ -460,23 +460,23 @@ export function HomepageBannerSlider({
                 >
                   <div className="flex w-full flex-col items-center gap-4 px-4 text-center">
                     <div className="inline-flex items-center justify-center rounded-full border border-red-500 bg-transparent px-4 py-2">
-                      <span className="text-sm font-bold uppercase tracking-wider text-red-500">Categories</span>
+                      <span className="text-sm font-bold uppercase tracking-wider text-red-500 xl:text-[clamp(.75rem,.7vw,.875rem)]">Categories</span>
                     </div>
-                    <p className="mx-auto w-full max-w-[42rem] text-xl font-semibold leading-tight text-white sm:text-2xl md:text-[1.6rem]">
+                    <p className="mx-auto w-full max-w-[42rem] text-xl font-semibold leading-tight text-white sm:text-2xl md:text-[1.6rem] xl:text-[clamp(1.2rem,1.33vw,1.6rem)]">
                       Discover stylish, high-quality clothing crafted for everyday comfort
                     </p>
                   </div>
                 </MotionDiv>
 
                 {categories.length ? (
-                  <div className="mt-4 hidden md:flex flex-row gap-2 md:gap-2 lg:gap-2 xl:gap-2 justify-center items-end flex-nowrap">
+                  <div className="mt-4 hidden md:flex flex-row gap-2 md:gap-2 lg:gap-2 xl:gap-[clamp(4px,0.4vw,8px)] justify-center items-end flex-nowrap xl:-translate-y-8">
                     {categories.map((card, cardIndex) => (
                       <MotionDiv
                         key={card.id || card.categoryId}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: cardIndex * 0.05, duration: 0.28 }}
-                        className="flex-none w-[50px] md:w-[50px] lg:w-[50px] xl:w-[150px]"
+                        className="flex-none w-[50px] md:w-[50px] lg:w-[50px] xl:w-[clamp(120px,9.3vw,180px)] xl:h-[clamp(168px,12.5vw,240px)]"
                       >
                         <BannerCategoryCard
                           card={card}
@@ -514,17 +514,17 @@ export function HomepageBannerSlider({
               type="button"
               aria-label="Previous banner"
               onClick={() => goTo(index - 1)}
-              className="absolute left-3 top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-900 shadow-lg transition hover:bg-white sm:left-4 lg:inline-flex lg:h-10 lg:w-10"
+              className="absolute left-3 top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-900 shadow-lg transition hover:bg-white sm:left-4 lg:inline-flex lg:h-10 lg:w-10 xl:w-[clamp(40px,3vw,56px)] xl:h-[clamp(40px,3vw,56px)]"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-[50%] w-[50%]" />
             </button>
             <button
               type="button"
               aria-label="Next banner"
               onClick={() => goTo(index + 1)}
-              className="absolute right-3 top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-900 shadow-lg transition hover:bg-white sm:right-4 lg:inline-flex lg:h-10 lg:w-10"
+              className="absolute right-3 top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-900 shadow-lg transition hover:bg-white sm:right-4 lg:inline-flex lg:h-10 lg:w-10 xl:w-[clamp(40px,3vw,56px)] xl:h-[clamp(40px,3vw,56px)]"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-[50%] w-[50%]" />
             </button>
           </>
         ) : null}

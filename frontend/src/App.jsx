@@ -55,6 +55,7 @@ const AdminHomepageBannersPage = lazyNamed(() => import("./pages/AdminHomepageBa
 const AdminHomepageContainersPage = lazyNamed(() => import("./pages/AdminHomepageContainersPage"), "AdminHomepageContainersPage");
 const AdminHomepageBuilderPage = lazyNamed(() => import("./pages/AdminHomepageBuilderPage"), "AdminHomepageBuilderPage");
 const AdminShippingConfigPage = lazyNamed(() => import("./pages/AdminShippingConfigPage"), "AdminShippingConfigPage");
+const AdminServiceRequestsPage = lazyNamed(() => import("./pages/AdminServiceRequestsPage"), "AdminServiceRequestsPage");
 const AdminProductCreate = lazyNamed(() => import("./pages/AdminProductCreate"), "AdminProductCreate");
 const AdminProductEdit = lazyNamed(() => import("./pages/AdminProductEdit"), "AdminProductEdit");
 const AdminOrdersPage = lazyNamed(() => import("./pages/AdminOrdersPage"), "AdminOrdersPage");
@@ -177,6 +178,7 @@ export default function App() {
               <Route path="shipping/config" element={<Navigate to="/admin/shipping" replace />} />
               <Route path="products/create" element={<AdminProductCreate />} />
               <Route path="products/:id/edit" element={<AdminProductEdit />} />
+              <Route path="service-requests" element={<AdminServiceRequestsPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />
               <Route path="payments" element={<AdminPaymentsPage />} />
               <Route path="refunds" element={<AdminRefundsPage />} />

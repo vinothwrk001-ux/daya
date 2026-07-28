@@ -31,13 +31,13 @@ async function main() {
     updatedCount += 1;
   }
 
-  // eslint-disable-next-line no-console
+   
   logger.info("script_output", { value: `Pricing category migration complete. Updated ${updatedCount} pricing rule(s).` });
   await mongoose.disconnect();
 }
 
 main().catch(async (error) => {
-  // eslint-disable-next-line no-console
+   
   logger.error("Pricing category migration failed:", { error: error });
   try {
     await mongoose.disconnect();

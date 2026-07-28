@@ -1,10 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { 
   PenTool, Laptop, Map, Video, ArrowUpRight, Phone, Mail, MapPin, 
   Smartphone, Clapperboard, Layout, Shirt, Camera, Edit3 
 } from "lucide-react";
 import { useBranding } from "../context/BrandingContext";
 import { Link } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+import { api } from "../services/api";
 
 export function ServicesPage() {
   const { branding } = useBranding();
@@ -16,6 +18,85 @@ export function ServicesPage() {
       document.title = companyName;
     };
   }, [companyName]);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    projectDetails: ""
+  });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const validateField = (name, value) => {
+    let error = "";
+    if (name === "name") {
+      if (!value.trim()) error = "Name is required.";
+      else if (value.trim().length < 2) error = "Name must be at least 2 characters long.";
+    }
+    if (name === "email") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!value.trim()) error = "Email is required.";
+      else if (!emailRegex.test(value.trim())) error = "Please enter a valid email address.";
+    }
+    if (name === "phone") {
+      const phoneRegex = /^\d{10}$/;
+      const digitsOnly = value.replace(/\D/g, "");
+      if (!value.trim()) error = "Phone number is required.";
+      else if (!phoneRegex.test(digitsOnly)) error = "Please enter exactly 10 digits.";
+    }
+    if (name === "projectDetails") {
+      if (!value.trim()) error = "Project details are required.";
+      else if (value.trim().length < 10) error = "Project details must be at least 10 characters long.";
+    }
+    return error;
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    if (touched[name]) {
+      setFieldErrors({ ...fieldErrors, [name]: validateField(name, value) });
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched({ ...touched, [name]: true });
+    setFieldErrors({ ...fieldErrors, [name]: validateField(name, value) });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate all fields
+    const errors = {};
+    Object.keys(formData).forEach((key) => {
+      errors[key] = validateField(key, formData[key]);
+    });
+    setFieldErrors(errors);
+    setTouched({ name: true, email: true, phone: true, projectDetails: true });
+
+    if (Object.values(errors).some(err => err)) {
+      return;
+    }
+    setLoading(true);
+    setSuccessMsg("");
+    setErrorMsg("");
+
+    try {
+      await api.post("/api/service-requests", formData);
+      setSuccessMsg("Your request has been submitted successfully! We'll get back to you soon.");
+      setFormData({ name: "", email: "", phone: "", projectDetails: "" });
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const SERVICES_LIST = [
     {
@@ -118,13 +199,27 @@ export function ServicesPage() {
 
       {/* 3. What We Do Section */}
       <section className="w-full bg-black px-6 py-20 text-white lg:py-28">
-        <div className="mx-auto max-w-7xl text-center">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c11c1d]">
-            WHAT WE DO
-          </p>
-          <h2 className="mb-16 text-3xl font-bold text-white sm:text-4xl md:text-5xl">
-            Services That Help<br />Your Brand Grow
-          </h2>
+        <div className="mx-auto max-w-7xl">
+          <div className="relative mb-16 flex flex-col items-center">
+            <div className="text-center">
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c11c1d]">
+                WHAT WE DO
+              </p>
+              <h2 className="text-3xl font-bold text-white sm:text-4xl md:text-5xl">
+                Services That Help<br />Your Brand Grow
+              </h2>
+            </div>
+            <div className="mt-6 sm:absolute sm:bottom-2 sm:right-0 sm:mt-0">
+              <a
+                href="https://www.behance.net/gallery/241615521/Daya-Creatives-Portfolio"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#c11c1d] px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-[#a01618]"
+              >
+                Explore Our Work <ArrowUpRight className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
             {SERVICES_LIST.map((service, i) => (
@@ -251,32 +346,92 @@ export function ServicesPage() {
           </div>
 
           <div className="rounded-2xl bg-[#111111] p-6 sm:p-8">
-            <form className="flex flex-col gap-4">
-              <input 
-                type="text" 
-                placeholder="Your Name" 
-                className="w-full rounded-lg border border-[#333] bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none"
-              />
-              <input 
-                type="email" 
-                placeholder="Your Email" 
-                className="w-full rounded-lg border border-[#333] bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none"
-              />
-              <input 
-                type="tel" 
-                placeholder="Your Phone" 
-                className="w-full rounded-lg border border-[#333] bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none"
-              />
-              <textarea 
-                placeholder="Tell us about your project" 
-                rows="4"
-                className="w-full resize-none rounded-lg border border-[#333] bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none"
-              />
+            <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+              {successMsg && (
+                <div className="rounded-lg bg-green-500/10 p-4 text-sm text-green-500">
+                  {successMsg}
+                </div>
+              )}
+              {errorMsg && (
+                <div className="rounded-lg bg-red-500/10 p-4 text-sm text-red-500">
+                  {errorMsg}
+                </div>
+              )}
+              <div>
+                <input 
+                  type="text" 
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Your Name" 
+                  className={`w-full rounded-lg border ${fieldErrors.name && touched.name ? 'border-red-500' : 'border-[#333]'} bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none`}
+                />
+                {fieldErrors.name && touched.name && <p className="mt-1 text-xs text-red-500">{fieldErrors.name}</p>}
+              </div>
+
+              <div>
+                <input 
+                  type="email" 
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Your Email" 
+                  className={`w-full rounded-lg border ${fieldErrors.email && touched.email ? 'border-red-500' : 'border-[#333]'} bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none`}
+                />
+                {fieldErrors.email && touched.email && <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>}
+              </div>
+
+              <div>
+                <input 
+                  type="tel" 
+                  name="phone"
+                  value={formData.phone}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "");
+                    if (value.length <= 10) {
+                      setFormData(prev => ({ ...prev, phone: value }));
+                      if (touched.phone) {
+                        setFieldErrors(prev => ({ ...prev, phone: validateField("phone", value) }));
+                      }
+                    }
+                  }}
+                  onBlur={handleBlur}
+                  placeholder="Your Phone (10 digits)" 
+                  maxLength={10}
+                  className={`w-full rounded-lg border ${fieldErrors.phone && touched.phone ? 'border-red-500' : 'border-[#333]'} bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none`}
+                />
+                {fieldErrors.phone && touched.phone && <p className="mt-1 text-xs text-red-500">{fieldErrors.phone}</p>}
+              </div>
+
+              <div>
+                <textarea 
+                  name="projectDetails"
+                  value={formData.projectDetails}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Tell us about your project" 
+                  rows="4"
+                  className={`w-full resize-none rounded-lg border ${fieldErrors.projectDetails && touched.projectDetails ? 'border-red-500' : 'border-[#333]'} bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none`}
+                />
+                {fieldErrors.projectDetails && touched.projectDetails && <p className="mt-1 text-xs text-red-500">{fieldErrors.projectDetails}</p>}
+              </div>
               <button 
-                type="button"
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#c11c1d] px-6 py-4 font-bold text-white transition-colors hover:bg-[#a01618]"
+                type="submit"
+                disabled={loading}
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#c11c1d] px-6 py-4 font-bold text-white transition-colors hover:bg-[#a01618] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Send Message <ArrowUpRight className="h-4 w-4" />
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    Send Message <ArrowUpRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
             </form>
           </div>

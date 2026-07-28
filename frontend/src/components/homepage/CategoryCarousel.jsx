@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { resolveApiAssetUrl } from "../../utils/resolveUrl";
 import { getCategoryHref } from "../../utils/categoryLinks";
 import { getHomepageCategories, trackCategoryEvent } from "../../services/categoryService";
+import { scrollPageToTop } from "../../utils/scrollPageToTop";
 
 function getSessionId() {
   if (typeof window === "undefined") return "";
@@ -26,7 +27,7 @@ function CategoryCard({ category, onClick }) {
   return (
     <Link
       to={getCategoryHref(category)}
-      onClick={() => onClick?.(category)}
+      onClick={(e) => onClick?.(e, category)}
       className="group relative flex aspect-[4/4] flex-col overflow-hidden rounded-3xl border-2 border-black bg-zinc-950 shadow-lg transition duration-300 hover:-translate-y-2 hover:border-brand-primary hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--color-primary)_25%,transparent)]"
     >
       <div
@@ -89,7 +90,10 @@ export function CategoryCarousel() {
     };
   }, []);
 
-  function handleCategoryClick(category) {
+  function handleCategoryClick(e, category) {
+    if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      scrollPageToTop();
+    }
     trackCategoryEvent(category._id, {
       eventType: "click",
       sessionId: getSessionId(),

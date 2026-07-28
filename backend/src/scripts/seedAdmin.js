@@ -19,7 +19,7 @@ async function main() {
 
   const existing = await userRepo.findByEmail(email);
   if (existing) {
-    // eslint-disable-next-line no-console
+     
     logger.info("Admin already exists:", { value: existing.email });
     process.exit(0);
   }
@@ -34,13 +34,13 @@ async function main() {
     status: "active",
   });
 
-  // eslint-disable-next-line no-console
+   
   logger.info("Admin created:", { value: user.email });
   process.exit(0);
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
+   
   logger.error("script_error", { error: err });
   process.exit(1);
 });

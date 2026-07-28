@@ -4,6 +4,7 @@ class CartRepository {
   async findByUserId(userId) {
     return await Cart.findOne({ userId })
       .populate("items.productId", "name slug images price discountPrice stock isActive status")
+      .lean()
       .exec();
   }
 

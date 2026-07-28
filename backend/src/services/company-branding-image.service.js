@@ -111,6 +111,60 @@ async function createDerivedImages(file, originalFilePath, outputDir, slot) {
 }
 
 async function persistBrandingAsset(file, { slot, tenantType, tenantKey }) {
+  const { configureCloudinary } = require("../config/cloudinary");
+  const { enabled, cloudinary } = configureCloudinary();
+
+  if (enabled) {
+    const folder = `branding/${safeSegment(tenantType, "platform")}/${safeSegment(tenantKey, "default")}`;
+    const uploaded = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          resource_type: "image",
+        },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+      stream.end(file.buffer);
+    });
+
+    const webpUrl = cloudinary.url(uploaded.public_id, { fetch_format: "webp", quality: 88 });
+    const thumbnailUrl = cloudinary.url(uploaded.public_id, { fetch_format: "webp", quality: 82, width: 160, height: 160, crop: "fit" });
+
+    return {
+      url: uploaded.secure_url,
+      webpUrl,
+      thumbnailUrl,
+      originalName: file.originalname || "",
+      mimeType: file.mimetype || "",
+      size: file.size || uploaded.bytes || 0,
+      width: uploaded.width || 0,
+      height: uploaded.height || 0,
+      checksum: crypto.createHash("sha256").update(file.buffer).digest("hex"),
+      storageProvider: "cloudinary",
+      variants: {
+        original: {
+          url: uploaded.secure_url,
+          width: uploaded.width || 0,
+          height: uploaded.height || 0,
+          size: file.size || uploaded.bytes || 0,
+        },
+        webp: {
+          url: webpUrl,
+          width: uploaded.width || 0,
+          height: uploaded.height || 0,
+          size: 0,
+        },
+        thumbnail: {
+          url: thumbnailUrl,
+          width: 160,
+          height: 160,
+          size: 0,
+        },
+      },
+      updatedAt: new Date(),
+    };
+  }
+
   const uploadsRoot = path.join(process.cwd(), "uploads", "branding", safeSegment(tenantType, "platform"), safeSegment(tenantKey, "default"));
   ensureDir(uploadsRoot);
 

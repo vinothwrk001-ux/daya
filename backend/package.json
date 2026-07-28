@@ -48,6 +48,7 @@
     "bcryptjs": "^3.0.3",
     "bull": "^4.11.5",
     "cloudinary": "^2.9.0",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -73,6 +74,9 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
+    "eslint": "^10.8.0",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "knip": "^6.29.0",
     "nodemon": "^3.1.14"
   }
 }

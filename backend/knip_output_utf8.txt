@@ -1,23 +1,16 @@
-﻿Unused files (16)
-scripts/create-electronics-subcategories.js    
-scripts/diagnose-whatsapp.js                   
-scripts/migrate-pricing-rules.js               
-scripts/retry-whatsapp-logs.js                 
-scripts/seed-homepage-banner.js                
-src/controllers/adminNotification.controller.js
-src/jobs/cod-analytics.job.js                  
-src/jobs/cod-pending-audit.job.js              
-src/models/AdminNotification.js                
-src/routes/adminNotification.routes.js         
-src/scripts/fixBrandingUrls.js                 
-src/scripts/rebrandToDayaCreatives.js          
-src/scripts/seedPlatformElectronicsProducts.js 
-src/services/finance-config.service.js         
-src/services/pendingAction.service.js          
-src/utils/encryption.js                        
-Unused dependencies (1)
-mongodb  package.json:61:6
-Unused exports (667)
+﻿Unused files (9)
+src/constants/category.constants.js       
+src/constants/homepage.constants.js       
+src/constants/inventory.constants.js      
+src/constants/notification.constants.js   
+src/constants/return.constants.js         
+src/constants/review.constants.js         
+src/constants/system.constants.js         
+src/constants/user.constants.js           
+src/validators/shippingConfig.validator.js
+Unlisted binaries (1)
+xcopy  package.json
+Unused exports (672)
 COMMON_FIELDS                           src/config/homepageContainerRegistry.js:383:3                  
 PRODUCT_FILTER_FIELDS                   src/config/homepageContainerRegistry.js:384:3                  
 getContainerTypeConfig                  src/config/homepageContainerRegistry.js:386:3                  
@@ -63,15 +56,17 @@ getAdminAttributes                      src/controllers/attribute.controller.js:
 createAttribute                         src/controllers/attribute.controller.js:36:3                   
 updateAttribute                         src/controllers/attribute.controller.js:37:3                   
 deleteAttribute                         src/controllers/attribute.controller.js:38:3                   
-register                                src/controllers/auth.controller.js:139:3                       
-login                                   src/controllers/auth.controller.js:140:3                       
-refresh                                 src/controllers/auth.controller.js:141:3                       
-logout                                  src/controllers/auth.controller.js:142:3                       
-logoutAll                               src/controllers/auth.controller.js:143:3                       
-me                                      src/controllers/auth.controller.js:144:3                       
-updateThemePreference                   src/controllers/auth.controller.js:145:3                       
-mergeGuestData                          src/controllers/auth.controller.js:146:3                       
-csrf                                    src/controllers/auth.controller.js:147:3                       
+register                                src/controllers/auth.controller.js:160:3                       
+login                                   src/controllers/auth.controller.js:161:3                       
+googleLogin                             src/controllers/auth.controller.js:162:3                       
+refresh                                 src/controllers/auth.controller.js:163:3                       
+logout                                  src/controllers/auth.controller.js:164:3                       
+logoutAll                               src/controllers/auth.controller.js:165:3                       
+me                                      src/controllers/auth.controller.js:166:3                       
+updateThemePreference                   src/controllers/auth.controller.js:167:3                       
+mergeGuestData                          src/controllers/auth.controller.js:168:3                       
+csrf                                    src/controllers/auth.controller.js:169:3                       
+checkUsername                           src/controllers/auth.controller.js:170:3                       
 getCart                                 src/controllers/cart.controller.js:153:3                       
 add                                     src/controllers/cart.controller.js:154:3                       
 update                                  src/controllers/cart.controller.js:155:3                       
@@ -218,25 +213,25 @@ getPaymentDetails                       src/controllers/payment.controller.js:12
 listRefunds                             src/controllers/payment.controller.js:127:3                    
 reviewRefund                            src/controllers/payment.controller.js:128:3                    
 getRefundStatus                         src/controllers/payment.controller.js:129:3                    
-getPricingConfig                        src/controllers/pricing.controller.js:605:3                    
-getAdminPricingConfig                   src/controllers/pricing.controller.js:606:3                    
-updatePricingConfig                     src/controllers/pricing.controller.js:607:3                    
-initializePricingConfig                 src/controllers/pricing.controller.js:608:3                    
-getAllPricingRules                      src/controllers/pricing.controller.js:611:3                    
-getActivePricingRules                   src/controllers/pricing.controller.js:612:3                    
-getPricingRule                          src/controllers/pricing.controller.js:613:3                    
-createPricingRule                       src/controllers/pricing.controller.js:614:3                    
-updatePricingRule                       src/controllers/pricing.controller.js:615:3                    
-deletePricingRule                       src/controllers/pricing.controller.js:616:3                    
-getPricingCategories                    src/controllers/pricing.controller.js:617:3                    
-createPricingCategory                   src/controllers/pricing.controller.js:618:3                    
-updatePricingCategory                   src/controllers/pricing.controller.js:619:3                    
-deletePricingCategory                   src/controllers/pricing.controller.js:620:3                    
-toggleMultipleRulesActive               src/controllers/pricing.controller.js:621:3                    
-togglePricingRuleActive                 src/controllers/pricing.controller.js:622:3                    
-calculateOrderTotal                     src/controllers/pricing.controller.js:623:3                    
-getPricingSummary                       src/controllers/pricing.controller.js:624:3                    
-previewRuleImpact                       src/controllers/pricing.controller.js:625:3                    
+getPricingConfig                        src/controllers/pricing.controller.js:570:3                    
+getAdminPricingConfig                   src/controllers/pricing.controller.js:571:3                    
+updatePricingConfig                     src/controllers/pricing.controller.js:572:3                    
+initializePricingConfig                 src/controllers/pricing.controller.js:573:3                    
+getAllPricingRules                      src/controllers/pricing.controller.js:576:3                    
+getActivePricingRules                   src/controllers/pricing.controller.js:577:3                    
+getPricingRule                          src/controllers/pricing.controller.js:578:3                    
+createPricingRule                       src/controllers/pricing.controller.js:579:3                    
+updatePricingRule                       src/controllers/pricing.controller.js:580:3                    
+deletePricingRule                       src/controllers/pricing.controller.js:581:3                    
+getPricingCategories                    src/controllers/pricing.controller.js:582:3                    
+createPricingCategory                   src/controllers/pricing.controller.js:583:3                    
+updatePricingCategory                   src/controllers/pricing.controller.js:584:3                    
+deletePricingCategory                   src/controllers/pricing.controller.js:585:3                    
+toggleMultipleRulesActive               src/controllers/pricing.controller.js:586:3                    
+togglePricingRuleActive                 src/controllers/pricing.controller.js:587:3                    
+calculateOrderTotal                     src/controllers/pricing.controller.js:588:3                    
+getPricingSummary                       src/controllers/pricing.controller.js:589:3                    
+previewRuleImpact                       src/controllers/pricing.controller.js:590:3                    
 accessPrivateDocument                   src/controllers/privateDocument.controller.js:12:20            
 getProductModules                       src/controllers/product-module.controller.js:31:3              
 getAdminProductModules                  src/controllers/product-module.controller.js:32:3              
@@ -278,20 +273,20 @@ overrideShippingMode                    src/controllers/shipping.controller.js:1
 updateOrderShippingStatus               src/controllers/shipping.controller.js:161:3                   
 getOrderTracking                        src/controllers/shipping.controller.js:162:3                   
 handleShiprocketWebhook                 src/controllers/shipping.controller.js:163:3                   
-createShippingRule                      src/controllers/shippingConfig.controller.js:209:3             
-getAllShippingRules                     src/controllers/shippingConfig.controller.js:210:3             
-getShippingRule                         src/controllers/shippingConfig.controller.js:211:3             
-updateShippingRule                      src/controllers/shippingConfig.controller.js:212:3             
-deleteShippingRule                      src/controllers/shippingConfig.controller.js:213:3             
-bulkUpdateShippingRules                 src/controllers/shippingConfig.controller.js:214:3             
-calculateShippingPreview                src/controllers/shippingConfig.controller.js:215:3             
-getShippingStatistics                   src/controllers/shippingConfig.controller.js:216:3             
-getShippingOptions                      src/controllers/shippingConfig.controller.js:217:3             
-getShippingLocationConfig               src/controllers/shippingConfig.controller.js:218:3             
-updateShippingLocationConfig            src/controllers/shippingConfig.controller.js:219:3             
-cloneShippingRule                       src/controllers/shippingConfig.controller.js:220:3             
-validateShippingConfiguration           src/controllers/shippingConfig.controller.js:221:3             
-getConfigurationSummary                 src/controllers/shippingConfig.controller.js:222:3             
+createShippingRule                      src/controllers/shippingConfig.controller.js:201:3             
+getAllShippingRules                     src/controllers/shippingConfig.controller.js:202:3             
+getShippingRule                         src/controllers/shippingConfig.controller.js:203:3             
+updateShippingRule                      src/controllers/shippingConfig.controller.js:204:3             
+deleteShippingRule                      src/controllers/shippingConfig.controller.js:205:3             
+bulkUpdateShippingRules                 src/controllers/shippingConfig.controller.js:206:3             
+calculateShippingPreview                src/controllers/shippingConfig.controller.js:207:3             
+getShippingStatistics                   src/controllers/shippingConfig.controller.js:208:3             
+getShippingOptions                      src/controllers/shippingConfig.controller.js:209:3             
+getShippingLocationConfig               src/controllers/shippingConfig.controller.js:210:3             
+updateShippingLocationConfig            src/controllers/shippingConfig.controller.js:211:3             
+cloneShippingRule                       src/controllers/shippingConfig.controller.js:212:3             
+validateShippingConfiguration           src/controllers/shippingConfig.controller.js:213:3             
+getConfigurationSummary                 src/controllers/shippingConfig.controller.js:214:3             
 createSubcategory                       src/controllers/subcategory.controller.js:43:3                 
 getAdminSubcategories                   src/controllers/subcategory.controller.js:44:3                 
 updateSubcategory                       src/controllers/subcategory.controller.js:45:3                 
@@ -350,7 +345,7 @@ getProductStatus                        src/controllers/wishlist.controller.js:1
 validateWishlistItems                   src/controllers/wishlist.controller.js:101:3                   
 mergeGuestWishlist                      src/controllers/wishlist.controller.js:103:3                   
 runMaintenance                          src/jobs/payment-maintenance.job.js:76:3                       
-requirePermission                       src/middleware/auth.js:72:61                                   
+requirePermission                       src/middleware/auth.js:12:61                                   
 createCsrfToken                         src/middleware/csrf.js:103:3                                   
 isValidCsrfToken                        src/middleware/csrf.js:104:3                                   
 emitter                                 src/modules/events/event-bus.js:104:3                          
@@ -483,14 +478,16 @@ updateById                              src/repositories/session.repository.js:3
 revokeById                              src/repositories/session.repository.js:40:3                    
 revokeAllForUser                        src/repositories/session.repository.js:41:3                    
 listActiveForUser                       src/repositories/session.repository.js:42:3                    
-createUser                              src/repositories/user.repository.js:49:3                       
-findByEmail                             src/repositories/user.repository.js:50:3                       
-findByPhone                             src/repositories/user.repository.js:51:3                       
-findById                                src/repositories/user.repository.js:52:3                       
-updateById                              src/repositories/user.repository.js:53:3                       
-deleteById                              src/repositories/user.repository.js:54:3                       
-listUsers                               src/repositories/user.repository.js:55:3                       
-countUsers                              src/repositories/user.repository.js:56:3                       
+createUser                              src/repositories/user.repository.js:61:3                       
+findByEmail                             src/repositories/user.repository.js:62:3                       
+findByPhone                             src/repositories/user.repository.js:63:3                       
+findByName                              src/repositories/user.repository.js:64:3                       
+findById                                src/repositories/user.repository.js:65:3                       
+findByGoogleId                          src/repositories/user.repository.js:66:3                       
+updateById                              src/repositories/user.repository.js:67:3                       
+deleteById                              src/repositories/user.repository.js:68:3                       
+listUsers                               src/repositories/user.repository.js:69:3                       
+countUsers                              src/repositories/user.repository.js:70:3                       
 policies                                src/security/authorizationPolicies.js:83:3                     
 recordActiveViewer                      src/services/activeViewers.service.js:260:3                    
 getActiveViewerCount                    src/services/activeViewers.service.js:261:3                    
@@ -530,13 +527,14 @@ updateAttribute                         src/services/attribute.service.js:315:3
 deleteAttribute                         src/services/attribute.service.js:316:3                        
 listAdminAttributes                     src/services/attribute.service.js:317:3                        
 listAttributesForSelection              src/services/attribute.service.js:319:3                        
-register                                src/services/auth.service.js:250:3                             
-login                                   src/services/auth.service.js:251:3                             
-refreshSession                          src/services/auth.service.js:252:3                             
-logout                                  src/services/auth.service.js:253:3                             
-logoutAll                               src/services/auth.service.js:254:3                             
-me                                      src/services/auth.service.js:255:3                             
-updateThemePreference                   src/services/auth.service.js:256:3                             
+register                                src/services/auth.service.js:317:3                             
+login                                   src/services/auth.service.js:318:3                             
+googleLogin                             src/services/auth.service.js:319:3                             
+refreshSession                          src/services/auth.service.js:320:3                             
+logout                                  src/services/auth.service.js:321:3                             
+logoutAll                               src/services/auth.service.js:322:3                             
+me                                      src/services/auth.service.js:323:3                             
+updateThemePreference                   src/services/auth.service.js:324:3                             
 listActiveCategories                    src/services/category.service.js:450:3                         
 listHomepageCategories                  src/services/category.service.js:451:3                         
 listHeroBannerCategories                src/services/category.service.js:452:3                         
@@ -565,7 +563,7 @@ addCompareItem                          src/services/compare.service.js:132:3
 removeCompareItem                       src/services/compare.service.js:133:3                          
 getCompareStatus                        src/services/compare.service.js:134:3                          
 mergeGuestCompareItems                  src/services/compare.service.js:135:3                          
-exportModule                            src/services/export.service.js:483:3                           
+exportModule                            src/services/export.service.js:523:3                           
 deactivateBannerContainerBuilder        src/services/homepage-banner-container.sync.js:191:3           
 buildContainerPayload                   src/services/homepage-banner-container.sync.js:193:3           
 cleanupLegacyPerBannerContainers        src/services/homepage-banner-container.sync.js:195:3           
@@ -677,11 +675,11 @@ redact                                  src/utils/logger.js:64:49
 resolveShiftWindow                      src/utils/shiftTime.js:112:3                                   
 buildShiftDateRange                     src/utils/shiftTime.js:114:3                                   
 generateUniqueSlug                      src/utils/slug.js:32:3                                         
-validateFiles                           src/utils/upload.js:113:32                                     
-PUBLIC_UPLOAD_DIR                       src/utils/upload.js:113:97                                     
-isPrivateFolder                         src/utils/upload.js:113:136                                    
-ALLOWED_EXTENSIONS                      src/utils/validators/company-branding.validation.js:37:3       
-ALLOWED_MIME_TYPES                      src/utils/validators/company-branding.validation.js:38:3       
-MAX_FILE_SIZE                           src/utils/validators/company-branding.validation.js:39:3       
-productSchema                           src/utils/validators/product.validation.js:230:3               
-approveProductSchema                    src/utils/validators/product.validation.js:233:3               
+validateFiles                           src/utils/upload.js:114:32                                     
+PUBLIC_UPLOAD_DIR                       src/utils/upload.js:114:97                                     
+isPrivateFolder                         src/utils/upload.js:114:136                                    
+ALLOWED_EXTENSIONS                      src/validators/company-branding.validation.js:37:3             
+ALLOWED_MIME_TYPES                      src/validators/company-branding.validation.js:38:3             
+MAX_FILE_SIZE                           src/validators/company-branding.validation.js:39:3             
+productSchema                           src/validators/product.validation.js:230:3                     
+approveProductSchema                    src/validators/product.validation.js:233:3                     

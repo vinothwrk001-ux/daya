@@ -7,6 +7,7 @@ const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 const path = require("path");
+const compression = require("compression");
 
 const { requestLoggerStream, logger } = require("./utils/logger");
 const { notFound } = require("./middleware/notFound");
@@ -48,6 +49,7 @@ const privateDocumentRoutes = require("./routes/private-document.routes");
 const invoiceRoutes = require("./routes/invoice.routes");
 const recommendationRoutes = require("./modules/recommendation/routes");
 const reelRoutes = require("./modules/reels/routes");
+const serviceRequestRoutes = require("./routes/serviceRequest.routes");
 const { assertNoProductionBootstrapRoutes } = require("./utils/bootstrapRouteScanner");
 
 function createLimiter({
@@ -80,6 +82,7 @@ function createApp() {
   const apiRateLimit = Number(process.env.API_RATE_LIMIT_MAX || (isDevelopment ? 5000 : 1000));
 
   app.disable("x-powered-by");
+  app.use(compression());
 
   app.use(
     helmet({
@@ -260,9 +263,28 @@ function createApp() {
   app.use("/api/invoices", invoiceRoutes);
   app.use("/api/recommendations", recommendationRoutes);
   app.use("/api/reels", reelRoutes);
+  app.use("/api/service-requests", serviceRequestRoutes);
 
-  // Serve static files from the 'public' directory
-  app.use(express.static(path.join(process.cwd(), "public")));
+  // Serve static files from the 'public' directory with optimal caching
+  app.use(
+    express.static(path.join(process.cwd(), "public"), {
+      setHeaders: (res, filePath) => {
+        if (
+          filePath.includes(path.normalize("/assets/")) ||
+          /\.(js|css|woff2?|webp|png|jpg|jpeg|svg)$/i.test(filePath)
+        ) {
+          // Immutable assets (hashed by Vite) get 1 year cache
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (filePath.endsWith("index.html")) {
+          // HTML entrypoint should never be cached (or cached with revalidation)
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        } else {
+          // Default cache for other files
+          res.setHeader("Cache-Control", "public, max-age=3600");
+        }
+      },
+    })
+  );
 
   // Handle SPA routing: serve index.html for non-API requests
   app.use((req, res, next) => {

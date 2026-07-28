@@ -50,7 +50,7 @@ async function listUsers({ role, startDate, endDate } = {}) {
   const query = {};
   if (role) query.role = role;
   applyDateRange(query, normalizeDateRange({ startDate, endDate }));
-  return await User.find(query).sort({ createdAt: -1 }).exec();
+  return await User.find(query).sort({ createdAt: -1 }).lean().exec();
 }
 
 async function countUsers(query = {}) {

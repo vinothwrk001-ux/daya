@@ -238,7 +238,7 @@ export function Layout() {
             : isHomePage
               ? "w-full flex-1 p-0"
               : isContentPage
-                ? "w-full flex-1 px-3 py-0 sm:px-4 md:px-0 lg:px-0"
+                ? "w-full flex-1 p-0 sm:px-4 md:px-0 lg:px-0"
                 : "w-full flex-1 px-3 py-0 sm:px-4 md:px-6 lg:px-8"
         }
       >

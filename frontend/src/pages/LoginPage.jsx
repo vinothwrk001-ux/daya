@@ -184,7 +184,15 @@ export function LoginPage() {
       </div>
 
       {/* Right Side */}
-      <div className="flex flex-1 items-center justify-center bg-slate-50 p-6">
+      <div className="relative flex flex-1 items-center justify-center bg-slate-50 p-6">
+        {/* Mobile Back Button */}
+        <Link 
+          to="/" 
+          className="absolute left-4 top-4 z-20 flex h-10 w-10 items-center justify-center text-black md:hidden"
+          title="Back to Home"
+        >
+          <ArrowLeft className="h-6 w-6" />
+        </Link>
         <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>

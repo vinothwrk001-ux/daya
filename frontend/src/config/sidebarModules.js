@@ -23,6 +23,7 @@ import {
   Truck,
   Users,
   Wallet,
+  Wrench,
 } from "lucide-react";
 
 export const ADMIN_PRIMARY_ITEM = {
@@ -50,6 +51,7 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Products", path: "/admin/products", permission: "products.read", icon: Boxes, notificationModule: "MANAGEMENT", notificationSubModule: "PRODUCTS" },
       { name: "Inventory", path: "/admin/inventory", permission: "products.read", icon: Package2, notificationModule: "MANAGEMENT", notificationSubModule: "INVENTORY" },
       { name: "Orders", path: "/admin/orders", permission: "orders.read", icon: ShoppingCart, notificationModule: "MANAGEMENT", notificationSubModule: "ORDERS" },
+      { name: "Services Requests", path: "/admin/service-requests", permission: "orders.read", icon: Wrench, notificationModule: "MANAGEMENT", notificationSubModule: "ORDERS" },
       { name: "Reviews", path: "/admin/reviews", permission: "products.read", icon: Star, notificationModule: "MANAGEMENT", notificationSubModule: "PRODUCTS" },
       { name: "Reels & Shorts", path: "/admin/reels", permission: "products.read", icon: Film, notificationModule: "MANAGEMENT", notificationSubModule: "REELS" },
       { name: "Reels Attribution", path: "/admin/reels/attribution", permission: "analytics.read", icon: Target, notificationModule: "MANAGEMENT", notificationSubModule: "REELS" },

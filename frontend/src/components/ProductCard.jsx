@@ -60,15 +60,25 @@ function VariantColorSwatches({ options, selectedValue, groupName, onSelect }) {
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              onSelect(option.value);
+              if (option.inStock) {
+                onSelect(option.value);
+              }
             }}
-            className={`flex h-[24px] w-[24px] items-center justify-center rounded-full border border-slate-200 bg-white transition-transform duration-150 hover:scale-110 focus-visible:outline-none ${isSelected ? "border-black shadow-[0_0_0_2px_white,0_0_0_3px_#111827]" : ""
-              } ${option.inStock ? "" : "opacity-40"}`}
+            disabled={!option.inStock}
+            className={`flex h-[24px] w-[24px] items-center justify-center rounded-full border border-slate-200 bg-white transition-transform duration-150 focus-visible:outline-none ${isSelected ? "border-black shadow-[0_0_0_2px_white,0_0_0_3px_#111827]" : ""
+              } ${option.inStock ? "hover:scale-110" : "opacity-50 cursor-not-allowed"}`}
           >
-            <span
-              className={`h-[16px] w-[16px] rounded-full ${isLightSwatch ? "border border-slate-300" : ""}`}
-              style={{ backgroundColor: swatchColor || "#e2e8f0" }}
-            />
+            <span className="relative flex h-[16px] w-[16px] items-center justify-center">
+              {!option.inStock && (
+                <span className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                  <span className="w-[140%] h-[1.5px] bg-slate-500/80 -rotate-45 transform"></span>
+                </span>
+              )}
+              <span
+                className={`h-full w-full rounded-full ${isLightSwatch ? "border border-slate-300" : ""}`}
+                style={{ backgroundColor: swatchColor || "#e2e8f0" }}
+              />
+            </span>
           </button>
         );
       })}

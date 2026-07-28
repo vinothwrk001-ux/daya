@@ -337,7 +337,8 @@ class ProductRepository {
         .populate("createdBy", "name email")
         .sort(sortObj)
         .skip(skip)
-        .limit(limit),
+        .limit(limit)
+        .lean(),
       Product.countDocuments(query),
       buildFacetPayload(filterDefs, {
         category,
@@ -474,9 +475,10 @@ class ProductRepository {
     const [products, total] = await Promise.all([
       Product.find(query)
         .populate("createdBy", "name email")
-        .sort({ createdAt: -1 })
+        .sort({ [sortBy]: sortOrder })
         .skip(skip)
-        .limit(limit),
+        .limit(limit)
+        .lean(),
       Product.countDocuments(query),
     ]);
 
@@ -504,7 +506,7 @@ class ProductRepository {
         },
       },
       { returnDocument: "after" }
-    );
+    ).lean();
   }
 
   // Reject product
@@ -521,7 +523,7 @@ class ProductRepository {
         },
       },
       { returnDocument: "after" }
-    );
+    ).lean();
   }
 
   // Get product count by status
@@ -545,7 +547,7 @@ class ProductRepository {
       .sort({ "analytics.totalRevenue": -1, "analytics.salesCount": -1, createdAt: -1 })
       .limit(limit)
       .select("name category price analytics ratings status isActive")
-      .exec();
+      .lean();
   }
 
   // Update views count

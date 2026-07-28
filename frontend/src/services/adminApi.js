@@ -212,6 +212,24 @@ export async function cancelOrder(id) {
   return data;
 }
 
+export function cancelOrderFromAdmin(orderId, data) {
+  return adminHttp.post(`/orders/${orderId}/cancel`, data).then((res) => res.data);
+}
+
+// Service Requests
+export function listServiceRequests(params) {
+  return adminHttp.get("/api/service-requests", { params }).then((res) => res.data);
+}
+
+export function updateServiceRequestStatus(id, status) {
+  return adminHttp.patch(`/api/service-requests/${id}/status`, { status }).then((res) => res.data);
+}
+
+export function deleteServiceRequest(id) {
+  return adminHttp.delete(`/api/service-requests/${id}`).then((res) => res.data);
+}
+
+
 export async function previewAdminOrderCancellation(id, payload = {}) {
   const { data } = await adminHttp.post(`/api/admin/orders/${id}/cancel`, { ...payload, previewOnly: true });
   return data;

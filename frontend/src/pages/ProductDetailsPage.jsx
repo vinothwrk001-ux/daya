@@ -446,7 +446,6 @@ export function ProductDetailsPage() {
     const atMaxQuantity = cartItem && cartItem.quantity >= (cartItem.maxQuantity ?? cartItem.availableStock ?? 999);
 
     if (atMaxQuantity) {
-      showError("Maximum available quantity reached for this size/color.", { duration: 2000 });
       return;
     }
 
@@ -476,7 +475,6 @@ export function ProductDetailsPage() {
     const atMaxQuantity = cartItem && cartItem.quantity >= (cartItem.maxQuantity ?? cartItem.availableStock ?? 999);
 
     if (atMaxQuantity) {
-      showError("Maximum available quantity reached for this size/color.", { duration: 2000 });
       return;
     }
 
@@ -685,40 +683,58 @@ export function ProductDetailsPage() {
                       <div className="mt-2 flex flex-wrap gap-2">
                         {group.values.map((option) => {
                           const isSelected = selectedAttributes?.[group.key] === option.value;
-                          const hasMatchingVariant = variants.some((variant) => {
+                          const matchingVariants = variants.filter((variant) => {
                             if (variant?.attributes?.[group.key] !== option.value) return false;
                             return Object.entries(selectedAttributes || {}).every(([key, value]) =>
                               key === group.key ? true : !value || variant?.attributes?.[key] === value
                             );
                           });
+                          const hasMatchingVariant = matchingVariants.length > 0;
+                          const isInStock = matchingVariants.some(v => {
+                            const variantId = v.variantId || "";
+                            const cartItem = cart?.items?.find((i) => String(i.productId) === String(product?._id) && String(i.variantId || "") === String(variantId));
+                            const cartQty = cartItem?.quantity || 0;
+                            const maxQty = v.stock ?? v.availableStock ?? 0;
+                            return maxQty - cartQty > 0;
+                          });
+                          
                           const displayType = variantDefsByKey[group.key]?.variantConfig?.displayType || "button";
                           const showSwatch = isVisualSwatchGroup(group, displayType);
                           const swatchColor = resolveSwatchColor(option.value);
-                          const disabled = !hasMatchingVariant;
+                          
+                          const disabled = !hasMatchingVariant || !isInStock;
+                          
                           return (
                             <button
                               key={option.value}
                               type="button"
                               disabled={disabled}
                               onClick={() => selectVariantValue(group.key, option.value)}
-                              className={`min-w-[3.5rem] rounded-xl border-2 px-3 py-2.5 text-center text-sm font-bold transition-all ${isSelected
+                              className={`relative overflow-hidden min-w-[3.5rem] rounded-xl border-2 px-3 py-2.5 text-center text-sm font-bold transition-all ${isSelected
                                 ? "border-slate-950 bg-slate-950 text-white shadow-md dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950"
                                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:bg-slate-800"
-                                } ${disabled ? "cursor-not-allowed opacity-40" : "hover:-translate-y-0.5"}`}
-                              title={option.inStock ? option.value : `${option.value} is out of stock`}
+                                } ${disabled ? "cursor-not-allowed opacity-50" : "hover:-translate-y-0.5"}`}
+                              title={disabled ? `${option.value} is out of stock` : option.value}
                             >
-                              {showSwatch ? (
-                                <span className="inline-flex items-center gap-2">
-                                  <span
-                                    className={`h-4 w-4 rounded-full border ${swatchColor && swatchColor.toLowerCase() === "#f8fafc" ? "border-slate-300" : "border-white/50"}`}
-                                    style={{ backgroundColor: swatchColor || "#e2e8f0" }}
-                                    aria-hidden="true"
-                                  />
-                                  {option.value}
+                              {disabled && (
+                                <span className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                                  <span className="w-full h-[1.5px] bg-slate-400/80 -rotate-45 transform"></span>
                                 </span>
-                              ) : (
-                                option.value
                               )}
+                              <div className={disabled ? "opacity-40" : ""}>
+                                {showSwatch ? (
+                                  <span className="inline-flex items-center gap-2">
+                                    <span
+                                      className={`h-4 w-4 rounded-full border ${swatchColor && swatchColor.toLowerCase() === "#f8fafc" ? "border-slate-300" : "border-white/50"}`}
+                                      style={{ backgroundColor: swatchColor || "#e2e8f0" }}
+                                      aria-hidden="true"
+                                    />
+                                    {option.value}
+                                  </span>
+                                ) : (
+                                  option.value
+                                )}
+                              </div>
                             </button>
                           );
                         })}
