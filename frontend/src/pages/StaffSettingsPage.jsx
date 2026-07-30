@@ -9,7 +9,7 @@ export function StaffSettingsPage() {
   useRequirePermission("settings.update");
   const { hasPermission } = useStaffPermission();
   const [settings, setSettings] = useState({
-    platformName: "GRM Platform",
+    platformName: "Daya Creatives Platform",
     maxUploadSize: 5,
     maintenanceMode: false,
     enableNotifications: true,

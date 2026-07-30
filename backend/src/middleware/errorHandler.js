@@ -23,7 +23,7 @@ function errorHandler(err, req, res, next) {
   }
 
   const isAppError = err instanceof AppError;
-  const statusCode = isAppError ? err.statusCode : 500;
+  const statusCode = isAppError ? err.statusCode : (err.statusCode || err.status || 500);
 
   const message =
     statusCode === 500

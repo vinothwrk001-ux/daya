@@ -63,7 +63,7 @@ export function SearchBar({ className = "" }) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => searchQuery.trim().length > 0 && setShowResults(true)}
-          className="min-w-0 flex-1 bg-transparent px-2 py-1 text-sm text-slate-900 outline-none placeholder:text-gray-400"
+          className="min-w-0 flex-1 bg-transparent px-2 py-1 text-sm text-slate-900 outline-none placeholder:text-gray-400 !border-none !shadow-none focus:!border-none focus:!shadow-none focus:!ring-0"
         />
         <button
           type="button"

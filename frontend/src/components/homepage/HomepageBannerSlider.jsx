@@ -451,22 +451,7 @@ export function HomepageBannerSlider({
           <div className="hero-banner-body h-full w-full mx-auto max-w-[1350px]">
             <div className="hero-banner-content flex h-full flex-1 flex-col justify-center px-4 py-5 sm:px-6 sm:py-6 lg:items-end lg:pl-8 lg:pr-2 xl:pr-0">
               <div className="w-full max-w-[36rem] flex h-full flex-col justify-start gap-8 rounded-[1.6rem] bg-transparent p-0">
-                <MotionDiv
-                  key={`text-${activeBanner.id || index}`}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35 }}
-                  className="hidden md:flex min-h-[10rem] flex-col items-center justify-center gap-4 text-center transition-opacity duration-300"
-                >
-                  <div className="flex w-full flex-col items-center gap-4 px-4 text-center">
-                    <div className="inline-flex items-center justify-center rounded-full border border-red-500 bg-transparent px-4 py-2">
-                      <span className="text-sm font-bold uppercase tracking-wider text-red-500 xl:text-[clamp(.75rem,.7vw,.875rem)]">Categories</span>
-                    </div>
-                    <p className="mx-auto w-full max-w-[42rem] text-xl font-semibold leading-tight text-white sm:text-2xl md:text-[1.6rem] xl:text-[clamp(1.2rem,1.33vw,1.6rem)]">
-                      Discover stylish, high-quality clothing crafted for everyday comfort
-                    </p>
-                  </div>
-                </MotionDiv>
+
 
                 {categories.length ? (
                   <div className="mt-4 hidden md:flex flex-row gap-2 md:gap-2 lg:gap-2 xl:gap-[clamp(4px,0.4vw,8px)] justify-center items-end flex-nowrap xl:-translate-y-8">

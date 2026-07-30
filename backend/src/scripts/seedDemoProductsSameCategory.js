@@ -11,7 +11,7 @@ const { User } = require("../models/User");
 const { generateNextProductNumber } = require("../services/product-number.service");
 const { generateSlug } = require("../utils/slug");
 
-const PLATFORM_EMAIL = process.env.PLATFORM_STORE_EMAIL || "platform-store@grm.local";
+const PLATFORM_EMAIL = process.env.PLATFORM_STORE_EMAIL || "platform-store@dayacreatives.local";
 const PLATFORM_PHONE = process.env.PLATFORM_STORE_PHONE || "9000000000";
 const PLACEHOLDER = "https://placehold.co/800x800/png";
 

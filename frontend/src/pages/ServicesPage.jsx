@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { 
-  PenTool, Laptop, Map, Video, ArrowUpRight, Phone, Mail, MapPin, 
-  Smartphone, Clapperboard, Layout, Shirt, Camera, Edit3 
+import {
+  PenTool, Laptop, Map, Video, ArrowUpRight, Phone, Mail, MapPin,
+  Smartphone, Clapperboard, Layout, Shirt, Camera, Edit3
 } from "lucide-react";
 import { useBranding } from "../context/BrandingContext";
 import { Link } from "react-router-dom";
@@ -71,7 +71,7 @@ export function ServicesPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate all fields
     const errors = {};
     Object.keys(formData).forEach((key) => {
@@ -128,11 +128,11 @@ export function ServicesPage() {
       deliverables: ["Instagram Reels", "YouTube Videos", "Promo Videos", "Color Grading", "Motion Graphics", "Video Transitions"]
     },
     {
-      id: "website-design",
+      id: "website-design & UI/UX",
       icon: Layout,
-      title: "Website Design",
+      title: "Web Development & UI/UX Design",
       desc: "Modern, responsive websites designed for performance and user experience.",
-      deliverables: ["Custom Web Design", "Landing Pages", "E-Commerce Sites", "Responsive Design", "Wireframing", "Web Maintenance"]
+      deliverables: ["Custom Web Design", "Landing Pages", "E-Commerce Sites", "Responsive Design", "Wireframing", "Web Maintenance", "User Research", "Prototyping", "Mobile App UI", "Web App UI", "Usability Testing"]
     },
     {
       id: "print-merch",
@@ -142,9 +142,9 @@ export function ServicesPage() {
       deliverables: ["T-Shirt Design", "Hoodies & Apparel", "Mug Designs", "Tote Bags", "Custom Stickers", "Event Merchandise"]
     },
     {
-      id: "ui-ux",
+      id: "workshop",
       icon: Laptop,
-      title: "UI/UX Design",
+      title: "Workshop",
       desc: "User-centered UI/UX designs that create seamless digital experiences.",
       deliverables: ["User Research", "Wireframing", "Prototyping", "Mobile App UI", "Web App UI", "Usability Testing"]
     },
@@ -159,7 +159,7 @@ export function ServicesPage() {
 
   return (
     <div className="flex w-full flex-col items-center overflow-x-hidden">
-      
+
       {/* 1. Header Section */}
       <section className="w-full bg-white px-6 pb-6 pt-2 text-center lg:pb-8 lg:pt-2">
         <h1 className="mb-2 text-3xl font-black uppercase tracking-widest text-[#c11c1d] sm:text-4xl md:text-5xl">
@@ -172,28 +172,19 @@ export function ServicesPage() {
 
       {/* 2. Marquee Section */}
       <section className="relative flex w-full overflow-hidden bg-[#c11c1d] py-4 sm:py-6">
-        <div className="flex animate-marquee whitespace-nowrap text-white">
-          <div className="flex shrink-0 items-center gap-12 px-6 text-3xl font-bold uppercase sm:text-4xl md:text-5xl lg:gap-24 lg:px-12">
-            <span>DESIGN</span>
-            <span>WEBSITE</span>
-            <span>DESIGN</span>
-            <span>WEBSITE</span>
-            <span>DESIGN</span>
-            <span>WEBSITE</span>
-            <span>DESIGN</span>
-            <span>WEBSITE</span>
-          </div>
-          {/* Duplicate for seamless looping */}
-          <div className="flex shrink-0 items-center gap-12 px-6 text-3xl font-bold uppercase sm:text-4xl md:text-5xl lg:gap-24 lg:px-12">
-            <span>DESIGN</span>
-            <span>WEBSITE</span>
-            <span>DESIGN</span>
-            <span>WEBSITE</span>
-            <span>DESIGN</span>
-            <span>WEBSITE</span>
-            <span>DESIGN</span>
-            <span>WEBSITE</span>
-          </div>
+        <div className="flex whitespace-nowrap text-white">
+          {Array.from({ length: 4 }).map((_, blockIndex) => (
+            <div key={blockIndex} className="flex animate-marquee shrink-0 items-center gap-12 px-6 text-3xl font-bold uppercase sm:text-4xl md:text-5xl lg:gap-24 lg:px-12">
+              <span>DESIGN</span>
+              <span>WEBSITE</span>
+              <span>DESIGN</span>
+              <span>WEBSITE</span>
+              <span>DESIGN</span>
+              <span>WEBSITE</span>
+              <span>DESIGN</span>
+              <span>WEBSITE</span>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -223,8 +214,8 @@ export function ServicesPage() {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
             {SERVICES_LIST.map((service, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className="group relative flex h-[240px] sm:h-auto sm:aspect-square w-full flex-col overflow-hidden rounded-2xl bg-[#111111] p-4 sm:p-6 text-left transition-all duration-300 hover:bg-[#1a1a1a]"
               >
                 {/* Static Header part */}
@@ -237,7 +228,7 @@ export function ServicesPage() {
 
                 {/* Main content wrapper with relative positioning for cross-fade */}
                 <div className="relative flex-1">
-                  
+
                   {/* Default State */}
                   <div className="absolute inset-0 flex flex-col justify-between transition-all duration-300 group-hover:-translate-y-4 group-hover:opacity-0 group-hover:pointer-events-none">
                     <p className="text-[11px] leading-relaxed text-slate-400 sm:text-[13px]">
@@ -282,30 +273,32 @@ export function ServicesPage() {
                 Some Of Our Recent Work
               </h2>
             </div>
-            <Link
-              to="#"
-              className="inline-flex items-center gap-2 rounded-lg border border-[#333] px-5 py-2.5 text-sm font-bold transition-colors hover:border-[#c11c1d] hover:text-[#c11c1d]"
+            <a
+              href="https://www.behance.net/gallery/241615521/Daya-Creatives-Portfolio"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#c11c1d] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#a01618]"
             >
               View All Work <ArrowUpRight className="h-4 w-4" />
-            </Link>
+            </a>
           </div>
 
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 12 }).map((_, i) => (
               <div key={i} className="group flex flex-col bg-black p-2 sm:p-4 transition-colors hover:bg-[#111]">
                 <div className="mb-2 sm:mb-4 aspect-square w-full rounded-lg sm:rounded-xl bg-[#1a1a1a] flex items-center justify-center text-[#444] overflow-hidden">
-                   <div className="text-center font-black opacity-50 uppercase tracking-widest text-[9px] sm:text-base">
-                     {i % 4 === 0 && "IKIGAI"}
-                     {i % 4 === 1 && "Guided"}
-                     {i % 4 === 2 && "Frame House"}
-                     {i % 4 === 3 && "CK Tours"}
-                   </div>
+                  <div className="text-center font-black opacity-50 uppercase tracking-widest text-[9px] sm:text-base">
+                    {i % 4 === 0 && "IKIGAI"}
+                    {i % 4 === 1 && "Guided"}
+                    {i % 4 === 2 && "Frame House"}
+                    {i % 4 === 3 && "CK Tours"}
+                  </div>
                 </div>
                 <h3 className="text-[10px] leading-tight sm:leading-normal sm:text-sm font-bold text-white uppercase">
-                   {i % 4 === 0 && "IKIGAI"}
-                   {i % 4 === 1 && "Guided Abroad"}
-                   {i % 4 === 2 && "The Frame House Media"}
-                   {i % 4 === 3 && "CK Tours & Travels"}
+                  {i % 4 === 0 && "IKIGAI"}
+                  {i % 4 === 1 && "Guided Abroad"}
+                  {i % 4 === 2 && "The Frame House Media"}
+                  {i % 4 === 3 && "CK Tours & Travels"}
                 </h3>
                 <p className="text-[8px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1">Brand Identity</p>
               </div>
@@ -317,7 +310,7 @@ export function ServicesPage() {
       {/* 5. Contact Section */}
       <section className="w-full bg-black px-6 pt-8 pb-20 text-white sm:py-20 lg:py-32">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-16 lg:grid-cols-2">
-          
+
           <div className="flex flex-col">
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#c11c1d]">
               LET'S WORK TOGETHER
@@ -358,34 +351,34 @@ export function ServicesPage() {
                 </div>
               )}
               <div>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  placeholder="Your Name" 
+                  placeholder="Your Name"
                   className={`w-full rounded-lg border ${fieldErrors.name && touched.name ? 'border-red-500' : 'border-[#333]'} bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none`}
                 />
                 {fieldErrors.name && touched.name && <p className="mt-1 text-xs text-red-500">{fieldErrors.name}</p>}
               </div>
 
               <div>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  placeholder="Your Email" 
+                  placeholder="Your Email"
                   className={`w-full rounded-lg border ${fieldErrors.email && touched.email ? 'border-red-500' : 'border-[#333]'} bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none`}
                 />
                 {fieldErrors.email && touched.email && <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>}
               </div>
 
               <div>
-                <input 
-                  type="tel" 
+                <input
+                  type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={(e) => {
@@ -398,7 +391,7 @@ export function ServicesPage() {
                     }
                   }}
                   onBlur={handleBlur}
-                  placeholder="Your Phone (10 digits)" 
+                  placeholder="Your Phone (10 digits)"
                   maxLength={10}
                   className={`w-full rounded-lg border ${fieldErrors.phone && touched.phone ? 'border-red-500' : 'border-[#333]'} bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none`}
                 />
@@ -406,18 +399,18 @@ export function ServicesPage() {
               </div>
 
               <div>
-                <textarea 
+                <textarea
                   name="projectDetails"
                   value={formData.projectDetails}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  placeholder="Tell us about your project" 
+                  placeholder="Tell us about your project"
                   rows="4"
                   className={`w-full resize-none rounded-lg border ${fieldErrors.projectDetails && touched.projectDetails ? 'border-red-500' : 'border-[#333]'} bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-[#c11c1d] focus:outline-none`}
                 />
                 {fieldErrors.projectDetails && touched.projectDetails && <p className="mt-1 text-xs text-red-500">{fieldErrors.projectDetails}</p>}
               </div>
-              <button 
+              <button
                 type="submit"
                 disabled={loading}
                 className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#c11c1d] px-6 py-4 font-bold text-white transition-colors hover:bg-[#a01618] disabled:cursor-not-allowed disabled:opacity-70"

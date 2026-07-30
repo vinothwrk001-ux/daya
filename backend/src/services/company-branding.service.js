@@ -30,7 +30,7 @@ const COLOR_DEFAULTS = Object.freeze({
 
 const DEFAULTS = Object.freeze({
   companyName: "DayaCreatives",
-  legalCompanyName: "GRM Commerce",
+  legalCompanyName: "Daya Creatives",
   tagline: "Premium marketplace experiences at enterprise scale.",
   supportEmail: "support@dayacreatives.com",
   supportPhone: "+91 00000 00000",

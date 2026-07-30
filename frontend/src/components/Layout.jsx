@@ -103,7 +103,7 @@ export function Layout() {
                   </div>
                 </div>
 
-                <nav className="enterprise-nav-pill order-3 flex flex-nowrap w-full items-center justify-start gap-3 overflow-x-auto scroll-smooth rounded-full border-0 bg-transparent p-1 shadow-none backdrop-blur mt-4 lg:order-10 lg:w-full lg:justify-center lg:flex-wrap lg:overflow-visible lg:mt-3">
+                <nav className="enterprise-nav-pill order-3 flex flex-nowrap w-full items-center justify-start gap-4 overflow-x-auto scroll-smooth rounded-full border-0 bg-transparent p-2 shadow-none backdrop-blur mt-5 lg:order-10 lg:w-full lg:justify-center lg:gap-8 lg:flex-wrap lg:overflow-visible lg:mt-4">
                   {navItems.map((item) => {
                     const isActive =
                       location.pathname === item.href ||
@@ -114,15 +114,15 @@ export function Layout() {
                         key={item.href}
                         to={item.href}
                         state={item.href === "/reels" ? { background: location } : undefined}
-                        className={`group relative shrink-0 rounded-full px-3 py-1.5 text-xs lg:px-4 lg:py-2 lg:text-sm font-bold transition ${
+                        className={`group relative shrink-0 rounded-full px-5 py-2 text-base lg:px-8 lg:py-2.5 lg:text-[20px] font-bold transition ${
                           isActive
-                            ? "bg-brand-primary text-white"
-                            : "text-slate-700 hover:text-brand-primary"
+                            ? "bg-[#e83e42] text-white shadow-sm"
+                            : "text-[#2e374a] hover:text-[#e83e42]"
                         }`}
                       >
                         {item.label}
                         {!isActive ? (
-                          <span className="absolute inset-x-4 bottom-1 h-px origin-left scale-x-0 bg-current transition duration-300 group-hover:scale-x-100" />
+                          <span className="absolute inset-x-5 bottom-1.5 h-[2px] origin-left scale-x-0 bg-current transition duration-300 group-hover:scale-x-100" />
                         ) : null}
                       </Link>
                     );

@@ -70,10 +70,10 @@ export function StaffSidebar({ permissions, enabledModules = {}, summary = { mod
         <div className="sticky top-0 border-b border-white/10 bg-brand-secondary px-5 py-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-brandMd bg-brand-primary text-sm font-bold text-white">
-              GRM
+              DC
             </div>
             <div>
-              <div className="text-sm font-semibold text-white">GRM Staff</div>
+              <div className="text-sm font-semibold text-white">Daya Creatives Staff</div>
               <div className="text-xs text-white/60">Dynamic role workspace</div>
             </div>
           </div>

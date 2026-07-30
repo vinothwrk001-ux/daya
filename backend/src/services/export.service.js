@@ -257,7 +257,7 @@ async function createPdfBuffer(rows, title) {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    doc.fontSize(18).text(`GRM Report - ${title}`);
+    doc.fontSize(18).text(`Daya Creatives Report - ${title}`);
     doc.moveDown(0.3);
     doc.fontSize(9).fillColor("#64748b").text(`Generated at ${generatedAt}`);
     doc.fillColor("#111827");

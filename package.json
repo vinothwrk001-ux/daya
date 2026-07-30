@@ -1,5 +1,5 @@
 {
-  "name": "grm-project",
+  "name": "daya-creatives",
   "private": true,
   "scripts": {
     "dev": "npm --prefix frontend run dev",

@@ -6,7 +6,7 @@ const { logger } = require("../utils/logger");
 
 const SUPPORT_EMAIL = process.env.ORDER_SUPPORT_EMAIL || "support@dayacreatives.com";
 const SUPPORT_PHONE = process.env.ORDER_SUPPORT_PHONE || "+91 00000 00000";
-const COMPANY_NAME = process.env.INVOICE_COMPANY_NAME || "GRM Commerce";
+const COMPANY_NAME = process.env.INVOICE_COMPANY_NAME || "Daya Creatives";
 const COMPANY_WEBSITE = process.env.INVOICE_COMPANY_WEBSITE || "www.dayacreatives.com";
 const COMPANY_TAX_LABEL = process.env.INVOICE_TAX_LABEL || "GST";
 const COMPANY_TAX_ID = process.env.INVOICE_TAX_ID || "TAX-ID-PENDING";

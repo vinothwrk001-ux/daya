@@ -175,6 +175,7 @@ function createApp() {
   app.use(
     "/uploads",
     express.static(path.join(process.cwd(), "uploads", "public"), {
+      dotfiles: "allow",
       setHeaders(res) {
         res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
         res.setHeader("Access-Control-Allow-Origin", "*");
@@ -185,6 +186,7 @@ function createApp() {
   app.use(
     "/uploads",
     express.static(path.join(process.cwd(), "uploads"), {
+      dotfiles: "allow",
       setHeaders(res) {
         res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
         res.setHeader("Access-Control-Allow-Origin", "*");
@@ -268,6 +270,7 @@ function createApp() {
   // Serve static files from the 'public' directory with optimal caching
   app.use(
     express.static(path.join(process.cwd(), "public"), {
+      dotfiles: "allow",
       setHeaders: (res, filePath) => {
         if (
           filePath.includes(path.normalize("/assets/")) ||
@@ -289,7 +292,7 @@ function createApp() {
   // Handle SPA routing: serve index.html for non-API requests
   app.use((req, res, next) => {
     if (req.method === "GET" && !req.originalUrl.startsWith("/api")) {
-      res.sendFile(path.join(process.cwd(), "public", "index.html"));
+      res.sendFile(path.join(process.cwd(), "public", "index.html"), { dotfiles: "allow" });
     } else {
       next();
     }

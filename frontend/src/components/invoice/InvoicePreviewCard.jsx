@@ -51,8 +51,8 @@ export function InvoicePreviewCard({ invoice, actionBar = null, printId = "invoi
                       .match(/\b\w/g)
                       ?.join('')
                       .toUpperCase()
-                      .substring(0, 2) || 'GRM'
-                : 'GRM'
+                      .substring(0, 2) || 'DC'
+                : 'DC'
               }
               </div>
             )}

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-const STORAGE_KEY = "grm_staff_auth";
+const STORAGE_KEY = "daya_staff_auth";
 
 function clearLegacyStaffAuthStorage() {
   if (typeof window === "undefined") return;

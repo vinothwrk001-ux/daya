@@ -1,6 +1,6 @@
 const dotenv = require("dotenv");
 
-if (!global.__grmEnvLoaded) {
+if (!global.__dayaEnvLoaded) {
   dotenv.config({ override: true });
-  global.__grmEnvLoaded = true;
+  global.__dayaEnvLoaded = true;
 }
