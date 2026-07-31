@@ -6,12 +6,13 @@ import {
 import { useBranding } from "../context/BrandingContext";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { SEO } from "../components/SEO/SEO";
+import { generateServiceSchema } from "../utils/seo/schema";
 import { api } from "../services/api";
-import { SEO } from "../components/SEO";
 
 export function ServicesPage() {
   const { branding } = useBranding();
-  const companyName = branding?.companyName || "DayaCreatives";
+  const companyName = branding?.companyName || "Daya Creatives";
 
   const [formData, setFormData] = useState({
     name: "",
@@ -154,13 +155,19 @@ export function ServicesPage() {
   return (
     <>
       <SEO 
-        title={`Services | ${companyName}`} 
-        description="Creative Solutions That Build Brands, Inspire Audiences & Drive Results"
+        title="Services" 
+        description={["Creative Solutions That Build Brands, Inspire Audiences & Drive Results"]}
+        keywords={{ categoryName: "Services", businessType: "Creative Solutions" }}
         url="/services"
         breadcrumbs={[
           { name: "Home", url: "/" },
           { name: "Services" }
         ]}
+        jsonLd={generateServiceSchema({
+          serviceName: "Creative Solutions",
+          description: "Creative Solutions That Build Brands, Inspire Audiences & Drive Results",
+          url: "https://dayacreatives.com/services"
+        })}
       />
       <div className="flex w-full flex-col items-center overflow-x-hidden">
 

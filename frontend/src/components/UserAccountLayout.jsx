@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { useAuthStore } from "../context/authStore";
 import { getUserNotifications } from "../services/userService";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
-import { SEO } from "./SEO";
+import { SEO } from "./SEO/SEO";
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard/user" },

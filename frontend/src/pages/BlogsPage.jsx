@@ -1,13 +1,20 @@
 import { Construction } from "lucide-react";
-import { SEO } from "../components/SEO";
+import { SEO } from "../components/SEO/SEO";
+import { generateBlogPostingSchema } from "../utils/seo/schema";
 
 export function BlogsPage() {
   return (
     <>
       <SEO 
-        title="Our Blog | Daya Creatives" 
-        description="We're currently working on exciting new content. Check back soon for the latest updates, tips, and stories!"
+        title="Our Blog" 
+        description={["We're currently working on exciting new content. Check back soon for the latest updates, tips, and stories!"]}
+        keywords={{ categoryName: "Blog" }}
         url="/blogs"
+        jsonLd={generateBlogPostingSchema({
+          title: "Our Blog",
+          description: "We're currently working on exciting new content.",
+          url: "https://dayacreatives.com/blogs"
+        })}
       />
       <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
         <div className="mb-6 rounded-full bg-brand-primary/10 p-4 text-brand-primary">

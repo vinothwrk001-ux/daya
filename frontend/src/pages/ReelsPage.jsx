@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { ReelsFeed } from "../components/reels/ReelsFeed";
 import { ReelsErrorBoundary } from "../components/reels/ReelsErrorBoundary";
-import { SEO } from "../components/SEO";
+import { SEO } from "../components/SEO/SEO";
 import { useAuthStore } from "../context/authStore";
 import { showError } from "../services/notificationService";
 import {

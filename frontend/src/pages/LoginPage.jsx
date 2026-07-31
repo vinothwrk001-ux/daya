@@ -13,7 +13,7 @@ import { useBranding } from "../context/BrandingContext";
 import { ShieldCheck, Zap, Package, Mail, Lock, ArrowLeft } from "lucide-react";
 
 import { GoogleLogin } from "@react-oauth/google";
-import { SEO } from "../components/SEO";
+import { SEO } from "../components/SEO/SEO";
 
 function normalizeError(err) {
   return (

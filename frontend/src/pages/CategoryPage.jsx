@@ -5,7 +5,8 @@ import { getCategoryBySlug, trackCategoryEvent } from "../services/categoryServi
 import * as productService from "../services/productService";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { categoryRedirectsToServices } from "../utils/categoryLinks";
-import { SEO } from "../components/SEO";
+import { SEO } from "../components/SEO/SEO";
+import { generateCollectionPageSchema } from "../utils/seo/schema";
 
 function getSessionId() {
   if (typeof window === "undefined") return "";
@@ -115,9 +116,11 @@ export function CategoryPage() {
     <div className="w-full">
       {category && (
         <SEO
-          title={category.seoTitle || `${category.name} | Shop`}
-          description={category.seoDescription || category.description || `Browse ${category.name} products in our storefront.`}
-          keywords={`${category.name}, Shop, Buy Online, Daya Creatives`}
+          title={category.seoTitle || category.name}
+          description={[category.seoDescription, category.description, `Browse ${category.name} products in our storefront.`]}
+          keywords={{
+            categoryName: category.name,
+          }}
           url={`/category/${category.slug}`}
           type="website"
           image={banner}
@@ -126,14 +129,7 @@ export function CategoryPage() {
             { name: "Shop", url: "/shop" },
             { name: category.name }
           ]}
-          jsonLd={{
-            "@context": "https://schema.org",
-            "@type": "CollectionPage",
-            "name": category.name,
-            "description": category.seoDescription || category.description || `Browse ${category.name} products in our storefront.`,
-            "url": `https://dayacreatives.com/category/${category.slug}`,
-            ...(banner ? { "image": banner } : {})
-          }}
+          jsonLd={generateCollectionPageSchema({ categoryName: category.name, description: category.seoDescription || category.description, url: `https://dayacreatives.com/category/${category.slug}` })}
         />
       )}
       <section className="relative overflow-hidden bg-zinc-950 text-white">

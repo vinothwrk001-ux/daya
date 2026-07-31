@@ -4,7 +4,8 @@ import { CategoryCarousel } from "../components/homepage/CategoryCarousel";
 import { ReelsSection } from "../components/reels/ReelComponents";
 import { HomepageTestimonials } from "../components/homepage/HomepageTestimonials";
 import { getHomepageBuilderPublicLayout } from "../services/homepageBuilderService";
-import { SEO } from "../components/SEO";
+import { SEO } from "../components/SEO/SEO";
+import { generateOrganizationSchema, generateWebSiteSchema } from "../utils/seo/schema";
 
 export function HomePage() {
   const [loading, setLoading] = useState(true);
@@ -59,29 +60,17 @@ export function HomePage() {
   return (
     <div className="w-full">
       <SEO 
-        title="Daya Creatives | Premium Fashion, Web Development & Creative Solutions"
-        description="Discover premium fashion, creative services, workshops, web development, and graphic design at Daya Creatives."
-        keywords="Daya Creatives, Premium Fashion, Web Development, Creative Solutions, Graphic Design"
+        title="Premium Fashion, Web Development & Creative Solutions"
+        description={["Daya Creatives offers premium fashion, web development, eCommerce solutions, graphic design, branding, workshops, and creative services. Build your business with innovative digital and creative solutions."]}
+        keywords={{
+          brand: "Daya Creatives",
+          businessType: "Creative Solutions & Fashion",
+        }}
         url="/"
         type="website"
         jsonLd={[
-          {
-            "@context": "https://schema.org",
-            "@type": "Organization",
-            "name": "Daya Creatives",
-            "url": "https://dayacreatives.com",
-            "logo": "https://dayacreatives.com/assets/images/logo.png",
-          },
-          {
-            "@context": "https://schema.org",
-            "@type": "WebSite",
-            "url": "https://dayacreatives.com",
-            "potentialAction": {
-              "@type": "SearchAction",
-              "target": "https://dayacreatives.com/shop?q={search_term_string}",
-              "query-input": "required name=search_term_string"
-            }
-          }
+          generateOrganizationSchema({}),
+          generateWebSiteSchema({})
         ]}
       />
       {error ? (

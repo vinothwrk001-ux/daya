@@ -1,5 +1,5 @@
 import { useBranding } from "../context/BrandingContext";
-import { SEO } from "./SEO";
+import { SEO } from "./SEO/SEO";
 
 export function LegalPageLayout({ title, description, sections = [] }) {
   const { branding } = useBranding();

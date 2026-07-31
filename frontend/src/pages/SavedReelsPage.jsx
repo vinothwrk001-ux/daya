@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ReelCard } from "../components/reels/ReelComponents";
 import { listSavedReels } from "../services/reelService";
-import { SEO } from "../components/SEO";
+import { SEO } from "../components/SEO/SEO";
 
 export function SavedReelsPage() {
   const [reels, setReels] = useState([]);

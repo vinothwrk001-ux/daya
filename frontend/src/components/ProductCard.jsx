@@ -1,6 +1,6 @@
 import { logger } from "../services/logger/logger.js";
 import { useEffect, useState, memo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Heart, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "../utils/formatCurrency";
 import { useCart } from "../hooks/useCart";
@@ -197,25 +197,20 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
   const displayPrice = pricing.hasDiscount ? pricing.salePrice : pricing.price;
   const imageKey = `${activeVariant?.variantId || "default"}-${imageUrl}`;
 
-  const goToProduct = () => {
-    if (!productId) return;
+  const goToProduct = (event) => {
+    if (!productId) {
+      event?.preventDefault();
+      return;
+    }
     onProductClick?.(product);
-    navigateToProduct(navigate, detailUrl);
   };
 
   return (
-    <article
+    <Link
+      to={detailUrl || "#"}
       onMouseEnter={() => setIsCardHovered(true)}
       onMouseLeave={() => setIsCardHovered(false)}
       onClick={goToProduct}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          goToProduct();
-        }
-      }}
-      role="link"
-      tabIndex={0}
       className={`group relative mx-auto flex h-full w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-[12px] bg-transparent transition-all duration-300 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7061] focus-visible:ring-offset-2 ${isEditorial ? "bg-slate-950 text-white" : ""
         }`}
     >
@@ -333,7 +328,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
           <div className="mt-auto h-[22px] pt-3" aria-hidden="true" />
         )}
       </div>
-    </article>
+    </Link>
   );
 }
 

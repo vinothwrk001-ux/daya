@@ -48,7 +48,7 @@ const EMPTY_FORM = {
         description: "Premium marketplace experiences for modern shoppers.",
         links: [
           { label: "Our story", href: "/our-story" },
-          { label: "Why DayaCreatives", href: "/why-us" },
+          { label: "Why Daya Creatives", href: "/why-us" },
         ],
       },
       {
@@ -77,7 +77,7 @@ const EMPTY_FORM = {
       { label: "Terms & conditions", href: "/terms-conditions" },
       { label: "Returns & Refunds", href: "/return-policy" },
     ],
-    copyrightText: "© 2026 DayaCreatives. All rights reserved.",
+    copyrightText: "© 2026 Daya Creatives. All rights reserved.",
   },
 };
 
@@ -154,7 +154,7 @@ export function AdminCompanyBrandingPage() {
 
   const previewBrand = useMemo(
     () => ({
-      companyName: form.companyName || branding?.companyName || "DayaCreatives",
+      companyName: form.companyName || branding?.companyName || "Daya Creatives",
       tagline: form.tagline || branding?.tagline || "",
       supportEmail: form.supportEmail || branding?.supportEmail || "",
       supportPhone: form.supportPhone || branding?.supportPhone || "",

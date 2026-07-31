@@ -2,7 +2,8 @@ import { ArrowUpRight, FolderGit2, Users, Award, Briefcase } from "lucide-react"
 import { useEffect, useState } from "react";
 import { useBranding } from "../context/BrandingContext";
 import { Link } from "react-router-dom";
-import { SEO } from "../components/SEO";
+import { SEO } from "../components/SEO/SEO";
+import { generateOrganizationSchema } from "../utils/seo/schema";
 
 const recordImages = [
   "/assets/1 (1).JPG",
@@ -48,7 +49,7 @@ const sixthCardImages = [
 
 export function AboutPage() {
   const { branding } = useBranding();
-  const companyName = branding?.companyName || "DayaCreatives";
+  const companyName = branding?.companyName || "Daya Creatives";
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -62,12 +63,19 @@ export function AboutPage() {
   return (
     <>
       <SEO 
-        title={`About Us | ${companyName}`} 
-        description={`Learn more about ${companyName}, a creative design studio dedicated to helping businesses build strong and memorable brands.`}
+        title="About Us" 
+        description={[`Learn more about ${companyName}, a creative design studio dedicated to helping businesses build strong and memorable brands.`]}
+        keywords={{ businessType: "Creative Design Studio" }}
         url="/about"
         breadcrumbs={[
           { name: "Home", url: "/" },
           { name: "About Us" }
+        ]}
+        jsonLd={[
+          generateOrganizationSchema({
+            companyName: companyName,
+            url: "https://dayacreatives.com/about"
+          })
         ]}
       />
       <div className="flex w-full flex-col items-center">

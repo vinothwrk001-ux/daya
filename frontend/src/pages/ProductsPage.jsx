@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Heart, ShoppingCart, X } from "lucide-react";
 import { BackButton } from "../components/BackButton";
 import { ProductCard as PremiumProductCard } from "../components/ProductCard";
-import { SEO } from "../components/SEO";
+import { SEO } from "../components/SEO/SEO";
 import { useCategories } from "../hooks/useCategories";
 import { getSubcategoriesByCategory } from "../services/subcategoryService";
 import * as productService from "../services/productService";
@@ -219,8 +219,11 @@ export function ProductsPage() {
   return (
     <>
       <SEO 
-        title={`${category ? category + ' - ' : ''}Shop | Daya Creatives`}
-        description="Browse our dynamic catalog of premium products with real-time filters and search."
+        title={`${category ? category + ' - ' : ''}Shop`}
+        description={["Browse our dynamic catalog of premium products with real-time filters and search.", "Shop Daya Creatives"]}
+        keywords={{
+          categoryName: category || "Shop",
+        }}
         url={`/shop${searchParams.toString() ? '?' + searchParams.toString() : ''}`}
       />
       <div className="mt-3 grid gap-4 sm:gap-6 sm:mt-4">

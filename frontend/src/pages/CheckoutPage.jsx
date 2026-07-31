@@ -9,7 +9,7 @@ import { OrderSummaryCard } from "../components/commerce/OrderSummaryCard";
 import { PriceBreakdown } from "../components/commerce/PriceBreakdown";
 import { RecommendationSection } from "../components/RecommendationSection";
 import { FbtBundleSection } from "../components/FbtBundleSection";
-import { SEO } from "../components/SEO";
+import { SEO } from "../components/SEO/SEO";
 import { useAuthStore } from "../context/authStore";
 import { useCart } from "../hooks/useCart";
 import * as checkoutService from "../services/checkoutService";
@@ -918,7 +918,7 @@ export function CheckoutPage() {
         amount: checkoutAmount,
         currency: checkoutCurrency,
         order_id: razorpayOrderId,
-        name: branding?.companyName || "DayaCreatives",
+        name: branding?.companyName || "Daya Creatives",
         description: "Secure checkout",
         prefill: {
           name: shippingAddress.fullName,

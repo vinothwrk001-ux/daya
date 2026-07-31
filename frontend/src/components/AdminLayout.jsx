@@ -5,7 +5,7 @@ import { Topbar } from "./Topbar";
 import { useAdminSidebarData } from "../hooks/useAdminSidebarData";
 import { useRoleNotifications } from "../hooks/useRoleNotifications";
 import { ADMIN_SECTION_ITEMS } from "../config/sidebarModules";
-import { SEO } from "./SEO";
+import { SEO } from "./SEO/SEO";
 
 const pageMeta = {
   "/admin/dashboard": {

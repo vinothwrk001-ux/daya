@@ -12,7 +12,7 @@ import {
   logPermissionSyncSuccess,
   logPeriodicSync,
 } from "../../utils/permissionLogger";
-import { SEO } from "../SEO";
+import { SEO } from "../SEO/SEO";
 
 // Periodic sync interval - 5 minutes
 const PERMISSION_SYNC_INTERVAL = 5 * 60 * 1000;

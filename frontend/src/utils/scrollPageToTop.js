@@ -87,7 +87,6 @@ function handleEarlyProductNavigation(event) {
 export function installEarlyScrollHandlers() {
   if (typeof document === "undefined") return;
 
-  document.addEventListener("pointerdown", handleEarlyProductNavigation, { capture: true, passive: true });
   document.addEventListener("click", handleEarlyProductNavigation, { capture: true, passive: true });
 }
 

@@ -1,7 +1,7 @@
 import { ScrollText, Layers, CreditCard, Tag, Copyright, Clock, ShieldAlert, RefreshCw, Scale } from "lucide-react";
 import { useEffect } from "react";
 import { useBranding } from "../context/BrandingContext";
-import { SEO } from "../components/SEO";
+import { SEO } from "../components/SEO/SEO";
 
 export function TermsAndConditionsPage() {
   const { branding } = useBranding();
