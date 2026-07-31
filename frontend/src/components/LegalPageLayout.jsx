@@ -1,21 +1,17 @@
-import { useEffect } from "react";
 import { useBranding } from "../context/BrandingContext";
+import { SEO } from "./SEO";
 
 export function LegalPageLayout({ title, description, sections = [] }) {
   const { branding } = useBranding();
   const companyName = branding?.companyName || "DayaCreatives";
 
-  useEffect(() => {
-    if (title) {
-      document.title = `${title} | ${companyName}`;
-    }
-    return () => {
-      document.title = companyName;
-    };
-  }, [companyName, title]);
-
   return (
-    <article className="mx-auto max-w-4xl">
+    <>
+      <SEO 
+        title={`${title} | ${companyName}`}
+        description={description}
+      />
+      <article className="mx-auto max-w-4xl">
       <header className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
           Legal
@@ -46,5 +42,6 @@ export function LegalPageLayout({ title, description, sections = [] }) {
         ))}
       </div>
     </article>
+    </>
   );
 }

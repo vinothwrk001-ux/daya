@@ -7,17 +7,11 @@ import { useBranding } from "../context/BrandingContext";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { api } from "../services/api";
+import { SEO } from "../components/SEO";
 
 export function ServicesPage() {
   const { branding } = useBranding();
   const companyName = branding?.companyName || "DayaCreatives";
-
-  useEffect(() => {
-    document.title = `Services | ${companyName}`;
-    return () => {
-      document.title = companyName;
-    };
-  }, [companyName]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -158,7 +152,17 @@ export function ServicesPage() {
   ];
 
   return (
-    <div className="flex w-full flex-col items-center overflow-x-hidden">
+    <>
+      <SEO 
+        title={`Services | ${companyName}`} 
+        description="Creative Solutions That Build Brands, Inspire Audiences & Drive Results"
+        url="/services"
+        breadcrumbs={[
+          { name: "Home", url: "/" },
+          { name: "Services" }
+        ]}
+      />
+      <div className="flex w-full flex-col items-center overflow-x-hidden">
 
       {/* 1. Header Section */}
       <section className="w-full bg-white px-6 pb-6 pt-2 text-center lg:pb-8 lg:pt-2">
@@ -428,10 +432,9 @@ export function ServicesPage() {
               </button>
             </form>
           </div>
-
         </div>
       </section>
-
     </div>
+    </>
   );
 }

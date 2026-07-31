@@ -1,5 +1,9 @@
 const mongoose = require("mongoose");
 const { logger } = require("../utils/logger");
+const sitemapCachePlugin = require("../utils/sitemap.cache.plugin");
+
+// Register global plugin to invalidate sitemap cache on changes
+mongoose.plugin(sitemapCachePlugin);
 
 let isConnected = false;
 

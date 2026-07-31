@@ -13,6 +13,7 @@ import { useBranding } from "../context/BrandingContext";
 import { ShieldCheck, Zap, Package, Mail, Lock, ArrowLeft } from "lucide-react";
 
 import { GoogleLogin } from "@react-oauth/google";
+import { SEO } from "../components/SEO";
 
 function normalizeError(err) {
   return (
@@ -132,7 +133,9 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-white md:flex-row">
+    <>
+      <SEO title="Login | Daya Creatives" robots="noindex,nofollow" />
+      <div className="flex min-h-screen w-full flex-col bg-white md:flex-row">
       {/* Left Side */}
       <div className="relative hidden md:flex flex-1 flex-col justify-center overflow-hidden bg-black p-10 text-white md:min-h-full">
         <Link 
@@ -305,5 +308,6 @@ export function LoginPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

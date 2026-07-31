@@ -8,6 +8,7 @@ import { formatCurrency } from "../utils/formatCurrency";
 import { formatWeight, getFormattedWeight, getWeightUnit, getWeightValue } from "../utils/weight";
 import { useCart } from "../hooks/useCart";
 import { navigateToProduct } from "../utils/scrollPageToTop";
+import { SEO } from "../components/SEO";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -109,7 +110,9 @@ export function CartPage() {
   }
 
   return (
-    <div className="grid gap-4 sm:gap-6">
+    <>
+      <SEO title="Cart | Daya Creatives" robots="noindex,nofollow" />
+      <div className="grid gap-4 sm:gap-6">
       <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3">
         <div className="order-2 sm:order-none sm:col-start-2 sm:justify-self-center sm:text-center">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Cart</h1>
@@ -331,6 +334,6 @@ export function CartPage() {
         </div>
       )}
     </div>
+    </>
   );
 }
-

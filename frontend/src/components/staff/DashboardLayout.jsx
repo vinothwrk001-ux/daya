@@ -12,6 +12,7 @@ import {
   logPermissionSyncSuccess,
   logPeriodicSync,
 } from "../../utils/permissionLogger";
+import { SEO } from "../SEO";
 
 // Periodic sync interval - 5 minutes
 const PERMISSION_SYNC_INTERVAL = 5 * 60 * 1000;
@@ -161,7 +162,9 @@ export function StaffDashboardLayout({ children }) {
   }
 
   return (
-    <div className="enterprise-shell flex min-h-screen overflow-hidden">
+    <>
+      <SEO title="Staff Workspace" robots="noindex,nofollow" />
+      <div className="enterprise-shell flex min-h-screen overflow-hidden">
       <StaffSidebar
         permissions={user?.permissions || {}}
         enabledModules={user?.enabledModules || {}}
@@ -193,5 +196,6 @@ export function StaffDashboardLayout({ children }) {
         />
       ) : null}
     </div>
+    </>
   );
 }

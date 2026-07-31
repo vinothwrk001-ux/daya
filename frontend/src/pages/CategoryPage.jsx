@@ -5,6 +5,7 @@ import { getCategoryBySlug, trackCategoryEvent } from "../services/categoryServi
 import * as productService from "../services/productService";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { categoryRedirectsToServices } from "../utils/categoryLinks";
+import { SEO } from "../components/SEO";
 
 function getSessionId() {
   if (typeof window === "undefined") return "";
@@ -15,60 +16,6 @@ function getSessionId() {
     window.sessionStorage.setItem(key, sessionId);
   }
   return sessionId;
-}
-
-function applyCategorySeo(category) {
-  if (!category || typeof document === "undefined") return undefined;
-
-  const title = category.seoTitle || `${category.name} | Shop`;
-  const description =
-    category.seoDescription || category.description || `Browse ${category.name} products in our storefront.`;
-  const image = resolveApiAssetUrl(category.banner_url || category.bannerUrl || category.thumbnail_url || category.thumbnailUrl);
-  const url = `${window.location.origin}/category/${category.slug}`;
-
-  document.title = title;
-
-  const metaTags = [
-    { name: "description", content: description },
-    { property: "og:title", content: title },
-    { property: "og:description", content: description },
-    { property: "og:type", content: "website" },
-    { property: "og:url", content: url },
-    ...(image ? [{ property: "og:image", content: image }] : []),
-  ];
-
-  metaTags.forEach(({ name, property, content }) => {
-    const selector = name ? `meta[name="${name}"]` : `meta[property="${property}"]`;
-    let node = document.head.querySelector(selector);
-    if (!node) {
-      node = document.createElement("meta");
-      if (name) node.setAttribute("name", name);
-      if (property) node.setAttribute("property", property);
-      document.head.appendChild(node);
-    }
-    node.setAttribute("content", content);
-  });
-
-  let schemaNode = document.head.querySelector('script[data-category-schema="true"]');
-  if (!schemaNode) {
-    schemaNode = document.createElement("script");
-    schemaNode.type = "application/ld+json";
-    schemaNode.setAttribute("data-category-schema", "true");
-    document.head.appendChild(schemaNode);
-  }
-
-  schemaNode.textContent = JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: category.name,
-    description,
-    url,
-    ...(image ? { image } : {}),
-  });
-
-  return () => {
-    document.head.querySelectorAll('script[data-category-schema="true"]').forEach((node) => node.remove());
-  };
 }
 
 export function CategoryPage() {
@@ -99,7 +46,6 @@ export function CategoryPage() {
           return;
         }
         setCategory(data);
-        applyCategorySeo(data);
         trackCategoryEvent(data._id, { eventType: "view", sessionId: getSessionId() }).catch(() => {});
       } catch (err) {
         if (!cancelled) {
@@ -167,6 +113,29 @@ export function CategoryPage() {
 
   return (
     <div className="w-full">
+      {category && (
+        <SEO
+          title={category.seoTitle || `${category.name} | Shop`}
+          description={category.seoDescription || category.description || `Browse ${category.name} products in our storefront.`}
+          keywords={`${category.name}, Shop, Buy Online, Daya Creatives`}
+          url={`/category/${category.slug}`}
+          type="website"
+          image={banner}
+          breadcrumbs={[
+            { name: "Home", url: "/" },
+            { name: "Shop", url: "/shop" },
+            { name: category.name }
+          ]}
+          jsonLd={{
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": category.name,
+            "description": category.seoDescription || category.description || `Browse ${category.name} products in our storefront.`,
+            "url": `https://dayacreatives.com/category/${category.slug}`,
+            ...(banner ? { "image": banner } : {})
+          }}
+        />
+      )}
       <section className="relative overflow-hidden bg-zinc-950 text-white">
         {banner ? (
           <img src={banner} alt={category?.name || "Category"} className="absolute inset-0 h-full w-full object-cover opacity-35" />

@@ -5,6 +5,7 @@ import { Topbar } from "./Topbar";
 import { useAdminSidebarData } from "../hooks/useAdminSidebarData";
 import { useRoleNotifications } from "../hooks/useRoleNotifications";
 import { ADMIN_SECTION_ITEMS } from "../config/sidebarModules";
+import { SEO } from "./SEO";
 
 const pageMeta = {
   "/admin/dashboard": {
@@ -193,8 +194,10 @@ export function AdminLayout() {
   }
 
   return (
-    <div className={`enterprise-shell flex min-h-screen max-w-full overflow-x-hidden ${sidebarOpen ? "lg:ml-20" : "lg:ml-0"}`}>
-      <Sidebar
+    <>
+      <SEO title={`Admin | ${meta.title}`} robots="noindex,nofollow" />
+      <div className={`enterprise-shell flex min-h-screen max-w-full overflow-x-hidden ${sidebarOpen ? "lg:ml-20" : "lg:ml-0"}`}>
+        <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onNavigate={() => setSidebarOpen(false)}
@@ -217,5 +220,6 @@ export function AdminLayout() {
         </main>
       </div>
     </div>
+    </>
   );
 }

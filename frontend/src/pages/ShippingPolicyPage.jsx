@@ -1,20 +1,22 @@
 import { Truck, Package, CreditCard, Navigation, AlertTriangle, MapPin, XOctagon, Phone, ArrowUpRight } from "lucide-react";
 import { useEffect } from "react";
 import { useBranding } from "../context/BrandingContext";
+import { SEO } from "../components/SEO";
 
 export function ShippingPolicyPage() {
   const { branding } = useBranding();
   const companyName = branding?.companyName || "Daya Creatives";
 
-  useEffect(() => {
-    document.title = `Shipping Policy | ${companyName}`;
-    return () => {
-      document.title = companyName;
-    };
-  }, [companyName]);
+
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50 py-12 dark:bg-slate-950 sm:py-20">
+    <>
+      <SEO 
+        title={`Shipping Policy | ${companyName}`}
+        description={`Read the Shipping Policy for using ${companyName}.`}
+        url="/shipping-policy"
+      />
+      <div className="relative min-h-screen overflow-hidden bg-slate-50 py-12 dark:bg-slate-950 sm:py-20">
       {/* Background gradients for premium feel */}
       <div className="pointer-events-none absolute left-0 top-[-10%] h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-brand-primary/10 blur-[120px]" />
       <div className="pointer-events-none absolute right-0 top-[20%] h-[500px] w-[500px] translate-x-1/3 rounded-full bg-brand-accent/5 blur-[120px]" />
@@ -121,6 +123,7 @@ export function ShippingPolicyPage() {
         </div>
       </article>
     </div>
+    </>
   );
 }
 

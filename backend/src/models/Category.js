@@ -155,6 +155,30 @@ categorySchema.pre("validate", function setCategorySlug() {
   }
 });
 
+const cacheManager = require("../utils/cache.manager");
+
+// Sitemap Cache Invalidation
+categorySchema.post("save", function () {
+  cacheManager.invalidatePrefix("sitemap:categories");
+  cacheManager.invalidatePrefix("sitemap:index");
+});
+categorySchema.post("findOneAndUpdate", function () {
+  cacheManager.invalidatePrefix("sitemap:categories");
+  cacheManager.invalidatePrefix("sitemap:index");
+});
+categorySchema.post("findOneAndDelete", function () {
+  cacheManager.invalidatePrefix("sitemap:categories");
+  cacheManager.invalidatePrefix("sitemap:index");
+});
+categorySchema.post("updateOne", function () {
+  cacheManager.invalidatePrefix("sitemap:categories");
+  cacheManager.invalidatePrefix("sitemap:index");
+});
+categorySchema.post("deleteOne", function () {
+  cacheManager.invalidatePrefix("sitemap:categories");
+  cacheManager.invalidatePrefix("sitemap:index");
+});
+
 categorySchema.index({ isActive: 1, order: 1, name: 1 });
 categorySchema.index({ status: 1, visibility: 1, showOnHomepage: 1, order: 1 });
 categorySchema.index({ status: 1, visibility: 1, showInHeroBanner: 1, order: 1 });

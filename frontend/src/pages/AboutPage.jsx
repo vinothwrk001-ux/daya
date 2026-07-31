@@ -2,6 +2,7 @@ import { ArrowUpRight, FolderGit2, Users, Award, Briefcase } from "lucide-react"
 import { useEffect, useState } from "react";
 import { useBranding } from "../context/BrandingContext";
 import { Link } from "react-router-dom";
+import { SEO } from "../components/SEO";
 
 const recordImages = [
   "/assets/1 (1).JPG",
@@ -49,13 +50,6 @@ export function AboutPage() {
   const { branding } = useBranding();
   const companyName = branding?.companyName || "DayaCreatives";
 
-  useEffect(() => {
-    document.title = `About Us | ${companyName}`;
-    return () => {
-      document.title = companyName;
-    };
-  }, [companyName]);
-
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
@@ -66,7 +60,17 @@ export function AboutPage() {
   }, []);
 
   return (
-    <div className="flex w-full flex-col items-center">
+    <>
+      <SEO 
+        title={`About Us | ${companyName}`} 
+        description={`Learn more about ${companyName}, a creative design studio dedicated to helping businesses build strong and memorable brands.`}
+        url="/about"
+        breadcrumbs={[
+          { name: "Home", url: "/" },
+          { name: "About Us" }
+        ]}
+      />
+      <div className="flex w-full flex-col items-center">
       {/* Hero Section */}
       <section className="w-full bg-black px-6 py-20 text-white lg:py-32">
         <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-2">
@@ -350,5 +354,6 @@ export function AboutPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }

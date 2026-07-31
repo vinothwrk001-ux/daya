@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import "./index.css";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
@@ -25,18 +26,20 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "placeholder_c
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <BrandingProvider>
-        <ThemeProvider>
-          <NotificationProvider>
-            <BrowserRouter>
-              <AuthBootstrap>
-                <App />
-              </AuthBootstrap>
-            </BrowserRouter>
-          </NotificationProvider>
-        </ThemeProvider>
-      </BrandingProvider>
-    </GoogleOAuthProvider>
+    <HelmetProvider>
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <BrandingProvider>
+          <ThemeProvider>
+            <NotificationProvider>
+              <BrowserRouter>
+                <AuthBootstrap>
+                  <App />
+                </AuthBootstrap>
+              </BrowserRouter>
+            </NotificationProvider>
+          </ThemeProvider>
+        </BrandingProvider>
+      </GoogleOAuthProvider>
+    </HelmetProvider>
   </StrictMode>,
 );

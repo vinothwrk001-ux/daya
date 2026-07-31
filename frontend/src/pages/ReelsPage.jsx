@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { ReelsFeed } from "../components/reels/ReelsFeed";
 import { ReelsErrorBoundary } from "../components/reels/ReelsErrorBoundary";
+import { SEO } from "../components/SEO";
 import { useAuthStore } from "../context/authStore";
 import { showError } from "../services/notificationService";
 import {
@@ -118,7 +119,13 @@ export function ReelsPage() {
   }
 
   return (
-    <ReelsErrorBoundary>
+    <>
+      <SEO 
+        title="Explore Reels | Daya Creatives"
+        description="Discover trending and personalized reels on Daya Creatives."
+        url={`/reels${searchParams.toString() ? '?' + searchParams.toString() : ''}`}
+      />
+      <ReelsErrorBoundary>
       <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-md">
         <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-3">
           <button
@@ -148,6 +155,7 @@ export function ReelsPage() {
           onSave={handleSave}
         />
       </div>
-    </ReelsErrorBoundary>
+      </ReelsErrorBoundary>
+    </>
   );
 }

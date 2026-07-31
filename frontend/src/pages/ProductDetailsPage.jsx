@@ -30,6 +30,7 @@ import { getCartErrorMessage } from "../utils/cartErrors";
 import { getReelAttribution, getReelSessionId, trackReelProductView } from "../services/reelService";
 import { scrollPageToTop } from "../utils/scrollPageToTop";
 import { ProductDetailsSkeleton } from "../components/ProductDetailsSkeleton";
+import { SEO } from "../components/SEO";
 
 const RECOMMENDATION_CONTAINER_LIMIT = 20;
 
@@ -574,10 +575,52 @@ export function ProductDetailsPage() {
   }
 
   return (
-    <div className="space-y-8 pb-24 lg:pb-0">
-      <div className="flex w-full items-start px-4 lg:px-0">
-        <BackButton fallbackTo="/shop" />
-      </div>
+    <>
+      <SEO
+        title={`${product.name} | Daya Creatives`}
+        description={product.shortDescription || product.description}
+        keywords={`${product.name}, ${product.category || 'Shop'}, Daya Creatives, Buy Online`}
+        url={`/product/${product._id}`}
+        type="product"
+        image={media?.[0]?.url}
+        breadcrumbs={[
+          { name: "Home", url: "/" },
+          { name: "Shop", url: "/shop" },
+          { name: product.category || "Category", url: product.category ? `/category/${product.category.toLowerCase().replace(/ /g, '-')}` : "/shop" },
+          { name: product.name }
+        ]}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": product.name,
+          "image": media?.map(m => m.url) || [],
+          "description": product.shortDescription || product.description,
+          "sku": activeVariant?.sku || product.productNumber || product.SKU,
+          "brand": {
+            "@type": "Brand",
+            "name": product.brand || "Daya Creatives"
+          },
+          "offers": {
+            "@type": "Offer",
+            "url": `https://dayacreatives.com/product/${product._id}`,
+            "priceCurrency": "INR",
+            "price": pricing.salePrice,
+            "availability": stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            "itemCondition": "https://schema.org/NewCondition"
+          },
+          ...(product?.ratings?.averageRating ? {
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": product.ratings.averageRating,
+              "reviewCount": product.ratings.totalReviews || 1
+            }
+          } : {})
+        }}
+      />
+      <div className="space-y-8 pb-24 lg:pb-0">
+        <div className="flex w-full items-start px-4 lg:px-0">
+          <BackButton fallbackTo="/shop" />
+        </div>
 
       {reelIdFromQuery ? (
         <Link
@@ -816,5 +859,6 @@ export function ProductDetailsPage() {
         </div>
       ) : null}
     </div>
+    </>
   );
 }

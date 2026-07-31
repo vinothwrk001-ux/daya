@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useAuthStore } from "../context/authStore";
 import { getUserNotifications } from "../services/userService";
 import { resolveApiAssetUrl } from "../utils/resolveUrl";
+import { SEO } from "./SEO";
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard/user" },
@@ -70,7 +71,9 @@ export function UserAccountLayout() {
   const avatarUrl = resolveApiAssetUrl(user?.avatarUrl);
 
   return (
-    <div className="flex min-h-screen flex-col gap-4 overflow-x-safe px-3 py-4 sm:px-4 sm:py-6 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-6 lg:px-8 lg:py-8">
+    <>
+      <SEO title="User Account" robots="noindex,nofollow" />
+      <div className="flex min-h-screen flex-col gap-4 overflow-x-safe px-3 py-4 sm:px-4 sm:py-6 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-6 lg:px-8 lg:py-8">
       {/* Sidebar — drawer on mobile, fixed column on desktop */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-[min(100vw,18rem)] flex-col safe-area-inset border-r border-slate-200 bg-white shadow-2xl transition-transform duration-300 dark:border-slate-800 dark:bg-slate-900 lg:static lg:z-0 lg:w-auto lg:translate-x-0 lg:rounded-3xl lg:border lg:shadow-sm ${
@@ -179,5 +182,6 @@ export function UserAccountLayout() {
         <Outlet />
       </div>
     </div>
+    </>
   );
 }

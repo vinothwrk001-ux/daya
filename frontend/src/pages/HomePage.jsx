@@ -4,6 +4,7 @@ import { CategoryCarousel } from "../components/homepage/CategoryCarousel";
 import { ReelsSection } from "../components/reels/ReelComponents";
 import { HomepageTestimonials } from "../components/homepage/HomepageTestimonials";
 import { getHomepageBuilderPublicLayout } from "../services/homepageBuilderService";
+import { SEO } from "../components/SEO";
 
 export function HomePage() {
   const [loading, setLoading] = useState(true);
@@ -57,6 +58,32 @@ export function HomePage() {
 
   return (
     <div className="w-full">
+      <SEO 
+        title="Daya Creatives | Premium Fashion, Web Development & Creative Solutions"
+        description="Discover premium fashion, creative services, workshops, web development, and graphic design at Daya Creatives."
+        keywords="Daya Creatives, Premium Fashion, Web Development, Creative Solutions, Graphic Design"
+        url="/"
+        type="website"
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Daya Creatives",
+            "url": "https://dayacreatives.com",
+            "logo": "https://dayacreatives.com/assets/images/logo.png",
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "url": "https://dayacreatives.com",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://dayacreatives.com/shop?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          }
+        ]}
+      />
       {error ? (
         <div className="w-full px-3 py-8 sm:px-4 lg:px-8 lg:py-10">
           <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">

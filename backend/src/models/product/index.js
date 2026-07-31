@@ -245,10 +245,34 @@ productSchema.pre("save", async function () {
   }
 });
 
+const cacheManager = require("../../utils/cache.manager");
+
 // Helper method to get weight in kg
 productSchema.methods.getWeightInKg = function () {
   return this.weight?.value || 0;
 };
+
+// Sitemap Cache Invalidation
+productSchema.post("save", function () {
+  cacheManager.invalidatePrefix("sitemap:products");
+  cacheManager.invalidatePrefix("sitemap:index");
+});
+productSchema.post("findOneAndUpdate", function () {
+  cacheManager.invalidatePrefix("sitemap:products");
+  cacheManager.invalidatePrefix("sitemap:index");
+});
+productSchema.post("findOneAndDelete", function () {
+  cacheManager.invalidatePrefix("sitemap:products");
+  cacheManager.invalidatePrefix("sitemap:index");
+});
+productSchema.post("updateOne", function () {
+  cacheManager.invalidatePrefix("sitemap:products");
+  cacheManager.invalidatePrefix("sitemap:index");
+});
+productSchema.post("deleteOne", function () {
+  cacheManager.invalidatePrefix("sitemap:products");
+  cacheManager.invalidatePrefix("sitemap:index");
+});
 
 // Indexes for performance
 productSchema.index({ name: "text", description: "text" });

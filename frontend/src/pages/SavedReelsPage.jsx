@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ReelCard } from "../components/reels/ReelComponents";
 import { listSavedReels } from "../services/reelService";
+import { SEO } from "../components/SEO";
 
 export function SavedReelsPage() {
   const [reels, setReels] = useState([]);
@@ -22,7 +23,9 @@ export function SavedReelsPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
+    <>
+      <SEO title="Saved Reels | Daya Creatives" robots="noindex,nofollow" />
+      <div className="mx-auto max-w-6xl px-4 py-8 lg:px-8">
       <h1 className="text-2xl font-black text-slate-900 dark:text-white">Saved Reels</h1>
       <p className="mt-1 text-sm text-slate-500">Your bookmarked short videos.</p>
 
@@ -42,5 +45,6 @@ export function SavedReelsPage() {
         ))}
       </div>
     </div>
+    </>
   );
 }

@@ -51,6 +51,7 @@ const recommendationRoutes = require("./modules/recommendation/routes");
 const reelRoutes = require("./modules/reels/routes");
 const serviceRequestRoutes = require("./routes/serviceRequest.routes");
 const { assertNoProductionBootstrapRoutes } = require("./utils/bootstrapRouteScanner");
+const sitemapRoutes = require("./routes/sitemap.routes");
 
 function createLimiter({
   windowMs = 15 * 60 * 1000,
@@ -203,6 +204,9 @@ function createApp() {
   );
 
   app.get("/health", (req, res) => res.json({ ok: true }));
+
+  // Sitemap and Robots.txt routes
+  app.use("/", sitemapRoutes);
 
   const forgotPasswordLimiter = createLimiter({
     windowMs: 60 * 60 * 1000, // 1 hour
