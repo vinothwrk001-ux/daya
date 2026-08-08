@@ -1,4 +1,4 @@
-export const generateOrganizationSchema = ({ companyName = "Daya Creatives", url = "https://dayacreatives.com", logoUrl = "https://dayacreatives.com/assets/images/logo.png" }) => {
+export const generateOrganizationSchema = ({ companyName = "Daya Creatives", url = "https://dayacreatives.com", logoUrl = "https://dayacreatives.com/favicon.png" }) => {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -12,7 +12,8 @@ export const generateOrganizationSchema = ({ companyName = "Daya Creatives", url
       "name": "Daya"
     },
     "sameAs": [
-      "https://instagram.com/dayacreatives",
+      "https://www.instagram.com/daya.creatives/",
+      "https://www.instagram.com/daya_clothings/",
       "https://facebook.com/dayacreatives",
       "https://linkedin.com/company/dayacreatives",
       "https://twitter.com/dayacreatives"
@@ -153,7 +154,7 @@ export const generateBlogPostingSchema = ({ title, description, url, datePublish
       "name": "Daya Creatives",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://dayacreatives.com/assets/images/logo.png"
+        "url": "https://dayacreatives.com/favicon.png"
       }
     },
     "mainEntityOfPage": {
