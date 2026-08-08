@@ -8,8 +8,8 @@ export function CheckoutStepper({ currentStep = "address", onStepChange, unlocke
   const currentIndex = STEPS.findIndex((step) => step.key === currentStep);
 
   return (
-    <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
-      <div className="flex items-center justify-between gap-2 overflow-x-auto">
+    <div className="rounded-[2rem] border border-slate-200 bg-white/90 p-3 sm:p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 w-full min-w-0 overflow-hidden">
+      <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
         {STEPS.map((step, index) => {
           const isComplete = currentIndex > index;
           const isActive = currentStep === step.key;

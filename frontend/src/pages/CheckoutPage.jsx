@@ -1080,13 +1080,13 @@ export function CheckoutPage() {
   return (
     <>
       <SEO title="Checkout | Daya Creatives" robots="noindex,nofollow" />
-      <div className="grid gap-6">
-      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3 mt-6 lg:mt-8">
-        <div className="text-center sm:text-left order-2 sm:order-none sm:col-start-2 sm:justify-self-center">
+      <div className="grid gap-4 sm:gap-6 w-full min-w-0">
+      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3 mt-4 sm:mt-6 lg:mt-8">
+        <div className="text-center order-2 sm:order-none sm:col-start-2 min-w-0 px-2 sm:px-0 sm:flex sm:flex-col sm:items-center">
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
             Secure checkout
           </div>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
+          <h1 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 dark:text-white break-words text-center">
             Address, summary, payment
           </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
@@ -1130,10 +1130,10 @@ export function CheckoutPage() {
           </button>
         </div>
       ) : (
-        <div className="grid gap-6">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="grid gap-5">
-            <section className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 sm:p-8 xl:p-10">
+        <div className="grid gap-5 sm:gap-6 w-full min-w-0">
+          <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="grid gap-4 sm:gap-5 w-full min-w-0">
+            <section className="rounded-3xl sm:rounded-[2.5rem] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 xl:p-10 w-full min-w-0">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
@@ -1234,7 +1234,7 @@ export function CheckoutPage() {
               ) : null}
             </section>
 
-            <section className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 sm:p-8 xl:p-10">
+            <section className="rounded-3xl sm:rounded-[2.5rem] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 xl:p-10 w-full min-w-0">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
@@ -1262,7 +1262,7 @@ export function CheckoutPage() {
               </div>
             </section>
 
-            <section className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 sm:p-8 xl:p-10">
+            <section className="rounded-3xl sm:rounded-[2.5rem] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 xl:p-10 w-full min-w-0">
               <div>
                 <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                   Step 3
@@ -1333,7 +1333,7 @@ export function CheckoutPage() {
                 </div>
               ) : null}
 
-              <div className="rounded-[2.5rem] bg-white p-6 shadow-2xl dark:bg-slate-900 sm:p-8">
+              <div className="rounded-3xl sm:rounded-[2.5rem] bg-white p-5 sm:p-6 shadow-2xl dark:bg-slate-900 sm:p-8">
                 <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                   Order total
                 </div>

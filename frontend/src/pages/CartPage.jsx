@@ -112,10 +112,10 @@ export function CartPage() {
   return (
     <>
       <SEO title="Cart | Daya Creatives" robots="noindex,nofollow" />
-      <div className="grid gap-4 sm:gap-6">
+      <div className="grid gap-4 sm:gap-6 w-full min-w-0">
       <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3">
-        <div className="text-center sm:text-left order-2 sm:order-none sm:col-start-2 sm:justify-self-center">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Cart</h1>
+        <div className="text-center order-2 sm:order-none sm:col-start-2 min-w-0 sm:flex sm:flex-col sm:items-center">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-center">Cart</h1>
           <p className="mt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300">Review your items before checkout</p>
         </div>
         <div className="order-1 flex-shrink-0 sm:order-none sm:col-start-1 sm:justify-self-start">
@@ -149,9 +149,9 @@ export function CartPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-6">
-          <div className="grid gap-4 lg:grid-cols-[1fr_minmax(300px,380px)]">
-            <div className="grid gap-3 sm:gap-4">
+        <div className="grid gap-6 w-full min-w-0">
+          <div className="grid gap-4 lg:grid-cols-[1fr_minmax(300px,380px)] w-full min-w-0">
+            <div className="grid gap-3 sm:gap-4 w-full min-w-0">
               {items.map((item) => {
               const p = item?.productId;
               const id = p?._id || item.productId;
@@ -167,10 +167,10 @@ export function CartPage() {
               const productWeightLabel = getFormattedWeight(p || item);
               const busyKey = `${id}:${variantId}`;
               return (
-                <div key={`${String(id)}:${variantId}`} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                  <div className="flex gap-4">
+                <div key={`${String(id)}:${variantId}`} className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900 w-full min-w-0">
+                  <div className="flex gap-3 sm:gap-4">
                     {/* Product Image - Fixed Size */}
-                    <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+                    <div className="h-20 w-20 sm:h-24 sm:w-24 flex-shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
                       {img ? (
                         <img
                           src={img}
@@ -189,7 +189,7 @@ export function CartPage() {
                         {/* Product Details */}
                         <div>
                           <h3
-                            className="text-base font-semibold text-slate-950 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2"
+                            className="text-sm sm:text-base font-semibold text-slate-950 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2 break-words"
                             onClick={() => navigateToProduct(navigate, `/product/${id}`)}
                           >
                             {name}
@@ -222,25 +222,24 @@ export function CartPage() {
                           </div>
                         </div>
 
-                        {/* Quantity and Action Controls */}
-                        <div className="mt-4 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-1 sm:gap-2">
                             <button
                               type="button"
                               disabled={busyId === busyKey || qty <= 1}
                               onClick={() => changeQty(String(id), variantId, qty - 1)}
-                              className="touch-target inline-flex items-center justify-center rounded-lg border border-slate-300 font-semibold disabled:opacity-50 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                              className="h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-lg border border-slate-300 font-semibold disabled:opacity-50 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                             >
                               −
                             </button>
-                            <div className="w-12 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+                            <div className="w-10 sm:w-12 rounded-lg border border-slate-200 bg-slate-50 px-2 sm:px-3 py-1 sm:py-2 text-center text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
                               {qty}
                             </div>
                             <button
                               type="button"
                               disabled={busyId === busyKey}
                               onClick={() => changeQty(String(id), variantId, qty + 1)}
-                              className="touch-target inline-flex items-center justify-center rounded-lg border border-slate-300 font-semibold disabled:opacity-50 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                              className="h-8 w-8 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-lg border border-slate-300 font-semibold disabled:opacity-50 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                             >
                               +
                             </button>
@@ -250,7 +249,7 @@ export function CartPage() {
                             type="button"
                             disabled={busyId === busyKey}
                             onClick={() => remove(String(id), variantId)}
-                            className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900 dark:text-rose-200 dark:hover:bg-rose-950/30"
+                            className="rounded-lg border border-rose-200 px-2 sm:px-3 py-1.5 sm:py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900 dark:text-rose-200 dark:hover:bg-rose-950/30"
                           >
                             Remove
                           </button>

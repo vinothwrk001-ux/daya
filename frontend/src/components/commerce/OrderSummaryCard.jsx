@@ -16,9 +16,9 @@ export function OrderSummaryCard({
   const totalWeight = unitWeight * Number(item?.quantity || 0);
 
   return (
-    <div className="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex gap-4">
-        <div className="h-24 w-24 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+    <div className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200 bg-white p-3 sm:p-4 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900 w-full min-w-0">
+      <div className="flex gap-3 sm:gap-4">
+        <div className="h-20 w-20 sm:h-24 sm:w-24 flex-shrink-0 overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
           {item?.image ? (
             <img src={resolveApiAssetUrl(item.image)} alt={item?.name || "Product"} className="h-full w-full object-cover" />
           ) : null}
@@ -36,23 +36,23 @@ export function OrderSummaryCard({
             </div>
           ) : null}
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
             {editable ? (
-              <div className="inline-flex items-center rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-950">
+              <div className="inline-flex items-center rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-950">
                 <button
                   type="button"
                   onClick={() => onQuantityChange?.(Math.max(1, Number(item?.quantity || 1) - 1))}
                   disabled={busy || Number(item?.quantity || 1) <= 1}
-                  className="h-9 w-9 rounded-xl text-sm font-semibold text-slate-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-900"
+                  className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg sm:rounded-xl text-sm font-semibold text-slate-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-900"
                 >
                   -
                 </button>
-                <span className="min-w-10 text-center text-sm font-semibold text-slate-950 dark:text-white">{item?.quantity || 1}</span>
+                <span className="min-w-8 sm:min-w-10 text-center text-sm font-semibold text-slate-950 dark:text-white">{item?.quantity || 1}</span>
                 <button
                   type="button"
                   onClick={() => onQuantityChange?.(Number(item?.quantity || 1) + 1)}
                   disabled={busy}
-                  className="h-9 w-9 rounded-xl text-sm font-semibold text-slate-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-900"
+                  className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg sm:rounded-xl text-sm font-semibold text-slate-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-900"
                 >
                   +
                 </button>
@@ -68,11 +68,11 @@ export function OrderSummaryCard({
                 type="button"
                 onClick={() => onRemove?.()}
                 disabled={busy}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                className="inline-flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl sm:rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300 dark:hover:bg-rose-950/40"
                 aria-label={`Remove ${item?.name || "item"} from checkout`}
                 title="Remove item"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             ) : null}
 
