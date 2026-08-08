@@ -17,23 +17,23 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:5000",
+        target: "http://127.0.0.1:5001",
         changeOrigin: true,
       },
       "/uploads": {
-        target: "http://127.0.0.1:5000",
+        target: "http://127.0.0.1:5001",
         changeOrigin: true,
       },
       "/sitemap.xml": {
-        target: "http://127.0.0.1:5000",
+        target: "http://127.0.0.1:5001",
         changeOrigin: true,
       },
       "/sitemaps": {
-        target: "http://127.0.0.1:5000",
+        target: "http://127.0.0.1:5001",
         changeOrigin: true,
       },
       "/robots.txt": {
-        target: "http://127.0.0.1:5000",
+        target: "http://127.0.0.1:5001",
         changeOrigin: true,
       },
     },
@@ -44,28 +44,34 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:5000",
+        target: "http://127.0.0.1:5001",
         changeOrigin: true,
       },
       "/uploads": {
-        target: "http://127.0.0.1:5000",
+        target: "http://127.0.0.1:5001",
         changeOrigin: true,
       },
       "/sitemap.xml": {
-        target: "http://127.0.0.1:5000",
+        target: "http://127.0.0.1:5001",
         changeOrigin: true,
       },
       "/sitemaps": {
-        target: "http://127.0.0.1:5000",
+        target: "http://127.0.0.1:5001",
         changeOrigin: true,
       },
       "/robots.txt": {
-        target: "http://127.0.0.1:5000",
+        target: "http://127.0.0.1:5001",
         changeOrigin: true,
       },
     },
   },
+  esbuild: {
+    keepNames: true,
+  },
   build: {
+    target: "es2022",
+    sourcemap: false,
+    cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks(id) {

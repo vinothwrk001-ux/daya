@@ -19,17 +19,18 @@ class SitemapService {
   // --- Static Pages ---
   
   getStaticPages() {
+    // These MUST match the actual React Router routes in App.jsx
     const staticPaths = [
       { loc: '', priority: 1.0, changefreq: 'daily' }, // Homepage
       { loc: 'about', priority: 0.8, changefreq: 'monthly' },
       { loc: 'services', priority: 0.8, changefreq: 'weekly' },
-      { loc: 'contact', priority: 0.5, changefreq: 'yearly' },
-      { loc: 'search', priority: 0.5, changefreq: 'yearly' },
-      { loc: 'offers', priority: 0.8, changefreq: 'daily' },
-      { loc: 'blog', priority: 0.8, changefreq: 'daily' },
-      { loc: 'privacy-policy', priority: 0.5, changefreq: 'yearly' },
-      { loc: 'terms', priority: 0.5, changefreq: 'yearly' },
-      { loc: 'refund-policy', priority: 0.5, changefreq: 'yearly' },
+      { loc: 'shop', priority: 0.9, changefreq: 'daily' },
+      { loc: 'blogs', priority: 0.7, changefreq: 'weekly' },
+      { loc: 'reels', priority: 0.6, changefreq: 'daily' },
+      { loc: 'privacy', priority: 0.3, changefreq: 'yearly' },
+      { loc: 'terms-conditions', priority: 0.3, changefreq: 'yearly' },
+      { loc: 'return-policy', priority: 0.3, changefreq: 'yearly' },
+      { loc: 'shipping', priority: 0.3, changefreq: 'yearly' },
     ];
 
     return staticPaths.map(p => ({

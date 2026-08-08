@@ -199,7 +199,7 @@ export function LoginPage() {
         <div className="w-full max-w-md rounded-2xl border border-slate-100 bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
-            <p className="mt-2 text-sm text-slate-500">Sign in to your DKA Creatives account</p>
+            <p className="mt-2 text-sm text-slate-500">Sign in to your Daya Creatives account</p>
           </div>
 
           {passwordResetSuccess ? (
@@ -210,7 +210,7 @@ export function LoginPage() {
 
           <form onSubmit={onSubmit} className="space-y-5">
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-900">Email or phone</label>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-900">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                 <input
@@ -222,7 +222,7 @@ export function LoginPage() {
                   }}
                   type="text"
                   autoComplete="username"
-                  placeholder="Enter your email or phone number"
+                  placeholder="Enter your email"
                   required
                 />
               </div>
@@ -299,7 +299,7 @@ export function LoginPage() {
             </div>
 
             {/* <div className="mt-6 text-center text-sm text-slate-600">
-              New to DKA Creatives?{" "}
+              New to Daya Creatives?{" "}
               <Link className="font-medium text-red-600 hover:underline" to="/register" state={location.state}>
                 Create an account
               </Link>

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
 import { getHomepageContainerProducts } from "../services/homepageContainerService";
+import { SEO } from "../components/SEO/SEO";
+import { generateCollectionPageSchema } from "../utils/seo/schema";
 
 function normalizeError(error) {
   return error?.response?.data?.message || error?.message || "Failed to load container products";
@@ -40,6 +42,24 @@ export function HomepageContainerProductsPage() {
   }, [slug]);
 
   return (
+    <>
+      {container && (
+        <SEO
+          title={container.title || "Collection"}
+          description={[container.description, `Browse the ${container.title || "collection"} at Daya Creatives.`]}
+          url={`/collections/${slug}`}
+          breadcrumbs={[
+            { name: "Home", url: "/" },
+            { name: "Shop", url: "/shop" },
+            { name: container.title || "Collection" }
+          ]}
+          jsonLd={generateCollectionPageSchema({
+            categoryName: container.title || "Collection",
+            description: container.description,
+            url: `https://dayacreatives.com/collections/${slug}`
+          })}
+        />
+      )}
     <div className="mx-auto w-full max-w-7xl px-3 py-8 sm:px-4 lg:px-8">
       <div className="rounded-[2rem] border border-white/60 bg-white/75 p-6 shadow-[0_35px_120px_-55px_rgba(15,23,42,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/72">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -92,5 +112,6 @@ export function HomepageContainerProductsPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

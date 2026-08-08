@@ -169,7 +169,7 @@ export function ServicesPage() {
           url: "https://dayacreatives.com/services"
         })}
       />
-      <div className="flex w-full flex-col items-center overflow-x-hidden">
+      <div className="flex w-full flex-col items-center overflow-x-hidden bg-black">
 
       {/* 1. Header Section */}
       <section className="w-full bg-white px-6 pb-6 pt-2 text-center lg:pb-8 lg:pt-2">
@@ -273,7 +273,7 @@ export function ServicesPage() {
       </section>
 
       {/* 4. Portfolio Section */}
-      <section className="w-full bg-black px-6 pb-8 pt-10 text-white sm:pb-20 lg:pb-32">
+      <section className="-mt-[20px] w-full bg-black px-6 pb-8 pt-10 text-white sm:pb-20 lg:pb-32">
         <div className="mx-auto max-w-7xl">
           <div className="mb-12 flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
             <div>

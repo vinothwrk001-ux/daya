@@ -1081,8 +1081,8 @@ export function CheckoutPage() {
     <>
       <SEO title="Checkout | Daya Creatives" robots="noindex,nofollow" />
       <div className="grid gap-6">
-      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3">
-        <div className="order-2 sm:order-none sm:col-start-2 sm:justify-self-center sm:text-center">
+      <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3 mt-6 lg:mt-8">
+        <div className="text-center sm:text-left order-2 sm:order-none sm:col-start-2 sm:justify-self-center">
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
             Secure checkout
           </div>

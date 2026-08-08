@@ -57,7 +57,7 @@ const brandingUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024, files: 7 },
   fileFilter: (_req, file, cb) => {
     const ext = String(path.extname(file.originalname || "") || "").toLowerCase();
-    const allowedExt = new Set([".png", ".svg", ".webp", ".ico"]);
+    const allowedExt = new Set([".png", ".svg", ".webp", ".ico", ".logo"]);
     const allowedMime = new Set([
       "image/png",
       "image/svg+xml",
@@ -65,7 +65,7 @@ const brandingUpload = multer({
       "image/x-icon",
       "image/vnd.microsoft.icon",
     ]);
-    if (!allowedExt.has(ext) || !allowedMime.has(file.mimetype)) {
+    if (!allowedExt.has(ext) || (!allowedMime.has(file.mimetype) && ext !== ".logo")) {
       return cb(new Error("UNSUPPORTED_FILE_TYPE"));
     }
     return cb(null, true);

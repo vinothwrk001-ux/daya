@@ -29,6 +29,7 @@ export function ReturnPolicyPage() {
     <LegalPageLayout
       title="Return Policy"
       description="Our return policy explains which items can be returned, how requests are reviewed, and how refunds or replacements are processed."
+      url="/return-policy"
       sections={sections}
     />
   );

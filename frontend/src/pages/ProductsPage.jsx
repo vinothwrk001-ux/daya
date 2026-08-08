@@ -228,11 +228,8 @@ export function ProductsPage() {
       />
       <div className="mt-3 grid gap-4 sm:gap-6 sm:mt-4">
       <div className="flex flex-col gap-2 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-0">
-        <div className="sm:col-start-2 sm:justify-self-center sm:text-center">
+        <div className="text-center sm:col-start-2 sm:justify-self-center">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Shop Products</h1>
-          <p className="mt-1 text-xs text-slate-600 sm:text-sm">
-            Dynamic category filters, shareable URLs, and real-time catalog facets.
-          </p>
         </div>
         <div className="sm:col-start-1 sm:justify-self-start">
           <BackButton />

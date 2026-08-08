@@ -20,8 +20,9 @@ function computeTotal(items = []) {
 }
 
 function asObjectId(id, fieldName) {
-  if (!mongoose.isValidObjectId(id)) throw new AppError(`Invalid ${fieldName}`, 400, "VALIDATION_ERROR");
-  return id;
+  const checkId = id && typeof id === "object" && id._id ? id._id : id;
+  if (!mongoose.isValidObjectId(checkId)) throw new AppError(`Invalid ${fieldName}`, 400, "VALIDATION_ERROR");
+  return checkId;
 }
 
 function getVariantForProduct(product, variantId) {

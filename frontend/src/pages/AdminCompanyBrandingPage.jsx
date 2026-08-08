@@ -12,13 +12,13 @@ import { resolveApiAssetUrl } from "../utils/resolveUrl";
 import { useBranding } from "../context/BrandingContext";
 
 const ASSET_FIELDS = [
-  { key: "primaryLogo", label: "Primary Logo", slot: "primary_logo", recommended: "300 x 80", formats: "PNG, SVG, WEBP" },
-  { key: "darkLogo", label: "Dark Theme Logo", slot: "dark_logo", recommended: "300 x 80", formats: "PNG, SVG, WEBP" },
-  { key: "mobileLogo", label: "Mobile Logo", slot: "mobile_logo", recommended: "150 x 40", formats: "PNG, SVG, WEBP" },
-  { key: "favicon", label: "Favicon", slot: "favicon", recommended: "32 x 32, 48 x 48, 64 x 64", formats: "PNG, ICO" },
-  { key: "emailLogo", label: "Email Header Logo", slot: "email_logo", recommended: "600 x 120", formats: "PNG, SVG, WEBP" },
-  { key: "invoiceLogo", label: "Invoice Logo", slot: "invoice_logo", recommended: "400 x 100", formats: "PNG, SVG, WEBP" },
-  { key: "organizationLogo", label: "Organization Logo", slot: "organization_logo", recommended: "400 x 400", formats: "PNG, SVG, WEBP" },
+  { key: "primaryLogo", label: "Primary Logo", slot: "primary_logo", recommended: "300 x 80", formats: "PNG, SVG, WEBP, LOGO" },
+  { key: "darkLogo", label: "Dark Theme Logo", slot: "dark_logo", recommended: "300 x 80", formats: "PNG, SVG, WEBP, LOGO" },
+  { key: "mobileLogo", label: "Mobile Logo", slot: "mobile_logo", recommended: "150 x 40", formats: "PNG, SVG, WEBP, LOGO" },
+  { key: "favicon", label: "Favicon", slot: "favicon", recommended: "32 x 32, 48 x 48, 64 x 64", formats: "PNG, ICO, LOGO" },
+  { key: "emailLogo", label: "Email Header Logo", slot: "email_logo", recommended: "600 x 120", formats: "PNG, SVG, WEBP, LOGO" },
+  { key: "invoiceLogo", label: "Invoice Logo", slot: "invoice_logo", recommended: "400 x 100", formats: "PNG, SVG, WEBP, LOGO" },
+  { key: "organizationLogo", label: "Organization Logo", slot: "organization_logo", recommended: "400 x 400", formats: "PNG, SVG, WEBP, LOGO" },
 ];
 
 const EMPTY_FORM = {
@@ -376,7 +376,7 @@ export function AdminCompanyBrandingPage() {
                           inputRefs.current[asset.key] = node;
                         }}
                         type="file"
-                        accept={asset.slot === "favicon" ? ".png,.ico" : ".png,.svg,.webp"}
+                        accept={asset.slot === "favicon" ? ".png,.ico,.logo" : ".png,.svg,.webp,.logo"}
                         onChange={(event) => handleFileChange(asset.key, event)}
                         className="hidden"
                       />

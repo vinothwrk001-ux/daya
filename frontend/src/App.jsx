@@ -10,6 +10,7 @@ import { RoleGate } from "./components/RoleGate";
 import { StaffProtectedRoute } from "./components/StaffProtectedRoute";
 import { StaffPermissionRoute } from "./components/StaffPermissionRoute";
 import { StaffDashboardLayout } from "./components/staff/DashboardLayout";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
 const lazyNamed = (loader, exportName) => lazy(() => loader().then((module) => ({ default: module[exportName] })));
 
@@ -255,7 +256,7 @@ export default function App() {
           </Route>
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
 

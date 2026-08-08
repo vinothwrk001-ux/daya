@@ -114,7 +114,7 @@ export function CartPage() {
       <SEO title="Cart | Daya Creatives" robots="noindex,nofollow" />
       <div className="grid gap-4 sm:gap-6">
       <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-start sm:gap-3">
-        <div className="order-2 sm:order-none sm:col-start-2 sm:justify-self-center sm:text-center">
+        <div className="text-center sm:text-left order-2 sm:order-none sm:col-start-2 sm:justify-self-center">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Cart</h1>
           <p className="mt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300">Review your items before checkout</p>
         </div>

@@ -1,6 +1,6 @@
 const { AppError } = require("../utils/AppError");
 
-const ALLOWED_EXTENSIONS = new Set([".png", ".svg", ".webp", ".ico"]);
+const ALLOWED_EXTENSIONS = new Set([".png", ".svg", ".webp", ".ico", ".logo"]);
 const ALLOWED_MIME_TYPES = new Set([
   "image/png",
   "image/svg+xml",
@@ -20,9 +20,9 @@ function validateBrandingFiles(files = {}) {
   const allFiles = Object.values(files).flat().filter(Boolean);
   for (const file of allFiles) {
     const extension = getExtension(file.originalname);
-    if (!ALLOWED_EXTENSIONS.has(extension) || !ALLOWED_MIME_TYPES.has(file.mimetype)) {
+    if (!ALLOWED_EXTENSIONS.has(extension) || (!ALLOWED_MIME_TYPES.has(file.mimetype) && extension !== ".logo")) {
       throw new AppError(
-        "Unsupported branding file. Please upload PNG, SVG, WEBP, or ICO under 5 MB.",
+        "Unsupported branding file. Please upload PNG, SVG, WEBP, ICO, or LOGO under 5 MB.",
         400,
         "FILE_TYPE"
       );

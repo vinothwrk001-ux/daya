@@ -1,7 +1,7 @@
 import { useBranding } from "../context/BrandingContext";
 import { SEO } from "./SEO/SEO";
 
-export function LegalPageLayout({ title, description, sections = [] }) {
+export function LegalPageLayout({ title, description, url, sections = [] }) {
   const { branding } = useBranding();
   const companyName = branding?.companyName || "DayaCreatives";
 
@@ -10,6 +10,11 @@ export function LegalPageLayout({ title, description, sections = [] }) {
       <SEO 
         title={`${title} | ${companyName}`}
         description={description}
+        url={url}
+        breadcrumbs={[
+          { name: "Home", url: "/" },
+          { name: title }
+        ]}
       />
       <article className="mx-auto max-w-4xl">
       <header className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">

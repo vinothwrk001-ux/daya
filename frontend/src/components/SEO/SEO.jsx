@@ -6,6 +6,11 @@ import { useSEO } from "../../hooks/useSEO";
 export const SEO = (props) => {
   const seoData = useSEO(props);
 
+  // Normalize jsonLd: ensure it's always an array for consistent rendering
+  const jsonLdItems = Array.isArray(seoData.jsonLd)
+    ? seoData.jsonLd.filter(Boolean)
+    : seoData.jsonLd ? [seoData.jsonLd] : [];
+
   return (
     <Helmet>
       {/* Standard SEO Tags */}
@@ -36,17 +41,19 @@ export const SEO = (props) => {
       <meta name="twitter:site" content={seoData.twitterHandle} />
       <meta name="twitter:creator" content={seoData.twitterHandle} />
 
-      {/* JSON-LD Structured Data */}
+      {/* JSON-LD Structured Data — Breadcrumbs */}
       {seoData.breadcrumbJsonLd && (
         <script type="application/ld+json">
           {JSON.stringify(seoData.breadcrumbJsonLd)}
         </script>
       )}
-      {seoData.jsonLd && (
-        <script type="application/ld+json">
-          {JSON.stringify(seoData.jsonLd)}
+
+      {/* JSON-LD Structured Data — Page-specific schemas */}
+      {jsonLdItems.map((schema, index) => (
+        <script key={`jsonld-${index}`} type="application/ld+json">
+          {JSON.stringify(schema)}
         </script>
-      )}
+      ))}
     </Helmet>
   );
 };

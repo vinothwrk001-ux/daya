@@ -82,7 +82,7 @@ export function ForgotPasswordPage() {
 
     const value = identifier.trim();
     if (!value) {
-      setError("Enter your email or phone number.");
+      setError("Enter your email.");
       return;
     }
     if (value.includes("@") ? !EMAIL_RE.test(value) : !PHONE_RE.test(value)) {
@@ -179,7 +179,7 @@ export function ForgotPasswordPage() {
       <BrandLogo showName={false} className="mb-5 text-slate-950" imgClassName="h-12 w-auto object-contain" />
       <h1 className="text-2xl font-semibold tracking-tight">Reset your password</h1>
       <p className="mt-2 text-slate-600">
-        {step === 1 && "Enter your email or phone to receive a one-time code."}
+        {step === 1 && "Enter your email to receive a one-time code."}
         {step === 2 && `Enter the 6-digit code sent to your ${channel === "email" ? "email" : "phone"}${recipient ? ` (${recipient})` : ""}.`}
         {step === 3 && "Create a new password for your account."}
       </p>
@@ -208,14 +208,14 @@ export function ForgotPasswordPage() {
         {step === 1 ? (
           <form onSubmit={onRequest}>
             <label className="block text-sm font-medium">
-              Email or phone
+              Email
               <input
                 className="mt-1 w-full rounded-lg border px-3 py-2"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 type="text"
                 autoComplete="username"
-                placeholder="10-digit phone or email"
+                placeholder="Enter your email"
                 required
               />
               <span className="mt-1 block text-xs text-slate-500">

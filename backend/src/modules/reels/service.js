@@ -33,8 +33,9 @@ const MIN_VIEW_SECONDS = 3;
 const COMMENT_COOLDOWN_MS = 5000;
 
 function asObjectId(id, fieldName) {
-  if (!mongoose.isValidObjectId(id)) throw new AppError(`Invalid ${fieldName}`, 400, "VALIDATION_ERROR");
-  return id;
+  const checkId = id && typeof id === "object" && id._id ? id._id : id;
+  if (!mongoose.isValidObjectId(checkId)) throw new AppError(`Invalid ${fieldName}`, 400, "VALIDATION_ERROR");
+  return checkId;
 }
 
 function hashIp(ip = "") {

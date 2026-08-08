@@ -8,6 +8,7 @@ const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 const path = require("path");
 const compression = require("compression");
+const prerenderNode = require("prerender-node");
 
 const { requestLoggerStream, logger } = require("./utils/logger");
 const { notFound } = require("./middleware/notFound");
@@ -78,6 +79,11 @@ function createApp() {
   assertNoProductionBootstrapRoutes();
 
   const app = express();
+  
+  // Trust the reverse proxy (Hostinger/Nginx/Cloudflare) to correctly parse X-Forwarded-For headers
+  // This fixes the express-rate-limit ValidationError
+  app.set("trust proxy", 1);
+
   const isDevelopment = process.env.NODE_ENV !== "production";
   const authRateLimit = Number(process.env.AUTH_RATE_LIMIT_MAX || (isDevelopment ? 60 : 20));
   const apiRateLimit = Number(process.env.API_RATE_LIMIT_MAX || (isDevelopment ? 5000 : 1000));
@@ -89,7 +95,33 @@ function createApp() {
     helmet({
       crossOriginOpenerPolicy: { policy: "unsafe-none" },
       crossOriginEmbedderPolicy: false,
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: isDevelopment ? false : {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://checkout.razorpay.com", "https://checkout-static-next.razorpay.com"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+          imgSrc: ["'self'", "data:", "blob:", "https://res.cloudinary.com", "https://*.cloudinary.com"],
+          connectSrc: ["'self'", "https://checkout.razorpay.com", "https://lumberjack.razorpay.com", "https://api.razorpay.com", "https://res.cloudinary.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+          frameSrc: ["'self'", "https://api.razorpay.com", "https://checkout.razorpay.com"],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'", "https://res.cloudinary.com", "blob:"],
+          workerSrc: ["'self'", "blob:"],
+        },
+      },
+      strictTransportSecurity: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+      },
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+      permissionsPolicy: {
+        features: {
+          camera: ["'none'"],
+          microphone: ["'none'"],
+          geolocation: ["'self'"],
+        },
+      },
     })
   );
 
@@ -101,7 +133,8 @@ function createApp() {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const developmentOrigins = new Set([
+  // Development-only origins — excluded in production to prevent unauthorized access
+  const developmentOrigins = isDevelopment ? new Set([
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:5174",
@@ -112,9 +145,7 @@ function createApp() {
     "http://127.0.0.1:4173",
     "http://localhost:4174",
     "http://127.0.0.1:4174",
-    "http://172.20.10.3:5173",
-    "https://dayacreatives.com"
-  ]);
+  ]) : new Set();
   const allowedOrigins = new Set(origins);
 
   if (!isDevelopment && !allowedOrigins.size) {
@@ -293,9 +324,29 @@ function createApp() {
     })
   );
 
-  // Handle SPA routing: serve index.html for non-API requests
+  // Prerender middleware: serves fully rendered HTML to search engine crawlers (Googlebot, Bingbot, etc.)
+  // Regular users are unaffected and receive the normal SPA.
+  const prerenderMiddleware = prerenderNode.set("protocol", "https");
+  
+  if (process.env.PRERENDER_TOKEN) {
+    // Option 1: Use Prerender.io Cloud (Best for Shared Hosting)
+    prerenderMiddleware.set("prerenderToken", process.env.PRERENDER_TOKEN);
+  } else {
+    // Option 2: Use Self-Hosted Prerender Server (Requires VPS with Chrome)
+    const prerenderServiceUrl = process.env.PRERENDER_SERVICE_URL || "http://localhost:3000";
+    prerenderMiddleware.set("prerenderServiceUrl", prerenderServiceUrl);
+  }
+
+  app.use(prerenderMiddleware);
+
+  // Handle SPA routing: serve index.html for non-API, non-bot requests
   app.use((req, res, next) => {
-    if (req.method === "GET" && !req.originalUrl.startsWith("/api")) {
+    if (
+      req.method === "GET" &&
+      !req.originalUrl.startsWith("/api") &&
+      !req.originalUrl.startsWith("/sitemap") &&
+      !req.originalUrl.startsWith("/robots.txt")
+    ) {
       res.sendFile(path.join(process.cwd(), "public", "index.html"), { dotfiles: "allow" });
     } else {
       next();

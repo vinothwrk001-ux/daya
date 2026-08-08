@@ -19,7 +19,19 @@ class RobotsService {
       '/login',
       '/register',
       '/profile',
-      '/wishlist'
+      '/wishlist',
+      '/staff',
+      '/user',
+      '/dashboard',
+      '/forgot-password',
+      '/settings',
+      '/notifications',
+      '/saved-reels',
+      '/support',
+      '/orders',
+      '/addresses',
+      '/reviews',
+      '/compare',
     ];
 
     disallowedPaths.forEach(path => {
@@ -27,6 +39,7 @@ class RobotsService {
     });
 
     txt += `\nSitemap: ${this.domain}/sitemap.xml\n`;
+    txt += `Host: ${this.domain}\n`;
 
     return txt;
   }

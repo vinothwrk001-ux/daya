@@ -22,8 +22,9 @@ const PREPARED_CHECKOUT_CACHE_TTL_MS = 2 * 60 * 1000;
 const preparedCheckoutCache = new Map();
 
 function asObjectId(id, fieldName) {
-  if (!mongoose.isValidObjectId(id)) throw new AppError(`Invalid ${fieldName}`, 400, "VALIDATION_ERROR");
-  return id;
+  const checkId = id && typeof id === "object" && id._id ? id._id : id;
+  if (!mongoose.isValidObjectId(checkId)) throw new AppError(`Invalid ${fieldName}`, 400, "VALIDATION_ERROR");
+  return checkId;
 }
 
 function generateOrderNumber() {

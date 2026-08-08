@@ -56,7 +56,7 @@ export function SearchBar({ className = "" }) {
 
   return (
     <div ref={searchRef} className={`group relative mx-auto w-full max-w-[500px] sm:ml-auto sm:mr-0 ${className}`.trim()}>
-      <div className="relative mx-[13px] flex w-[calc(100%-26px)] items-center rounded-full bg-gray-100 pl-4 pr-1.5 py-1.5 transition duration-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-gray-300 sm:mx-0 sm:w-full lg:ml-2">
+      <div className="relative ml-[13px] mr-6 flex grow items-center rounded-full bg-gray-100 pl-4 pr-1.5 py-1 lg:py-1.5 transition duration-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-gray-300 sm:mx-0 sm:w-full sm:grow-0 lg:ml-2">
         <input
           type="text"
           placeholder="Search product"
@@ -72,7 +72,7 @@ export function SearchBar({ className = "" }) {
               // Optionally redirect to search results or trigger search
             }
           }}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"
+          className="flex h-8 w-8 lg:h-9 lg:w-9 shrink-0 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"
         >
           <Search className="h-4 w-4" />
         </button>

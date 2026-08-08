@@ -34,9 +34,9 @@ export function HeroHeader({ variant = "overlay" }) {
 
   return (
     <>
-      <div className="hero-header-grid w-full">
+      <div className="hero-header-grid w-full lg:max-w-content lg:mx-auto">
         <div className="hero-header-grid__start flex min-w-0 items-center">
-          <Link to="/" className="inline-flex shrink-0 transition hover:opacity-90" aria-label="Home">
+          <Link to="/" className="inline-flex shrink-0 transition hover:opacity-90 mt-5" aria-label="Home">
             {heroLogoUrl ? (
               <BrandingLogoImage
                 context={isOverlay ? "hero-overlay" : "default"}

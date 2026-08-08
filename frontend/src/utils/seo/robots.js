@@ -10,7 +10,19 @@ export const getRobotsDirective = (path = "", customRobots = null) => {
     "/register",
     "/profile",
     "/wishlist",
-    "/orders"
+    "/orders",
+    "/staff",
+    "/user",
+    "/dashboard",
+    "/forgot-password",
+    "/settings",
+    "/notifications",
+    "/saved-reels",
+    "/support",
+    "/addresses",
+    "/reviews",
+    "/compare",
+    "/checkout/success",
   ];
 
   const shouldNoIndex = noIndexRoutes.some(route => path.startsWith(route));

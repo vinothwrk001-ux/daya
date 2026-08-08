@@ -46,6 +46,25 @@ const sixthCardImages = [
   "/assets/Card 6 (3).jpg",
   "/assets/Card 6(4).jpg"
 ];
+const CountUp = ({ end, suffix = "", duration = 2000 }) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let startTimestamp = null;
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 4);
+      setCount(Math.floor(easeProgress * end));
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      }
+    };
+    window.requestAnimationFrame(step);
+  }, [end, duration]);
+
+  return <>{count}{suffix}</>;
+};
 
 export function AboutPage() {
   const { branding } = useBranding();
@@ -80,9 +99,12 @@ export function AboutPage() {
       />
       <div className="flex w-full flex-col items-center">
       {/* Hero Section */}
-      <section className="w-full bg-black px-6 py-20 text-white lg:py-32">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-2">
-          <div>
+      <section className="relative w-full overflow-hidden bg-black px-6 py-12 text-white lg:py-16">
+        {/* Red gradient at bottom right corner */}
+        <div className="absolute -bottom-48 -right-48 h-[800px] w-[800px] rounded-full bg-[#c11c1d] opacity-40 blur-[180px] pointer-events-none" />
+        
+        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-2 z-10">
+          <div className="z-20">
             <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-[#c11c1d] sm:text-sm">
               YOU DREAM IT, WE DESIGN IT.
             </p>
@@ -100,12 +122,38 @@ export function AboutPage() {
             </Link>
           </div>
           
-          <div className="grid grid-cols-2 gap-4 place-items-center sm:place-items-end lg:place-items-center">
-            {/* 4 Red Squares Grid */}
-            <div className="h-32 w-32 shrink-0 rounded-[1.75rem] bg-[#c11c1d] sm:h-40 sm:w-40" />
-            <div className="h-32 w-32 shrink-0 rounded-[1.75rem] bg-[#c11c1d] sm:h-40 sm:w-40" />
-            <div className="h-32 w-32 shrink-0 rounded-[1.75rem] bg-[#c11c1d] sm:h-40 sm:w-40" />
-            <div className="h-32 w-32 shrink-0 rounded-[1.75rem] bg-[#c11c1d] sm:h-40 sm:w-40" />
+          <div className="relative flex items-center justify-end w-full mt-10 lg:mt-0 z-20">
+            {/* The relative container exactly wrapping the image */}
+            <div className="relative w-[90%] lg:w-[95%] ml-auto flex justify-end">
+              {/* Collage Image */}
+              <img 
+                src="/assets/About Page.png" 
+                alt="Daya Creatives Team Collage" 
+                className="w-full h-auto object-contain drop-shadow-2xl relative z-10 scale-110 origin-center" 
+              />
+
+              {/* Stacked Red Squares overlapping the left edge with offset */}
+              <div className="absolute left-[-10%] top-[49%] flex -translate-y-1/2 flex-col gap-2 sm:gap-3 z-20 w-[20%]">
+                <div className="aspect-square w-full rounded-xl sm:rounded-2xl bg-[#c11c1d] flex flex-col items-center justify-center text-center p-1 sm:p-2 shadow-xl">
+                  <Users className="mb-0.5 h-4 w-4 sm:mb-1 sm:h-6 sm:w-6 lg:h-10 lg:w-10 text-white" strokeWidth={1.5} />
+                  <p className="mb-0.5 text-xs font-bold sm:mb-1 sm:text-lg lg:text-3xl text-white">
+                    <CountUp end={450} suffix="+" />
+                  </p>
+                  <p className="text-[6px] sm:text-[8px] lg:text-xs font-medium leading-tight text-white/90">
+                    Happy<br className="sm:hidden" /> Clients
+                  </p>
+                </div>
+                <div className="aspect-square w-full rounded-xl sm:rounded-2xl bg-[#c11c1d] flex flex-col items-center justify-center text-center p-1 sm:p-2 shadow-xl">
+                  <Briefcase className="mb-0.5 h-4 w-4 sm:mb-1 sm:h-6 sm:w-6 lg:h-10 lg:w-10 text-white" strokeWidth={1.5} />
+                  <p className="mb-0.5 text-xs font-bold sm:mb-1 sm:text-lg lg:text-3xl text-white">
+                    <CountUp end={7} suffix="+" />
+                  </p>
+                  <p className="text-[6px] sm:text-[8px] lg:text-xs font-medium leading-tight text-white/90">
+                    Years<br className="sm:hidden" /> Experience
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -167,7 +215,7 @@ export function AboutPage() {
               { name: "Abdul", image: "/assets/Abdul.jpg" },
               { name: "Loki", image: "/assets/Loki.jpg" },
             ].map((member, i) => (
-              <div key={i} className="group relative aspect-square w-full overflow-hidden rounded-[2rem] bg-[#b3b3b3] shadow-sm">
+              <div key={i} className={`group relative aspect-square w-full overflow-hidden rounded-[2rem] bg-[#b3b3b3] shadow-sm ${['delay-[0ms]', 'delay-[2000ms]', 'delay-[4000ms]', 'delay-[6000ms]', 'delay-[8000ms]', 'delay-[10000ms]'][i]}`}>
                 <img
                   src={member.image}
                   alt={member.name}

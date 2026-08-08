@@ -64,10 +64,10 @@ export function Layout() {
     { label: "Home", href: "/" },
     { label: "Products", href: "/shop" },
     // { label: "Categories", href: "/#categories" },
-    { label: "Reels", href: "/reels" },
     { label: "Services", href: "/services" },
     // { label: "Campaigns", href: "/collections/deals" },
     { label: "About Us", href: "/about" },
+    { label: "Blogs", href: "/blogs" },
     // { label: "Compare", href: "/compare" },
     { label: "Track order", href: user?.role === "user" ? "/orders" : user ? "/dashboard" : "/login" },
   ];
@@ -82,7 +82,7 @@ export function Layout() {
               <div className="flex flex-wrap items-center justify-center gap-3 lg:flex-wrap">
                 <Link
                   to="/"
-                  className="inline-flex min-w-fit shrink-0 items-center transition hover:opacity-90 opacity-100"
+                  className="inline-flex min-w-fit shrink-0 items-center transition hover:opacity-90 opacity-100 lg:mt-4"
                 >
                   <BrandLogo
                     showName={false}

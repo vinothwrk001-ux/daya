@@ -1,34 +1,65 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0f172a" />
-    
-    <title>Daya Creatives</title>
-    
-    <!-- Icons and Manifest -->
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
-    <link rel="manifest" href="/manifest.json" />
 
-    <!-- External Assets Preconnect -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
-    <link rel="preconnect" href="https://checkout.razorpay.com" crossorigin />
-    
-    <!-- DNS Prefetch -->
-    <link rel="dns-prefetch" href="https://checkout-static-next.razorpay.com" />
-    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
 
-    <!-- Fonts and Scripts -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap" />
-    <link rel="preload" href="https://checkout.razorpay.com/v1/checkout.js" as="script" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script async src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+  <title>Daya Creatives — Premium Fashion, Web Development & Creative Solutions</title>
+
+  <!-- SEO Fallback Meta Tags (overridden by React Helmet on each page) -->
+  <meta name="description"
+    content="Daya Creatives offers premium fashion, web development, eCommerce solutions, graphic design, branding, workshops, and creative services. Build your business with innovative digital and creative solutions." />
+  <meta name="keywords"
+    content="Daya Creatives, fashion, web development, eCommerce, graphic design, branding, creative services, Coimbatore" />
+  <meta name="author" content="Daya Creatives" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://dayacreatives.com/" />
+
+  <!-- Open Graph Fallback -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Daya Creatives — Premium Fashion & Creative Solutions" />
+  <meta property="og:description"
+    content="Premium fashion, web development, eCommerce solutions, and creative services by Daya Creatives." />
+  <meta property="og:url" content="https://dayacreatives.com/" />
+  <meta property="og:site_name" content="Daya Creatives" />
+  <meta property="og:image" content="https://dayacreatives.com/assets/D%20logo.png" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter Card Fallback -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Daya Creatives — Premium Fashion & Creative Solutions" />
+  <meta name="twitter:description"
+    content="Premium fashion, web development, eCommerce solutions, and creative services." />
+  <meta name="twitter:image" content="https://dayacreatives.com/assets/D%20logo.png" />
+  <meta name="twitter:site" content="@DayaCreatives" />
+
+  <!-- Icons and Manifest -->
+  <link rel="icon" type="image/png" href="/assets/D%20logo.png" />
+  <link rel="apple-touch-icon" href="/assets/D%20logo.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- External Assets Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
+  <link rel="preconnect" href="https://checkout.razorpay.com" crossorigin />
+
+  <!-- DNS Prefetch -->
+  <link rel="dns-prefetch" href="https://checkout-static-next.razorpay.com" />
+  <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+
+  <!-- Fonts and Scripts -->
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap" />
+  <link rel="preload" href="https://checkout.razorpay.com/v1/checkout.js" as="script" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script async src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

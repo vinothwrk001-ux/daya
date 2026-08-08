@@ -1,0 +1,1 @@
+import{n as e}from"./csrf-C-vZxxo_.js";function t(n){return Array.isArray(n)?t(n[0]):(n&&typeof n==`object`&&(n=n.url||n.secureUrl||n.path||n.src||``),!n||(n=String(n),n.startsWith(`http://`)||n.startsWith(`https://`))||n.startsWith(`data:`)||n.startsWith(`blob:`)?n:`${e()}${n.startsWith(`/`)?n:`/${n}`}`)}export{t};

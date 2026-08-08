@@ -119,18 +119,18 @@ export function UserMenu({ variant = "default" }) {
 
   const isHero = variant === "hero";
   const triggerClass = isHero
-    ? `flex items-center gap-2 rounded-lg px-2.5 py-2 transition-all sm:px-3 ${
+    ? `flex w-auto items-center gap-2 rounded-lg px-2 py-2 transition-all sm:px-3 ${
         isOpen
           ? "bg-white/15 text-white shadow-md"
           : "bg-white/10 text-white hover:bg-white/15"
       }`
-    : `flex items-center gap-2 rounded-lg px-2.5 py-2 transition-all sm:px-3 ${
+    : `flex w-auto items-center gap-2 rounded-lg px-2 py-2 transition-all sm:px-3 ${
         isOpen
           ? "bg-blue-50 shadow-md"
           : "bg-white hover:bg-slate-50"
       }`;
   const nameClass = isHero ? "hidden max-w-[8rem] truncate text-sm font-medium text-white sm:inline" : "hidden max-w-[8rem] truncate text-sm font-medium text-slate-700 sm:inline";
-  const chevronClass = isHero ? `h-4 w-4 text-white/80 transition-transform ${isOpen ? "rotate-180" : ""}` : `h-4 w-4 text-slate-500 transition-transform ${isOpen ? "rotate-180" : ""}`;
+  const chevronClass = isHero ? `hidden sm:block h-4 w-4 text-white/80 transition-transform ${isOpen ? "rotate-180" : ""}` : `hidden sm:block h-4 w-4 text-slate-500 transition-transform ${isOpen ? "rotate-180" : ""}`;
   return (
     <div className="relative">
       <button
@@ -141,7 +141,7 @@ export function UserMenu({ variant = "default" }) {
         aria-expanded={isOpen}
       >
         <div
-          className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-white ${avatarBg}`}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${avatarBg}`}
           title={user.name}
         >
           {initials}

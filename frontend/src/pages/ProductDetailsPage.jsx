@@ -550,7 +550,7 @@ export function ProductDetailsPage() {
     return (
       <div className="min-h-[calc(100dvh-10rem)] space-y-4">
         <div className="flex flex-col gap-3 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-3">
-          <div className="sm:col-start-2 sm:justify-self-center sm:text-center">
+          <div className="text-center sm:col-start-2 sm:justify-self-center sm:text-center">
             <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Product</h1>
           </div>
           <div className="sm:justify-self-start">
@@ -604,7 +604,7 @@ export function ProductDetailsPage() {
         })}
       />
       <div className="space-y-8 pb-24 lg:pb-0">
-        <div className="flex w-full items-start px-4 lg:px-0">
+        <div className="flex w-full items-start px-4 lg:px-0 mt-6 lg:mt-8">
           <BackButton fallbackTo="/shop" />
         </div>
 
@@ -678,7 +678,7 @@ export function ProductDetailsPage() {
                 )}
               </div>
 
-              <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">{product.name}</h1>
+              <h1 className="text-[1.35rem] leading-tight font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">{product.name}</h1>
               
               {product?.ratings?.averageRating ? (
                 <div className="flex flex-wrap items-center gap-3 text-sm">
