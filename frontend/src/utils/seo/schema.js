@@ -20,17 +20,17 @@ export const generateOrganizationSchema = ({ companyName = "Daya Creatives", url
     ],
     "contactPoint": {
       "@type": "ContactPoint",
-      "telephone": "+91-0000000000",
+      "telephone": "+91-91505 16461",
       "contactType": "customer service",
       "areaServed": "IN",
       "availableLanguage": "en"
     },
     "address": {
       "@type": "PostalAddress",
-      "streetAddress": "123 Creative Street",
+      "streetAddress": "upstairs of pr bakes, near 1c bus stand, V.N.R.Nagar, Vadavalli, Coimbatore, Tamil Nadu 641041",
       "addressLocality": "Coimbatore",
       "addressRegion": "Tamil Nadu",
-      "postalCode": "641001",
+      "postalCode": "641041",
       "addressCountry": "IN"
     },
     "openingHoursSpecification": [
