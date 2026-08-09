@@ -15,35 +15,41 @@ function formatProductNumber(counterKey, sequence) {
 }
 
 async function getCategoryAndSubcategory(categoryId, subCategoryId) {
-  if (!isValidObjectId(categoryId) || !isValidObjectId(subCategoryId)) {
-    throw new AppError("Category or subcategory is invalid", 400, "VALIDATION_ERROR");
+  if (!isValidObjectId(categoryId)) {
+    throw new AppError("Category is invalid", 400, "VALIDATION_ERROR");
+  }
+  if (subCategoryId && !isValidObjectId(subCategoryId)) {
+    throw new AppError("Subcategory is invalid", 400, "VALIDATION_ERROR");
   }
 
   const [category, subcategory] = await Promise.all([
     Category.findById(categoryId).select("_id name code isActive").lean(),
-    Subcategory.findById(subCategoryId).select("_id name code categoryId status").lean(),
+    subCategoryId ? Subcategory.findById(subCategoryId).select("_id name code categoryId status").lean() : Promise.resolve(null),
   ]);
 
   if (!category) {
     throw new AppError("Category not found", 404, "NOT_FOUND");
   }
-  if (!subcategory) {
-    throw new AppError("Subcategory not found", 404, "NOT_FOUND");
-  }
-  if (String(subcategory.categoryId) !== String(category._id)) {
-    throw new AppError("Subcategory does not belong to selected category", 400, "VALIDATION_ERROR");
-  }
-  if (subcategory.status !== "active") {
-    throw new AppError("Subcategory is disabled", 400, "VALIDATION_ERROR");
+
+  if (subCategoryId) {
+    if (!subcategory) {
+      throw new AppError("Subcategory not found", 404, "NOT_FOUND");
+    }
+    if (String(subcategory.categoryId) !== String(category._id)) {
+      throw new AppError("Subcategory does not belong to selected category", 400, "VALIDATION_ERROR");
+    }
+    if (subcategory.status !== "active") {
+      throw new AppError("Subcategory is disabled", 400, "VALIDATION_ERROR");
+    }
   }
 
   const categoryCode = String(category.code || category.name?.charAt(0) || "").trim().toUpperCase();
-  const subcategoryCode = String(subcategory.code || subcategory.name?.charAt(0) || "").trim().toUpperCase();
-  if (!categoryCode || !subcategoryCode) {
-    throw new AppError("Category or subcategory code is missing", 400, "VALIDATION_ERROR");
+  const subcategoryCode = subcategory ? String(subcategory.code || subcategory.name?.charAt(0) || "").trim().toUpperCase() : "";
+  if (!categoryCode) {
+    throw new AppError("Category code is missing", 400, "VALIDATION_ERROR");
   }
 
-  return { category, subcategory, categoryCode, subcategoryCode };
+  return { category, subcategory: subcategory || { name: "" }, categoryCode, subcategoryCode };
 }
 
 async function generateNextProductNumber({ categoryId, subCategoryId }) {

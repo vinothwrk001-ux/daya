@@ -284,8 +284,8 @@ class ProductService {
    */
   async createProduct(productData, userId) {
     // Validate inputs
-    if (!productData.name || !productData.description || !productData.categoryId || !productData.subCategoryId) {
-      throw new AppError("Missing required fields: name, description, category, subcategory", 400, "VALIDATION_ERROR");
+    if (!productData.name || !productData.description || !productData.categoryId) {
+      throw new AppError("Missing required fields: name, description, category", 400, "VALIDATION_ERROR");
     }
 
     // Generate slug from name
@@ -387,8 +387,8 @@ class ProductService {
     }
 
     const nextCategoryId = updateData.categoryId || product.categoryId;
-    const nextSubCategoryId = updateData.subCategoryId || product.subCategoryId;
-    if (nextCategoryId && nextSubCategoryId) {
+    const nextSubCategoryId = updateData.subCategoryId !== undefined ? updateData.subCategoryId : product.subCategoryId;
+    if (nextCategoryId) {
       const { category, subcategory } = await getCategoryAndSubcategory(nextCategoryId, nextSubCategoryId);
       updateData.category = category.name;
       updateData.subCategory = subcategory.name;
@@ -559,8 +559,8 @@ class ProductService {
   }
 
   async previewProductNumber({ categoryId, subCategoryId }) {
-    if (!categoryId || !subCategoryId) {
-      throw new AppError("Category and subcategory are required", 400, "VALIDATION_ERROR");
+    if (!categoryId) {
+      throw new AppError("Category is required", 400, "VALIDATION_ERROR");
     }
 
     return await previewNextProductNumber({ categoryId, subCategoryId });

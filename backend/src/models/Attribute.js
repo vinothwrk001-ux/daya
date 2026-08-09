@@ -59,18 +59,14 @@ const attributeSchema = new mongoose.Schema(
       index: true,
     },
     appliesTo: {
-      categoryId: {
+      categoryIds: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Category",
-        required: true,
-        index: true,
-      },
-      subCategoryId: {
+      }],
+      subCategoryIds: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Subcategory",
-        default: null,
-        index: true,
-      },
+      }],
     },
     version: {
       type: Number,
@@ -114,14 +110,16 @@ const attributeSchema = new mongoose.Schema(
 );
 
 attributeSchema.index(
-  { key: 1, moduleKey: 1, "appliesTo.categoryId": 1, "appliesTo.subCategoryId": 1 },
+  { key: 1, moduleKey: 1 },
   { unique: true }
 );
 attributeSchema.index({
-  "appliesTo.categoryId": 1,
-  "appliesTo.subCategoryId": 1,
+  "appliesTo.categoryIds": 1,
   moduleKey: 1,
   order: 1,
+});
+attributeSchema.index({
+  "appliesTo.subCategoryIds": 1,
 });
 
 module.exports = {

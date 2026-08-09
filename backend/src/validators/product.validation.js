@@ -86,9 +86,8 @@ const productSchema = Joi.object({
   }),
 
   subCategory: Joi.string().trim().allow("", null),
-  subCategoryId: objectId.required().messages({
+  subCategoryId: objectId.allow(null).messages({
     "string.length": "Subcategory is invalid",
-    "any.required": "Subcategory is required",
   }),
 
   tags: Joi.array().items(Joi.string().trim()).max(10),
@@ -164,7 +163,7 @@ const productSchema = Joi.object({
 
 // Schema for creating product (stricter)
 const createProductSchema = productSchema.fork(
-  ["name", "description", "category", "categoryId", "subCategoryId", "price", "stock", "images"],
+  ["name", "description", "category", "categoryId", "price", "stock", "images"],
   (schema) => schema.required()
 );
 
@@ -176,7 +175,7 @@ const updateProductSchema = Joi.object({
   category: Joi.string().trim(),
   categoryId: objectId,
   subCategory: Joi.string().trim().allow("", null),
-  subCategoryId: objectId,
+  subCategoryId: objectId.allow(null),
   tags: Joi.array().items(Joi.string().trim()).max(10),
   price: Joi.number().min(0),
   discountPrice: Joi.number().min(0),

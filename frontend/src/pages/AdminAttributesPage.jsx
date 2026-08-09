@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { confirmAction } from "../services/notificationService";
 import { useCategories } from "../hooks/useCategories";
-import { getSubcategoriesByCategory } from "../services/subcategoryService";
+import { listAdminSubcategories } from "../services/subcategoryService";
 import { listAdminProductModules } from "../services/productModuleService";
 import {
   createAdminAttribute,
@@ -22,8 +22,8 @@ const initialForm = {
   options: "",
   moduleKey: "",
   order: 0,
-  categoryId: "",
-  subCategoryId: "",
+  categoryIds: [],
+  subCategoryIds: [],
   template: "",
   isActive: true,
 };
@@ -34,7 +34,7 @@ function normalizeError(error) {
 
 export function AdminAttributesPage() {
   const { categories } = useCategories({ includeInactive: true });
-  const [subcategories, setSubcategories] = useState([]);
+  const [allSubcategories, setAllSubcategories] = useState([]);
   const [attributes, setAttributes] = useState([]);
   const [modules, setModules] = useState([]);
   const [activeModuleFilter, setActiveModuleFilter] = useState("all");
@@ -43,6 +43,11 @@ export function AdminAttributesPage() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState(initialForm);
+
+  const subcategories = useMemo(() => {
+    if (!form.categoryIds || !form.categoryIds.length) return [];
+    return allSubcategories.filter(s => form.categoryIds.includes(String(s.categoryId?._id || s.categoryId)));
+  }, [allSubcategories, form.categoryIds]);
 
   const modulesByKey = useMemo(
     () => Object.fromEntries(modules.map((moduleDef) => [moduleDef.key, moduleDef])),
@@ -69,9 +74,14 @@ export function AdminAttributesPage() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [attributeRes, moduleRes] = await Promise.all([listAdminAttributes(), listAdminProductModules()]);
+      const [attributeRes, moduleRes, subcategoryRes] = await Promise.all([
+        listAdminAttributes(), 
+        listAdminProductModules(),
+        listAdminSubcategories()
+      ]);
       setAttributes(Array.isArray(attributeRes?.data) ? attributeRes.data : []);
       setModules(Array.isArray(moduleRes?.data) ? moduleRes.data : []);
+      setAllSubcategories(Array.isArray(subcategoryRes?.data) ? subcategoryRes.data : []);
     } catch (err) {
       setError(normalizeError(err));
     } finally {
@@ -82,26 +92,6 @@ export function AdminAttributesPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadSubcategories() {
-      if (!form.categoryId) {
-        setSubcategories([]);
-        return;
-      }
-      try {
-        const res = await getSubcategoriesByCategory(form.categoryId);
-        if (!cancelled) setSubcategories(Array.isArray(res?.data) ? res.data : []);
-      } catch {
-        if (!cancelled) setSubcategories([]);
-      }
-    }
-    loadSubcategories();
-    return () => {
-      cancelled = true;
-    };
-  }, [form.categoryId]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -128,8 +118,8 @@ export function AdminAttributesPage() {
         template: form.template,
         isActive: form.isActive,
         appliesTo: {
-          categoryId: form.categoryId,
-          subCategoryId: form.subCategoryId || null,
+          categoryIds: form.categoryIds,
+          subCategoryIds: form.subCategoryIds,
         },
       };
 
@@ -163,8 +153,8 @@ export function AdminAttributesPage() {
       options: (item.options || []).join(", "),
       moduleKey: item.moduleKey || "",
       order: item.order || 0,
-      categoryId: item.appliesTo?.categoryId?._id || item.appliesTo?.categoryId || "",
-      subCategoryId: item.appliesTo?.subCategoryId?._id || item.appliesTo?.subCategoryId || "",
+      categoryIds: (item.appliesTo?.categoryIds || []).map(c => typeof c === 'object' ? c._id : c),
+      subCategoryIds: (item.appliesTo?.subCategoryIds || []).map(s => typeof s === 'object' ? s._id : s),
       template: item.template || "",
       isActive: item.isActive !== false,
     });
@@ -248,7 +238,7 @@ export function AdminAttributesPage() {
                             <div className="text-xs text-slate-500 dark:text-slate-400">
                               {item.type} • {item.isVariant ? `Variant / ${item.variantConfig?.displayType || "button"}` : "Standard field"} •{" "}
                               {item.useInFilters ? "Filter systems enabled" : "Filter systems disabled"} •{" "}
-                              {item.appliesTo?.categoryId?.name || "Category"} / {item.appliesTo?.subCategoryId?.name || "All subcategories"}
+                              {item.appliesTo?.categoryIds?.map(c => c.name).join(", ") || "Categories"} / {item.appliesTo?.subCategoryIds?.length ? item.appliesTo.subCategoryIds.map(s => s.name).join(", ") : "All subcategories"}
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -323,23 +313,67 @@ export function AdminAttributesPage() {
           ) : null}
           <input className="rounded-xl border px-3 py-2 text-sm" placeholder="Template (optional)" value={form.template} onChange={(e) => setForm((p) => ({ ...p, template: e.target.value }))} />
           <input className="rounded-xl border px-3 py-2 text-sm" type="number" min="0" value={form.order} onChange={(e) => setForm((p) => ({ ...p, order: e.target.value }))} />
-          <select className="rounded-xl border px-3 py-2 text-sm" value={form.categoryId} onChange={(e) => setForm((p) => ({ ...p, categoryId: e.target.value, subCategoryId: "" }))} required>
-            <option value="">Select category</option>
-            {categories.map((category) => (
-              <option key={category._id} value={category._id}>{category.name}</option>
-            ))}
-          </select>
-          <select className="rounded-xl border px-3 py-2 text-sm" value={form.subCategoryId} onChange={(e) => setForm((p) => ({ ...p, subCategoryId: e.target.value }))}>
-            <option value="">All subcategories</option>
-            {subcategories.map((subcategory) => (
-              <option key={subcategory._id} value={subcategory._id}>{subcategory.name}</option>
-            ))}
-          </select>
+          <div className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+            <div className="text-sm font-semibold text-slate-900 dark:text-white mb-2">Categories (Required)</div>
+            <div className="flex flex-col gap-2 max-h-40 overflow-y-auto">
+              {categories
+                .filter((category) => !category.redirectToServices && (category.isActive !== false || form.categoryIds.includes(category._id)))
+                .map((category) => (
+                <label key={category._id} className="flex items-center gap-2 text-sm">
+                  <input 
+                    type="checkbox" 
+                    checked={form.categoryIds.includes(category._id)}
+                    onChange={(e) => {
+                      const newIds = e.target.checked 
+                        ? [...form.categoryIds, category._id]
+                        : form.categoryIds.filter(id => id !== category._id);
+                      setForm(p => ({ 
+                        ...p, 
+                        categoryIds: newIds, 
+                        subCategoryIds: p.subCategoryIds.filter(sid => {
+                          const sub = allSubcategories.find(s => s._id === sid);
+                          return sub && newIds.includes(String(sub.categoryId?._id || sub.categoryId));
+                        }) 
+                      }));
+                    }}
+                  />
+                  {category.name}
+                </label>
+              ))}
+            </div>
+            {form.categoryIds.length === 0 && (
+              <p className="mt-2 text-xs text-rose-500">Please select at least one category.</p>
+            )}
+          </div>
+
+          {form.categoryIds.length > 0 && subcategories.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+              <div className="text-sm font-semibold text-slate-900 dark:text-white mb-2">Subcategories (Optional)</div>
+              <div className="flex flex-col gap-2 max-h-40 overflow-y-auto">
+                {subcategories.map((subcategory) => (
+                  <label key={subcategory._id} className="flex items-center gap-2 text-sm">
+                    <input 
+                      type="checkbox" 
+                      checked={form.subCategoryIds.includes(subcategory._id)}
+                      onChange={(e) => {
+                        const newIds = e.target.checked 
+                          ? [...form.subCategoryIds, subcategory._id]
+                          : form.subCategoryIds.filter(id => id !== subcategory._id);
+                        setForm(p => ({ ...p, subCategoryIds: newIds }));
+                      }}
+                    />
+                    {subcategory.name}
+                  </label>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-slate-500">If none are selected, the attribute applies to all subcategories under the selected categories.</p>
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.required} onChange={(e) => setForm((p) => ({ ...p, required: e.target.checked }))} />
             Required
           </label>
-          <button type="submit" disabled={saving || !modules.length} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+          <button type="submit" disabled={saving || !modules.length || form.categoryIds.length === 0} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
             {saving ? "Saving..." : editingId ? "Update field" : "Create field"}
           </button>
         </form>

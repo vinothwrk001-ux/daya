@@ -196,7 +196,7 @@ export function AdminLayout() {
   return (
     <>
       <SEO title={`Admin | ${meta.title}`} robots="noindex,nofollow" />
-      <div className={`enterprise-shell flex min-h-screen max-w-full overflow-x-hidden ${sidebarOpen ? "lg:ml-20" : "lg:ml-0"}`}>
+      <div className={`enterprise-shell flex min-h-screen max-w-full overflow-x-hidden ${sidebarOpen ? "lg:ml-80" : "lg:ml-0"}`}>
         <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

@@ -41,11 +41,11 @@ export function Sidebar({
 
   return (
     <aside
-      className="group fixed inset-y-0 left-0 z-40 flex flex-col border-r border-black bg-brand-secondary text-white backdrop-blur transition-all duration-300 ease-out w-20 hover:w-80 lg:w-20 lg:hover:w-80"
+      className="fixed inset-y-0 left-0 z-40 flex flex-col border-r border-black bg-brand-secondary text-white backdrop-blur w-80 lg:w-80"
     >
       <div className="flex flex-shrink-0 items-center gap-3 border-b border-white/10 px-3 py-4">
         <BrandLogo showName={false} imgClassName="h-7 w-auto max-w-[44px] object-contain" />
-        <div className="hidden truncate text-base font-semibold text-white sm:text-lg group-hover:block">
+        <div className="truncate text-base font-semibold text-white sm:text-lg block">
           {title}
           {subtitle ? <span className="block truncate text-xs font-medium text-white/60">{subtitle}</span> : null}
           {planLabel ? (
@@ -72,7 +72,7 @@ export function Sidebar({
           }
         >
           <PrimaryIcon className="h-4 w-4 flex-shrink-0" />
-          <span className="hidden truncate group-hover:block">{primaryItem.name}</span>
+          <span className="truncate block">{primaryItem.name}</span>
         </NavLink>
       </div>
 
@@ -91,11 +91,7 @@ export function Sidebar({
           ) : null}
 
           {sections.map((section) => (
-            <div
-              key={section.key}
-              onMouseEnter={() => setOpenSection(section.key)}
-              onMouseLeave={() => setOpenSection(null)}
-            >
+            <div key={section.key}>
               <SidebarSection
                 section={section.section}
                 sectionIcon={SECTION_ICONS[section.key]}
@@ -110,7 +106,6 @@ export function Sidebar({
                 }}
                 contentId={`sidebar-section-${section.key}`}
                 buttonId={`sidebar-trigger-${section.key}`}
-                collapsed={true}
               />
             </div>
           ))}

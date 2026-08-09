@@ -22,8 +22,8 @@ const attributePayload = {
   }),
   isActive: Joi.boolean(),
   appliesTo: Joi.object({
-    categoryId: objectId.required(),
-    subCategoryId: objectId.allow(null, ""),
+    categoryIds: Joi.array().items(objectId).min(1).required(),
+    subCategoryIds: Joi.array().items(objectId).allow(null),
   }),
 };
 

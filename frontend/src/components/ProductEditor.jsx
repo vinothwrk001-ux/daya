@@ -176,7 +176,7 @@ export function ProductEditor({
   }, []);
 
   useEffect(() => {
-    if (!isEditing) return;
+    if (!isEditing || productId === "undefined") return;
 
     let cancelled = false;
     (async () => {
@@ -271,7 +271,7 @@ export function ProductEditor({
   useEffect(() => {
     let cancelled = false;
     async function loadAttributes() {
-      if (!formData.categoryId || !formData.subCategoryId) {
+      if (!formData.categoryId) {
         setAttributeGroups({});
         return;
       }
@@ -342,7 +342,7 @@ export function ProductEditor({
   useEffect(() => {
     let cancelled = false;
     async function loadProductNumber() {
-      if (isEditing || !formData.categoryId || !formData.subCategoryId) return;
+      if (isEditing || !formData.categoryId) return;
       try {
         const res = await generateProductNumber({
           categoryId: formData.categoryId,
@@ -489,7 +489,6 @@ export function ProductEditor({
     if (!formData.name.trim()) return setError("Product name is required");
     if (!formData.description.trim()) return setError("Product description is required");
     if (!formData.categoryId) return setError("Category is required");
-    if (!formData.subCategoryId) return setError("Subcategory is required");
     if (formData.images.length === 0) return setError("At least one product image is required");
     if (formData.images.some((image) => image?.status === "uploading")) return setError("Wait for product image uploads to finish");
     if (formData.cardType === "HOVER" && formData.hoverImage.length === 0) return setError("At least one hover image is required for Hover card type");
@@ -547,8 +546,8 @@ export function ProductEditor({
         shortDescription: formData.shortDescription,
         category: formData.category,
         categoryId: formData.categoryId,
-        subCategory: formData.subCategory,
-        subCategoryId: formData.subCategoryId,
+        subCategory: formData.subCategory || null,
+        subCategoryId: formData.subCategoryId || null,
         price: Number(formData.price || 0),
         ...(formData.discountPrice !== "" ? { discountPrice: Number(formData.discountPrice || 0) } : {}),
         stock: Number(formData.stock || 0),
@@ -644,13 +643,15 @@ export function ProductEditor({
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Category *</label>
               <select name="categoryId" value={formData.categoryId} onChange={handleChange} disabled={categoriesLoading} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
                 <option value="">{categoriesLoading ? "Loading..." : "Select category"}</option>
-                {categories.map((category) => (
+                {categories
+                  .filter((category) => !category.redirectToServices && (category.isActive !== false || category._id === formData.categoryId))
+                  .map((category) => (
                   <option key={category._id} value={category._id}>{category.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Subcategory *</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Subcategory</label>
               <select name="subCategoryId" value={formData.subCategoryId} onChange={handleChange} disabled={!formData.categoryId || subcategoriesLoading} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
                 <option value="">{!formData.categoryId ? "Select category first" : subcategoriesLoading ? "Loading..." : "Select subcategory"}</option>
                 {subcategories.map((subcategory) => (

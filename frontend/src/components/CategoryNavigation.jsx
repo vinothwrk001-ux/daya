@@ -1,6 +1,7 @@
 import { logger } from "../services/logger/logger.js";
 import { memo, useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import * as subcategoryService from "../services/subcategoryService";
 
 /**
@@ -9,6 +10,7 @@ import * as subcategoryService from "../services/subcategoryService";
  * Inspired by Noon, Amazon, and Flipkart category navigation.
  */
 function CategoryNavigationComponent({ categories = [], onSelect, selectedCategory }) {
+  const navigate = useNavigate();
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [hoveredCategoryId, setHoveredCategoryId] = useState(null);
@@ -77,6 +79,10 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
   };
 
   const handleCategorySelect = (category) => {
+    if (category.isStaticLink) {
+      navigate('/services');
+      return;
+    }
     onSelect?.(category);
     setTimeout(checkScroll, 50);
   };
@@ -111,7 +117,13 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
     }, 150);
   };
 
-  const categoryList = Array.isArray(categories) ? categories : [];
+  const categoryList = (Array.isArray(categories) ? categories : [])
+    .filter(category => category.isActive !== false && !category.redirectToServices)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .concat([
+      { id: 'static-designing', name: 'Designing', isStaticLink: true },
+      { id: 'static-website', name: 'Website', isStaticLink: true }
+    ]);
 
   if (categoryList.length === 0) {
     return null;
@@ -145,12 +157,12 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
           >
             <div className="mx-auto inner-category-list flex h-full items-center justify-start lg:justify-center gap-1 whitespace-nowrap px-2 lg:px-12">
               {categoryList.map((category) => {
-                const isSelected = selectedCategory?.id === category.id || selectedCategory?.slug === category.slug;
+                const isSelected = selectedCategory ? (selectedCategory.id === category.id || (category.slug && selectedCategory.slug === category.slug)) : false;
                 
                 return (
                   <div
                     key={category.id}
-                    onMouseEnter={() => handleCategoryHover(category.id)}
+                    onMouseEnter={() => !category.isStaticLink && handleCategoryHover(category.id)}
                     onMouseLeave={handleHoverLeave}
                     className="relative group"
                   >

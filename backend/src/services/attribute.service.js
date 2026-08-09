@@ -37,8 +37,12 @@ function normalizeAttributePayload(payload = {}) {
     },
     isActive: payload.isActive !== false,
     appliesTo: {
-      categoryId: payload.appliesTo?.categoryId || payload.categoryId,
-      subCategoryId: payload.appliesTo?.subCategoryId || payload.subCategoryId || null,
+      categoryIds: Array.isArray(payload.appliesTo?.categoryIds) 
+        ? payload.appliesTo.categoryIds.filter(Boolean) 
+        : (payload.categoryId ? [payload.categoryId] : []),
+      subCategoryIds: Array.isArray(payload.appliesTo?.subCategoryIds)
+        ? payload.appliesTo.subCategoryIds.filter(Boolean)
+        : (payload.subCategoryId ? [payload.subCategoryId] : []),
     },
   };
 }
@@ -52,23 +56,34 @@ async function assertModuleExists(moduleKey) {
 }
 
 async function assertCategorySubcategory(appliesTo) {
-  const categoryId = appliesTo?.categoryId;
-  const subCategoryId = appliesTo?.subCategoryId || null;
-  if (!isValidObjectId(categoryId)) {
-    throw new AppError("Category is invalid", 400, "VALIDATION_ERROR");
-  }
-  if (subCategoryId && !isValidObjectId(subCategoryId)) {
-    throw new AppError("Subcategory is invalid", 400, "VALIDATION_ERROR");
+  const categoryIds = appliesTo?.categoryIds || [];
+  const subCategoryIds = appliesTo?.subCategoryIds || [];
+  
+  if (!categoryIds.length) {
+    throw new AppError("At least one Category is required", 400, "VALIDATION_ERROR");
   }
 
-  const category = await Category.findById(categoryId).select("_id").lean();
-  if (!category) throw new AppError("Category not found", 404, "NOT_FOUND");
+  for (const cid of categoryIds) {
+    if (!isValidObjectId(cid)) throw new AppError(`Category ID ${cid} is invalid`, 400, "VALIDATION_ERROR");
+  }
+  for (const sid of subCategoryIds) {
+    if (!isValidObjectId(sid)) throw new AppError(`Subcategory ID ${sid} is invalid`, 400, "VALIDATION_ERROR");
+  }
 
-  if (subCategoryId) {
-    const subcategory = await Subcategory.findById(subCategoryId).select("_id categoryId").lean();
-    if (!subcategory) throw new AppError("Subcategory not found", 404, "NOT_FOUND");
-    if (String(subcategory.categoryId) !== String(categoryId)) {
-      throw new AppError("Subcategory does not belong to category", 400, "VALIDATION_ERROR");
+  const categories = await Category.find({ _id: { $in: categoryIds } }).select("_id").lean();
+  if (categories.length !== categoryIds.length) {
+    throw new AppError("One or more Categories not found", 404, "NOT_FOUND");
+  }
+
+  if (subCategoryIds.length > 0) {
+    const subcategories = await Subcategory.find({ _id: { $in: subCategoryIds } }).select("_id categoryId").lean();
+    if (subcategories.length !== subCategoryIds.length) {
+      throw new AppError("One or more Subcategories not found", 404, "NOT_FOUND");
+    }
+    for (const sub of subcategories) {
+      if (!categoryIds.includes(String(sub.categoryId))) {
+        throw new AppError(`Subcategory ${sub._id} does not belong to any selected category`, 400, "VALIDATION_ERROR");
+      }
     }
   }
 }
@@ -93,13 +108,8 @@ async function updateAttribute(attributeId, payload) {
     ...current.toObject(),
     ...payload,
     appliesTo: {
-      ...(current.appliesTo || {}),
-      ...(payload.appliesTo || {}),
-      categoryId: payload.appliesTo?.categoryId || current.appliesTo?.categoryId,
-      subCategoryId:
-        payload.appliesTo?.subCategoryId !== undefined
-          ? payload.appliesTo?.subCategoryId || null
-          : current.appliesTo?.subCategoryId || null,
+      categoryIds: payload.appliesTo?.categoryIds || current.appliesTo?.categoryIds || [],
+      subCategoryIds: payload.appliesTo?.subCategoryIds || current.appliesTo?.subCategoryIds || [],
     },
   });
 
@@ -121,13 +131,13 @@ async function deleteAttribute(attributeId) {
 
 async function listAdminAttributes(filters = {}) {
   const query = {};
-  if (filters.categoryId) query["appliesTo.categoryId"] = filters.categoryId;
-  if (filters.subCategoryId) query["appliesTo.subCategoryId"] = filters.subCategoryId;
+  if (filters.categoryId) query["appliesTo.categoryIds"] = filters.categoryId;
+  if (filters.subCategoryId) query["appliesTo.subCategoryIds"] = filters.subCategoryId;
   if (filters.moduleKey) query.moduleKey = normalizeModuleKey(filters.moduleKey);
 
   return await Attribute.find(query)
-    .populate("appliesTo.categoryId", "name")
-    .populate("appliesTo.subCategoryId", "name")
+    .populate("appliesTo.categoryIds", "name")
+    .populate("appliesTo.subCategoryIds", "name")
     .sort({ moduleKey: 1, order: 1, name: 1 })
     .lean();
 }
@@ -139,12 +149,13 @@ async function listAttributeDefinitions({ categoryId, subCategoryId, activeOnly 
   if (!isValidObjectId(categoryId)) {
     throw new AppError("Category is invalid", 400, "VALIDATION_ERROR");
   }
-  query["appliesTo.categoryId"] = categoryId;
+  query["appliesTo.categoryIds"] = categoryId;
 
   if (subCategoryId && isValidObjectId(subCategoryId)) {
-    query.$or = [{ "appliesTo.subCategoryId": subCategoryId }, { "appliesTo.subCategoryId": null }];
-  } else {
-    query["appliesTo.subCategoryId"] = null;
+    query.$or = [
+      { "appliesTo.subCategoryIds": subCategoryId }, 
+      { "appliesTo.subCategoryIds": { $size: 0 } }
+    ];
   }
 
   return await Attribute.find(query).sort({ moduleKey: 1, order: 1, name: 1 }).lean();

@@ -62,7 +62,7 @@ export function SidebarSection({
       >
         <span className="flex items-center gap-2">
           {SectionIcon ? <SectionIcon className="h-4 w-4 flex-shrink-0 text-brand-primary" /> : null}
-          <span className="hidden truncate group-hover:block">{section}</span>
+          <span className="truncate block">{section}</span>
         </span>
         <span className="ml-auto flex items-center gap-2">
           {badgeCount > 0 ? (

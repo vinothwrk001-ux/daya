@@ -52,6 +52,17 @@ export function Layout() {
   }, [location.pathname]);
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const categoryId = searchParams.get("categoryId");
+    if (!categoryId) {
+      setSelectedCategory(null);
+    } else {
+      const cat = presentedCategories.find(c => c.id === categoryId || c._id === categoryId);
+      if (cat) setSelectedCategory(cat);
+    }
+  }, [location.search, presentedCategories]);
+
+  useEffect(() => {
     if (!mobileMenuOpen) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";

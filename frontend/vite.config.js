@@ -17,23 +17,32 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:5001",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("error", (err, req, res) => {
+            if (err.code === "ECONNREFUSED" && !res.headersSent) {
+              console.warn(`[vite] Proxy error: Backend is unreachable for ${req.url}`);
+              res.writeHead(502, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Backend is restarting or unavailable" }));
+            }
+          });
+        },
       },
       "/uploads": {
-        target: "http://127.0.0.1:5001",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
       "/sitemap.xml": {
-        target: "http://127.0.0.1:5001",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
       "/sitemaps": {
-        target: "http://127.0.0.1:5001",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
       "/robots.txt": {
-        target: "http://127.0.0.1:5001",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
     },
@@ -44,30 +53,37 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:5001",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("error", (err, req, res) => {
+            if (err.code === "ECONNREFUSED" && !res.headersSent) {
+              console.warn(`[vite] Proxy error: Backend is unreachable for ${req.url}`);
+              res.writeHead(502, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Backend is restarting or unavailable" }));
+            }
+          });
+        },
       },
       "/uploads": {
-        target: "http://127.0.0.1:5001",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
       "/sitemap.xml": {
-        target: "http://127.0.0.1:5001",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
       "/sitemaps": {
-        target: "http://127.0.0.1:5001",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
       "/robots.txt": {
-        target: "http://127.0.0.1:5001",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
     },
   },
-  esbuild: {
-    keepNames: true,
-  },
+
   build: {
     target: "es2022",
     sourcemap: false,

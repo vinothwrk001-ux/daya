@@ -229,7 +229,24 @@ export function ProductsPage() {
       <div className="mt-3 grid gap-4 sm:gap-6 sm:mt-4">
       <div className="flex flex-col gap-2 sm:grid sm:w-full sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-0">
         <div className="text-center sm:col-start-2 sm:justify-self-center">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Shop Products</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            {(() => {
+              const name = matchedCategory?.name?.toLowerCase() || category?.toLowerCase() || "";
+              if (name.includes("oversized t-shirt") || name.includes("oversized t shirt") || name.includes("oversized")) {
+                return "Unisex Oversized T-Shirts";
+              }
+              if (name.includes("regular t-shirt") || name.includes("regular t shirt") || name.includes("regular")) {
+                return "Unisex Regular T-Shirts";
+              }
+              if (name.includes("women's collection") || name.includes("womens collection") || name.includes("women")) {
+                return "Specialised Women's Collections";
+              }
+              if (matchedCategory?.name) {
+                return matchedCategory.name;
+              }
+              return "Shop Products";
+            })()}
+          </h1>
         </div>
         <div className="sm:col-start-1 sm:justify-self-start">
           <BackButton />
