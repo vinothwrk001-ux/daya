@@ -473,13 +473,34 @@ export function ProductEditor({
   }
 
   function handleVariantImagesChange(variant, images) {
-    updateVariantRow(variant.variantId, {
-      images: normalizeEditorImages(
-        images,
-        variant.title ? `${formData.name} ${variant.title}` : formData.name || "Variant image",
-        `variant-${variant.variantId}`
-      ),
-    });
+    const colorDef = variantDefs.find((def) => def.name.toLowerCase().includes("color") || def.name.toLowerCase().includes("colour"));
+    const colorValue = colorDef ? variant.attributes?.[colorDef.key] : null;
+
+    if (colorValue) {
+      setVariantRows((prev) =>
+        prev.map((row) => {
+          if (row.attributes?.[colorDef.key] === colorValue) {
+            return {
+              ...row,
+              images: normalizeEditorImages(
+                images,
+                row.title ? `${formData.name} ${row.title}` : formData.name || "Variant image",
+                `variant-${row.variantId}`
+              ),
+            };
+          }
+          return row;
+        })
+      );
+    } else {
+      updateVariantRow(variant.variantId, {
+        images: normalizeEditorImages(
+          images,
+          variant.title ? `${formData.name} ${variant.title}` : formData.name || "Variant image",
+          `variant-${variant.variantId}`
+        ),
+      });
+    }
   }
 
   async function handleSubmit(event) {

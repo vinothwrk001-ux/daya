@@ -292,19 +292,75 @@ export function ServicesPage() {
             </div>
 
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {Array.from({ length: 12 }).map((_, i) => {
+              {Array.from({ length: 8 }).map((_, i) => {
                 const isNSDC = i === 0;
+                const isIKIGAI = i === 1;
+                const isCWC = i === 2;
+                const isFamily = i === 3;
+                const isDaya = i === 4;
+                const isMeeyazh = i === 5;
+                const isDryFruits = i === 6;
+                const isGRM = i === 7;
+                const isInteractive = isNSDC || isIKIGAI || isCWC || isFamily || isGRM;
                 return (
                   <div
                     key={i}
-                    className={`group flex flex-col bg-black p-2 sm:p-4 transition-colors hover:bg-[#111] ${isNSDC ? 'cursor-pointer' : ''}`}
-                    onClick={() => isNSDC && setSelectedPdf("/assets/NSDC - PDF.pdf")}
+                    className={`group flex flex-col bg-black p-2 sm:p-4 transition-colors hover:bg-[#111] ${isInteractive ? 'cursor-pointer' : ''}`}
+                    onClick={() => {
+                      if (isNSDC) setSelectedPdf("/assets/NSDC - PDF.pdf");
+                      if (isIKIGAI) setSelectedPdf("/assets/2 ikigai.pdf");
+                      if (isCWC) setSelectedPdf("/assets/Cooku with comali.pdf");
+                      if (isFamily) setSelectedPdf("/assets/Family Kitchen.pdf");
+                      if (isGRM) setSelectedPdf("/assets/GRM_(1).pdf");
+                    }}
                   >
                     <div className="mb-2 sm:mb-4 aspect-square w-full rounded-lg sm:rounded-xl bg-[#1a1a1a] flex items-center justify-center text-[#444] overflow-hidden">
                       {isNSDC ? (
                         <img
                           src="/assets/Thumbnail NDSC..jpeg"
                           alt="NSDC"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                      ) : isIKIGAI ? (
+                        <img
+                          src="/assets/IKIGAI THUM.jpg"
+                          alt="IKIGAI"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                      ) : isCWC ? (
+                        <img
+                          src="/assets/CWC THUM.jpg"
+                          alt="Cooku With Comali"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                      ) : isFamily ? (
+                        <img
+                          src="/assets/Family Kitchen Thumb.jpg"
+                          alt="Family Kitchen"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                      ) : isDaya ? (
+                        <img
+                          src="/assets/Thumbnail Daya creatives.webp"
+                          alt="Daya Creatives"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                      ) : isMeeyazh ? (
+                        <img
+                          src="/assets/Thumbnail Meeyazh.webp"
+                          alt="Meeyazh"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                      ) : isDryFruits ? (
+                        <img
+                          src="/assets/Dry Fruit Thumbnail.png"
+                          alt="Dry Fruits"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                      ) : isGRM ? (
+                        <img
+                          src="/assets/GRM.png"
+                          alt="GRM"
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
                       ) : (
@@ -318,6 +374,13 @@ export function ServicesPage() {
                     </div>
                     <h3 className="text-[10px] leading-tight sm:leading-normal sm:text-sm font-bold text-white uppercase">
                       {isNSDC ? "NSDC" : (
+                        isIKIGAI ? "IKIGAI" :
+                        isCWC ? "Cooku With Comali" :
+                        isFamily ? "Family Kitchen" :
+                        isDaya ? "Daya Creatives" :
+                        isMeeyazh ? "Meeyazh" :
+                        isDryFruits ? "Dry Fruits" :
+                        isGRM ? "GRM" :
                         i % 4 === 0 ? "IKIGAI" :
                           i % 4 === 1 ? "Guided Abroad" :
                             i % 4 === 2 ? "The Frame House Media" :
