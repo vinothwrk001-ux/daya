@@ -365,10 +365,13 @@ export function ProductDetailsPage() {
     const variantImages = Array.isArray(activeVariant?.images) ? activeVariant.images : [];
     const productImages = Array.isArray(product?.images) ? product.images : [];
 
+    // Only use product images as a fallback if the variant has no images of its own
+    const sourceImages = variantImages.length > 0 ? variantImages : productImages;
+
     const mergedImages = [];
     const seenUrls = new Set();
 
-    for (const image of [...variantImages, ...productImages]) {
+    for (const image of sourceImages) {
       const url = String(image?.url || "").trim();
       if (!url || seenUrls.has(url)) continue;
       seenUrls.add(url);
@@ -773,7 +776,7 @@ export function ProductDetailsPage() {
                 </div>
               ) : null}
 
-              <div className="rounded-[1.5rem] bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-950 dark:text-slate-300">
+              <div className="hidden rounded-[1.5rem] bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-950 dark:text-slate-300">
                 <div className="font-semibold text-slate-950 dark:text-white">Current selection</div>
                 <div className="mt-2 grid gap-2">
                   {activeVariant?.title ? <div>{activeVariant.title}</div> : <div>Standard product configuration</div>}

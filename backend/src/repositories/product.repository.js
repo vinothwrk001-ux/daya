@@ -330,7 +330,13 @@ class ProductRepository {
     });
 
     const skip = (page - 1) * limit;
-    const sortObj = { [sortBy]: sortOrder };
+    
+    let sortObj = {};
+    if (sortBy === "featured") {
+      sortObj = { "analytics.salesCount": -1, "analytics.views": -1, name: 1 };
+    } else {
+      sortObj = { [sortBy]: sortOrder };
+    }
 
     const [products, total, facets] = await Promise.all([
       Product.find(query)

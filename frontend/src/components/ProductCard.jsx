@@ -198,19 +198,33 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
   const imageKey = `${activeVariant?.variantId || "default"}-${imageUrl}`;
 
   const goToProduct = (event) => {
+    // Ignore clicks on buttons (swatches, add to cart, wishlist)
+    if (event.target.closest('button')) {
+      return;
+    }
     if (!productId) {
       event?.preventDefault();
       return;
     }
     onProductClick?.(product);
+    navigate(detailUrl);
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      goToProduct(event);
+    }
   };
 
   return (
-    <Link
-      to={detailUrl || "#"}
+    <div
+      role="button"
+      tabIndex={0}
       onMouseEnter={() => setIsCardHovered(true)}
       onMouseLeave={() => setIsCardHovered(false)}
       onClick={goToProduct}
+      onKeyDown={handleKeyDown}
       className={`group relative mx-auto flex h-full w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-[12px] bg-transparent transition-all duration-300 ease-out hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7061] focus-visible:ring-offset-2 ${isEditorial ? "bg-slate-950 text-white" : ""
         }`}
     >
@@ -328,7 +342,7 @@ function ProductCardInner({ product, cardStyle = "DEFAULT", imageAspectClass = "
           <div className="mt-auto h-[22px] pt-3" aria-hidden="true" />
         )}
       </div>
-    </Link>
+    </div>
   );
 }
 

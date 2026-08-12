@@ -6,7 +6,7 @@ export const generateOrganizationSchema = ({ companyName = "Daya Creatives", url
     "url": url,
     "logo": logoUrl,
     "description": "Daya Creatives is a premium fashion, web development, and creative solutions studio.",
-    "email": "hello@dayacreatives.com",
+    "email": "dayastudios08@gmail.com",
     "founder": {
       "@type": "Person",
       "name": "Daya"

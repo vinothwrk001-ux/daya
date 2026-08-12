@@ -80,7 +80,7 @@ export function ProductsPage() {
   const search = searchParams.get("search") || "";
   const minPrice = searchParams.get("minPrice") || "";
   const maxPrice = searchParams.get("maxPrice") || "";
-  const sortBy = searchParams.get("sortBy") || "createdAt";
+  const sortBy = searchParams.get("sortBy") || "featured";
   const sortOrder = searchParams.get("sortOrder") || "desc";
   const page = parseInt(searchParams.get("page") || "1", 10);
 
@@ -297,7 +297,7 @@ export function ProductsPage() {
                 next.delete("minPrice");
                 next.delete("maxPrice");
                 clearDynamicFilters(next);
-                next.set("sortBy", "createdAt");
+                next.set("sortBy", "featured");
                 next.set("sortOrder", "desc");
                 next.set("page", "1");
               })
@@ -317,13 +317,14 @@ export function ProductsPage() {
               onChange={(event) =>
                 updateParams((next) => {
                   next.set("sortBy", event.target.value);
-                  next.set("sortOrder", event.target.value === "createdAt" ? "desc" : "asc");
+                  next.set("sortOrder", (event.target.value === "createdAt" || event.target.value === "featured") ? "desc" : "asc");
                   next.set("page", "1");
                 })
               }
               className="rounded-full bg-slate-100/50 px-3 py-2 text-xs font-medium text-black outline-none transition hover:text-rose-600 hover:underline focus:outline-none focus:ring-0 dark:bg-slate-700/50 dark:text-white dark:hover:text-rose-400 sm:text-sm"
             >
-              <option value="createdAt">Best Selling</option>
+              <option value="featured">Best Selling</option>
+              <option value="createdAt">New Arrivals</option>
               <option value="price">Price (Low to High)</option>
               <option value="ratings.averageRating">Highest Rated</option>
               <option value="name">Name (A-Z)</option>
@@ -477,22 +478,22 @@ export function ProductsPage() {
             </div>
 
             {pagination.pages > 1 ? (
-              <div className="flex flex-col gap-3 border-t pt-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between sm:pt-6">
-                <div className="text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
-                  Page {page} of {pagination.pages}
-                </div>
-                <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col items-center justify-center gap-4 border-t pt-6 pb-4 dark:border-slate-700">
+                <div className="flex items-center gap-4">
                   <button
                     onClick={() => updateParams((next) => next.set("page", String(Math.max(1, page - 1))))}
                     disabled={page === 1}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-xs hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800 sm:text-sm"
+                    className="rounded-full bg-red-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50 disabled:hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700"
                   >
                     Previous
                   </button>
+                  <div className="text-sm font-medium text-slate-600 dark:text-slate-400 min-w-[5rem] text-center">
+                    Page {page} of {pagination.pages}
+                  </div>
                   <button
                     onClick={() => updateParams((next) => next.set("page", String(Math.min(pagination.pages, page + 1))))}
                     disabled={page === pagination.pages}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-xs hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800 sm:text-sm"
+                    className="rounded-full bg-red-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50 disabled:hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700"
                   >
                     Next
                   </button>

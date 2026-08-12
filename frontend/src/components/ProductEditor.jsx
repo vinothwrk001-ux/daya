@@ -706,6 +706,10 @@ export function ProductEditor({
               <input type="number" name="stock" value={formData.stock} onChange={handleChange} min="0" className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
             </div>
             <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Weight (kg) *</label>
+              <input type="number" name="weight" value={formData.weight} onChange={handleChange} min="0.1" step="0.01" className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+            </div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Product number *</label>
               <input type="text" name="productNumber" value={formData.productNumber} disabled className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm uppercase dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
             </div>
@@ -974,10 +978,6 @@ export function ProductEditor({
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Additional details</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Weight (kg) *</label>
-              <input type="number" name="weight" value={formData.weight} onChange={handleChange} min="0.1" step="0.01" className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
-            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Low stock threshold</label>
               <input type="number" name="lowStockThreshold" value={formData.lowStockThreshold} onChange={handleChange} min="0" className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white" />

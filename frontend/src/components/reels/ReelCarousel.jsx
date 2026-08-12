@@ -8,10 +8,10 @@ function ReelsSectionHeader({ title }) {
   return (
     <div className="text-center">
       <div className="mx-auto mb-6 inline-flex h-[34px] items-center rounded-full border border-[#ef4444] bg-white px-5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#ef4444]">
-        {title || "Trending Reels"}
+        {title || "BEHIND THE SCENES"}
       </div>
       <h2 className="mx-auto text-[clamp(2rem,4vw,3rem)] font-bold leading-[1.1] text-[#111827]">
-        Inspired By You
+        From Our Hands to Yours
       </h2>
     </div>
   );
@@ -117,7 +117,7 @@ export function ReelCarousel({
 
   return (
     <ReelsSectionShell title={title}>
-      <div 
+      <div
         className="relative group mx-auto md:px-16"
         style={{ maxWidth: maxGroupWidth }}
       >

@@ -301,17 +301,16 @@ export function ServicesPage() {
                 const isMeeyazh = i === 5;
                 const isDryFruits = i === 6;
                 const isGRM = i === 7;
-                const isInteractive = isNSDC || isIKIGAI || isCWC || isFamily || isGRM;
-                return (
+                const isInteractive = isNSDC || isIKIGAI || isCWC || isFamily;
+                const card = (
                   <div
-                    key={i}
+                    key={`card-${i}`}
                     className={`group flex flex-col bg-black p-2 sm:p-4 transition-colors hover:bg-[#111] ${isInteractive ? 'cursor-pointer' : ''}`}
                     onClick={() => {
                       if (isNSDC) setSelectedPdf("/assets/NSDC - PDF.pdf");
                       if (isIKIGAI) setSelectedPdf("/assets/2 ikigai.pdf");
                       if (isCWC) setSelectedPdf("/assets/Cooku with comali.pdf");
                       if (isFamily) setSelectedPdf("/assets/Family Kitchen.pdf");
-                      if (isGRM) setSelectedPdf("/assets/GRM_(1).pdf");
                     }}
                   >
                     <div className="mb-2 sm:mb-4 aspect-square w-full rounded-lg sm:rounded-xl bg-[#1a1a1a] flex items-center justify-center text-[#444] overflow-hidden">
@@ -359,8 +358,8 @@ export function ServicesPage() {
                         />
                       ) : isGRM ? (
                         <img
-                          src="/assets/GRM.png"
-                          alt="GRM"
+                          src="/assets/UChooseMe.png"
+                          alt="U Choose Me"
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         />
                       ) : (
@@ -380,16 +379,29 @@ export function ServicesPage() {
                         isDaya ? "Daya Creatives" :
                         isMeeyazh ? "Meeyazh" :
                         isDryFruits ? "Dry Fruits" :
-                        isGRM ? "GRM" :
+                        isGRM ? "U Choose Me" :
                         i % 4 === 0 ? "IKIGAI" :
                           i % 4 === 1 ? "Guided Abroad" :
                             i % 4 === 2 ? "The Frame House Media" :
                               "CK Tours & Travels"
                       )}
                     </h3>
-                    <p className="text-[8px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1">Brand Identity</p>
+                    <p className="text-[9px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1 line-clamp-5 sm:line-clamp-none overflow-hidden leading-[1.2] sm:leading-normal">
+                      {[
+                        "Brand Identity",
+                        "Social Media Management",
+                        "Graphic Design",
+                        "Brand Identity",
+                        "E-Commerce Web Development",
+                        "Web Development for Baby Wears",
+                        "Web Development with Automation",
+                        "Web Development for Multiple Sectors"
+                      ][i]}
+                    </p>
                   </div>
                 );
+
+                return card;
               })}
             </div>
           </div>
@@ -413,11 +425,11 @@ export function ServicesPage() {
               <div className="space-y-6">
                 <div className="flex items-center gap-4">
                   <Phone className="h-5 w-5 text-[#c11c1d]" />
-                  <span className="text-sm font-medium sm:text-base">+91 12345 67890</span>
+                  <span className="text-sm font-medium sm:text-base">9150516461</span>
                 </div>
                 <div className="flex items-center gap-4">
                   <Mail className="h-5 w-5 text-[#c11c1d]" />
-                  <span className="text-sm font-medium sm:text-base">hello@dayacreatives.com</span>
+                  <span className="text-sm font-medium sm:text-base">dayastudios08@gmail.com</span>
                 </div>
                 <div className="flex items-center gap-4">
                   <MapPin className="h-5 w-5 text-[#c11c1d]" />
@@ -529,12 +541,30 @@ export function ServicesPage() {
           >
             <X className="h-6 w-6" />
           </button>
-          <div className="relative h-full w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-2xl">
-            <iframe
-              src={`${selectedPdf}#view=FitH`}
-              className="h-full w-full border-none"
-              title="PDF Viewer"
-            />
+          <div className="relative h-full w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-2xl flex flex-col items-center justify-center">
+            {/iPad|iPhone|iPod/.test(navigator.userAgent) ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center h-full w-full bg-slate-50">
+                <div className="text-6xl mb-4">📄</div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">View PDF Document</h3>
+                <p className="text-slate-500 mb-8 max-w-sm">
+                  iOS Safari requires PDFs to be opened in a new tab for the best viewing experience.
+                </p>
+                <a
+                  href={selectedPdf}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-[#c11c1d] text-white px-8 py-3 rounded-full font-semibold hover:bg-red-800 transition-colors shadow-lg"
+                >
+                  Open PDF
+                </a>
+              </div>
+            ) : (
+              <iframe
+                src={`${selectedPdf}#view=FitH`}
+                className="h-full w-full border-none"
+                title="PDF Viewer"
+              />
+            )}
           </div>
         </div>
       )}

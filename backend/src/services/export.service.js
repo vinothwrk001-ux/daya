@@ -51,6 +51,7 @@ function buildOrderExportRows(orders = [], filters = {}) {
     
     const productIds = [];
     const productNames = [];
+    const sizes = [];
     const quantities = [];
     
     for (const item of items) {
@@ -60,6 +61,24 @@ function buildOrderExportRows(orders = [], filters = {}) {
       
       productIds.push(String(item?.productNumber || item?.productId?.productNumber || item?.productId?.SKU || item?.productId?._id || item?.productId || item?.sku || "N/A"));
       productNames.push(String(item?.productName || item?.productId?.name || item?.name || "N/A"));
+      
+      let sizeVal = "N/A";
+      if (item?.variantAttributes?.Size) sizeVal = item.variantAttributes.Size;
+      else if (item?.variantAttributes?.size) sizeVal = item.variantAttributes.size;
+      else if (item?.variantTitle) sizeVal = item.variantTitle;
+
+      let colorVal = "";
+      if (item?.variantAttributes?.Color) colorVal = item.variantAttributes.Color;
+      else if (item?.variantAttributes?.color) colorVal = item.variantAttributes.color;
+
+      if (colorVal && sizeVal !== "N/A" && !String(sizeVal).includes(colorVal)) {
+        sizeVal = `${sizeVal}-${colorVal}`;
+      } else if (colorVal && sizeVal === "N/A") {
+        sizeVal = colorVal;
+      }
+      
+      sizes.push(String(sizeVal));
+      
       quantities.push(String(quantity));
     }
     
@@ -79,6 +98,7 @@ function buildOrderExportRows(orders = [], filters = {}) {
       "USER": userStr,
       "PRODUCT ID": productIds.join("\n"),
       "PRODUCT NAME": productNames.join("\n"),
+      "SIZE": sizes.join("\n"),
       "QUANTITY": quantities.join("\n"),
       "AMOUNT": toCurrency(orderAmount),
       "SHIPPING": shippingDetails,
@@ -100,6 +120,7 @@ function buildOrderExportRows(orders = [], filters = {}) {
       "USER": periodLabel || "All time",
       "PRODUCT ID": "",
       "PRODUCT NAME": "",
+      "SIZE": "",
       "QUANTITY": "",
       "AMOUNT": "",
       "SHIPPING": "",
@@ -112,6 +133,7 @@ function buildOrderExportRows(orders = [], filters = {}) {
       "USER": shiftLabel === "all" ? "All Time" : shiftLabel === "day" ? "Day Shift" : "Night Shift",
       "PRODUCT ID": "",
       "PRODUCT NAME": "",
+      "SIZE": "",
       "QUANTITY": "",
       "AMOUNT": "",
       "SHIPPING": "",
@@ -126,6 +148,7 @@ function buildOrderExportRows(orders = [], filters = {}) {
     "USER": totalProductsSold,
     "PRODUCT ID": "",
     "PRODUCT NAME": "",
+    "SIZE": "",
     "QUANTITY": "",
     "AMOUNT": "",
     "SHIPPING": "",
@@ -138,6 +161,7 @@ function buildOrderExportRows(orders = [], filters = {}) {
     "USER": totalQuantitySold,
     "PRODUCT ID": "",
     "PRODUCT NAME": "",
+    "SIZE": "",
     "QUANTITY": "",
     "AMOUNT": "",
     "SHIPPING": "",
@@ -150,6 +174,7 @@ function buildOrderExportRows(orders = [], filters = {}) {
     "USER": toCurrency(totalRevenue),
     "PRODUCT ID": "",
     "PRODUCT NAME": "",
+    "SIZE": "",
     "QUANTITY": "",
     "AMOUNT": "",
     "SHIPPING": "",
@@ -162,6 +187,7 @@ function buildOrderExportRows(orders = [], filters = {}) {
     "USER": totalOrders,
     "PRODUCT ID": "",
     "PRODUCT NAME": "",
+    "SIZE": "",
     "QUANTITY": "",
     "AMOUNT": "",
     "SHIPPING": "",

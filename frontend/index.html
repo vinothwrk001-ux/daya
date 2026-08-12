@@ -4,6 +4,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <script>
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+      document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover');
+    }
+  </script>
   <meta name="theme-color" content="#0f172a" />
 
   <title>Daya Creatives — Premium Fashion, Web Development & Creative Solutions</title>

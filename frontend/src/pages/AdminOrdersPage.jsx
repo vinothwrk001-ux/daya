@@ -209,6 +209,7 @@ export function AdminOrdersPage() {
             { key: "id", label: "Order" },
             { key: "user", label: "User" },
             { key: "productId", label: "Product ID" },
+            { key: "size", label: "Size" },
             { key: "quantity", label: "Quantity" },
             { key: "amount", label: "Amount", align: "right" },
             { key: "shipping", label: "Shipping" },
@@ -235,6 +236,32 @@ export function AdminOrdersPage() {
                     return (
                       <div key={`${order._id}-${index}`} title={displayValue} className="truncate text-sm text-slate-700 dark:text-slate-200">
                         {displayValue}
+                      </div>
+                    );
+                  })}
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex min-w-[70px] max-w-[120px] flex-col gap-1">
+                  {(order.items || []).map((item, index) => {
+                    let sizeVal = "N/A";
+                    if (item?.variantAttributes?.Size) sizeVal = item.variantAttributes.Size;
+                    else if (item?.variantAttributes?.size) sizeVal = item.variantAttributes.size;
+                    else if (item?.variantTitle) sizeVal = item.variantTitle;
+
+                    let colorVal = "";
+                    if (item?.variantAttributes?.Color) colorVal = item.variantAttributes.Color;
+                    else if (item?.variantAttributes?.color) colorVal = item.variantAttributes.color;
+
+                    if (colorVal && sizeVal !== "N/A" && !String(sizeVal).includes(colorVal)) {
+                      sizeVal = `${sizeVal}-${colorVal}`;
+                    } else if (colorVal && sizeVal === "N/A") {
+                      sizeVal = colorVal;
+                    }
+                    
+                    return (
+                      <div key={`${order._id}-size-${index}`} title={sizeVal} className="truncate text-sm text-slate-700 dark:text-slate-200">
+                        {sizeVal}
                       </div>
                     );
                   })}

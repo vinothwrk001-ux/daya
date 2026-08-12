@@ -97,7 +97,7 @@ export function CategoryCarousel() {
     trackCategoryEvent(category._id, {
       eventType: "click",
       sessionId: getSessionId(),
-    }).catch(() => {});
+    }).catch(() => { });
   }
 
   if (loading) {
@@ -122,11 +122,8 @@ export function CategoryCarousel() {
       <div className="mx-auto flex w-full max-w-7xl flex-col items-center">
         <div className="mb-6 flex w-full max-w-3xl flex-col items-center gap-4 text-center">
           <div>
-            <p className="mx-auto inline-flex rounded-full border border-brand-primary px-4 py-1.5 text-xs font-black uppercase tracking-[0.35em] text-brand-primary">{config.eyebrow}</p>
-            <h2 className="mt-4 pt-2 line-clamp-2 text-2xl font-black text-zinc-950 dark:text-white md:text-3xl">{config.title}</h2>
-            {config.subtitle ? (
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{config.subtitle}</p>
-            ) : null}
+            <p className="mx-auto inline-flex rounded-full border border-brand-primary px-4 py-1.5 text-xs font-black uppercase tracking-[0.35em] text-brand-primary">SERVICES</p>
+            <h2 className="mx-auto mt-4 pt-2 line-clamp-2 text-[clamp(2rem,4vw,3rem)] font-bold leading-[1.1] text-[#111827] dark:text-white">{config.title}</h2>
           </div>
         </div>
 
@@ -148,7 +145,7 @@ export function CategoryCarousel() {
             </div>
           ))}
         </div>
-        
+
         {categories.length > 2 && (
           <div className="mt-3 flex justify-center gap-1.5 md:hidden">
             {Array.from({ length: categories.length - 1 }).map((_, i) => (
@@ -162,9 +159,8 @@ export function CategoryCarousel() {
                     behavior: 'smooth'
                   });
                 }}
-                className={`h-1.5 rounded-full transition-all ${
-                  (currentIndex || 0) === i ? "w-4 bg-brand-primary" : "w-1.5 bg-zinc-300"
-                }`}
+                className={`h-1.5 rounded-full transition-all ${(currentIndex || 0) === i ? "w-4 bg-brand-primary" : "w-1.5 bg-zinc-300"
+                  }`}
                 aria-label={`Go to slide ${i + 1}`}
               />
             ))}

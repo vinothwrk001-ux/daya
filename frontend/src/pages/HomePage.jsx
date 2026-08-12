@@ -92,7 +92,7 @@ export function HomePage() {
       />
 
       {!loading ? (
-        <ReelsSection title="Trending Reels" sort="trending" />
+        <ReelsSection title="BEHIND THE SCENES" sort="trending" />
       ) : null}
 
       {!loading ? <HomepageTestimonials /> : null}
