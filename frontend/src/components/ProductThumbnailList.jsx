@@ -68,7 +68,7 @@ export function ProductThumbnailList({
     <div className="relative w-full">
       <div 
         ref={scrollContainerRef} 
-        className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x md:flex-wrap md:justify-center md:overflow-visible md:pb-0"
+        className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x md:flex-wrap md:justify-center md:overflow-visible md:pb-0 lg:flex-col lg:flex-nowrap lg:justify-start lg:h-[450px] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1"
       >
         {media.map((item, index) => (
           <button
@@ -76,7 +76,7 @@ export function ProductThumbnailList({
             data-thumbnail-index={index}
             type="button"
             onClick={() => onSelect(index)}
-            className={`group relative w-[calc(25%-9px)] shrink-0 snap-center aspect-square overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 md:h-[166px] md:w-[166px] md:aspect-auto ${
+            className={`group relative w-[calc(25%-9px)] shrink-0 snap-center aspect-square overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-200 md:h-[166px] md:w-[166px] md:aspect-auto lg:h-auto lg:w-full lg:aspect-square ${
               index === selectedIndex
                 ? "scale-[1.02] border-[color:var(--commerce-accent)] ring-2 ring-[color:var(--commerce-accent-soft)] shadow-md"
                 : "border-slate-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"

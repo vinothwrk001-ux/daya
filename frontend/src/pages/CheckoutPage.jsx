@@ -244,7 +244,7 @@ export function CheckoutPage() {
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [addressForm, setAddressForm] = useState(EMPTY_ADDRESS_FORM);
-  const [paymentMethod, setPaymentMethod] = useState("COD");
+  const [paymentMethod, setPaymentMethod] = useState("ONLINE");
   const [currentStep, setCurrentStep] = useState("summary");
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -392,15 +392,9 @@ export function CheckoutPage() {
     const pendingCheckout = pendingCheckoutManager.get();
     if (!pendingCheckout) return;
 
-    const restoredPaymentMethod =
-      pendingCheckout.selectedPaymentMethod || pendingCheckout.paymentMethod;
     const restoredShippingAddress =
       pendingCheckout.selectedAddress || pendingCheckout.shippingAddress;
     const restoredStep = pendingCheckout.checkoutStep || pendingCheckout.currentStep;
-
-    if (restoredPaymentMethod) {
-      setPaymentMethod(restoredPaymentMethod);
-    }
     if (pendingCheckout.selectedAddressId) {
       setSelectedAddressId(String(pendingCheckout.selectedAddressId));
     }
@@ -835,7 +829,9 @@ export function CheckoutPage() {
       return;
     }
 
-    setPlacing(true);
+    if (paymentMethod !== "COD") {
+      setPlacing(true);
+    }
     setError("");
 
     try {
@@ -845,6 +841,11 @@ export function CheckoutPage() {
       }
 
       if (paymentMethod === "COD") {
+        if (!window.confirm("Are you sure you want to place this order with Cash on Delivery?")) {
+          return;
+        }
+
+        setPlacing(true);
         const response = isBuyNowCheckout && buyNowSessionId
           ? await buyNowSessionService.createBuyNowOrder(buyNowSessionId, {
               shippingAddress,
@@ -1133,7 +1134,8 @@ export function CheckoutPage() {
         <div className="grid gap-5 sm:gap-6 w-full min-w-0">
           <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="grid gap-4 sm:gap-5 w-full min-w-0">
-            <section className="rounded-3xl sm:rounded-[2.5rem] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 xl:p-10 w-full min-w-0">
+              <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 w-full min-w-0">
+                <section className="rounded-3xl sm:rounded-[1.5rem] bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 w-full min-w-0">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
@@ -1168,7 +1170,7 @@ export function CheckoutPage() {
                       }
                       setShowAddressModal(true);
                     }}
-                    className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white dark:bg-slate-100 dark:text-slate-950"
+                    className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
                   >
                     {isAuthenticated ? "Add New Address" : "Add Delivery Address"}
                   </button>
@@ -1234,7 +1236,7 @@ export function CheckoutPage() {
               ) : null}
             </section>
 
-            <section className="rounded-3xl sm:rounded-[2.5rem] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 xl:p-10 w-full min-w-0">
+            <section className="rounded-3xl sm:rounded-[1.5rem] bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 w-full min-w-0">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
@@ -1261,8 +1263,9 @@ export function CheckoutPage() {
                 ))}
               </div>
             </section>
+            </div>
 
-            <section className="rounded-3xl sm:rounded-[2.5rem] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 xl:p-10 w-full min-w-0">
+            <section className="rounded-3xl sm:rounded-[1.5rem] bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:bg-slate-900 w-full min-w-0">
               <div>
                 <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                   Step 3
@@ -1324,7 +1327,7 @@ export function CheckoutPage() {
             </section>
             </div>
 
-          <aside className="xl:sticky xl:top-24 xl:self-start">
+          <aside className="lg:sticky lg:top-28 lg:self-start lg:col-start-2 lg:row-span-2">
             <div className="grid gap-4">
               <PriceBreakdown breakdown={priceBreakdown} />
               {paymentMethod === "COD" && codAvailability?.codAvailable === false ? (
@@ -1333,7 +1336,7 @@ export function CheckoutPage() {
                 </div>
               ) : null}
 
-              <div className="rounded-3xl sm:rounded-[2.5rem] bg-white p-5 sm:p-6 shadow-2xl dark:bg-slate-900 sm:p-8">
+              <div className="rounded-3xl sm:rounded-[1.5rem] bg-white p-5 shadow-2xl dark:bg-slate-900">
                 <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                   Order total
                 </div>
@@ -1358,7 +1361,7 @@ export function CheckoutPage() {
                   type="button"
                   disabled={placing || orderItems.length === 0 || (paymentMethod === "COD" && codAvailability?.codAvailable === false)}
                   onClick={placeOrder}
-                  className="group relative mt-6 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-950 px-5 py-4 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
+                  className="group relative mt-6 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-red-600 px-5 py-4 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="relative z-10">
                     {placing
@@ -1399,52 +1402,55 @@ export function CheckoutPage() {
             </div>
           </aside>
           </div>
-          <FbtBundleSection fbt={fbtBundle} sourceProductId={checkoutProductIds[0] || ""} surface="checkout" onAddProduct={addItem} />
-          <RecommendationSection
-            title="Checkout add-ons"
-            subtitle="Low-friction extras surfaced for the current basket."
-            items={recommendations?.addOns || []}
-            layout="grid"
-            recommendationType="cross_sell"
-            surface="checkout"
-            sourceProductId={checkoutProductIds[0] || ""}
-          />
-          <RecommendationSection
-            title="Recently viewed"
-            subtitle="Quick access to products you explored before checkout."
-            items={recommendations?.recentlyViewed || []}
-            layout="carousel"
-            recommendationType="recently_viewed"
-            surface="checkout"
-            sourceProductId={checkoutProductIds[0] || ""}
-          />
-          <RecommendationSection
-            title="Trending now"
-            subtitle="Popular products customers are exploring right now."
-            items={recommendations?.trending || []}
-            layout="grid"
-            recommendationType="trending"
-            surface="checkout"
-            sourceProductId={checkoutProductIds[0] || ""}
-          />
-          <RecommendationSection
-            title="Recommended for you"
-            subtitle="Personalized products based on your shopping signals."
-            items={recommendations?.personalized || []}
-            layout="carousel"
-            recommendationType="personalized"
-            surface="checkout"
-            sourceProductId={checkoutProductIds[0] || ""}
-          />
-          <RecommendationSection
-            title="Better picks to consider"
-            subtitle="Higher-value alternatives related to your checkout items."
-            items={recommendations?.upsell || []}
-            layout="grid"
-            recommendationType="upsell"
-            surface="checkout"
-            sourceProductId={checkoutProductIds[0] || ""}
-          />
+          
+          <div className="grid gap-8 lg:col-span-1 lg:col-start-1">
+            <FbtBundleSection fbt={fbtBundle} sourceProductId={checkoutProductIds[0] || ""} surface="checkout" onAddProduct={addItem} />
+            <RecommendationSection
+              title="Checkout add-ons"
+              subtitle="Low-friction extras surfaced for the current basket."
+              items={recommendations?.addOns || []}
+              layout="grid"
+              recommendationType="cross_sell"
+              surface="checkout"
+              sourceProductId={checkoutProductIds[0] || ""}
+            />
+            <RecommendationSection
+              title="Recently viewed"
+              subtitle="Quick access to products you explored before checkout."
+              items={recommendations?.recentlyViewed || []}
+              layout="carousel"
+              recommendationType="recently_viewed"
+              surface="checkout"
+              sourceProductId={checkoutProductIds[0] || ""}
+            />
+            <RecommendationSection
+              title="Trending now"
+              subtitle="Popular products customers are exploring right now."
+              items={recommendations?.trending || []}
+              layout="grid"
+              recommendationType="trending"
+              surface="checkout"
+              sourceProductId={checkoutProductIds[0] || ""}
+            />
+            <RecommendationSection
+              title="Recommended for you"
+              subtitle="Personalized products based on your shopping signals."
+              items={recommendations?.personalized || []}
+              layout="carousel"
+              recommendationType="personalized"
+              surface="checkout"
+              sourceProductId={checkoutProductIds[0] || ""}
+            />
+            <RecommendationSection
+              title="Better picks to consider"
+              subtitle="Higher-value alternatives related to your checkout items."
+              items={recommendations?.upsell || []}
+              layout="grid"
+              recommendationType="upsell"
+              surface="checkout"
+              sourceProductId={checkoutProductIds[0] || ""}
+            />
+          </div>
         </div>
       )}
 

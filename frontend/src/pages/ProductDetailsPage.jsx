@@ -545,7 +545,7 @@ export function ProductDetailsPage() {
     }
   }
 
-  if (!paintReady || loading) {
+  if (!paintReady || loading || (product && String(product._id) !== String(productId))) {
     return <ProductDetailsSkeleton />;
   }
 
@@ -606,8 +606,8 @@ export function ProductDetailsPage() {
           relatedProducts: _recommendations?.related || []
         })}
       />
-      <div className="space-y-8 pb-24 lg:pb-0">
-        <div className="flex w-full items-start px-4 lg:px-0 mt-6 lg:mt-8">
+      <div className="space-y-2 pb-24 lg:pb-0">
+        <div className="flex w-full items-start px-4 lg:px-0 mt-2 lg:mt-3">
           <BackButton fallbackTo="/shop" />
         </div>
 
@@ -622,12 +622,12 @@ export function ProductDetailsPage() {
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div> : null}
 
-      <div className="mx-auto flex max-w-[1300px] flex-col gap-10 lg:grid lg:grid-cols-[1.3fr_0.9fr] lg:items-start lg:gap-16 px-4 xl:px-0">
-        <div className="order-1 lg:col-start-1 lg:row-start-1">
+      <div className="mx-auto flex max-w-[1100px] flex-col gap-10 lg:grid lg:grid-cols-[484px_minmax(0,1fr)] lg:gap-12 px-4 xl:px-0">
+        <div className="order-1 lg:col-start-1 lg:row-start-1 lg:self-start lg:w-[484px]">
           <ProductImageGallery media={media} productName={product?.name} galleryKey={galleryKey} />
         </div>
 
-        <section className="order-3 lg:col-start-1 lg:row-start-2">
+        <section className="order-3 lg:col-start-1 lg:row-start-2 lg:self-start">
           <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-slate-100/60 p-1.5 dark:bg-slate-800/50 sm:w-fit">
             {tabs.map((tab) => (
               <button
@@ -669,19 +669,20 @@ export function ProductDetailsPage() {
           </div>
         </section>
 
-        <aside className="order-2 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
-          <div className="flex flex-col gap-6">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-slate-600 dark:bg-slate-800 dark:text-slate-300">{product.category}</span>
+        <aside className="order-2 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-stretch">
+          <div className="flex flex-col gap-3">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap">
+                <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-slate-600 dark:bg-slate-800 dark:text-slate-300">{product.category}</span>
                 {stock > 0 ? (
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-widest text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">In stock</span>
+                  <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-widest text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">In stock</span>
                 ) : (
-                  <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold uppercase tracking-widest text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">Out of stock</span>
+                  <span className="shrink-0 rounded-full bg-rose-50 px-3 py-1 text-xs font-bold uppercase tracking-widest text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">Out of stock</span>
                 )}
+                <ActiveViewersDisplay productId={product?._id} className="text-sm font-medium text-slate-500 shrink-0" />
               </div>
 
-              <h1 className="text-[1.35rem] leading-tight font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">{product.name}</h1>
+              <h1 className="text-[1.35rem] leading-tight font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl lg:text-[clamp(1.1rem,2.2vw,1.65rem)] line-clamp-2" title={product.name}>{product.name}</h1>
               
               {product?.ratings?.averageRating ? (
                 <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -692,23 +693,22 @@ export function ProductDetailsPage() {
               ) : null}
             </div>
 
-            <div className="space-y-2 border-y border-slate-200 py-6 dark:border-slate-800">
+            <div className="space-y-2 border-y border-slate-200 py-3 dark:border-slate-800">
               <div className="flex flex-wrap items-end gap-3">
-                <div className="text-4xl font-extrabold tracking-tight text-slate-950 dark:text-white">{formatCurrency(pricing.salePrice)}</div>
+                <div className="text-4xl lg:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">{formatCurrency(pricing.salePrice)}</div>
                 {pricing.hasDiscount ? (
                   <div className="flex items-center gap-3">
-                    <div className="pb-1 text-xl font-medium text-slate-400 line-through dark:text-slate-500">{formatCurrency(pricing.price)}</div>
+                    <div className="pb-1 text-xl lg:text-lg font-medium text-slate-400 line-through dark:text-slate-500">{formatCurrency(pricing.price)}</div>
                     <div className="mb-1 rounded-md bg-rose-100 px-2 py-0.5 text-sm font-bold text-rose-700 dark:bg-rose-950/50 dark:text-rose-400">Save {pricing.discountPercent}%</div>
                   </div>
                 ) : null}
               </div>
-              <ActiveViewersDisplay productId={product?._id} className="mt-2 text-sm text-slate-500" />
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-3">
 
               {variantGroups.length ? (
-                <div className="grid gap-4">
+                <div className="grid gap-3">
                   {variantGroups.map((group) => (
                     <div key={group.key}>
                       <div className="text-sm font-semibold text-slate-900 dark:text-white">{group.name}</div>
@@ -742,7 +742,7 @@ export function ProductDetailsPage() {
                               type="button"
                               disabled={disabled}
                               onClick={() => selectVariantValue(group.key, option.value)}
-                              className={`relative overflow-hidden min-w-[3.5rem] rounded-xl border-2 px-3 py-2.5 text-center text-sm font-bold transition-all ${isSelected
+                              className={`relative overflow-hidden min-w-[3.5rem] rounded-xl border-2 px-3 py-2 text-center text-sm font-bold transition-all ${isSelected
                                 ? "border-slate-950 bg-slate-950 text-white shadow-md dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950"
                                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:bg-slate-800"
                                 } ${disabled ? "cursor-not-allowed opacity-50" : "hover:-translate-y-0.5"}`}
@@ -786,15 +786,17 @@ export function ProductDetailsPage() {
                 </div>
               </div>
 
-              <div className="grid gap-3 pt-4">
-                <button type="button" disabled={stock === 0 || adding} onClick={() => handleAddToCart()} className="group relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-slate-950 px-5 py-4 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100">
-                  <span className="relative z-10">{adding ? "Adding to cart..." : "Add to Cart"}</span>
-                  <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-black/10" />
-                </button>
-                <button type="button" disabled={stock === 0 || buyingNow || adding} onClick={handleBuyNow} className="flex w-full items-center justify-center rounded-xl bg-red-500 px-5 py-4 text-sm font-bold text-white shadow-sm transition-all hover:bg-red-600 hover:shadow-md hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">
-                  {buyingNow ? "Starting checkout..." : "Buy Now"}
-                </button>
-                <button type="button" disabled={stock === 0 || wishlistLoading} onClick={handleWishlistToggle} className="flex w-full items-center justify-center rounded-xl border-2 border-slate-200 bg-transparent px-5 py-3.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800/50">
+              <div className="grid gap-2 pt-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" disabled={stock === 0 || adding} onClick={() => handleAddToCart()} className="group relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-slate-950 px-3 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100">
+                    <span className="relative z-10">{adding ? "Adding..." : "Add to Cart"}</span>
+                    <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-black/10" />
+                  </button>
+                  <button type="button" disabled={stock === 0 || buyingNow || adding} onClick={handleBuyNow} className="flex w-full items-center justify-center rounded-xl bg-red-500 px-3 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-red-600 hover:shadow-md hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">
+                    {buyingNow ? "Starting..." : "Buy Now"}
+                  </button>
+                </div>
+                <button type="button" disabled={stock === 0 || wishlistLoading} onClick={handleWishlistToggle} className="flex w-full items-center justify-center rounded-xl border-2 border-slate-200 bg-transparent px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800/50">
                   {stock === 0 ? "Out of Stock" : wishlistLoading ? "Updating..." : wishlistSaved ? "♥ Saved to Wishlist" : "♡ Save to Wishlist"}
                 </button>
               </div>

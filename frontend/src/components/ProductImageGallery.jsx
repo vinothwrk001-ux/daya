@@ -86,36 +86,15 @@ export function ProductImageGallery({ media = [], productName = "Product", galle
 
   return (
     <>
-      <section className="grid gap-4 max-w-[1200px] mx-auto">
-        <div className="relative min-w-0 max-w-[800px] mx-auto w-full">
+      <section className="grid gap-4 max-w-[1200px] mx-auto lg:grid-cols-[100px_auto] lg:gap-6 lg:items-start lg:w-fit">
+        <div className="relative min-w-0 max-w-[800px] mx-auto w-full lg:order-2 lg:mx-0 lg:w-auto">
           <ProductMainImage
             media={activeMedia}
             productName={productName}
             imageIndex={selectedIndex}
           />
 
-          {hasMultipleImages && (
-            <>
-              <button
-                type="button"
-                onClick={goToPrevious}
-                className="absolute left-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-900/85 bg-slate-950/90 text-white shadow-[0_10px_28px_rgba(15,23,42,0.35)] ring-2 ring-white/80 backdrop-blur transition hover:bg-black focus:outline-none focus:ring-2 focus:ring-slate-950/60 lg:left-4 lg:h-12 lg:w-12"
-                title="Previous image"
-                aria-label="Previous image"
-              >
-                <ChevronLeft className="h-5 w-5 lg:h-6 lg:w-6" />
-              </button>
-              <button
-                type="button"
-                onClick={goToNext}
-                className="absolute right-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-900/85 bg-slate-950/90 text-white shadow-[0_10px_28px_rgba(15,23,42,0.35)] ring-2 ring-white/80 backdrop-blur transition hover:bg-black focus:outline-none focus:ring-2 focus:ring-slate-950/60 lg:right-4 lg:h-12 lg:w-12"
-                title="Next image"
-                aria-label="Next image"
-              >
-                <ChevronRight className="h-5 w-5 lg:h-6 lg:w-6" />
-              </button>
-            </>
-          )}
+
 
           <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
             {activeMedia?.type === "image" ? (
@@ -139,12 +118,14 @@ export function ProductImageGallery({ media = [], productName = "Product", galle
         </div>
 
         {hasMultipleImages ? (
-          <ProductThumbnailList
-            media={safeMedia}
-            selectedIndex={selectedIndex}
-            onSelect={setSelectedIndex}
-            productName={productName}
-          />
+          <div className="lg:order-1 lg:sticky lg:top-[170px]">
+            <ProductThumbnailList
+              media={safeMedia}
+              selectedIndex={selectedIndex}
+              onSelect={setSelectedIndex}
+              productName={productName}
+            />
+          </div>
         ) : null}
       </section>
 

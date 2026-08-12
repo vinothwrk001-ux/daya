@@ -430,6 +430,7 @@ export function AdminHomepageContainersPage() {
         sku: product.sku || "",
         stock: product.stock ?? product.inventory?.available ?? product.availableStock,
         brand: product.attributes?.brand || product.brand || "",
+        categoryId: product.categoryId?._id || product.categoryId || product.category || "",
       })),
     [products]
   );
@@ -679,7 +680,13 @@ export function AdminHomepageContainersPage() {
           .map((item) => ({ value: String(item._id), label: item.name })),
       products: async (query = "") => {
         const needle = query.toLowerCase();
-        return productCatalog.filter((item) => `${item.label} ${item.meta} ${item.sku} ${item.brand}`.toLowerCase().includes(needle));
+        const selectedCats = new Set(form.filters.categoryIds.map(String));
+        return productCatalog.filter((item) => {
+          if (selectedCats.size > 0 && !selectedCats.has(String(item.categoryId))) {
+            return false;
+          }
+          return `${item.label} ${item.meta} ${item.sku} ${item.brand}`.toLowerCase().includes(needle);
+        });
       },
       brands: async (query = "") => brandCatalog.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
       tags: async (query = "") => tagCatalog.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
@@ -838,6 +845,19 @@ export function AdminHomepageContainersPage() {
                           <Field label="Tags">
                             <AsyncMultiSelect value={form.filters.tags} onChange={(next) => setNestedField(setForm, "filters", "tags", next)} loadOptions={optionLoaders.tags} placeholder="Search tags..." />
                           </Field>
+                          <Field label="Products">
+                            <AsyncMultiSelect 
+                              value={form.filters.manualProductIds} 
+                              onChange={(next) => {
+                                setNestedField(setForm, "filters", "manualProductIds", next);
+                                if (next.length > 0) {
+                                  setNestedField(setForm, "filters", "productSelectionMode", "MANUAL");
+                                }
+                              }} 
+                              loadOptions={optionLoaders.products} 
+                              placeholder="Search products..." 
+                            />
+                          </Field>
                           <Field label="Sort By">
                             <select value={form.filters.sortBy} onChange={(event) => setNestedField(setForm, "filters", "sortBy", event.target.value)} className={inputClassName}>
                               {["BEST_SELLING", "HIGHEST_DISCOUNT", "NEWEST", "OLDEST", "TRENDING", "PRICE_LOW_TO_HIGH", "PRICE_HIGH_TO_LOW", "MOST_VIEWED", "MOST_POPULAR", "TOP_RATED", "CUSTOM_ORDER", "RANDOM"].map((value) => (
@@ -882,12 +902,6 @@ export function AdminHomepageContainersPage() {
                           </Field>
                           <BooleanField label="Show Only In Stock" checked={form.filters.showOnlyInStock} onChange={(checked) => setNestedField(setForm, "filters", "showOnlyInStock", checked)} />
                         </div>
-
-                        {form.filters.productSelectionMode === "MANUAL" ? (
-                          <Field label="Manual Products">
-                            <AsyncMultiSelect value={form.filters.manualProductIds} onChange={(next) => setNestedField(setForm, "filters", "manualProductIds", next)} loadOptions={optionLoaders.products} placeholder="Search products..." />
-                          </Field>
-                        ) : null}
                       </EditorSection>
                     ) : null}
 

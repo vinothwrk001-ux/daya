@@ -1,7 +1,8 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes, useParams, useLocation } from "react-router-dom";
 import { ThemeRouteSync } from "./components/ThemeRouteSync";
 import { Layout } from "./components/Layout";
+import { scrollPageToTop } from "./utils/scrollPageToTop";
 import { ProductDetailsPage } from "./pages/ProductDetailsPage";
 import { AdminLayout } from "./components/AdminLayout";
 import { UserAccountLayout } from "./components/UserAccountLayout";
@@ -107,6 +108,19 @@ function ProductDetailsRoute() {
   return <ProductDetailsPage key={productId} />;
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    // Scroll to top on route change, excluding admin panel as requested
+    if (!pathname.startsWith('/admin') && !pathname.startsWith('/staff')) {
+      scrollPageToTop();
+    }
+  }, [pathname]);
+
+  return null;
+}
+
 export default function App() {
   const location = useLocation();
   const backgroundLocation = location.state?.background;
@@ -114,6 +128,7 @@ export default function App() {
   return (
     <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm font-bold text-slate-500">Loading...</div>}>
     <ThemeRouteSync />
+    <ScrollToTop />
     <Routes location={backgroundLocation || location}>
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />

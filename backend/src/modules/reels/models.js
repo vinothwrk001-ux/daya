@@ -17,6 +17,7 @@ const reelSchema = new mongoose.Schema(
     videoUrl: { type: String, required: true },
     thumbnailUrl: { type: String, default: "" },
     cloudinaryPublicId: { type: String, default: "" },
+    pngTextUrl: { type: String, default: "" },
     category: { type: String, trim: true, default: "" },
     tags: [{ type: String, trim: true }],
     musicName: { type: String, trim: true, default: "" },

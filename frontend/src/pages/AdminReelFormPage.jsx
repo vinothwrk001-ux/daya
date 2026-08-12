@@ -16,6 +16,7 @@ const defaultForm = {
   showOnStorefront: false,
   attributionWindowDays: 30,
   publishDate: "",
+  pngTextUrl: "",
   linkedProducts: [],
 };
 
@@ -26,6 +27,7 @@ export function AdminReelFormPage() {
   const [form, setForm] = useState(defaultForm);
   const [videoFile, setVideoFile] = useState(null);
   const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [pngTextFile, setPngTextFile] = useState(null);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
 
@@ -47,6 +49,7 @@ export function AdminReelFormPage() {
           showOnStorefront: Boolean(reel.showOnStorefront),
           attributionWindowDays: reel.attributionWindowDays || 30,
           publishDate: reel.publishDate ? reel.publishDate.slice(0, 16) : "",
+          pngTextUrl: reel.pngTextUrl || "",
           linkedProducts: (reel.linkedProducts || reel.associatedProducts || []).map((entry, index) => {
             const product = entry.product || entry;
             const productId = entry.productId || product._id;
@@ -106,6 +109,8 @@ export function AdminReelFormPage() {
       );
       if (videoFile) payload.append("video", videoFile);
       if (thumbnailFile) payload.append("thumbnail", thumbnailFile);
+      if (pngTextFile) payload.append("pngText", pngTextFile);
+      if (form.removePngText) payload.append("removePngText", "true");
 
       if (isEdit) {
         await updateAdminReel(reelId, payload);
@@ -275,6 +280,29 @@ export function AdminReelFormPage() {
           onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))}
           className="w-full rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-700 dark:bg-slate-900"
         />
+      </label>
+
+      <label className="block space-y-2 text-sm">
+        <span className="font-semibold">Add PNG Text (Supports PNG file)</span>
+        <input
+          type="file"
+          accept="image/png"
+          onChange={(event) => setPngTextFile(event.target.files?.[0] || null)}
+          className="w-full rounded-xl border border-slate-200 px-4 py-2 dark:border-slate-700 dark:bg-slate-900"
+        />
+        {isEdit && form.pngTextUrl && !pngTextFile && (
+           <div className="mt-2 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+             <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Current PNG Text uploaded.</span>
+             <button
+               type="button"
+               onClick={() => setForm((current) => ({ ...current, pngTextUrl: "", removePngText: true }))}
+               className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-red-100 hover:text-red-600 dark:bg-slate-700 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+               title="Remove PNG Text"
+             >
+               &times;
+             </button>
+           </div>
+        )}
       </label>
 
       <LinkedProductsEditor

@@ -152,10 +152,10 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
           <div
             ref={scrollContainerRef}
             onScroll={checkScroll}
-            className="flex-1 overflow-x-auto scrollbar-hide flex items-center justify-center bg-white"
+            className="flex-1 overflow-x-auto scrollbar-hide flex items-center justify-start lg:justify-center bg-white"
             style={{ scrollBehavior: "smooth", msOverflowStyle: "none" }}
           >
-            <div className="mx-auto inner-category-list flex h-full items-center justify-start lg:justify-center gap-1 whitespace-nowrap px-2 lg:px-12">
+            <div className="mx-auto inner-category-list flex h-full items-center justify-start lg:justify-center gap-1 whitespace-nowrap pl-4 pr-10 lg:px-12">
               {categoryList.map((category) => {
                 const isSelected = selectedCategory ? (selectedCategory.id === category.id || (category.slug && selectedCategory.slug === category.slug)) : false;
                 

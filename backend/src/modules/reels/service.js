@@ -81,6 +81,7 @@ class ReelService {
   async uploadMedia(files = {}, { requireVideo = true } = {}) {
     const videoFile = files.video?.[0];
     const thumbnailFile = files.thumbnail?.[0];
+    const pngTextFile = files.pngText?.[0];
 
     if (requireVideo && !videoFile) {
       throw new AppError("Video file is required", 400, "VALIDATION_ERROR");
@@ -96,10 +97,16 @@ class ReelService {
       [thumbnailUpload] = await uploadMany([thumbnailFile], { folder: "reels/thumbnails" });
     }
 
+    let pngTextUpload = null;
+    if (pngTextFile) {
+      [pngTextUpload] = await uploadMany([pngTextFile], { folder: "reels/pngText" });
+    }
+
     return {
       videoUrl: videoUpload?.url,
       thumbnailUrl: thumbnailUpload?.url || videoUpload?.url || "",
       cloudinaryPublicId: videoUpload?.publicId || "",
+      pngTextUrl: pngTextUpload?.url,
     };
   }
 
@@ -127,6 +134,7 @@ class ReelService {
       videoUrl: media.videoUrl,
       thumbnailUrl: media.thumbnailUrl,
       cloudinaryPublicId: media.cloudinaryPublicId,
+      pngTextUrl: media.pngTextUrl || "",
       category: payload.category || "",
       tags: Array.isArray(payload.tags) ? payload.tags : String(payload.tags || "").split(",").map((t) => t.trim()).filter(Boolean),
       musicName: payload.musicName || "",
@@ -165,7 +173,7 @@ class ReelService {
     const oldStatus = reel.status;
     let mediaUpdate = {};
 
-    if (files?.video?.[0] || files?.thumbnail?.[0]) {
+    if (files?.video?.[0] || files?.thumbnail?.[0] || files?.pngText?.[0]) {
       mediaUpdate = await this.uploadMedia(files, { requireVideo: false });
     }
 
@@ -206,9 +214,13 @@ class ReelService {
     if (payload.showOnStorefront !== undefined) {
       reel.showOnStorefront = normalizeBoolean(payload.showOnStorefront);
     }
+    if (payload.removePngText === "true" || payload.removePngText === true) {
+      reel.pngTextUrl = "";
+    }
     if (mediaUpdate.videoUrl) reel.videoUrl = mediaUpdate.videoUrl;
     if (mediaUpdate.thumbnailUrl) reel.thumbnailUrl = mediaUpdate.thumbnailUrl;
     if (mediaUpdate.cloudinaryPublicId) reel.cloudinaryPublicId = mediaUpdate.cloudinaryPublicId;
+    if (mediaUpdate.pngTextUrl !== undefined) reel.pngTextUrl = mediaUpdate.pngTextUrl;
 
     await reel.save();
 

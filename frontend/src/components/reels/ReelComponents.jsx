@@ -186,9 +186,9 @@ export function ReelCard({
   }
 
   return (
-    <div className="group relative mx-auto h-[500px] w-[280px] max-w-full overflow-hidden rounded-2xl bg-white shadow-[0_28px_70px_rgba(0,0,0,0.22)] transition-all duration-[400ms] ease-out hover:-translate-y-[10px] hover:shadow-[0_40px_80px_rgba(0,0,0,0.28)]">
-      <Link to={`/reels?reel=${reel._id}`} state={{ background: location }} className="block h-full w-full">
-        <div className="relative h-full w-full overflow-hidden rounded-2xl bg-slate-100">
+    <div className="group relative mx-auto w-[280px] max-w-full transition-all duration-[400ms] ease-out hover:-translate-y-[10px]">
+      <Link to={`/reels?reel=${reel._id}`} state={{ background: location }} className="block">
+        <div className="relative h-[500px] w-full overflow-hidden rounded-2xl bg-slate-100 shadow-[0_28px_70px_rgba(0,0,0,0.22)] group-hover:shadow-[0_40px_80px_rgba(0,0,0,0.28)] transition-shadow duration-[400ms]">
           <video
             ref={videoRef}
             src={resolveApiAssetUrl(reel.videoUrl)}
@@ -199,6 +199,16 @@ export function ReelCard({
             playsInline
             preload="metadata"
           />
+
+          {reel.pngTextUrl && (
+            <div className={`absolute left-3 right-3 z-20 flex justify-center pointer-events-none ${primaryProduct ? 'bottom-[88px]' : 'bottom-6'}`}>
+              <img 
+                src={resolveApiAssetUrl(reel.pngTextUrl)} 
+                alt="Reel overlay text" 
+                className="max-h-[60px] max-w-full object-contain drop-shadow-md" 
+              />
+            </div>
+          )}
 
           {primaryProduct ? (
             <ReelProductOverlay reel={reel} product={primaryProduct} onProductClick={handleProductClick} />

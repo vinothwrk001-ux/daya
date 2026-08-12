@@ -29,7 +29,6 @@ const fallbackFooter = {
     { label: "Facebook", href: "https://facebook.com" },
     { label: "Instagram", href: "https://instagram.com" },
     { label: "LinkedIn", href: "https://linkedin.com" },
-    { label: "X", href: "https://twitter.com" },
   ],
   paymentIcons: ["AMEX", "Apple Pay", "DISCOVER", "G Pay", "Mastercard", "Shop", "UnionPay", "VISA"],
 };
@@ -59,9 +58,7 @@ export function Footer() {
       "repeating-linear-gradient(135deg, rgba(0,0,0,1), rgba(0,0,0,1) 40px, rgba(20,20,20,0.5) 40px, rgba(20,20,20,0.5) 80px)",
     color: "#ffffff",
   };
-
-  const socialIconComponents = [SocialFacebook, SocialInstagram, SocialLinkedIn, SocialX];
-
+  const socialIconComponents = [SocialFacebook, SocialInstagram, SocialLinkedIn];
   return (
     <footer className="relative border-t border-[#222] text-white" style={footerStyle}>
       <div className="mx-auto max-w-screen-2xl px-4 py-10 sm:px-6 lg:px-8">

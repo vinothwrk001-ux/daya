@@ -32,8 +32,8 @@ export function ProductMainImage({ media, productName = "Product", imageIndex = 
   const fallbackPoster = "";
 
   return (
-    <div className="relative min-w-0 overflow-hidden rounded-[2rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] shadow-sm">
-      <div className="relative flex w-full items-center justify-center overflow-hidden aspect-square sm:aspect-auto sm:h-[800px]">
+    <div className="relative min-w-0 overflow-hidden rounded-[2rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] shadow-sm lg:h-[450px] lg:w-[360px] lg:aspect-[4/5] lg:mr-auto">
+      <div className="relative flex w-full items-center justify-center overflow-hidden aspect-square sm:aspect-auto sm:h-[550px] lg:h-full">
         <div className="w-full max-w-[800px] h-full">
         {media.type === "video" ? (
           <video

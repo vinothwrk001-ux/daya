@@ -78,6 +78,7 @@ router.post(
   upload.fields([
     { name: "video", maxCount: 1 },
     { name: "thumbnail", maxCount: 1 },
+    { name: "pngText", maxCount: 1 },
   ]),
   controller.create
 );
@@ -89,6 +90,7 @@ router.put(
   upload.fields([
     { name: "video", maxCount: 1 },
     { name: "thumbnail", maxCount: 1 },
+    { name: "pngText", maxCount: 1 },
   ]),
   controller.update
 );
