@@ -24,7 +24,7 @@ async function start() {
   const server = http.createServer(app);
   const port = Number(process.env.PORT || 5000);
   
-  server.listen(port, "0.0.0.0", () => {
+  server.listen(port, () => {
     logger.info(`API listening on port ${port}`);
   });
 

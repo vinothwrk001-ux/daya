@@ -285,6 +285,8 @@ function createApp() {
   app.use("/api/notifications", notificationRoutes);
   app.use("/api/reviews", reviewRoutes);
   app.use("/api/public", publicFeatureRoutes);
+  app.use("/api/custom-tshirt-banners", require("./routes/custom-tshirt-banner.routes"));
+  app.use("/api/custom-tshirt-colors", require("./routes/custom-tshirt-color.routes"));
   app.use("/api/config/initialize-defaults", (req, res) => {
     logger.warn("Blocked platform bootstrap HTTP attempt", {
       path: req.originalUrl,

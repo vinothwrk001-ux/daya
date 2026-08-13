@@ -117,10 +117,22 @@ function CategoryNavigationComponent({ categories = [], onSelect, selectedCatego
     }, 150);
   };
 
-  const categoryList = (Array.isArray(categories) ? categories : [])
+  let dynamicCategories = (Array.isArray(categories) ? categories : [])
     .filter(category => category.isActive !== false && !category.redirectToServices)
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .concat([
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  // Move "Custom T-Shirts" immediately after "Women's Collection"
+  const customIdx = dynamicCategories.findIndex(c => c.name.trim() === "Custom T-Shirts");
+  const womenIdx = dynamicCategories.findIndex(c => c.name.trim() === "Women's Collection");
+  
+  if (customIdx !== -1 && womenIdx !== -1) {
+    const [customCategory] = dynamicCategories.splice(customIdx, 1);
+    // Recalculate womenIdx in case customIdx was before it
+    const newWomenIdx = dynamicCategories.findIndex(c => c.name.trim() === "Women's Collection");
+    dynamicCategories.splice(newWomenIdx + 1, 0, customCategory);
+  }
+
+  const categoryList = dynamicCategories.concat([
       { id: 'static-designing', name: 'Designing', isStaticLink: true },
       { id: 'static-website', name: 'Website', isStaticLink: true }
     ]);

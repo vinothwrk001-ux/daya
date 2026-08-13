@@ -227,6 +227,10 @@ export function Layout() {
               navigate("/services");
               return;
             }
+            if (item.name?.toLowerCase().includes("custom t-shirts")) {
+              navigate("/custom-tshirts");
+              return;
+            }
             // Check if it's a subcategory or category based on presence of categoryId property
             if (item.categoryId) {
               // It's a subcategory

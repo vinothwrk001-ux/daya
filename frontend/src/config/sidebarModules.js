@@ -66,6 +66,8 @@ export const ADMIN_SECTION_ITEMS = [
       { name: "Attributes", path: "/admin/attributes", permission: "categories.read", icon: Tags, legacyOnly: true },
       { name: "Product Modules", path: "/admin/product-modules", permission: "categories.read", icon: Boxes, legacyOnly: true },
       { name: "Banner Management", path: "/admin/homepage-banners", permission: "settings.read", icon: Image },
+      { name: "Custom T-Shirt Banners", path: "/admin/custom-tshirt-banners", permission: "settings.read", icon: Image },
+      { name: "Custom T-Shirt Colors", path: "/admin/custom-tshirt-colors", permission: "settings.read", icon: Palette },
       { name: "Homepage Containers", path: "/admin/homepage-containers", permission: "settings.read", icon: Image },
       { name: "Homepage Builder", path: "/admin/marketing/homepage-builder", permission: "settings.read", icon: LayoutDashboard },
     ],

@@ -20,6 +20,7 @@ const LoginPage = lazyNamed(() => import("./pages/LoginPage"), "LoginPage");
 const RegisterPage = lazyNamed(() => import("./pages/RegisterPage"), "RegisterPage");
 const ForgotPasswordPage = lazyNamed(() => import("./pages/ForgotPasswordPage"), "ForgotPasswordPage");
 const DashboardRedirect = lazyNamed(() => import("./pages/DashboardRedirect"), "DashboardRedirect");
+const CustomTShirtsPage = lazyNamed(() => import("./pages/CustomTShirtsPage"), "CustomTShirtsPage");
 const UserDashboardPage = lazyNamed(() => import("./pages/UserDashboardPage"), "UserDashboardPage");
 const ProductsPage = lazyNamed(() => import("./pages/ProductsPage"), "ProductsPage");
 const HomepageContainerProductsPage = lazyNamed(() => import("./pages/HomepageContainerProductsPage"), "HomepageContainerProductsPage");
@@ -54,6 +55,8 @@ const AdminSubcategoriesPage = lazyNamed(() => import("./pages/AdminSubcategorie
 const AdminAttributesPage = lazyNamed(() => import("./pages/AdminAttributesPage"), "AdminAttributesPage");
 const AdminProductModulesPage = lazyNamed(() => import("./pages/AdminProductModulesPage"), "AdminProductModulesPage");
 const AdminHomepageBannersPage = lazyNamed(() => import("./pages/AdminHomepageBannersPage"), "AdminHomepageBannersPage");
+const AdminCustomTShirtBannersPage = lazyNamed(() => import("./pages/AdminCustomTShirtBannersPage"), "AdminCustomTShirtBannersPage");
+const AdminCustomTShirtColorsPage = lazyNamed(() => import("./pages/AdminCustomTShirtColorsPage"), "AdminCustomTShirtColorsPage");
 const AdminHomepageContainersPage = lazyNamed(() => import("./pages/AdminHomepageContainersPage"), "AdminHomepageContainersPage");
 const AdminHomepageBuilderPage = lazyNamed(() => import("./pages/AdminHomepageBuilderPage"), "AdminHomepageBuilderPage");
 const AdminShippingConfigPage = lazyNamed(() => import("./pages/AdminShippingConfigPage"), "AdminShippingConfigPage");
@@ -140,6 +143,7 @@ export default function App() {
         <Route path="/category/:slug" element={<CategoryPage />} />
         <Route path="/reels" element={<ReelsPage />} />
         <Route path="/services" element={<ServicesPage />} />
+        <Route path="/custom-tshirts" element={<CustomTShirtsPage />} />
         <Route path="/collections/:slug" element={<HomepageContainerProductsPage />} />
         <Route path="/product/:productId" element={<ProductDetailsRoute />} />
         <Route path="/cart" element={<CartPage />} />
@@ -188,6 +192,8 @@ export default function App() {
               <Route path="attributes" element={<AdminAttributesPage />} />
               <Route path="product-modules" element={<AdminProductModulesPage />} />
               <Route path="homepage-banners" element={<AdminHomepageBannersPage />} />
+              <Route path="custom-tshirt-banners" element={<AdminCustomTShirtBannersPage />} />
+              <Route path="custom-tshirt-colors" element={<AdminCustomTShirtColorsPage />} />
               <Route path="homepage-containers" element={<AdminHomepageContainersPage />} />
               <Route path="marketing/homepage-builder" element={<AdminHomepageBuilderPage />} />
               <Route path="shipping" element={<AdminShippingConfigPage />} />

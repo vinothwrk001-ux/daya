@@ -627,7 +627,7 @@ export function ProductDetailsPage() {
           <ProductImageGallery media={media} productName={product?.name} galleryKey={galleryKey} />
         </div>
 
-        <section className="order-3 lg:col-start-1 lg:row-start-2 lg:self-start">
+        <section className="order-3 lg:col-span-full lg:row-start-2 lg:self-start">
           <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-slate-100/60 p-1.5 dark:bg-slate-800/50 sm:w-fit">
             {tabs.map((tab) => (
               <button
@@ -669,7 +669,7 @@ export function ProductDetailsPage() {
           </div>
         </section>
 
-        <aside className="order-2 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-stretch">
+        <aside className="order-2 lg:col-start-2 lg:row-auto lg:row-start-1 lg:self-stretch">
           <div className="flex flex-col gap-3">
             <div className="space-y-2">
               <div className="flex items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap">
