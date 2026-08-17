@@ -366,10 +366,10 @@ export function HomepageBannerSlider({
   const hoverReveal = Boolean(activeBanner.hoverModeEnabled) && isDesktop;
   const _revealContent = !hoverReveal || hovered || previewMode;
 
-  const renderBannerCta = (className, overrideUrl) => {
+  const renderBannerCta = (className, overrideUrl, overrideLabel) => {
     const targetUrl = overrideUrl || activeBanner.ctaUrl;
     if (!targetUrl) return null;
-    const label = activeBanner.ctaText || "Shop now";
+    const label = overrideLabel || activeBanner.ctaText || "Shop now";
     if (previewMode) {
       return (
         <span className={className}>
@@ -479,15 +479,17 @@ export function HomepageBannerSlider({
             <div className="absolute inset-x-0 bottom-[3rem] z-20 mx-auto flex w-full max-w-[92%] flex-col items-center gap-3 rounded-3xl bg-transparent px-4 py-4 text-center text-white backdrop-blur-none md:hidden">
               <p className="text-sm leading-6 text-white/80">{activeBanner.description}</p>
               {renderBannerCta(
-                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover",
-                "/shop"
+                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-3 py-2.5 translate-y-[10px] text-xs font-bold text-white transition hover:bg-brand-primaryHover",
+                "/custom-tshirts",
+                "Customise Your's"
               )}
             </div>
           ) : isMobile ? (
             <div className="absolute inset-x-0 bottom-[3rem] z-20 mx-auto flex w-full max-w-[92%] items-center justify-center rounded-3xl bg-transparent px-4 py-4 text-center text-white backdrop-blur-none md:hidden">
               {renderBannerCta(
-                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-3 py-1.5 text-xs font-bold text-white transition hover:bg-brand-primaryHover",
-                "/shop"
+                "inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-3 py-2.5 translate-y-[10px] text-xs font-bold text-white transition hover:bg-brand-primaryHover",
+                "/custom-tshirts",
+                "Customise Your's"
               )}
             </div>
           ) : null}

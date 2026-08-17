@@ -101,13 +101,13 @@ export function CustomTShirtsPage() {
                 </button>
 
                 <button
-                  onClick={() => setSelectedGsm("220")}
-                  className={`relative flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${selectedGsm === "220"
+                  onClick={() => setSelectedGsm("240")}
+                  className={`relative flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${selectedGsm === "240"
                       ? "border-red-600 shadow-md bg-red-50/10"
                       : "border-slate-200 hover:border-slate-300"
                     }`}
                 >
-                  {selectedGsm === "220" && (
+                  {selectedGsm === "240" && (
                     <>
                       <div className="absolute top-2 left-2 text-red-600">
                         <Check className="w-4 h-4" />
@@ -119,7 +119,7 @@ export function CustomTShirtsPage() {
                   )}
                   <TshirtIcon className="w-10 h-10 ml-2" color="#1a1a1a" />
                   <div>
-                    <div className="font-black text-slate-950">220 GSM</div>
+                    <div className="font-black text-slate-950">240 GSM</div>
                     <div className="text-xs text-slate-500 font-medium">Premium Heavyweight</div>
                   </div>
                 </button>
