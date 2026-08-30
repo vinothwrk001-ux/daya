@@ -261,26 +261,49 @@ export function ProductCarousel({
           ariaLabel={paginatedGrid ? `Next ${gridItemsPerPage} products` : undefined}
         />
 
-        {showDots && (paginatedGrid ? items.length > gridItemsPerPage : items.length > itemsPerView) ? (
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
-            {Array.from({ length: paginatedGrid ? totalPages : Math.max(0, items.length - itemsPerView + 1) }).map((_, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => {
-                  if (paginatedGrid) setCurrentPage(index);
-                  else setCurrentIndex(index);
-                }}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  (paginatedGrid ? index === currentPage : index === currentIndex)
-                    ? "w-8 bg-[#ef4444]"
-                    : "w-2 bg-slate-300 hover:bg-slate-400"
-                }`}
-                aria-label={paginatedGrid ? `Go to page ${index + 1} of products` : `Go to carousel page ${index + 1}`}
-              />
-            ))}
-          </div>
-        ) : null}
+        {showDots && (paginatedGrid ? items.length > gridItemsPerPage : items.length > itemsPerView) ? (() => {
+          const totalSteps = paginatedGrid ? totalPages : Math.max(0, items.length - itemsPerView + 1);
+          const currentStep = (paginatedGrid ? currentPage : currentIndex) + 1;
+          const isPrevDisabled = paginatedGrid ? currentPage === 0 : currentIndex === 0;
+          const isNextDisabled = paginatedGrid ? currentPage >= Math.max(0, totalPages - 1) : currentIndex >= maxPageIndex;
+
+          return (
+            <div className="mt-10 flex w-full items-center justify-center">
+              <div className="flex items-center gap-4 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm">
+                <span
+                  onClick={() => !isPrevDisabled && handlePrevious()}
+                  className={`px-1 transition-colors ${
+                    isPrevDisabled
+                      ? "cursor-not-allowed text-slate-200"
+                      : "cursor-pointer text-slate-400 hover:text-slate-900"
+                  }`}
+                >
+                  ←
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-slate-900">{currentStep}</span>
+                  <div className="relative h-[2px] w-12 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="absolute left-0 top-0 h-full bg-[#ef4444] transition-all duration-300"
+                      style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-slate-400">{totalSteps}</span>
+                </div>
+                <span
+                  onClick={() => !isNextDisabled && handleNext()}
+                  className={`px-1 transition-colors ${
+                    isNextDisabled
+                      ? "cursor-not-allowed text-slate-200"
+                      : "cursor-pointer text-slate-900 hover:text-[#ef4444]"
+                  }`}
+                >
+                  →
+                </span>
+              </div>
+            </div>
+          );
+        })() : null}
       </div>
     </section>
   );
